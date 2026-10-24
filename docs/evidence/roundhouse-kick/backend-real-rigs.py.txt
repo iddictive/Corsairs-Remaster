@@ -1,0 +1,199 @@
+"""Disposable real-rig evidence driver; reads the existing native Release libraries.
+
+From repo root, supply an empty task-local temporary CODEX_SCRATCH_DIR and run:
+python3 docs/evidence/roundhouse-kick/backend-real-rigs.py.txt
+The caller owns temp cleanup. No CMake targets, engine builds, installs or windows.
+"""
+import configparser
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import re
+import shlex
+import struct
+import subprocess
+import sys
+
+here = Path(__file__).resolve().parent
+repo = here.parents[2]
+scratch = Path(os.environ["CODEX_SCRATCH_DIR"])
+assert scratch.is_dir()
+build = repo / "experiments/native-metal/.cache/build"
+source = repo / "src/assets/roundhouse/rigs.json"
+metadata = repo / "experiments/native-metal/.cache/roundhouse/RESOURCE/INI/roundhouse-rigs.ini"
+manifest = repo / "src/assets/roundhouse/manifest.json"
+library = build / "libroundhouse_ragdoll.a"
+jolt = build / "_deps/roundhouse_jolt-build/libJolt.a"
+backend = repo / "experiments/native-metal/roundhouse_ragdoll.cpp"
+character = repo / "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp"
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def redact(text):
+    return text.replace(str(repo), "<repo>").replace(str(scratch), "<scratch>")
+
+data = json.loads(source.read_text())
+declared = json.loads(manifest.read_text())
+assert declared["sources_sha256"] == sha(source)
+assert declared["files"]["RESOURCE/INI/roundhouse-rigs.ini"]["sha256"] == sha(metadata)
+bank_names = {Path(p).stem.removeprefix("Roundhouse_") for p in declared["files"]
+              if p.startswith("RESOURCE/animation/") and p.endswith(".an")}
+assert bank_names == set(data["rigs"]) and len(bank_names) == 24
+ini = configparser.ConfigParser()
+ini.optionxform = str
+ini.read(metadata)
+by_rig = {}
+for row in ini.values():
+    if row.get("supported") == "1":
+        by_rig.setdefault(row["source"], row)
+assert set(by_rig) == bank_names
+character_source = character.read_text()
+assert "{12,20,5,3,2,1,3,2,1,8,4,1,8,4,1}" in character_source
+assert "i == 0 ? 0.12f : (i == 1 ? 0.13f : (i == 2 ? 0.105f : 0.055f))" in character_source
+assert "body.swingRadians = i == 2 ? 0.6f : 1.2f" in character_source
+masses = [12,20,5,3,2,1,3,2,1,8,4,1,8,4,1]
+sys.path.insert(0,str(repo / "tools"))
+from prepare_roundhouse import animated_mesh
+from patch_metal_portobello_ground import HEADER,MATERIAL,LABEL,OBJECT
+mesh_inputs=[]
+mesh_population={}
+
+def full_mesh(source_mesh):
+    path=here/"inputs"/Path(source_mesh["path"]).name
+    raw=path.read_bytes()
+    assert sha(path)==source_mesh["sha256"]
+    vertices,_=animated_mesh(raw)
+    assert json.loads(json.dumps(vertices))==source_mesh["vertices"]
+    h=HEADER.unpack_from(raw)
+    offset=HEADER.size+h[2]+4*h[3]+4*h[4]+MATERIAL.size*h[5]+80*h[6]+LABEL.size*h[7]+OBJECT.size*h[8]+h[9]*6
+    descriptors=[struct.unpack_from("<2i",raw,offset+i*8)for i in range(h[10])]
+    offset+=h[10]*8;normals=[]
+    for typ,size in descriptors:
+        assert typ==4 and size%44==0
+        normals += [struct.unpack_from("<3f",raw,offset+44*i+20)for i in range(size//44)]
+        offset+=size
+    assert len(normals)==len(vertices)
+    mesh_inputs.append(path)
+    return [(point,weight,a,b,normal)for (point,weight,a,b),normal in zip(vertices,normals)]
+
+lines = ["24"]
+for name, rig in sorted(data["rigs"].items()):
+    row = by_rig[name]
+    assert int(row["bones"]) == len(rig["parents"])
+    lines += [name + " " + str(len(rig["parents"])), " ".join(map(str,rig["parents"]))]
+    for key in ["rest", "bind_pose", "guard_pose"]:
+        lines += [" ".join(format(x,".9g") for x in values) for values in rig[key]]
+    for key in ["bind_root", "guard_root"]:
+        lines.append(" ".join(format(x,".9g") for x in rig[key]))
+    for i in range(15):
+        joint, end, parent = [int(row[f"body{i}_{field}"]) for field in ["joint","end","parent"]]
+        assert joint == rig["body"]["joints"][i] and end == rig["body"]["ends"][i]
+        radius = .12 if i==0 else .13 if i==1 else .105 if i==2 else .055
+        values = [joint,-1 if end==joint else end,parent,masses[i],radius,.6 if i==2 else 1.2,-.5,.5]
+        lines.append(" ".join(map(str,values)))
+    for kind in ["head","heel"]:
+        lines.append(" ".join(row[f"{kind}_offset_{axis}"]for axis in "xyz"))
+    mesh=full_mesh(rig["support_mesh"])if "support_mesh"in rig else []
+    mesh_population[name]=len(mesh)
+    lines.append(str(len(mesh)))
+    for point,weight,a,b,normal in mesh:
+        lines.append(" ".join(map(str,[*point,weight,a,b,*normal])))
+(scratch / "rigs.txt").write_text("\n".join(lines)+"\n")
+
+# Use the existing GM parser for the visible payload offset, then the exact
+# packed BSP layout consumed by GEOM (rdf.h/geom_static.cpp). Clip preserves
+# triangle order and NODER::AddPolygon transforms each vertex without swapping.
+sys.path.insert(0,str(repo / "tools"))
+from patch_metal_portobello_ground import parse_gm
+locations = ["Town_PortoBello/Town/PortoBello.gm", "Town_Caracas/Town/Caracas.gm", "Town_Havana/Town/Havana.gm"]
+geometry_lines = [str(len(locations))]
+geometry_report = []
+def cross(a,b):
+    return (a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0])
+for relative in locations:
+    path = repo / "experiments/native-metal/.cache/runtime/RESOURCE/MODELS/locations" / relative
+    raw = path.read_bytes()
+    gm = parse_gm(raw)
+    assert gm["header"][1] & 2
+    start = gm["parsed_end"]
+    nodes, vertices, triangles = struct.unpack_from("<3i", raw, start)
+    vertex_start = start+12+nodes*24
+    triangle_start = vertex_start+vertices*12
+    assert triangle_start+triangles*9 == len(raw)
+    points = [struct.unpack_from("<3f",raw,vertex_start+i*12) for i in range(vertices)]
+    floor_candidates=[]; wall_candidates=[]; up=down=0
+    for index in range(triangles):
+        indices = [int.from_bytes(raw[triangle_start+index*9+j*3:triangle_start+index*9+j*3+3],"little") for j in range(3)]
+        a,b,c = p = [points[j] for j in indices]
+        normal = cross(tuple(b[j]-a[j] for j in range(3)),tuple(c[j]-a[j] for j in range(3)))
+        area2 = math.sqrt(sum(v*v for v in normal))
+        if area2 < 1: continue
+        normal = tuple(v/area2 for v in normal)
+        y = sum(v[1] for v in p)/3
+        if abs(normal[1])>.99 and -.1<y<3:
+            if normal[1]>0: up+=1
+            else: down+=1
+        if normal[1]>.999999 and -.1<y<3:
+            floor_candidates.append((area2,index,p,normal))
+        if abs(normal[1])<.00001 and max(v[1] for v in p)-min(v[1] for v in p)>3:
+            wall_candidates.append((area2,index,p,normal))
+    floor=max(floor_candidates); wall=max(wall_candidates)
+    geometry_lines.append(f"{path.stem} {floor[1]} {wall[1]}")
+    for p in floor[2]+wall[2]: geometry_lines.append(" ".join(format(x,".9g") for x in p))
+    geometry_lines.append(" ".join(format(x,".9g") for x in wall[3]))
+    geometry_report.append({"resource":relative,"sha256":sha(path),"bytes":len(raw),
+        "bsp":{"nodes":nodes,"vertices":vertices,"triangles":triangles,"vertex_offset":vertex_start,"triangle_offset":triangle_start},
+        "horizontal_ground_faces":{"up":up,"down":down},
+        "floor":{"triangle":floor[1],"vertices":floor[2],"normal":floor[3]},
+        "wall":{"triangle":wall[1],"vertices":wall[2],"normal":wall[3]}})
+(scratch / "geometry.txt").write_text("\n".join(geometry_lines)+"\n")
+closure = [source,metadata,manifest,backend,character,library,jolt,
+           repo / "experiments/native-metal/roundhouse_pose.hpp",
+           repo / "experiments/native-metal/engine/src/libs/model/src/model.cpp",
+           repo / "experiments/native-metal/backend.mm",
+           here / "backend-real-rigs.cpp.txt",here / "backend-real-rigs.py.txt",
+           repo / "experiments/native-metal/engine/src/libs/math/include/matrix.h",
+           repo / "experiments/native-metal/engine/src/libs/animation/src/bone.cpp",
+           repo / "experiments/native-metal/engine/src/libs/animation/src/animation_imp.cpp",
+           repo / "experiments/native-metal/engine/src/libs/location/src/roundhouse_location.cpp",
+           repo / "experiments/native-metal/engine/src/libs/model/src/node.cpp",
+           repo / "experiments/native-metal/engine/src/libs/geometry/src/collide.cpp"]+mesh_inputs
+before = {str(path.relative_to(repo)):sha(path) for path in closure}
+assert library.stat().st_mtime_ns >= backend.stat().st_mtime_ns
+ninja = (build / "build.ninja").read_text()
+block = re.search(r"build CMakeFiles/roundhouse_ragdoll.dir/roundhouse_ragdoll.cpp.o:.*?(?=\nbuild )",ninja,re.S).group()
+fields = dict(re.findall(r"^  (DEFINES|FLAGS|INCLUDES) = (.*)$",block,re.M))
+binary = scratch / "real-rigs"
+command = ["/usr/bin/c++"]
+if os.environ.get("ROUNDHOUSE_LEGACY_BRIDGE") == "1":
+    command += ["-DROUNDHOUSE_LEGACY_BRIDGE=1"]
+for key in ["DEFINES","FLAGS","INCLUDES"]:
+    command += shlex.split(fields[key])
+command += ["-I"+str(here),"-x","c++",str(here/"backend-real-rigs.cpp.txt"),"-x","none",str(library),str(jolt),"-o",str(binary)]
+raw_path = here / "backend-real-rigs-raw.txt"
+with raw_path.open("a") as log:
+    log.write("EVIDENCE_CONTRACT native-reflection-v2; earlier unmirrored runs prove algebra/backend only and do not prove rendered alignment.\n")
+    log.write("INPUTS_SHA256 "+json.dumps(before,sort_keys=True)+"\n")
+    for argv in [command,[str(binary),str(scratch/"rigs.txt"),str(scratch/"geometry.txt")]]:
+        log.write("COMMAND "+redact(repr(argv))+"\n");log.flush()
+        with subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True) as process:
+            for line in process.stdout:
+                log.write(redact(line))
+                if line.startswith(("REAL_RIG ","GM_CLIP_","BRIDGE_","LEGACY_","FAIL ","PASS ")): print(line,end="",flush=True)
+            result=process.wait()
+        log.write(f"EXIT {result}\n");log.flush()
+        if result:
+            print("\n".join(raw_path.read_text().splitlines()[-16:]));sys.exit(result)
+after = {str(path.relative_to(repo)):sha(path) for path in closure}
+assert before==after,"a production source or read-only built input changed during the probe"
+proof = {"supported_population":sorted(bank_names),"source_inputs_sha256":before,
+         "evidence_contract":"native-reflection-v2; independent native output-X skinning oracle supersedes earlier unmirrored algebra-only proof",
+         "full_mesh_vertex_population":mesh_population,
+         "compiler":subprocess.check_output(["/usr/bin/c++","--version"],text=True),
+         "compile_argv":redact(repr(command)),"actual_location_samples":geometry_report,
+         "source_or_built_input_mutation":False,
+         "scope":"CPU backend/native matrix probe; actual GM source winding. No running game/window/player or native rendered acceptance."}
+(here/"backend-real-rigs-inputs.json").write_text(json.dumps(proof,indent=2,sort_keys=True)+"\n")

@@ -22,7 +22,7 @@ def source_files():
     # Finder metadata is neither a compiler input nor an authored resource.
     paths = {p for p in ENGINE.rglob("*") if p.is_file() and p.name != ".DS_Store"}
     for p in METAL.iterdir():
-        if p.is_file() and (p.name in {"CMakeLists.txt", "build.sh", "script_vm_probe.cmake"}
+        if p.is_file() and (p.name in {"CMakeLists.txt", "build.sh", "script_vm_probe.cmake", "roundhouse_jolt.cmake"}
                             or p.suffix in {".h", ".hpp", ".cpp", ".mm"}
                             and "probe" not in p.stem and "fixture" not in p.stem):
             paths.add(p)

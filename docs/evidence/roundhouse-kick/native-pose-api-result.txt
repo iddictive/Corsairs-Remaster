@@ -1,0 +1,6 @@
+rig=man bones=123 frames=8698 fps=15 walk=2:18 loop=true
+pose_api rig=man shared_info=pass getter_ownership=pass immediate_override=pass copied_input=pass wrong_count=pass null_input=pass retained_across_Execute=pass other_actor_unchanged=pass Clear_resumes_native=pass EvaluatePose_no_time_advance=pass changed_position_evaluated=pass parents_immutable=pass inverse_bind_immutable=pass finite=pass final_palette_hash=d5511ebdb54695d8
+rig=man2 bones=79 frames=4085 fps=15 walk=2:18 loop=true
+pose_api rig=man2 shared_info=pass getter_ownership=pass immediate_override=pass copied_input=pass wrong_count=pass null_input=pass retained_across_Execute=pass other_actor_unchanged=pass Clear_resumes_native=pass EvaluatePose_no_time_advance=pass changed_position_evaluated=pass parents_immutable=pass inverse_bind_immutable=pass finite=pass final_palette_hash=bff0a5b78de67476
+linked_animation_objects=match-animation-cpu-after-metadata
+probe_source_sha256=b6ab9275a6d4e7d0889667bb4025d840e01888b64356ebfbaf0ca605f79d56aa

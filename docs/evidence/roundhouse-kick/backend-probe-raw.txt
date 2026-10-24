@@ -1,0 +1,1486 @@
+COMMAND ['/usr/bin/clang++', '--version']
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.0.0
+Thread model: posix
+InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+EXIT 0
+COMMAND ['cmake', '--version']
+cmake version 4.4.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+EXIT 0
+COMMAND ['cmake', '-S', '<scratch>/src', '-B', '<scratch>/build', '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_COMPILER=/usr/bin/clang++', '-DCMAKE_MAKE_PROGRAM=<repo>/experiments/native-metal/inputs/toolchain/bin/ninja']
+-- The CXX compiler identification is AppleClang 21.0.0.21000334
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (7.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: <scratch>/build
+EXIT 0
+COMMAND ['cmake', '--build', '<scratch>/build', '--target', 'backend-probe', '--parallel', '2']
+[1/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/cmake_pch.hxx.pch
+[2/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/AABBTree/AABBTreeBuilder.cpp.o
+[3/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Compute/ComputeSystem.cpp.o
+[4/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Color.cpp.o
+[5/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Factory.cpp.o
+[6/136] Building CXX object CMakeFiles/roundhouse_ragdoll.dir<repo>/experiments/native-metal/roundhouse_ragdoll.cpp.o
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[7/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/IssueReporting.cpp.o
+[8/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemSingleThreaded.cpp.o
+[9/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemWithBarrier.cpp.o
+[10/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemThreadPool.cpp.o
+[11/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Memory.cpp.o
+[12/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/LinearCurve.cpp.o
+[13/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/RTTI.cpp.o
+[14/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Profiler.cpp.o
+[15/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Semaphore.cpp.o
+[16/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/StringTools.cpp.o
+[17/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/TickCounter.cpp.o
+[18/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder2D.cpp.o
+[19/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/Indexify.cpp.o
+[20/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder.cpp.o
+[21/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/OrientedBox.cpp.o
+[22/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Math/Vec3.cpp.o
+[23/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/ObjectStream/SerializableObject.cpp.o
+[24/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/Body.cpp.o
+[25/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyCreationSettings.cpp.o
+[26/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyInterface.cpp.o
+[27/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyManager.cpp.o
+[28/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MotionProperties.cpp.o
+[29/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MassProperties.cpp.o
+[30/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterBase.cpp.o
+[31/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/Character.cpp.o
+[32/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhase.cpp.o
+[33/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.cpp.o
+[34/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.cpp.o
+[35/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterVirtual.cpp.o
+[36/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastConvexVsTriangles.cpp.o
+[37/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/QuadTree.cpp.o
+[38/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastSphereVsTriangles.cpp.o
+[39/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideSphereVsTriangles.cpp.o
+[40/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideConvexVsTriangles.cpp.o
+[41/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionDispatch.cpp.o
+[42/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionGroup.cpp.o
+[43/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilter.cpp.o
+[44/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/EstimateCollisionResponse.cpp.o
+[45/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilterTable.cpp.o
+[46/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/ManifoldBetweenTwoFaces.cpp.o
+[47/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseStats.cpp.o
+[48/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseQuery.cpp.o
+[49/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterial.cpp.o
+[50/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterialSimple.cpp.o
+[51/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/BoxShape.cpp.o
+[52/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CapsuleShape.cpp.o
+[53/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CompoundShape.cpp.o
+[54/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexHullShape.cpp.o
+[55/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexShape.cpp.o
+[56/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CylinderShape.cpp.o
+[57/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/DecoratedShape.cpp.o
+[58/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/EmptyShape.cpp.o
+[59/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MeshShape.cpp.o
+[60/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/HeightFieldShape.cpp.o
+[61/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.cpp.o
+[62/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MutableCompoundShape.cpp.o
+[63/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/PlaneShape.cpp.o
+[64/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/RotatedTranslatedShape.cpp.o
+[65/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ScaledShape.cpp.o
+[66/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/SphereShape.cpp.o
+[67/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/Shape.cpp.o
+[68/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCapsuleShape.cpp.o
+[69/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/StaticCompoundShape.cpp.o
+[70/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCylinderShape.cpp.o
+[71/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TriangleShape.cpp.o
+[72/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/TransformedShape.cpp.o
+[73/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/Constraint.cpp.o
+[74/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConeConstraint.cpp.o
+[75/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConstraintManager.cpp.o
+[76/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/DistanceConstraint.cpp.o
+[77/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/FixedConstraint.cpp.o
+[78/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/GearConstraint.cpp.o
+[79/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ContactConstraintManager.cpp.o
+[80/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/HingeConstraint.cpp.o
+[81/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/MotorSettings.cpp.o
+[82/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPath.cpp.o
+[83/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPathHermite.cpp.o
+[84/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraint.cpp.o
+[85/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PointConstraint.cpp.o
+[86/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PulleyConstraint.cpp.o
+[87/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/RackAndPinionConstraint.cpp.o
+[88/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SixDOFConstraint.cpp.o
+[89/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SliderConstraint.cpp.o
+[90/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SpringSettings.cpp.o
+[91/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/TwoBodyConstraint.cpp.o
+[92/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/DeterminismLog.cpp.o
+[93/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SwingTwistConstraint.cpp.o
+[94/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/Hair.cpp.o
+[95/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairSettings.cpp.o
+[96/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairShaders.cpp.o
+[97/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/RegisterHair.cpp.o
+[98/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/IslandBuilder.cpp.o
+[99/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/LargeIslandSplitter.cpp.o
+[100/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsScene.cpp.o
+[101/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsUpdateContext.cpp.o
+[102/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsSystem.cpp.o
+[103/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Ragdoll/Ragdoll.cpp.o
+[104/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyCreationSettings.cpp.o
+[105/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyShape.cpp.o
+[106/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyMotionProperties.cpp.o
+[107/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/StateRecorderImpl.cpp.o
+[108/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/MotorcycleController.cpp.o
+[109/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/TrackedVehicleController.cpp.o
+[110/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleAntiRollBar.cpp.o
+[111/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleCollisionTester.cpp.o
+[112/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodySharedSettings.cpp.o
+[113/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleController.cpp.o
+[114/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleDifferential.cpp.o
+[115/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleEngine.cpp.o
+[116/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleConstraint.cpp.o
+[117/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTrack.cpp.o
+[118/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTransmission.cpp.o
+[119/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/Wheel.cpp.o
+[120/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/RegisterTypes.cpp.o
+[121/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRenderer.cpp.o
+[122/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/WheeledVehicleController.cpp.o
+[123/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererPlayback.cpp.o
+[124/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererRecorder.cpp.o
+[125/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererSimple.cpp.o
+[126/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletalAnimation.cpp.o
+[127/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/Skeleton.cpp.o
+[128/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonPose.cpp.o
+[129/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonMapper.cpp.o
+[130/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitter.cpp.o
+[131/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterBinning.cpp.o
+[132/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterMean.cpp.o
+[133/136] Linking CXX static library _deps/roundhouse_jolt-build/libJolt.a
+[134/136] Linking CXX static library libroundhouse_ragdoll.a
+[135/136] Building CXX object CMakeFiles/backend-probe.dir/probe.cpp.o
+FAILED: [code=1] CMakeFiles/backend-probe.dir/probe.cpp.o
+/usr/bin/clang++  -I<repo>/experiments/native-metal -I<repo>/experiments/native-metal/engine/src/libs/math/include -I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include -O3 -DNDEBUG -std=gnu++20 -arch arm64 -mmacosx-version-min=15.0 -MD -MT CMakeFiles/backend-probe.dir/probe.cpp.o -MF CMakeFiles/backend-probe.dir/probe.cpp.o.d -o CMakeFiles/backend-probe.dir/probe.cpp.o -c <scratch>/src/probe.cpp
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+<scratch>/src/probe.cpp:29:13: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   29 |     return {{-20,0,-20},{-20,0,20},{20,0,20},{-20,0,-20},{20,0,20},{20,0,-20},
+      |             ^~~~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:29:25: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   29 |     return {{-20,0,-20},{-20,0,20},{20,0,20},{-20,0,-20},{20,0,20},{20,0,-20},
+      |                         ^~~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:29:36: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   29 |     return {{-20,0,-20},{-20,0,20},{20,0,20},{-20,0,-20},{20,0,20},{20,0,-20},
+      |                                    ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:29:46: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   29 |     return {{-20,0,-20},{-20,0,20},{20,0,20},{-20,0,-20},{20,0,20},{20,0,-20},
+      |                                              ^~~~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:29:58: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   29 |     return {{-20,0,-20},{-20,0,20},{20,0,20},{-20,0,-20},{20,0,20},{20,0,-20},
+      |                                                          ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:29:68: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   29 |     return {{-20,0,-20},{-20,0,20},{20,0,20},{-20,0,-20},{20,0,20},{20,0,-20},
+      |                                                                    ^~~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:30:13: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   30 |             {-20,0,2},{-20,20,2},{20,20,2},{-20,0,2},{20,20,2},{20,0,2}};
+      |             ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:30:23: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   30 |             {-20,0,2},{-20,20,2},{20,20,2},{-20,0,2},{20,20,2},{20,0,2}};
+      |                       ^~~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:30:34: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   30 |             {-20,0,2},{-20,20,2},{20,20,2},{-20,0,2},{20,20,2},{20,0,2}};
+      |                                  ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:30:44: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   30 |             {-20,0,2},{-20,20,2},{20,20,2},{-20,0,2},{20,20,2},{20,0,2}};
+      |                                            ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:30:54: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   30 |             {-20,0,2},{-20,20,2},{20,20,2},{-20,0,2},{20,20,2},{20,0,2}};
+      |                                                      ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<scratch>/src/probe.cpp:30:64: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   30 |             {-20,0,2},{-20,20,2},{20,20,2},{-20,0,2},{20,20,2},{20,0,2}};
+      |                                                                ^~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__vector/vector.h:276:91: note: passing argument to parameter '__il' here
+  276 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI vector(initializer_list<value_type> __il) {
+      |                                                                                           ^
+<scratch>/src/probe.cpp:79:34: error: call to constructor of 'const CVECTOR &' is ambiguous
+   79 |     Require(w.Create(rig,initial,{12,2,35},initial[2].v.pos)==0,"no fake collision fallback");
+      |                                  ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<repo>/experiments/native-metal/roundhouse_ragdoll.hpp:49:34: note: passing argument to parameter 'headImpulse' here
+   49 |                   const CVECTOR &headImpulse, const CVECTOR &impulsePoint);
+      |                                  ^
+<scratch>/src/probe.cpp:81:39: error: call to constructor of 'const CVECTOR &' is ambiguous
+   81 |     const auto h=w.Create(rig,initial,{12,2,35},initial[2].v.pos);
+      |                                       ^~~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<repo>/experiments/native-metal/roundhouse_ragdoll.hpp:49:34: note: passing argument to parameter 'headImpulse' here
+   49 |                   const CVECTOR &headImpulse, const CVECTOR &impulsePoint);
+      |                                  ^
+<scratch>/src/probe.cpp:89:38: error: call to constructor of 'const CVECTOR &' is ambiguous
+   89 |     Require(w.Create(invalid,initial,{0,0,0},{0,0,0})==0 && w.Size()==1,"cyclic skeleton rejected without mutation");
+      |                                      ^~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<repo>/experiments/native-metal/roundhouse_ragdoll.hpp:49:34: note: passing argument to parameter 'headImpulse' here
+   49 |                   const CVECTOR &headImpulse, const CVECTOR &impulsePoint);
+      |                                  ^
+<scratch>/src/probe.cpp:90:36: error: call to constructor of 'const value_type' (aka 'const CVECTOR') is ambiguous
+   90 |     Require(!w.SetStaticTriangles({{0,0,0}}),"malformed mesh rejected without mutation");
+      |                                    ^~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__vector/vector.h:276:91: note: passing argument to parameter '__il' here
+  276 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI vector(initializer_list<value_type> __il) {
+      |                                                                                           ^
+<scratch>/src/probe.cpp:128:37: error: call to constructor of 'const CVECTOR &' is ambiguous
+  128 |     const auto ha=w.Create(sphere,a,{0,0,0},a[0].v.pos), hb=w.Create(sphere,b,{0,0,0},b[0].v.pos);
+      |                                     ^~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<repo>/experiments/native-metal/roundhouse_ragdoll.hpp:49:34: note: passing argument to parameter 'headImpulse' here
+   49 |                   const CVECTOR &headImpulse, const CVECTOR &impulsePoint);
+      |                                  ^
+<scratch>/src/probe.cpp:128:79: error: call to constructor of 'const CVECTOR &' is ambiguous
+  128 |     const auto ha=w.Create(sphere,a,{0,0,0},a[0].v.pos), hb=w.Create(sphere,b,{0,0,0},b[0].v.pos);
+      |                                                                               ^~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:33:5: note: candidate constructor
+   33 |     CVECTOR(float _x, float _y, float _z)
+      |     ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:40:5: note: candidate constructor
+   40 |     CVECTOR(double _x, double _y, double _z)
+      |     ^
+<repo>/experiments/native-metal/roundhouse_ragdoll.hpp:49:34: note: passing argument to parameter 'headImpulse' here
+   49 |                   const CVECTOR &headImpulse, const CVECTOR &impulsePoint);
+      |                                  ^
+<scratch>/src/probe.cpp:138:34: error: use of overloaded operator '=' is ambiguous (with operand types 'CVECTOR' and 'void')
+  138 |     a=sphere.bindWorld;a[0].v.pos={0,3,0};
+      |                        ~~~~~~~~~~^~~~~~~~
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:5:8: note: candidate function (the implicit copy assignment operator)
+    5 | struct CVECTOR
+      |        ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/c_vector.h:5:8: note: candidate function (the implicit move assignment operator)
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+7 warnings and 20 errors generated.
+ninja: build stopped: subcommand failed.
+EXIT 1
+COMMAND ['/usr/bin/clang++', '--version']
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.0.0
+Thread model: posix
+InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+EXIT 0
+COMMAND ['cmake', '--version']
+cmake version 4.4.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+EXIT 0
+COMMAND ['cmake', '-S', '<scratch>/src', '-B', '<scratch>/build', '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_COMPILER=/usr/bin/clang++', '-DCMAKE_MAKE_PROGRAM=<repo>/experiments/native-metal/inputs/toolchain/bin/ninja']
+-- The CXX compiler identification is AppleClang 21.0.0.21000334
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (7.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: <scratch>/build
+EXIT 0
+COMMAND ['cmake', '--build', '<scratch>/build', '--target', 'backend-probe', '--parallel', '2']
+[1/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/cmake_pch.hxx.pch
+[2/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/AABBTree/AABBTreeBuilder.cpp.o
+[3/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Compute/ComputeSystem.cpp.o
+[4/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Color.cpp.o
+[5/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Factory.cpp.o
+[6/136] Building CXX object CMakeFiles/roundhouse_ragdoll.dir<repo>/experiments/native-metal/roundhouse_ragdoll.cpp.o
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[7/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/IssueReporting.cpp.o
+[8/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemSingleThreaded.cpp.o
+[9/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemThreadPool.cpp.o
+[10/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemWithBarrier.cpp.o
+[11/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Memory.cpp.o
+[12/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/LinearCurve.cpp.o
+[13/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/RTTI.cpp.o
+[14/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Profiler.cpp.o
+[15/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Semaphore.cpp.o
+[16/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/TickCounter.cpp.o
+[17/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/StringTools.cpp.o
+[18/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder2D.cpp.o
+[19/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/Indexify.cpp.o
+[20/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder.cpp.o
+[21/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/OrientedBox.cpp.o
+[22/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Math/Vec3.cpp.o
+[23/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/ObjectStream/SerializableObject.cpp.o
+[24/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/Body.cpp.o
+[25/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyCreationSettings.cpp.o
+[26/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyInterface.cpp.o
+[27/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyManager.cpp.o
+[28/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MotionProperties.cpp.o
+[29/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MassProperties.cpp.o
+[30/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterBase.cpp.o
+[31/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/Character.cpp.o
+[32/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhase.cpp.o
+[33/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.cpp.o
+[34/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.cpp.o
+[35/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterVirtual.cpp.o
+[36/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastConvexVsTriangles.cpp.o
+[37/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/QuadTree.cpp.o
+[38/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastSphereVsTriangles.cpp.o
+[39/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideSphereVsTriangles.cpp.o
+[40/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideConvexVsTriangles.cpp.o
+[41/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionDispatch.cpp.o
+[42/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionGroup.cpp.o
+[43/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilter.cpp.o
+[44/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/EstimateCollisionResponse.cpp.o
+[45/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilterTable.cpp.o
+[46/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/ManifoldBetweenTwoFaces.cpp.o
+[47/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseStats.cpp.o
+[48/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseQuery.cpp.o
+[49/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterial.cpp.o
+[50/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterialSimple.cpp.o
+[51/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/BoxShape.cpp.o
+[52/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CapsuleShape.cpp.o
+[53/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CompoundShape.cpp.o
+[54/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexHullShape.cpp.o
+[55/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexShape.cpp.o
+[56/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CylinderShape.cpp.o
+[57/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/DecoratedShape.cpp.o
+[58/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/EmptyShape.cpp.o
+[59/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MeshShape.cpp.o
+[60/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/HeightFieldShape.cpp.o
+[61/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.cpp.o
+[62/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MutableCompoundShape.cpp.o
+[63/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/PlaneShape.cpp.o
+[64/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/RotatedTranslatedShape.cpp.o
+[65/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ScaledShape.cpp.o
+[66/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/SphereShape.cpp.o
+[67/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/Shape.cpp.o
+[68/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCapsuleShape.cpp.o
+[69/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/StaticCompoundShape.cpp.o
+[70/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCylinderShape.cpp.o
+[71/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TriangleShape.cpp.o
+[72/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/TransformedShape.cpp.o
+[73/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/Constraint.cpp.o
+[74/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConeConstraint.cpp.o
+[75/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConstraintManager.cpp.o
+[76/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/DistanceConstraint.cpp.o
+[77/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/FixedConstraint.cpp.o
+[78/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/GearConstraint.cpp.o
+[79/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ContactConstraintManager.cpp.o
+[80/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/MotorSettings.cpp.o
+[81/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/HingeConstraint.cpp.o
+[82/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPath.cpp.o
+[83/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPathHermite.cpp.o
+[84/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraint.cpp.o
+[85/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PointConstraint.cpp.o
+[86/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PulleyConstraint.cpp.o
+[87/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/RackAndPinionConstraint.cpp.o
+[88/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SixDOFConstraint.cpp.o
+[89/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SliderConstraint.cpp.o
+[90/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SpringSettings.cpp.o
+[91/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/TwoBodyConstraint.cpp.o
+[92/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SwingTwistConstraint.cpp.o
+[93/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/DeterminismLog.cpp.o
+[94/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/Hair.cpp.o
+[95/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairSettings.cpp.o
+[96/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairShaders.cpp.o
+[97/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/RegisterHair.cpp.o
+[98/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/IslandBuilder.cpp.o
+[99/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/LargeIslandSplitter.cpp.o
+[100/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsScene.cpp.o
+[101/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsUpdateContext.cpp.o
+[102/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsSystem.cpp.o
+[103/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Ragdoll/Ragdoll.cpp.o
+[104/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyCreationSettings.cpp.o
+[105/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyShape.cpp.o
+[106/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyMotionProperties.cpp.o
+[107/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/StateRecorderImpl.cpp.o
+[108/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/MotorcycleController.cpp.o
+[109/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/TrackedVehicleController.cpp.o
+[110/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleAntiRollBar.cpp.o
+[111/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodySharedSettings.cpp.o
+[112/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleCollisionTester.cpp.o
+[113/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleController.cpp.o
+[114/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleDifferential.cpp.o
+[115/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleEngine.cpp.o
+[116/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleConstraint.cpp.o
+[117/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTrack.cpp.o
+[118/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTransmission.cpp.o
+[119/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/Wheel.cpp.o
+[120/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/RegisterTypes.cpp.o
+[121/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/WheeledVehicleController.cpp.o
+[122/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRenderer.cpp.o
+[123/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererRecorder.cpp.o
+[124/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererPlayback.cpp.o
+[125/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererSimple.cpp.o
+[126/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletalAnimation.cpp.o
+[127/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/Skeleton.cpp.o
+[128/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonMapper.cpp.o
+[129/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonPose.cpp.o
+[130/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitter.cpp.o
+[131/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterBinning.cpp.o
+[132/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterMean.cpp.o
+[133/136] Linking CXX static library _deps/roundhouse_jolt-build/libJolt.a
+[134/136] Linking CXX static library libroundhouse_ragdoll.a
+[135/136] Building CXX object CMakeFiles/backend-probe.dir/probe.cpp.o
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[136/136] Linking CXX executable backend-probe
+EXIT 0
+COMMAND ['<scratch>/build/backend-probe']
+FAIL actual articulated pose preserved at creation
+IDLE_BACKEND iterations=10000000 total_ms=11.039750 ns_per_tick=1.104
+EXIT 1
+COMMAND ['/usr/bin/clang++', '--version']
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.0.0
+Thread model: posix
+InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+EXIT 0
+COMMAND ['cmake', '--version']
+cmake version 4.4.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+EXIT 0
+COMMAND ['cmake', '-S', '<scratch>/src', '-B', '<scratch>/build', '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_COMPILER=/usr/bin/clang++', '-DCMAKE_MAKE_PROGRAM=<repo>/experiments/native-metal/inputs/toolchain/bin/ninja']
+-- The CXX compiler identification is AppleClang 21.0.0.21000334
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (6.7s)
+-- Generating done (0.0s)
+-- Build files have been written to: <scratch>/build
+EXIT 0
+COMMAND ['cmake', '--build', '<scratch>/build', '--target', 'backend-probe', '--parallel', '2']
+[1/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/cmake_pch.hxx.pch
+[2/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/AABBTree/AABBTreeBuilder.cpp.o
+[3/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Compute/ComputeSystem.cpp.o
+[4/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Color.cpp.o
+[5/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Factory.cpp.o
+[6/136] Building CXX object CMakeFiles/roundhouse_ragdoll.dir<repo>/experiments/native-metal/roundhouse_ragdoll.cpp.o
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[7/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/IssueReporting.cpp.o
+[8/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemSingleThreaded.cpp.o
+[9/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemThreadPool.cpp.o
+[10/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemWithBarrier.cpp.o
+[11/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Memory.cpp.o
+[12/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/LinearCurve.cpp.o
+[13/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/RTTI.cpp.o
+[14/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Profiler.cpp.o
+[15/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Semaphore.cpp.o
+[16/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/StringTools.cpp.o
+[17/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/TickCounter.cpp.o
+[18/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder2D.cpp.o
+[19/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/Indexify.cpp.o
+[20/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder.cpp.o
+[21/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Math/Vec3.cpp.o
+[22/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/OrientedBox.cpp.o
+[23/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/ObjectStream/SerializableObject.cpp.o
+[24/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/Body.cpp.o
+[25/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyCreationSettings.cpp.o
+[26/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyInterface.cpp.o
+[27/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyManager.cpp.o
+[28/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MassProperties.cpp.o
+[29/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MotionProperties.cpp.o
+[30/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterBase.cpp.o
+[31/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/Character.cpp.o
+[32/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhase.cpp.o
+[33/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.cpp.o
+[34/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterVirtual.cpp.o
+[35/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.cpp.o
+[36/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastConvexVsTriangles.cpp.o
+[37/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/QuadTree.cpp.o
+[38/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastSphereVsTriangles.cpp.o
+[39/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideSphereVsTriangles.cpp.o
+[40/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideConvexVsTriangles.cpp.o
+[41/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionDispatch.cpp.o
+[42/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionGroup.cpp.o
+[43/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilter.cpp.o
+[44/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/EstimateCollisionResponse.cpp.o
+[45/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilterTable.cpp.o
+[46/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/ManifoldBetweenTwoFaces.cpp.o
+[47/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseStats.cpp.o
+[48/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseQuery.cpp.o
+[49/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterial.cpp.o
+[50/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterialSimple.cpp.o
+[51/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/BoxShape.cpp.o
+[52/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CapsuleShape.cpp.o
+[53/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CompoundShape.cpp.o
+[54/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexHullShape.cpp.o
+[55/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexShape.cpp.o
+[56/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CylinderShape.cpp.o
+[57/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/DecoratedShape.cpp.o
+[58/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/EmptyShape.cpp.o
+[59/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MeshShape.cpp.o
+[60/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/HeightFieldShape.cpp.o
+[61/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.cpp.o
+[62/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MutableCompoundShape.cpp.o
+[63/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/PlaneShape.cpp.o
+[64/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/RotatedTranslatedShape.cpp.o
+[65/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ScaledShape.cpp.o
+[66/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/SphereShape.cpp.o
+[67/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/Shape.cpp.o
+[68/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCapsuleShape.cpp.o
+[69/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/StaticCompoundShape.cpp.o
+[70/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCylinderShape.cpp.o
+[71/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TriangleShape.cpp.o
+[72/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/TransformedShape.cpp.o
+[73/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConeConstraint.cpp.o
+[74/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/Constraint.cpp.o
+[75/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConstraintManager.cpp.o
+[76/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/DistanceConstraint.cpp.o
+[77/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/FixedConstraint.cpp.o
+[78/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/GearConstraint.cpp.o
+[79/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ContactConstraintManager.cpp.o
+[80/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/MotorSettings.cpp.o
+[81/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/HingeConstraint.cpp.o
+[82/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPath.cpp.o
+[83/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPathHermite.cpp.o
+[84/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraint.cpp.o
+[85/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PointConstraint.cpp.o
+[86/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PulleyConstraint.cpp.o
+[87/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/RackAndPinionConstraint.cpp.o
+[88/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SixDOFConstraint.cpp.o
+[89/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SliderConstraint.cpp.o
+[90/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SpringSettings.cpp.o
+[91/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/TwoBodyConstraint.cpp.o
+[92/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SwingTwistConstraint.cpp.o
+[93/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/DeterminismLog.cpp.o
+[94/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/Hair.cpp.o
+[95/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairSettings.cpp.o
+[96/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairShaders.cpp.o
+[97/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/RegisterHair.cpp.o
+[98/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/IslandBuilder.cpp.o
+[99/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/LargeIslandSplitter.cpp.o
+[100/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsScene.cpp.o
+[101/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsUpdateContext.cpp.o
+[102/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsSystem.cpp.o
+[103/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Ragdoll/Ragdoll.cpp.o
+[104/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyCreationSettings.cpp.o
+[105/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyShape.cpp.o
+[106/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyMotionProperties.cpp.o
+[107/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/StateRecorderImpl.cpp.o
+[108/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/MotorcycleController.cpp.o
+[109/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/TrackedVehicleController.cpp.o
+[110/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleAntiRollBar.cpp.o
+[111/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodySharedSettings.cpp.o
+[112/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleCollisionTester.cpp.o
+[113/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleController.cpp.o
+[114/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleDifferential.cpp.o
+[115/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleEngine.cpp.o
+[116/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleConstraint.cpp.o
+[117/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTrack.cpp.o
+[118/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTransmission.cpp.o
+[119/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/Wheel.cpp.o
+[120/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/RegisterTypes.cpp.o
+[121/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRenderer.cpp.o
+[122/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/WheeledVehicleController.cpp.o
+[123/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererPlayback.cpp.o
+[124/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererRecorder.cpp.o
+[125/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererSimple.cpp.o
+[126/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletalAnimation.cpp.o
+[127/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/Skeleton.cpp.o
+[128/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonPose.cpp.o
+[129/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonMapper.cpp.o
+[130/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitter.cpp.o
+[131/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterBinning.cpp.o
+[132/136] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterMean.cpp.o
+[133/136] Linking CXX static library _deps/roundhouse_jolt-build/libJolt.a
+[134/136] Linking CXX static library libroundhouse_ragdoll.a
+[135/136] Building CXX object CMakeFiles/backend-probe.dir/probe.cpp.o
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[136/136] Linking CXX executable backend-probe
+EXIT 0
+COMMAND ['<scratch>/build/backend-probe']
+IDLE_BACKEND iterations=10000000 total_ms=11.487833 ns_per_tick=1.149
+CAPTURE_DIAGNOSTIC max_matrix_error=0.000000238
+SKELETON_CAPTURE max_matrix_error=0.000000238
+ACTIVE_15_BODIES frames=1200 total_ms=2.773 max_anchor_error=0.059548 min_joint_y=0.037690 max_joint_z=1.307567 sleeping=1
+INTER_BODY separation=0.380007 initial=0.250000 combined_diameter=0.400000
+TIME_DEBT_CLAMP large_dt_vs_four_steps_error=0.000000000
+PASS 64x15 capacity, actual pose, constraints, gravity/head impulse, floor/wall/inter-body collisions, dt0, sleep, clamp, cleanup, invalid input
+EXIT 0
+COMMAND ['/usr/bin/clang++', '--version']
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.0.0
+Thread model: posix
+InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+EXIT 0
+COMMAND ['cmake', '--version']
+cmake version 4.4.3
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+EXIT 0
+COMMAND ['cmake', '-S', '<scratch>/src', '-B', '<scratch>/build', '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_COMPILER=/usr/bin/clang++', '-DCMAKE_MAKE_PROGRAM=<repo>/experiments/native-metal/inputs/toolchain/bin/ninja']
+-- The CXX compiler identification is AppleClang 21.0.0.21000334
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (5.7s)
+-- Generating done (0.0s)
+-- Build files have been written to: <scratch>/build
+EXIT 0
+COMMAND ['cmake', '--build', '<scratch>/build', '--target', 'backend-probe', 'baseline-control', '--parallel', '2']
+[1/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/cmake_pch.hxx.pch
+[2/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/AABBTree/AABBTreeBuilder.cpp.o
+[3/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Compute/ComputeSystem.cpp.o
+[4/139] Building CXX object CMakeFiles/roundhouse_ragdoll.dir<repo>/experiments/native-metal/roundhouse_ragdoll.cpp.o
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[5/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Color.cpp.o
+[6/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/IssueReporting.cpp.o
+[7/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Factory.cpp.o
+[8/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemSingleThreaded.cpp.o
+[9/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemWithBarrier.cpp.o
+[10/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/JobSystemThreadPool.cpp.o
+[11/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/LinearCurve.cpp.o
+[12/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Memory.cpp.o
+[13/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/RTTI.cpp.o
+[14/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Profiler.cpp.o
+[15/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/Semaphore.cpp.o
+[16/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/TickCounter.cpp.o
+[17/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Core/StringTools.cpp.o
+[18/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder2D.cpp.o
+[19/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/Indexify.cpp.o
+[20/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/ConvexHullBuilder.cpp.o
+[21/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Geometry/OrientedBox.cpp.o
+[22/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Math/Vec3.cpp.o
+[23/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/ObjectStream/SerializableObject.cpp.o
+[24/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/Body.cpp.o
+[25/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyCreationSettings.cpp.o
+[26/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyInterface.cpp.o
+[27/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/BodyManager.cpp.o
+[28/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MotionProperties.cpp.o
+[29/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Body/MassProperties.cpp.o
+[30/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterBase.cpp.o
+[31/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/Character.cpp.o
+[32/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhase.cpp.o
+[33/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.cpp.o
+[34/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.cpp.o
+[35/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Character/CharacterVirtual.cpp.o
+[36/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastConvexVsTriangles.cpp.o
+[37/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/BroadPhase/QuadTree.cpp.o
+[38/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CastSphereVsTriangles.cpp.o
+[39/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideSphereVsTriangles.cpp.o
+[40/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollideConvexVsTriangles.cpp.o
+[41/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionDispatch.cpp.o
+[42/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/CollisionGroup.cpp.o
+[43/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilter.cpp.o
+[44/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/EstimateCollisionResponse.cpp.o
+[45/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/GroupFilterTable.cpp.o
+[46/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/ManifoldBetweenTwoFaces.cpp.o
+[47/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseStats.cpp.o
+[48/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/NarrowPhaseQuery.cpp.o
+[49/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterial.cpp.o
+[50/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/PhysicsMaterialSimple.cpp.o
+[51/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/BoxShape.cpp.o
+[52/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CapsuleShape.cpp.o
+[53/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CompoundShape.cpp.o
+[54/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexHullShape.cpp.o
+[55/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ConvexShape.cpp.o
+[56/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/CylinderShape.cpp.o
+[57/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/DecoratedShape.cpp.o
+[58/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/EmptyShape.cpp.o
+[59/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MeshShape.cpp.o
+[60/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/HeightFieldShape.cpp.o
+[61/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.cpp.o
+[62/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/MutableCompoundShape.cpp.o
+[63/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/PlaneShape.cpp.o
+[64/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/RotatedTranslatedShape.cpp.o
+[65/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/ScaledShape.cpp.o
+[66/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/SphereShape.cpp.o
+[67/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/Shape.cpp.o
+[68/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCapsuleShape.cpp.o
+[69/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/StaticCompoundShape.cpp.o
+[70/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TaperedCylinderShape.cpp.o
+[71/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/Shape/TriangleShape.cpp.o
+[72/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Collision/TransformedShape.cpp.o
+[73/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/Constraint.cpp.o
+[74/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConeConstraint.cpp.o
+[75/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ConstraintManager.cpp.o
+[76/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/DistanceConstraint.cpp.o
+[77/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/FixedConstraint.cpp.o
+[78/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/GearConstraint.cpp.o
+[79/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/ContactConstraintManager.cpp.o
+[80/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/HingeConstraint.cpp.o
+[81/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/MotorSettings.cpp.o
+[82/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPath.cpp.o
+[83/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraintPathHermite.cpp.o
+[84/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PathConstraint.cpp.o
+[85/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PointConstraint.cpp.o
+[86/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/PulleyConstraint.cpp.o
+[87/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/RackAndPinionConstraint.cpp.o
+[88/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SixDOFConstraint.cpp.o
+[89/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SliderConstraint.cpp.o
+[90/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SpringSettings.cpp.o
+[91/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/TwoBodyConstraint.cpp.o
+[92/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Constraints/SwingTwistConstraint.cpp.o
+[93/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/DeterminismLog.cpp.o
+[94/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/Hair.cpp.o
+[95/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairSettings.cpp.o
+[96/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/HairShaders.cpp.o
+[97/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Hair/RegisterHair.cpp.o
+[98/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/IslandBuilder.cpp.o
+[99/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/LargeIslandSplitter.cpp.o
+[100/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsScene.cpp.o
+[101/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsUpdateContext.cpp.o
+[102/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/PhysicsSystem.cpp.o
+[103/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Ragdoll/Ragdoll.cpp.o
+[104/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyCreationSettings.cpp.o
+[105/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyShape.cpp.o
+[106/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodyMotionProperties.cpp.o
+[107/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/StateRecorderImpl.cpp.o
+[108/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/MotorcycleController.cpp.o
+[109/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/TrackedVehicleController.cpp.o
+[110/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleAntiRollBar.cpp.o
+[111/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/SoftBody/SoftBodySharedSettings.cpp.o
+[112/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleCollisionTester.cpp.o
+[113/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleController.cpp.o
+[114/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleDifferential.cpp.o
+[115/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleEngine.cpp.o
+[116/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleConstraint.cpp.o
+[117/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTrack.cpp.o
+[118/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/VehicleTransmission.cpp.o
+[119/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/Wheel.cpp.o
+[120/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/RegisterTypes.cpp.o
+[121/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRenderer.cpp.o
+[122/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Physics/Vehicle/WheeledVehicleController.cpp.o
+[123/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererPlayback.cpp.o
+[124/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererRecorder.cpp.o
+[125/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Renderer/DebugRendererSimple.cpp.o
+[126/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletalAnimation.cpp.o
+[127/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/Skeleton.cpp.o
+[128/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonMapper.cpp.o
+[129/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/Skeleton/SkeletonPose.cpp.o
+[130/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitter.cpp.o
+[131/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterBinning.cpp.o
+[132/139] Building CXX object _deps/roundhouse_jolt-build/CMakeFiles/Jolt.dir/__/roundhouse_jolt-src/Jolt/TriangleSplitter/TriangleSplitterMean.cpp.o
+[133/139] Linking CXX static library _deps/roundhouse_jolt-build/libJolt.a
+[134/139] Linking CXX static library libroundhouse_ragdoll.a
+[135/139] Building CXX object CMakeFiles/baseline-control.dir/empty.cpp.o
+[136/139] Building CXX object CMakeFiles/baseline-control.dir/idle.cpp.o
+[137/139] Linking CXX executable baseline-control
+[138/139] Building CXX object CMakeFiles/backend-probe.dir/probe.cpp.o
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <scratch>/src/probe.cpp:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[139/139] Linking CXX executable backend-probe
+EXIT 0
+COMMAND ['<scratch>/build/baseline-control']
+IDLE_MATCHED_CONTROL iterations=10000000 total_ms=8.448667 ns_per_tick=0.845
+EXIT 0
+COMMAND ['<scratch>/build/backend-probe']
+IDLE_BACKEND iterations=10000000 total_ms=11.466042 ns_per_tick=1.147
+CAPTURE_DIAGNOSTIC max_matrix_error=0.000000238
+SKELETON_CAPTURE max_matrix_error=0.000000238
+ACTIVE_15_BODIES frames=1200 total_ms=2.769 max_anchor_error=0.059548 min_joint_y=0.037690 max_joint_z=1.307567 sleeping=1
+INTER_BODY separation=0.380007 initial=0.250000 combined_diameter=0.400000
+DIRECT_WALL_CONTACT max_sphere_center_z=1.819999 wall_z=2 radius=0.2
+TIME_DEBT_CLAMP large_dt_vs_four_steps_error=0.000000000
+PASS 64x15 capacity, actual pose, constraints, gravity/head impulse, floor/wall/inter-body collisions, dt0, sleep, clamp, cleanup, invalid input
+EXIT 0

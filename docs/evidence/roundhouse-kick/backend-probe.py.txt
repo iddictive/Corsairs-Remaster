@@ -1,0 +1,62 @@
+"""Retained one-off evidence procedure. Supply an empty task-local temp directory:
+CODEX_SCRATCH_DIR=<temp-directory> python3 docs/evidence/roundhouse-kick/backend-probe.py.txt
+No permanent project test target. Output is retained in backend-probe-raw.txt.
+"""
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+root = pathlib.Path(__file__).resolve().parents[3]
+evidence = root / "docs/evidence/roundhouse-kick"
+scratch = pathlib.Path(os.environ["CODEX_SCRATCH_DIR"])
+source = scratch / "src"
+source.mkdir()
+(source / "probe.cpp").write_bytes((evidence / "backend-probe.cpp.txt").read_bytes())
+(source / "CMakeLists.txt").write_text("""cmake_minimum_required(VERSION 3.24)
+set(CMAKE_OSX_DEPLOYMENT_TARGET 15.0 CACHE STRING "")
+project(roundhouse_backend_probe LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+include("%s/experiments/native-metal/roundhouse_jolt.cmake")
+add_executable(backend-probe probe.cpp)
+target_link_libraries(backend-probe PRIVATE roundhouse_ragdoll)
+add_executable(baseline-control empty.cpp idle.cpp)
+""" % root)
+(source / "empty.cpp").write_text("void baseline_step(float) {}\n")
+(source / "idle.cpp").write_text("""#include <chrono>
+#include <cstdio>
+void baseline_step(float);
+int main(){constexpr int n=10000000; auto a=std::chrono::steady_clock::now(); for(int i=0;i<n;++i) baseline_step(1.0f/60.0f); auto b=std::chrono::steady_clock::now(); std::printf("IDLE_MATCHED_CONTROL iterations=%d total_ms=%.6f ns_per_tick=%.3f\\n",n,std::chrono::duration<double,std::milli>(b-a).count(),std::chrono::duration<double,std::nano>(b-a).count()/n);}
+""")
+commands = [
+    ["/usr/bin/clang++", "--version"],
+    ["cmake", "--version"],
+    ["cmake", "-S", str(source), "-B", str(scratch / "build"), "-G", "Ninja",
+     "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_CXX_COMPILER=/usr/bin/clang++",
+     "-DCMAKE_MAKE_PROGRAM=" + str(root / "experiments/native-metal/inputs/toolchain/bin/ninja")],
+    ["cmake", "--build", str(scratch / "build"), "--target", "backend-probe", "baseline-control", "--parallel", "2"],
+    [str(scratch / "build/baseline-control")],
+    [str(scratch / "build/backend-probe")],
+]
+def redact(text):
+    text = text.replace(str(root), "<repo>")
+    return re.sub(r"/private/var/folders/[^/]+/[^/]+/T/codex-scratch\.[A-Za-z0-9_]+", "<scratch>", text)
+
+log_path = evidence / "backend-probe-raw.txt"
+if log_path.exists():
+    log_path.write_text(redact(log_path.read_text()))
+with log_path.open("a") as log:
+    for command in commands:
+        log.write("COMMAND " + redact(repr(command)) + "\n")
+        log.flush()
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as process:
+            for line in process.stdout:
+                log.write(redact(line))
+            result = process.wait()
+        log.write("EXIT " + str(result) + "\n")
+        log.flush()
+        if result:
+            print("\n".join(log_path.read_text().splitlines()[-45:]))
+            sys.exit(result)
+print("\n".join(log_path.read_text().splitlines()[-12:]))

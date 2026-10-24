@@ -11,6 +11,12 @@ void extrnInitPerks()
 	ChrPerksList.list.BasicDefense.descr = "perkBasicDefense";
     ChrPerksList.list.BasicDefense.BaseType = "self"; // boal 05.05.04 ввел разграничения
 
+	ChrPerksList.list.RoundhouseKick.descr = "perkRoundhouseKick";
+	ChrPerksList.list.RoundhouseKick.TextureGroup = "PERK_ROUNDHOUSE";
+	ChrPerksList.list.RoundhouseKick.condition.BasicDefense = true;
+	ChrPerksList.list.RoundhouseKick.BaseType = "self";
+	ChrPerksList.list.RoundhouseKick.PlayerOnly = true;
+
 	ChrPerksList.list.AdvancedDefense.descr = "perkAdvancedDefense";
 	ChrPerksList.list.AdvancedDefense.condition.BasicDefense = true;
     ChrPerksList.list.AdvancedDefense.BaseType = "self";

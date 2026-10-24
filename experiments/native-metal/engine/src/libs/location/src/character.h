@@ -12,6 +12,7 @@
 
 #include <string>
 #include <chrono>
+#include <memory>
 
 #include "animation.h"
 #include "matrix.h"
@@ -25,6 +26,7 @@ class Animation;
 class LocatorArray;
 class Supervisor;
 class VSoundService;
+struct RoundhouseState;
 
 #define CHARACTER_ATTACK_DIST 2.4f // Maximum attack distance (m)
 #define CHARACTER_ATTACK_ANG 60.0f // Maximum angle of attack (degrees)
@@ -223,6 +225,10 @@ class Character : public Entity
     };
 
     void AlreadyDeleted();
+    bool StartRoundhouse();
+    bool IsRoundhouseControlled() const;
+    bool IsPhysicalRagdoll() const;
+    void CancelRoundhouse();
 
     //--------------------------------------------------------------------------------------------
     // Character model
@@ -718,6 +724,10 @@ class Character : public Entity
 
   private:
     // The location the character is in
+    bool PrepareRoundhouse();
+    bool UpdateRoundhouse(float seconds);
+    bool BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse);
+    std::unique_ptr<RoundhouseState> roundhouseState;
     entid_t loc_id;
 
     std::chrono::steady_clock::time_point blockStart{};
@@ -725,6 +735,7 @@ class Character : public Entity
 
 inline void Character::AlreadyDeleted()
 {
+    CancelRoundhouse();
     isDeleted = true;
 }
 

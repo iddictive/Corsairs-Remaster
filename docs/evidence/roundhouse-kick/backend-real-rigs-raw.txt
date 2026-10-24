@@ -1,0 +1,733 @@
+COMMAND ['/usr/bin/c++', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+<repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:159:1: warning: non-void function does not return a value [-Wreturn-type]
+  159 | }
+      | ^
+8 warnings generated.
+EXIT 0
+COMMAND ['<scratch>/real-rigs', '<scratch>/rigs.txt', '<scratch>/geometry.txt']
+REAL_RIG name=Angellica bones=40 initial_error=7.15255737e-07 palette_error=7.74860382e-07 native_source_roundtrip=2.38418579e-07 reversed_order_error=5.9337821 max_anchor_error=0.0259962976 min_joint_y=0.0109474957 max_joint_z=-2.68778658 articulation=1.08682072 isolation=pass cleanup=pass
+REAL_RIG name=Danielle bones=128 initial_error=4.76837158e-07 palette_error=1.31130219e-06 native_source_roundtrip=7.15255737e-07 reversed_order_error=10.054492 max_anchor_error=0.033244133 min_joint_y=0.00180065632 max_joint_z=-2.95178747 articulation=1.10406029 isolation=pass cleanup=pass
+REAL_RIG name=Jessika bones=49 initial_error=7.15255737e-07 palette_error=9.23871994e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=6.98505211 max_anchor_error=0.0444577336 min_joint_y=0.0104165077 max_joint_z=-2.77759862 articulation=1.24087119 isolation=pass cleanup=pass
+REAL_RIG name=Lo_Man bones=27 initial_error=4.76837158e-07 palette_error=9.53674316e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=7.2199707 max_anchor_error=0.0303186476 min_joint_y=0.016037941 max_joint_z=-2.4158287 articulation=1.49421537 isolation=pass cleanup=pass
+REAL_RIG name=ManKSM bones=40 initial_error=7.15255737e-07 palette_error=9.53674316e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.99177265 max_anchor_error=0.0266787112 min_joint_y=0.0073056221 max_joint_z=-2.68322039 articulation=0.629841447 isolation=pass cleanup=pass
+REAL_RIG name=Milenace bones=40 initial_error=4.76837158e-07 palette_error=8.19563866e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.92924404 max_anchor_error=0.0503679812 min_joint_y=0.00467467308 max_joint_z=-2.77018905 articulation=0.92326957 isolation=pass cleanup=pass
+REAL_RIG name=Moscovit bones=42 initial_error=7.15255737e-07 palette_error=8.34465027e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=6.12226295 max_anchor_error=0.040795505 min_joint_y=-0.0133697987 max_joint_z=-2.59177637 articulation=0.907296538 isolation=pass cleanup=pass
+REAL_RIG name=YokoDias bones=40 initial_error=9.53674316e-07 palette_error=1.1920929e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.93159246 max_anchor_error=0.0523347855 min_joint_y=0.00911313295 max_joint_z=-2.73488092 articulation=0.873379111 isolation=pass cleanup=pass
+REAL_RIG name=beatrice2 bones=40 initial_error=4.76837158e-07 palette_error=8.19563866e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.92924404 max_anchor_error=0.0503679812 min_joint_y=0.00467467308 max_joint_z=-2.77018905 articulation=0.92326957 isolation=pass cleanup=pass
+REAL_RIG name=genres bones=123 initial_error=4.76837158e-07 palette_error=9.61124897e-07 native_source_roundtrip=5.36441803e-07 reversed_order_error=9.75921631 max_anchor_error=0.0247709453 min_joint_y=0.0219745636 max_joint_z=-2.41957712 articulation=1.56199455 isolation=pass cleanup=pass
+REAL_RIG name=man bones=123 initial_error=4.76837158e-07 palette_error=1.1920929e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.1214085 max_anchor_error=0.0397421122 min_joint_y=0.00783854723 max_joint_z=-2.58764267 articulation=1.09331858 isolation=pass cleanup=pass
+REAL_RIG name=man1 bones=79 initial_error=7.15255737e-07 palette_error=8.97794962e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.1212196 max_anchor_error=0.0349332243 min_joint_y=0.0167594552 max_joint_z=-2.63312197 articulation=1.35574889 isolation=pass cleanup=pass
+REAL_RIG name=man2 bones=79 initial_error=7.15255737e-07 palette_error=8.97794962e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.1212196 max_anchor_error=0.0349332243 min_joint_y=0.0167594552 max_joint_z=-2.63312197 articulation=1.35574889 isolation=pass cleanup=pass
+REAL_RIG name=man_B bones=79 initial_error=7.15255737e-07 palette_error=8.97794962e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.1212196 max_anchor_error=0.0349332243 min_joint_y=0.0167594552 max_joint_z=-2.63312197 articulation=1.35574889 isolation=pass cleanup=pass
+REAL_RIG name=man_kvl2 bones=40 initial_error=4.76837158e-07 palette_error=7.74860382e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.0216904 max_anchor_error=0.0338707566 min_joint_y=0.00869956613 max_joint_z=-2.70350432 articulation=0.325542092 isolation=pass cleanup=pass
+REAL_RIG name=mushketer bones=123 initial_error=4.76837158e-07 palette_error=1.07288361e-06 native_source_roundtrip=1.01327896e-06 reversed_order_error=9.90279961 max_anchor_error=0.0352718234 min_joint_y=-0.00284385681 max_joint_z=-2.32937622 articulation=1.50976992 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper bones=40 initial_error=7.15255737e-07 palette_error=6.85453415e-07 native_source_roundtrip=4.17232513e-07 reversed_order_error=5.88399124 max_anchor_error=0.0267132223 min_joint_y=0.0398368835 max_joint_z=-2.87732935 articulation=0.16515547 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper_short bones=40 initial_error=7.15255737e-07 palette_error=6.85453415e-07 native_source_roundtrip=4.17232513e-07 reversed_order_error=5.88399124 max_anchor_error=0.0267132223 min_joint_y=0.0398368835 max_joint_z=-2.87732935 articulation=0.16515547 isolation=pass cleanup=pass
+REAL_RIG name=skeleton bones=123 initial_error=4.76837158e-07 palette_error=1.1920929e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.1214085 max_anchor_error=0.0397421122 min_joint_y=0.00783854723 max_joint_z=-2.58764267 articulation=1.09331858 isolation=pass cleanup=pass
+REAL_RIG name=towngirl3 bones=44 initial_error=7.15255737e-07 palette_error=1.07288361e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=4.27380514 max_anchor_error=0.0200334936 min_joint_y=0.0161731243 max_joint_z=-2.81908965 articulation=0.865269363 isolation=pass cleanup=pass
+REAL_RIG name=woman bones=128 initial_error=4.76837158e-07 palette_error=1.43051147e-06 native_source_roundtrip=9.53674316e-07 reversed_order_error=9.33686924 max_anchor_error=0.0212804675 min_joint_y=0.0275754929 max_joint_z=-2.85609198 articulation=0.67936486 isolation=pass cleanup=pass
+REAL_RIG name=woman2 bones=84 initial_error=4.76837158e-07 palette_error=1.43051147e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=10.005373 max_anchor_error=0.0263482034 min_joint_y=0.0105980635 max_joint_z=-2.88874388 articulation=0.437464714 isolation=pass cleanup=pass
+REAL_RIG name=woman_A2 bones=128 initial_error=9.53674316e-07 palette_error=1.07288361e-06 native_source_roundtrip=7.15255737e-07 reversed_order_error=10.0205021 max_anchor_error=0.0578660518 min_joint_y=0.00337970257 max_joint_z=-2.86496449 articulation=1.25475729 isolation=pass cleanup=pass
+REAL_RIG name=woman_B bones=44 initial_error=7.15255737e-07 palette_error=1.07288361e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=4.27380514 max_anchor_error=0.0200334936 min_joint_y=0.0161731243 max_joint_z=-2.81908965 articulation=0.865269363 isolation=pass cleanup=pass
+GM_CLIP_WINDING name=PortoBello floor_triangle=78842 floor_gap=0.179998398 wall_triangle=37733 wall_gap=0.180000305 reversed_wall_gap=-3.24356461 pass
+GM_CLIP_WINDING name=Caracas floor_triangle=40417 floor_gap=0.179999352 wall_triangle=41321 wall_gap=0.180001497 reversed_wall_gap=-3.24357128 pass
+GM_CLIP_WINDING name=Havana floor_triangle=95434 floor_gap=0.17999959 wall_triangle=70460 wall_gap=0.179997444 reversed_wall_gap=-3.24356961 pass
+PASS all24 authored rigs; actual current pose/native palette; finite articulation/connected joints; floor/wall; instance isolation/cleanup; actual3GM CCW/negative winding
+EXIT 0
+COMMAND ['/usr/bin/c++', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+<repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:159:1: warning: non-void function does not return a value [-Wreturn-type]
+  159 | }
+      | ^
+8 warnings generated.
+EXIT 0
+COMMAND ['<scratch>/real-rigs', '<scratch>/rigs.txt', '<scratch>/geometry.txt']
+REAL_RIG name=Angellica bones=40 initial_error=7.15255737e-07 palette_error=7.74860382e-07 native_source_roundtrip=2.38418579e-07 reversed_order_error=5.32173538 max_anchor_error=0.0291309953 min_joint_y=0.0195565224 max_joint_z=1.95942593 articulation=1.19267392 isolation=pass cleanup=pass
+REAL_RIG name=Danielle bones=128 initial_error=4.76837158e-07 palette_error=1.07288361e-06 native_source_roundtrip=7.15255737e-07 reversed_order_error=9.66216755 max_anchor_error=0.0259941369 min_joint_y=0.0103170872 max_joint_z=1.96319222 articulation=0.663270473 isolation=pass cleanup=pass
+REAL_RIG name=Jessika bones=49 initial_error=4.76837158e-07 palette_error=1.07288361e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=6.08297491 max_anchor_error=0.0402748585 min_joint_y=0.0328137875 max_joint_z=1.95961046 articulation=1.30480313 isolation=pass cleanup=pass
+REAL_RIG name=Lo_Man bones=27 initial_error=3.57627869e-07 palette_error=5.36441803e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.92049789 max_anchor_error=0.0236908197 min_joint_y=0.0253818035 max_joint_z=1.969522 articulation=1.22264278 isolation=pass cleanup=pass
+REAL_RIG name=ManKSM bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 native_source_roundtrip=2.38418579e-07 reversed_order_error=6.76003122 max_anchor_error=0.0365277529 min_joint_y=-0.00347137451 max_joint_z=1.95837879 articulation=1.1442169 isolation=pass cleanup=pass
+REAL_RIG name=Milenace bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.29631996 max_anchor_error=0.0346374959 min_joint_y=-0.00722014904 max_joint_z=1.96060848 articulation=1.19520903 isolation=pass cleanup=pass
+REAL_RIG name=Moscovit bones=42 initial_error=4.76837158e-07 palette_error=8.34465027e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=6.95027828 max_anchor_error=0.0440201759 min_joint_y=0.00208210945 max_joint_z=1.98343194 articulation=1.11742401 isolation=pass cleanup=pass
+REAL_RIG name=YokoDias bones=40 initial_error=4.76837158e-07 palette_error=1.31130219e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.30717993 max_anchor_error=0.0382191241 min_joint_y=-0.00834286213 max_joint_z=1.95950603 articulation=1.19573951 isolation=pass cleanup=pass
+REAL_RIG name=beatrice2 bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=5.29631996 max_anchor_error=0.0346374959 min_joint_y=-0.00722014904 max_joint_z=1.96060848 articulation=1.19520903 isolation=pass cleanup=pass
+REAL_RIG name=genres bones=123 initial_error=4.76837158e-07 palette_error=9.53674316e-07 native_source_roundtrip=5.36441803e-07 reversed_order_error=7.17066002 max_anchor_error=0.0276928842 min_joint_y=0.024545759 max_joint_z=1.95157266 articulation=0.603013813 isolation=pass cleanup=pass
+REAL_RIG name=man bones=123 initial_error=4.76837158e-07 palette_error=8.34465027e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.41344357 max_anchor_error=0.0264068842 min_joint_y=0.00698184967 max_joint_z=1.96396685 articulation=1.24927557 isolation=pass cleanup=pass
+REAL_RIG name=man1 bones=79 initial_error=4.76837158e-07 palette_error=1.1920929e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.4129858 max_anchor_error=0.0289327204 min_joint_y=-0.00568532944 max_joint_z=1.96548796 articulation=1.40868437 isolation=pass cleanup=pass
+REAL_RIG name=man2 bones=79 initial_error=4.76837158e-07 palette_error=1.1920929e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.4129858 max_anchor_error=0.0289327204 min_joint_y=-0.00568532944 max_joint_z=1.96548796 articulation=1.40868437 isolation=pass cleanup=pass
+REAL_RIG name=man_B bones=79 initial_error=4.76837158e-07 palette_error=1.1920929e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.4129858 max_anchor_error=0.0289327204 min_joint_y=-0.00568532944 max_joint_z=1.96548796 articulation=1.40868437 isolation=pass cleanup=pass
+REAL_RIG name=man_kvl2 bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=6.79653025 max_anchor_error=0.03770262 min_joint_y=0.00319185853 max_joint_z=1.96094179 articulation=1.19439042 isolation=pass cleanup=pass
+REAL_RIG name=mushketer bones=123 initial_error=4.76837158e-07 palette_error=1.07288361e-06 native_source_roundtrip=1.01327896e-06 reversed_order_error=8.94138241 max_anchor_error=0.0361227095 min_joint_y=-0.000205993652 max_joint_z=1.96597552 articulation=1.52346492 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 native_source_roundtrip=4.17232513e-07 reversed_order_error=5.66433525 max_anchor_error=0.0256563425 min_joint_y=-0.00799894333 max_joint_z=1.90440297 articulation=0.866150618 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper_short bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 native_source_roundtrip=4.17232513e-07 reversed_order_error=5.66433525 max_anchor_error=0.0256563425 min_joint_y=-0.00799894333 max_joint_z=1.90440297 articulation=0.866150618 isolation=pass cleanup=pass
+REAL_RIG name=skeleton bones=123 initial_error=4.76837158e-07 palette_error=8.34465027e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.41344357 max_anchor_error=0.0264068842 min_joint_y=0.00698184967 max_joint_z=1.96396685 articulation=1.24927557 isolation=pass cleanup=pass
+REAL_RIG name=towngirl3 bones=44 initial_error=4.76837158e-07 palette_error=1.07288361e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=4.43887329 max_anchor_error=0.0288591087 min_joint_y=0.00247961283 max_joint_z=1.96415341 articulation=1.13069546 isolation=pass cleanup=pass
+REAL_RIG name=woman bones=128 initial_error=4.76837158e-07 palette_error=1.43051147e-06 native_source_roundtrip=9.53674316e-07 reversed_order_error=7.54278421 max_anchor_error=0.0331822783 min_joint_y=0.0107812881 max_joint_z=1.97515333 articulation=1.15263236 isolation=pass cleanup=pass
+REAL_RIG name=woman2 bones=84 initial_error=4.76837158e-07 palette_error=9.53674316e-07 native_source_roundtrip=4.76837158e-07 reversed_order_error=9.53101063 max_anchor_error=0.0303631276 min_joint_y=0.0140621662 max_joint_z=1.96239233 articulation=0.347039133 isolation=pass cleanup=pass
+REAL_RIG name=woman_A2 bones=128 initial_error=7.15255737e-07 palette_error=1.07288361e-06 native_source_roundtrip=7.15255737e-07 reversed_order_error=9.57080269 max_anchor_error=0.0296458602 min_joint_y=0.0155131817 max_joint_z=1.9681381 articulation=0.651596785 isolation=pass cleanup=pass
+REAL_RIG name=woman_B bones=44 initial_error=4.76837158e-07 palette_error=1.07288361e-06 native_source_roundtrip=4.76837158e-07 reversed_order_error=4.43887329 max_anchor_error=0.0288591087 min_joint_y=0.00247961283 max_joint_z=1.96415341 articulation=1.13069546 isolation=pass cleanup=pass
+GM_CLIP_WINDING name=PortoBello floor_triangle=78842 floor_gap=0.179998398 wall_triangle=37733 wall_gap=0.180000305 reversed_wall_gap=-3.24356461 pass
+GM_CLIP_WINDING name=Caracas floor_triangle=40417 floor_gap=0.179999352 wall_triangle=41321 wall_gap=0.180001497 reversed_wall_gap=-3.24357128 pass
+GM_CLIP_WINDING name=Havana floor_triangle=95434 floor_gap=0.17999959 wall_triangle=70460 wall_gap=0.179997444 reversed_wall_gap=-3.24356961 pass
+PASS all24 authored rigs; actual current pose/native palette; finite articulation/connected joints; floor/wall; instance isolation/cleanup; actual3GM CCW/negative winding
+EXIT 0
+COMMAND ['/usr/bin/c++', '-DROUNDHOUSE_LEGACY_BRIDGE=1', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+<repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:159:1: warning: non-void function does not return a value [-Wreturn-type]
+  159 | }
+      | ^
+8 warnings generated.
+EXIT 0
+COMMAND ['<scratch>/real-rigs', '<scratch>/rigs.txt', '<scratch>/geometry.txt']
+LEGACY_RENDER_ORACLE name=Angellica origin_error=0.678274035 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=Danielle origin_error=1.30757749 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=Jessika origin_error=0.593858182 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=Lo_Man origin_error=0.580302715 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=ManKSM origin_error=0.699207842 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=Milenace origin_error=0.651615024 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=Moscovit origin_error=0.722257197 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=YokoDias origin_error=0.665605307 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=beatrice2 origin_error=0.651615024 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=genres origin_error=0.576053679 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=man origin_error=1.35342979 native_output_x_reflection=missing
+BRIDGE_TIMING legacy=1 frames=1200 actors=32 bones=123 ms=64.074083 ns_per_bone=13.5658204 checksum=1082673.08
+LEGACY_RENDER_ORACLE name=man1 origin_error=1.35367835 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=man2 origin_error=1.35367835 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=man_B origin_error=1.35367835 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=man_kvl2 origin_error=0.71792686 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=mushketer origin_error=0.644660234 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=mushketer_whisper origin_error=0.628332734 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=mushketer_whisper_short origin_error=0.628332734 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=skeleton origin_error=1.35342979 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=towngirl3 origin_error=0.57932055 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=woman origin_error=0.4630256 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=woman2 origin_error=1.23259985 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=woman_A2 origin_error=1.25614464 native_output_x_reflection=missing
+LEGACY_RENDER_ORACLE name=woman_B origin_error=0.57932055 native_output_x_reflection=missing
+LEGACY_EXPECTED_FAILURE max_native_origin_error=1.35367835
+EXIT 1
+EVIDENCE_CONTRACT native-reflection-v2; earlier unmirrored runs prove algebra/backend only and do not prove rendered alignment.
+INPUTS_SHA256 {"docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt": "388f61396da77bc7f1262dd1c6752dde6beb3b14aa8eeeb445f95753ec12f67c", "docs/evidence/roundhouse-kick/backend-real-rigs.py.txt": "56e1ff27565be42d018d018f65600be4c86b199a5cf976da2b486796d0f3d8d7", "docs/evidence/roundhouse-kick/inputs/Beatric_0.gm": "2899ff70577c3364fff49ce43d07e2fec2dc26621f70390ebbc3c713b08717aa", "docs/evidence/roundhouse-kick/inputs/Blad_0.gm": "3cba9f118d0e07d5323fe3f93c578ae2426091161051eaf8a3ebc4b283ef1f0e", "docs/evidence/roundhouse-kick/inputs/Dan_Howk_0.gm": "29639370fd57c5105072d0724207f5edbc521770c6f6fa870658673459347b48", "docs/evidence/roundhouse-kick/inputs/Researcher.gm": "891e5078d1aab966d4b2742be2723b844486bdd4cb8dcde9b6fb905ad649a65b", "docs/evidence/roundhouse-kick/inputs/barmen_33.gm": "454acb4158c3018cb063033669609e10938a5dba2c97a0d73da577307a784051", "docs/evidence/roundhouse-kick/inputs/jess0.gm": "018ef815abbbb9cc9871ed023f95b290ed8884efa763fc2711df09279edb18d8", "experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a": "4af5c8b9c4b6413d6b034b08ff5080a8718c7f052b4c6b3eb1022bcfb07804db", "experiments/native-metal/.cache/build/libroundhouse_ragdoll.a": "fa5bc7f3fb62252cc0782beced42d1d17a78da258fd5c63f047a601ea0c75a1b", "experiments/native-metal/.cache/roundhouse/RESOURCE/INI/roundhouse-rigs.ini": "342a45b126c8b64135d3084158c76578ba55bcfad00f1cd4d0026e2a94951539", "experiments/native-metal/backend.mm": "a3a233f9b190e5833b4ba2f72159a3a0a37550c23a8d1763dea1173c6fe0c5a9", "experiments/native-metal/engine/src/libs/animation/src/animation_imp.cpp": "1c25db07055112e834373d3fd67733a0a77677c4cbe56f23f7adb438f988c79a", "experiments/native-metal/engine/src/libs/animation/src/bone.cpp": "c7b5226c377671e07f426e85eb31cae394ac5d83c010c166c43fe83237757638", "experiments/native-metal/engine/src/libs/geometry/src/collide.cpp": "935aeb0df0f611bd19df216ad49cbb038f34dd9ebd12b6772a6c38aaf3633a5b", "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "33421ff0f49d68d5589779a7acedfb5573203fd50906acef203028db015c961a", "experiments/native-metal/engine/src/libs/location/src/roundhouse_location.cpp": "17a8b99b897e10989b026a83e01b5d238fc4ecd6eaeb54b6a4375b7be49781a3", "experiments/native-metal/engine/src/libs/math/include/matrix.h": "4823aa6e9f58b1dbb0147c0b0d227423a7d819eb5d08cc488e4ae858e3b67989", "experiments/native-metal/engine/src/libs/model/src/model.cpp": "d9542e2023bfb11a580dfc0122e6d2c7c01725ee9b53ef5e1ef9be8a94631192", "experiments/native-metal/engine/src/libs/model/src/node.cpp": "a64167dd4520a72c9c36716e5abd4376397f2e20f54f4f78c8323931528e30a7", "experiments/native-metal/roundhouse_pose.hpp": "46e42ec45137d6861007f64dc9a583ae6785de5dad7b46b395769560d999d843", "experiments/native-metal/roundhouse_ragdoll.cpp": "c8b4d034fd3d0355cc08c289a5121f161b764a43ce2a0f36dc4d93c4f7b91826", "src/assets/roundhouse/manifest.json": "f24bf69f707d1eb8a2efbd4cce849290a35b40cd96e1eb61c725229aefba03e3", "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"}
+COMMAND ['/usr/bin/c++', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+<repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:159:1: warning: non-void function does not return a value [-Wreturn-type]
+  159 | }
+      | ^
+8 warnings generated.
+EXIT 0
+COMMAND ['<scratch>/real-rigs', '<scratch>/rigs.txt', '<scratch>/geometry.txt']
+REAL_RIG name=Angellica bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 raw_fk_sanity=2.38418579e-07 native_joint_error=3.57627869e-07 native_offset_error=5.33120158e-07 heel_error=0 head_error=2.66560079e-07 wrong_world_error=6.48837757 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.71401167 max_anchor_error=0.0221624672 min_joint_y=0.0361642838 max_joint_z=1.96922004 articulation=1.15305746 isolation=pass cleanup=pass
+REAL_RIG name=Danielle bones=128 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=7.15255737e-07 native_joint_error=7.15255737e-07 native_offset_error=7.15255737e-07 heel_error=1.1920929e-07 head_error=0 wrong_world_error=6.60739517 mesh_vertices=1845 mesh_error=1.07288361e-06 mesh_normal_error=1.05324966e-06 reversed_order_error=9.20278358 max_anchor_error=0.0255207717 min_joint_y=-0.00844323635 max_joint_z=1.98799706 articulation=1.14233804 isolation=pass cleanup=pass
+REAL_RIG name=Jessika bones=49 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.33120158e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=5.33120158e-07 wrong_world_error=6.41025877 mesh_vertices=3012 mesh_error=1.26721216e-06 mesh_normal_error=4.71216083e-07 reversed_order_error=5.75039625 max_anchor_error=0.0340944827 min_joint_y=0.00812268257 max_joint_z=1.97259653 articulation=1.36864865 isolation=pass cleanup=pass
+REAL_RIG name=Lo_Man bones=27 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.76837158e-07 native_offset_error=5.46285605e-07 heel_error=0 head_error=2.66560079e-07 wrong_world_error=6.47032309 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.49800968 max_anchor_error=0.0457022339 min_joint_y=0.00424075127 max_joint_z=1.95858216 articulation=1.18046784 isolation=pass cleanup=pass
+REAL_RIG name=ManKSM bones=40 initial_error=4.76837158e-07 palette_error=6.55651093e-07 raw_fk_sanity=2.38418579e-07 native_joint_error=3.57627869e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.49877882 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.01678705 max_anchor_error=0.0312138498 min_joint_y=-0.0165398121 max_joint_z=1.96767426 articulation=1.13857341 isolation=pass cleanup=pass
+REAL_RIG name=Milenace bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.46592712 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.66715765 max_anchor_error=0.0234379768 min_joint_y=0.00264835358 max_joint_z=1.97181284 articulation=0.999695599 isolation=pass cleanup=pass
+REAL_RIG name=Moscovit bones=42 initial_error=4.76837158e-07 palette_error=5.96046448e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.33120158e-07 native_offset_error=9.61096021e-07 heel_error=0 head_error=5.46285605e-07 wrong_world_error=6.62424088 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.24503708 max_anchor_error=0.0242033005 min_joint_y=0.0164744854 max_joint_z=2.00193501 articulation=1.06145418 isolation=pass cleanup=pass
+REAL_RIG name=YokoDias bones=40 initial_error=4.76837158e-07 palette_error=1.07288361e-06 raw_fk_sanity=4.76837158e-07 native_joint_error=4.76837158e-07 native_offset_error=5.33120158e-07 heel_error=2.66560079e-07 head_error=4.76837158e-07 wrong_world_error=6.47742033 mesh_vertices=2595 mesh_error=1.09257121e-06 mesh_normal_error=5.36907237e-07 reversed_order_error=5.69162798 max_anchor_error=0.0221733451 min_joint_y=0.0124836564 max_joint_z=1.95558214 articulation=1.38815296 isolation=pass cleanup=pass
+REAL_RIG name=beatrice2 bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.46592712 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.66715765 max_anchor_error=0.0234379768 min_joint_y=0.00264835358 max_joint_z=1.97181284 articulation=0.999695599 isolation=pass cleanup=pass
+REAL_RIG name=genres bones=123 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=5.36441803e-07 native_joint_error=5.46285605e-07 native_offset_error=9.61096021e-07 heel_error=0 head_error=5.33120158e-07 wrong_world_error=6.59913492 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.17306995 max_anchor_error=0.0269742906 min_joint_y=0.0290307999 max_joint_z=1.98088276 articulation=0.589576483 isolation=pass cleanup=pass
+BRIDGE_TIMING legacy=0 frames=1200 actors=32 bones=123 ms=82.141416 ns_per_bone=17.3910518 checksum=1082672.98
+REAL_RIG name=man bones=123 initial_error=7.15255737e-07 palette_error=8.34465027e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.84003885e-07 native_offset_error=5.84003885e-07 heel_error=0 head_error=0 wrong_world_error=7.09333801 mesh_vertices=2635 mesh_error=1.19803849e-06 mesh_normal_error=6.69060455e-07 reversed_order_error=9.56556892 max_anchor_error=0.0259411782 min_joint_y=0.00452530384 max_joint_z=1.97624302 articulation=1.01019561 isolation=pass cleanup=pass
+REAL_RIG name=man1 bones=79 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=1.1920929e-07 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=1177 mesh_error=1.07288361e-06 mesh_normal_error=6.41961662e-07 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man2 bones=79 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=1.1920929e-07 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=1609 mesh_error=1.07288361e-06 mesh_normal_error=6.55693441e-07 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man_B bones=79 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=0 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man_kvl2 bones=40 initial_error=4.76837158e-07 palette_error=8.34465027e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=3.57627869e-07 native_offset_error=9.53674316e-07 heel_error=0 head_error=1.1920929e-07 wrong_world_error=6.51643276 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.06050205 max_anchor_error=0.0247485936 min_joint_y=-0.0106744766 max_joint_z=1.98416388 articulation=1.29200065 isolation=pass cleanup=pass
+REAL_RIG name=mushketer bones=123 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=1.01327896e-06 native_joint_error=8.67856727e-07 native_offset_error=9.31054331e-07 heel_error=0 head_error=2.38418579e-07 wrong_world_error=6.78601694 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=8.88326359 max_anchor_error=0.0296345055 min_joint_y=0.0277661085 max_joint_z=1.96021414 articulation=0.877535343 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper bones=40 initial_error=4.76837158e-07 palette_error=1.1920929e-06 raw_fk_sanity=4.17232513e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.87887287 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=6.08460331 max_anchor_error=0.0356334895 min_joint_y=0.00562953949 max_joint_z=1.95978832 articulation=1.22227252 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper_short bones=40 initial_error=4.76837158e-07 palette_error=1.1920929e-06 raw_fk_sanity=4.17232513e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.87887287 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=6.08460331 max_anchor_error=0.0356334895 min_joint_y=0.00562953949 max_joint_z=1.95978832 articulation=1.22227252 isolation=pass cleanup=pass
+REAL_RIG name=skeleton bones=123 initial_error=7.15255737e-07 palette_error=8.34465027e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.84003885e-07 native_offset_error=5.84003885e-07 heel_error=1.1920929e-07 head_error=0 wrong_world_error=7.09333801 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.56556892 max_anchor_error=0.0259411782 min_joint_y=0.00452530384 max_joint_z=1.97624302 articulation=1.01019561 isolation=pass cleanup=pass
+REAL_RIG name=towngirl3 bones=44 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.45404768 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=4.78806114 max_anchor_error=0.0239749551 min_joint_y=0.00595271587 max_joint_z=1.95594132 articulation=1.21193516 isolation=pass cleanup=pass
+REAL_RIG name=woman bones=128 initial_error=4.76837158e-07 palette_error=1.1920929e-06 raw_fk_sanity=9.53674316e-07 native_joint_error=1.46971081e-06 native_offset_error=1.43546993e-06 heel_error=0 head_error=1.1920929e-07 wrong_world_error=6.52469587 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.41322279 max_anchor_error=0.0301537365 min_joint_y=0.00843916833 max_joint_z=1.96071029 articulation=1.01708925 isolation=pass cleanup=pass
+REAL_RIG name=woman2 bones=84 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=9.61096021e-07 native_offset_error=9.90226681e-07 heel_error=0 head_error=9.83024961e-07 wrong_world_error=6.54608393 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.09663105 max_anchor_error=0.0389257073 min_joint_y=0.0246505737 max_joint_z=1.98194718 articulation=1.61608672 isolation=pass cleanup=pass
+REAL_RIG name=woman_A2 bones=128 initial_error=4.76837158e-07 palette_error=1.1920929e-06 raw_fk_sanity=7.15255737e-07 native_joint_error=6.74349565e-07 native_offset_error=6.74349565e-07 heel_error=0 head_error=2.38418579e-07 wrong_world_error=6.5627799 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.12845039 max_anchor_error=0.0320034027 min_joint_y=0.00713443756 max_joint_z=1.96717072 articulation=0.550586939 isolation=pass cleanup=pass
+REAL_RIG name=woman_B bones=44 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.45404768 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=4.78806114 max_anchor_error=0.0239749551 min_joint_y=0.00595271587 max_joint_z=1.95594132 articulation=1.21193516 isolation=pass cleanup=pass
+GM_CLIP_WINDING name=PortoBello floor_triangle=78842 floor_gap=0.179998398 wall_triangle=37733 wall_gap=0.180000305 reversed_wall_gap=-3.24356461 pass
+GM_CLIP_WINDING name=Caracas floor_triangle=40417 floor_gap=0.179999352 wall_triangle=41321 wall_gap=0.180001497 reversed_wall_gap=-3.24357128 pass
+GM_CLIP_WINDING name=Havana floor_triangle=95434 floor_gap=0.17999959 wall_triangle=70460 wall_gap=0.179997444 reversed_wall_gap=-3.24356961 pass
+PASS native reflection oracle:all24 real joint origins/offsets; proper rotations; complete6GM vertex/normal roundtrip; finite articulation/connected joints; floor/wall; isolation/cleanup; actual3GM CCW/negative winding
+EXIT 0
+EVIDENCE_CONTRACT native-reflection-v2; earlier unmirrored runs prove algebra/backend only and do not prove rendered alignment.
+INPUTS_SHA256 {"docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt": "19dbc00907435fa27416c17bf724b1faa928f3b7b7e835756d84c8d0e49d30a0", "docs/evidence/roundhouse-kick/backend-real-rigs.py.txt": "b8b40b0dead273fd62ae08de5f4c54ab7442df8eec72fedcf8d2057d4d1333bf", "docs/evidence/roundhouse-kick/inputs/Beatric_0.gm": "2899ff70577c3364fff49ce43d07e2fec2dc26621f70390ebbc3c713b08717aa", "docs/evidence/roundhouse-kick/inputs/Blad_0.gm": "3cba9f118d0e07d5323fe3f93c578ae2426091161051eaf8a3ebc4b283ef1f0e", "docs/evidence/roundhouse-kick/inputs/Dan_Howk_0.gm": "29639370fd57c5105072d0724207f5edbc521770c6f6fa870658673459347b48", "docs/evidence/roundhouse-kick/inputs/Researcher.gm": "891e5078d1aab966d4b2742be2723b844486bdd4cb8dcde9b6fb905ad649a65b", "docs/evidence/roundhouse-kick/inputs/barmen_33.gm": "454acb4158c3018cb063033669609e10938a5dba2c97a0d73da577307a784051", "docs/evidence/roundhouse-kick/inputs/jess0.gm": "018ef815abbbb9cc9871ed023f95b290ed8884efa763fc2711df09279edb18d8", "experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a": "4af5c8b9c4b6413d6b034b08ff5080a8718c7f052b4c6b3eb1022bcfb07804db", "experiments/native-metal/.cache/build/libroundhouse_ragdoll.a": "fa5bc7f3fb62252cc0782beced42d1d17a78da258fd5c63f047a601ea0c75a1b", "experiments/native-metal/.cache/roundhouse/RESOURCE/INI/roundhouse-rigs.ini": "342a45b126c8b64135d3084158c76578ba55bcfad00f1cd4d0026e2a94951539", "experiments/native-metal/backend.mm": "a3a233f9b190e5833b4ba2f72159a3a0a37550c23a8d1763dea1173c6fe0c5a9", "experiments/native-metal/engine/src/libs/animation/src/animation_imp.cpp": "1c25db07055112e834373d3fd67733a0a77677c4cbe56f23f7adb438f988c79a", "experiments/native-metal/engine/src/libs/animation/src/bone.cpp": "c7b5226c377671e07f426e85eb31cae394ac5d83c010c166c43fe83237757638", "experiments/native-metal/engine/src/libs/geometry/src/collide.cpp": "935aeb0df0f611bd19df216ad49cbb038f34dd9ebd12b6772a6c38aaf3633a5b", "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "33421ff0f49d68d5589779a7acedfb5573203fd50906acef203028db015c961a", "experiments/native-metal/engine/src/libs/location/src/roundhouse_location.cpp": "17a8b99b897e10989b026a83e01b5d238fc4ecd6eaeb54b6a4375b7be49781a3", "experiments/native-metal/engine/src/libs/math/include/matrix.h": "4823aa6e9f58b1dbb0147c0b0d227423a7d819eb5d08cc488e4ae858e3b67989", "experiments/native-metal/engine/src/libs/model/src/model.cpp": "d9542e2023bfb11a580dfc0122e6d2c7c01725ee9b53ef5e1ef9be8a94631192", "experiments/native-metal/engine/src/libs/model/src/node.cpp": "a64167dd4520a72c9c36716e5abd4376397f2e20f54f4f78c8323931528e30a7", "experiments/native-metal/roundhouse_pose.hpp": "46e42ec45137d6861007f64dc9a583ae6785de5dad7b46b395769560d999d843", "experiments/native-metal/roundhouse_ragdoll.cpp": "c8b4d034fd3d0355cc08c289a5121f161b764a43ce2a0f36dc4d93c4f7b91826", "src/assets/roundhouse/manifest.json": "f24bf69f707d1eb8a2efbd4cce849290a35b40cd96e1eb61c725229aefba03e3", "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"}
+COMMAND ['/usr/bin/c++', '-DROUNDHOUSE_ALTERNATE_BRIDGE=1', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+<repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:159:1: warning: non-void function does not return a value [-Wreturn-type]
+  159 | }
+      | ^
+8 warnings generated.
+EXIT 0
+COMMAND ['<scratch>/real-rigs', '<scratch>/rigs.txt', '<scratch>/geometry.txt']
+REAL_RIG name=Angellica bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=2.38418579e-07 native_joint_error=3.57627869e-07 native_offset_error=5.33120158e-07 heel_error=0 head_error=2.66560079e-07 wrong_world_error=6.48837757 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.71401167 max_anchor_error=0.0221624672 min_joint_y=0.0361642838 max_joint_z=1.96922004 articulation=1.15305746 isolation=pass cleanup=pass
+REAL_RIG name=Danielle bones=128 initial_error=4.76837158e-07 palette_error=8.94069672e-07 raw_fk_sanity=7.15255737e-07 native_joint_error=7.15255737e-07 native_offset_error=7.15255737e-07 heel_error=1.1920929e-07 head_error=0 wrong_world_error=6.60739517 mesh_vertices=1845 mesh_error=1.52662381e-06 mesh_normal_error=1.05324966e-06 reversed_order_error=9.20278358 max_anchor_error=0.0255207717 min_joint_y=-0.00844323635 max_joint_z=1.98799706 articulation=1.14233804 isolation=pass cleanup=pass
+REAL_RIG name=Jessika bones=49 initial_error=4.76837158e-07 palette_error=8.7916851e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.33120158e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=5.33120158e-07 wrong_world_error=6.41025877 mesh_vertices=3012 mesh_error=1.03924253e-06 mesh_normal_error=4.85146643e-07 reversed_order_error=5.75039625 max_anchor_error=0.0340944827 min_joint_y=0.00812268257 max_joint_z=1.97259653 articulation=1.36864865 isolation=pass cleanup=pass
+REAL_RIG name=Lo_Man bones=27 initial_error=4.76837158e-07 palette_error=5.96046448e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.76837158e-07 native_offset_error=5.46285605e-07 heel_error=0 head_error=2.66560079e-07 wrong_world_error=6.47032309 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.49800968 max_anchor_error=0.0457022339 min_joint_y=0.00424075127 max_joint_z=1.95858216 articulation=1.18046784 isolation=pass cleanup=pass
+REAL_RIG name=ManKSM bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=2.38418579e-07 native_joint_error=3.57627869e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.49877882 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.01678705 max_anchor_error=0.0312138498 min_joint_y=-0.0165398121 max_joint_z=1.96767426 articulation=1.13857341 isolation=pass cleanup=pass
+REAL_RIG name=Milenace bones=40 initial_error=4.76837158e-07 palette_error=7.80913979e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.46592712 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.66715765 max_anchor_error=0.0234379768 min_joint_y=0.00264835358 max_joint_z=1.97181284 articulation=0.999695599 isolation=pass cleanup=pass
+REAL_RIG name=Moscovit bones=42 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.33120158e-07 native_offset_error=9.61096021e-07 heel_error=0 head_error=5.46285605e-07 wrong_world_error=6.62424088 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.24503708 max_anchor_error=0.0242033005 min_joint_y=0.0164744854 max_joint_z=2.00193501 articulation=1.06145418 isolation=pass cleanup=pass
+REAL_RIG name=YokoDias bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.76837158e-07 native_offset_error=5.33120158e-07 heel_error=2.66560079e-07 head_error=4.76837158e-07 wrong_world_error=6.47742033 mesh_vertices=2595 mesh_error=1.07288361e-06 mesh_normal_error=4.99633529e-07 reversed_order_error=5.69162798 max_anchor_error=0.0221733451 min_joint_y=0.0124836564 max_joint_z=1.95558214 articulation=1.38815296 isolation=pass cleanup=pass
+REAL_RIG name=beatrice2 bones=40 initial_error=4.76837158e-07 palette_error=7.80913979e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.46592712 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.66715765 max_anchor_error=0.0234379768 min_joint_y=0.00264835358 max_joint_z=1.97181284 articulation=0.999695599 isolation=pass cleanup=pass
+REAL_RIG name=genres bones=123 initial_error=4.76837158e-07 palette_error=8.34465027e-07 raw_fk_sanity=5.36441803e-07 native_joint_error=5.46285605e-07 native_offset_error=9.61096021e-07 heel_error=0 head_error=5.33120158e-07 wrong_world_error=6.59913492 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.17306995 max_anchor_error=0.0269742906 min_joint_y=0.0290307999 max_joint_z=1.98088276 articulation=0.589576483 isolation=pass cleanup=pass
+BRIDGE_TIMING legacy=0 alternate=1 frames=1200 actors=32 bones=123 ms=40.007042 ns_per_bone=8.47032563 checksum=1082673.01
+REAL_RIG name=man bones=123 initial_error=7.15255737e-07 palette_error=7.74860382e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.84003885e-07 native_offset_error=5.84003885e-07 heel_error=0 head_error=0 wrong_world_error=7.09333801 mesh_vertices=2635 mesh_error=1.09257121e-06 mesh_normal_error=6.20146182e-07 reversed_order_error=9.56556892 max_anchor_error=0.0259411782 min_joint_y=0.00452530384 max_joint_z=1.97624302 articulation=1.01019561 isolation=pass cleanup=pass
+REAL_RIG name=man1 bones=79 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=1.1920929e-07 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=1177 mesh_error=1.09257121e-06 mesh_normal_error=5.84003885e-07 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man2 bones=79 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=1.1920929e-07 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=1609 mesh_error=1.19803849e-06 mesh_normal_error=6.35006302e-07 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man_B bones=79 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=0 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man_kvl2 bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=3.57627869e-07 native_offset_error=9.53674316e-07 heel_error=0 head_error=1.1920929e-07 wrong_world_error=6.51643276 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.06050205 max_anchor_error=0.0247485936 min_joint_y=-0.0106744766 max_joint_z=1.98416388 articulation=1.29200065 isolation=pass cleanup=pass
+REAL_RIG name=mushketer bones=123 initial_error=4.76837158e-07 palette_error=1.07288361e-06 raw_fk_sanity=1.01327896e-06 native_joint_error=8.67856727e-07 native_offset_error=9.31054331e-07 heel_error=0 head_error=2.38418579e-07 wrong_world_error=6.78601694 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=8.88326359 max_anchor_error=0.0296345055 min_joint_y=0.0277661085 max_joint_z=1.96021414 articulation=0.877535343 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.17232513e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.87887287 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=6.08460331 max_anchor_error=0.0356334895 min_joint_y=0.00562953949 max_joint_z=1.95978832 articulation=1.22227252 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper_short bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.17232513e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.87887287 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=6.08460331 max_anchor_error=0.0356334895 min_joint_y=0.00562953949 max_joint_z=1.95978832 articulation=1.22227252 isolation=pass cleanup=pass
+REAL_RIG name=skeleton bones=123 initial_error=7.15255737e-07 palette_error=7.74860382e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.84003885e-07 native_offset_error=5.84003885e-07 heel_error=1.1920929e-07 head_error=0 wrong_world_error=7.09333801 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.56556892 max_anchor_error=0.0259411782 min_joint_y=0.00452530384 max_joint_z=1.97624302 articulation=1.01019561 isolation=pass cleanup=pass
+REAL_RIG name=towngirl3 bones=44 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.45404768 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=4.78806114 max_anchor_error=0.0239749551 min_joint_y=0.00595271587 max_joint_z=1.95594132 articulation=1.21193516 isolation=pass cleanup=pass
+REAL_RIG name=woman bones=128 initial_error=4.76837158e-07 palette_error=1.1920929e-06 raw_fk_sanity=9.53674316e-07 native_joint_error=1.46971081e-06 native_offset_error=1.43546993e-06 heel_error=0 head_error=1.1920929e-07 wrong_world_error=6.52469587 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.41322279 max_anchor_error=0.0301537365 min_joint_y=0.00843916833 max_joint_z=1.96071029 articulation=1.01708925 isolation=pass cleanup=pass
+REAL_RIG name=woman2 bones=84 initial_error=4.76837158e-07 palette_error=5.96046448e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=9.61096021e-07 native_offset_error=9.90226681e-07 heel_error=0 head_error=9.83024961e-07 wrong_world_error=6.54608393 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.09663105 max_anchor_error=0.0389257073 min_joint_y=0.0246505737 max_joint_z=1.98194718 articulation=1.61608672 isolation=pass cleanup=pass
+REAL_RIG name=woman_A2 bones=128 initial_error=4.76837158e-07 palette_error=1.07288361e-06 raw_fk_sanity=7.15255737e-07 native_joint_error=6.74349565e-07 native_offset_error=6.74349565e-07 heel_error=0 head_error=2.38418579e-07 wrong_world_error=6.5627799 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.12845039 max_anchor_error=0.0320034027 min_joint_y=0.00713443756 max_joint_z=1.96717072 articulation=0.550586939 isolation=pass cleanup=pass
+REAL_RIG name=woman_B bones=44 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.45404768 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=4.78806114 max_anchor_error=0.0239749551 min_joint_y=0.00595271587 max_joint_z=1.95594132 articulation=1.21193516 isolation=pass cleanup=pass
+GM_CLIP_WINDING name=PortoBello floor_triangle=78842 floor_gap=0.179998398 wall_triangle=37733 wall_gap=0.180000305 reversed_wall_gap=-3.24356461 pass
+GM_CLIP_WINDING name=Caracas floor_triangle=40417 floor_gap=0.179999352 wall_triangle=41321 wall_gap=0.180001497 reversed_wall_gap=-3.24357128 pass
+GM_CLIP_WINDING name=Havana floor_triangle=95434 floor_gap=0.17999959 wall_triangle=70460 wall_gap=0.179997444 reversed_wall_gap=-3.24356961 pass
+PASS native reflection oracle:all24 real joint origins/offsets; proper rotations; complete6GM vertex/normal roundtrip; finite articulation/connected joints; floor/wall; isolation/cleanup; actual3GM CCW/negative winding
+EXIT 0
+EVIDENCE_CONTRACT native-reflection-v2; earlier unmirrored runs prove algebra/backend only and do not prove rendered alignment.
+INPUTS_SHA256 {"docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt": "388f61396da77bc7f1262dd1c6752dde6beb3b14aa8eeeb445f95753ec12f67c", "docs/evidence/roundhouse-kick/backend-real-rigs.py.txt": "56e1ff27565be42d018d018f65600be4c86b199a5cf976da2b486796d0f3d8d7", "docs/evidence/roundhouse-kick/inputs/Beatric_0.gm": "2899ff70577c3364fff49ce43d07e2fec2dc26621f70390ebbc3c713b08717aa", "docs/evidence/roundhouse-kick/inputs/Blad_0.gm": "3cba9f118d0e07d5323fe3f93c578ae2426091161051eaf8a3ebc4b283ef1f0e", "docs/evidence/roundhouse-kick/inputs/Dan_Howk_0.gm": "29639370fd57c5105072d0724207f5edbc521770c6f6fa870658673459347b48", "docs/evidence/roundhouse-kick/inputs/Researcher.gm": "891e5078d1aab966d4b2742be2723b844486bdd4cb8dcde9b6fb905ad649a65b", "docs/evidence/roundhouse-kick/inputs/barmen_33.gm": "454acb4158c3018cb063033669609e10938a5dba2c97a0d73da577307a784051", "docs/evidence/roundhouse-kick/inputs/jess0.gm": "018ef815abbbb9cc9871ed023f95b290ed8884efa763fc2711df09279edb18d8", "experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a": "4af5c8b9c4b6413d6b034b08ff5080a8718c7f052b4c6b3eb1022bcfb07804db", "experiments/native-metal/.cache/build/libroundhouse_ragdoll.a": "fa5bc7f3fb62252cc0782beced42d1d17a78da258fd5c63f047a601ea0c75a1b", "experiments/native-metal/.cache/roundhouse/RESOURCE/INI/roundhouse-rigs.ini": "342a45b126c8b64135d3084158c76578ba55bcfad00f1cd4d0026e2a94951539", "experiments/native-metal/backend.mm": "a3a233f9b190e5833b4ba2f72159a3a0a37550c23a8d1763dea1173c6fe0c5a9", "experiments/native-metal/engine/src/libs/animation/src/animation_imp.cpp": "1c25db07055112e834373d3fd67733a0a77677c4cbe56f23f7adb438f988c79a", "experiments/native-metal/engine/src/libs/animation/src/bone.cpp": "c7b5226c377671e07f426e85eb31cae394ac5d83c010c166c43fe83237757638", "experiments/native-metal/engine/src/libs/geometry/src/collide.cpp": "935aeb0df0f611bd19df216ad49cbb038f34dd9ebd12b6772a6c38aaf3633a5b", "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "33421ff0f49d68d5589779a7acedfb5573203fd50906acef203028db015c961a", "experiments/native-metal/engine/src/libs/location/src/roundhouse_location.cpp": "17a8b99b897e10989b026a83e01b5d238fc4ecd6eaeb54b6a4375b7be49781a3", "experiments/native-metal/engine/src/libs/math/include/matrix.h": "4823aa6e9f58b1dbb0147c0b0d227423a7d819eb5d08cc488e4ae858e3b67989", "experiments/native-metal/engine/src/libs/model/src/model.cpp": "d9542e2023bfb11a580dfc0122e6d2c7c01725ee9b53ef5e1ef9be8a94631192", "experiments/native-metal/engine/src/libs/model/src/node.cpp": "a64167dd4520a72c9c36716e5abd4376397f2e20f54f4f78c8323931528e30a7", "experiments/native-metal/roundhouse_pose.hpp": "2b713a5ebc01c25edef8edc1b5cc08582f34c58f19d6b57e5ebf6bb7855cd6ef", "experiments/native-metal/roundhouse_ragdoll.cpp": "c8b4d034fd3d0355cc08c289a5121f161b764a43ce2a0f36dc4d93c4f7b91826", "src/assets/roundhouse/manifest.json": "f24bf69f707d1eb8a2efbd4cce849290a35b40cd96e1eb61c725229aefba03e3", "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"}
+COMMAND ['/usr/bin/c++', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:2:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt:3:
+<repo>/docs/evidence/roundhouse-kick/backend-probe.cpp.txt:159:1: warning: non-void function does not return a value [-Wreturn-type]
+  159 | }
+      | ^
+8 warnings generated.
+EXIT 0
+COMMAND ['<scratch>/real-rigs', '<scratch>/rigs.txt', '<scratch>/geometry.txt']
+REAL_RIG name=Angellica bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=2.38418579e-07 native_joint_error=3.57627869e-07 native_offset_error=5.33120158e-07 heel_error=0 head_error=2.66560079e-07 wrong_world_error=6.48837757 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.71401167 max_anchor_error=0.0221624672 min_joint_y=0.0361642838 max_joint_z=1.96922004 articulation=1.15305746 isolation=pass cleanup=pass
+REAL_RIG name=Danielle bones=128 initial_error=4.76837158e-07 palette_error=8.94069672e-07 raw_fk_sanity=7.15255737e-07 native_joint_error=7.15255737e-07 native_offset_error=7.15255737e-07 heel_error=1.1920929e-07 head_error=0 wrong_world_error=6.60739517 mesh_vertices=1845 mesh_error=1.52662381e-06 mesh_normal_error=1.05324966e-06 reversed_order_error=9.20278358 max_anchor_error=0.0255207717 min_joint_y=-0.00844323635 max_joint_z=1.98799706 articulation=1.14233804 isolation=pass cleanup=pass
+REAL_RIG name=Jessika bones=49 initial_error=4.76837158e-07 palette_error=8.7916851e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.33120158e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=5.33120158e-07 wrong_world_error=6.41025877 mesh_vertices=3012 mesh_error=1.03924253e-06 mesh_normal_error=4.85146643e-07 reversed_order_error=5.75039625 max_anchor_error=0.0340944827 min_joint_y=0.00812268257 max_joint_z=1.97259653 articulation=1.36864865 isolation=pass cleanup=pass
+REAL_RIG name=Lo_Man bones=27 initial_error=4.76837158e-07 palette_error=5.96046448e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.76837158e-07 native_offset_error=5.46285605e-07 heel_error=0 head_error=2.66560079e-07 wrong_world_error=6.47032309 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.49800968 max_anchor_error=0.0457022339 min_joint_y=0.00424075127 max_joint_z=1.95858216 articulation=1.18046784 isolation=pass cleanup=pass
+REAL_RIG name=ManKSM bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=2.38418579e-07 native_joint_error=3.57627869e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.49877882 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.01678705 max_anchor_error=0.0312138498 min_joint_y=-0.0165398121 max_joint_z=1.96767426 articulation=1.13857341 isolation=pass cleanup=pass
+REAL_RIG name=Milenace bones=40 initial_error=4.76837158e-07 palette_error=7.80913979e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.46592712 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.66715765 max_anchor_error=0.0234379768 min_joint_y=0.00264835358 max_joint_z=1.97181284 articulation=0.999695599 isolation=pass cleanup=pass
+REAL_RIG name=Moscovit bones=42 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.33120158e-07 native_offset_error=9.61096021e-07 heel_error=0 head_error=5.46285605e-07 wrong_world_error=6.62424088 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.24503708 max_anchor_error=0.0242033005 min_joint_y=0.0164744854 max_joint_z=2.00193501 articulation=1.06145418 isolation=pass cleanup=pass
+REAL_RIG name=YokoDias bones=40 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.76837158e-07 native_offset_error=5.33120158e-07 heel_error=2.66560079e-07 head_error=4.76837158e-07 wrong_world_error=6.47742033 mesh_vertices=2595 mesh_error=1.07288361e-06 mesh_normal_error=4.99633529e-07 reversed_order_error=5.69162798 max_anchor_error=0.0221733451 min_joint_y=0.0124836564 max_joint_z=1.95558214 articulation=1.38815296 isolation=pass cleanup=pass
+REAL_RIG name=beatrice2 bones=40 initial_error=4.76837158e-07 palette_error=7.80913979e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.46592712 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=5.66715765 max_anchor_error=0.0234379768 min_joint_y=0.00264835358 max_joint_z=1.97181284 articulation=0.999695599 isolation=pass cleanup=pass
+REAL_RIG name=genres bones=123 initial_error=4.76837158e-07 palette_error=8.34465027e-07 raw_fk_sanity=5.36441803e-07 native_joint_error=5.46285605e-07 native_offset_error=9.61096021e-07 heel_error=0 head_error=5.33120158e-07 wrong_world_error=6.59913492 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.17306995 max_anchor_error=0.0269742906 min_joint_y=0.0290307999 max_joint_z=1.98088276 articulation=0.589576483 isolation=pass cleanup=pass
+BRIDGE_TIMING legacy=0 frames=1200 actors=32 bones=123 ms=40.315792 ns_per_bone=8.53569444 checksum=1082673.01
+REAL_RIG name=man bones=123 initial_error=7.15255737e-07 palette_error=7.74860382e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.84003885e-07 native_offset_error=5.84003885e-07 heel_error=0 head_error=0 wrong_world_error=7.09333801 mesh_vertices=2635 mesh_error=1.09257121e-06 mesh_normal_error=6.20146182e-07 reversed_order_error=9.56556892 max_anchor_error=0.0259411782 min_joint_y=0.00452530384 max_joint_z=1.97624302 articulation=1.01019561 isolation=pass cleanup=pass
+REAL_RIG name=man1 bones=79 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=1.1920929e-07 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=1177 mesh_error=1.09257121e-06 mesh_normal_error=5.84003885e-07 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man2 bones=79 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=1.1920929e-07 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=1609 mesh_error=1.19803849e-06 mesh_normal_error=6.35006302e-07 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man_B bones=79 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=5.96046448e-07 heel_error=0 head_error=1.1920929e-07 wrong_world_error=7.08420038 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.56511784 max_anchor_error=0.0488767624 min_joint_y=-0.00189733505 max_joint_z=1.96649313 articulation=1.324579 isolation=pass cleanup=pass
+REAL_RIG name=man_kvl2 bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=3.57627869e-07 native_offset_error=9.53674316e-07 heel_error=0 head_error=1.1920929e-07 wrong_world_error=6.51643276 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.06050205 max_anchor_error=0.0247485936 min_joint_y=-0.0106744766 max_joint_z=1.98416388 articulation=1.29200065 isolation=pass cleanup=pass
+REAL_RIG name=mushketer bones=123 initial_error=4.76837158e-07 palette_error=1.07288361e-06 raw_fk_sanity=1.01327896e-06 native_joint_error=8.67856727e-07 native_offset_error=9.31054331e-07 heel_error=0 head_error=2.38418579e-07 wrong_world_error=6.78601694 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=8.88326359 max_anchor_error=0.0296345055 min_joint_y=0.0277661085 max_joint_z=1.96021414 articulation=0.877535343 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.17232513e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.87887287 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=6.08460331 max_anchor_error=0.0356334895 min_joint_y=0.00562953949 max_joint_z=1.95978832 articulation=1.22227252 isolation=pass cleanup=pass
+REAL_RIG name=mushketer_whisper_short bones=40 initial_error=4.76837158e-07 palette_error=9.53674316e-07 raw_fk_sanity=4.17232513e-07 native_joint_error=4.9151248e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=0 wrong_world_error=6.87887287 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=6.08460331 max_anchor_error=0.0356334895 min_joint_y=0.00562953949 max_joint_z=1.95978832 articulation=1.22227252 isolation=pass cleanup=pass
+REAL_RIG name=skeleton bones=123 initial_error=7.15255737e-07 palette_error=7.74860382e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.84003885e-07 native_offset_error=5.84003885e-07 heel_error=1.1920929e-07 head_error=0 wrong_world_error=7.09333801 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.56556892 max_anchor_error=0.0259411782 min_joint_y=0.00452530384 max_joint_z=1.97624302 articulation=1.01019561 isolation=pass cleanup=pass
+REAL_RIG name=towngirl3 bones=44 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.45404768 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=4.78806114 max_anchor_error=0.0239749551 min_joint_y=0.00595271587 max_joint_z=1.95594132 articulation=1.21193516 isolation=pass cleanup=pass
+REAL_RIG name=woman bones=128 initial_error=4.76837158e-07 palette_error=1.1920929e-06 raw_fk_sanity=9.53674316e-07 native_joint_error=1.46971081e-06 native_offset_error=1.43546993e-06 heel_error=0 head_error=1.1920929e-07 wrong_world_error=6.52469587 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=7.41322279 max_anchor_error=0.0301537365 min_joint_y=0.00843916833 max_joint_z=1.96071029 articulation=1.01708925 isolation=pass cleanup=pass
+REAL_RIG name=woman2 bones=84 initial_error=4.76837158e-07 palette_error=5.96046448e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=9.61096021e-07 native_offset_error=9.90226681e-07 heel_error=0 head_error=9.83024961e-07 wrong_world_error=6.54608393 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.09663105 max_anchor_error=0.0389257073 min_joint_y=0.0246505737 max_joint_z=1.98194718 articulation=1.61608672 isolation=pass cleanup=pass
+REAL_RIG name=woman_A2 bones=128 initial_error=4.76837158e-07 palette_error=1.07288361e-06 raw_fk_sanity=7.15255737e-07 native_joint_error=6.74349565e-07 native_offset_error=6.74349565e-07 heel_error=0 head_error=2.38418579e-07 wrong_world_error=6.5627799 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=9.12845039 max_anchor_error=0.0320034027 min_joint_y=0.00713443756 max_joint_z=1.96717072 articulation=0.550586939 isolation=pass cleanup=pass
+REAL_RIG name=woman_B bones=44 initial_error=4.76837158e-07 palette_error=7.15255737e-07 raw_fk_sanity=4.76837158e-07 native_joint_error=5.46285605e-07 native_offset_error=4.9151248e-07 heel_error=0 head_error=4.76837158e-07 wrong_world_error=6.45404768 mesh_vertices=0 mesh_error=0 mesh_normal_error=0 reversed_order_error=4.78806114 max_anchor_error=0.0239749551 min_joint_y=0.00595271587 max_joint_z=1.95594132 articulation=1.21193516 isolation=pass cleanup=pass
+GM_CLIP_WINDING name=PortoBello floor_triangle=78842 floor_gap=0.179998398 wall_triangle=37733 wall_gap=0.180000305 reversed_wall_gap=-3.24356461 pass
+GM_CLIP_WINDING name=Caracas floor_triangle=40417 floor_gap=0.179999352 wall_triangle=41321 wall_gap=0.180001497 reversed_wall_gap=-3.24357128 pass
+GM_CLIP_WINDING name=Havana floor_triangle=95434 floor_gap=0.17999959 wall_triangle=70460 wall_gap=0.179997444 reversed_wall_gap=-3.24356961 pass
+PASS native reflection oracle:all24 real joint origins/offsets; proper rotations; complete6GM vertex/normal roundtrip; finite articulation/connected joints; floor/wall; isolation/cleanup; actual3GM CCW/negative winding
+EXIT 0

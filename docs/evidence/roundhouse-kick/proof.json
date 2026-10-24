@@ -1,0 +1,113 @@
+{
+  "changed_cache_rejected": "Missing/changed roundhouse output: RESOURCE/INI/roundhouse-rigs.ini",
+  "changed_recipe_rejected": "Roundhouse source changed: recipe.json; regenerate first",
+  "deterministic_output_hashes": true,
+  "evidence_sha256": {
+    "README.md": "005493c20aa8c5515aeb3cb1226957f6ca68f8ca89890a455b332cb3ae3c78ac",
+    "continuity.json": "4ab945f379e76e06472a480f7e171d1124d2bcb3476a05bbca330120fdd3aae4",
+    "getup-phases.png": "87267ecad47f39e057f6927a60d0466f612d4f560c8252938b865033b670d4eb",
+    "inputs/meshes.json": "1c14108992453107f129dd5af9faa37b1263cda5506d305ba333f14dc8990a62",
+    "jessika-sweep-anatomy.json": "0a256a403e50b43aa07325117b5ac9f794c616262fb6b9831b2737d7fcf25414",
+    "jessika-sweep-views.png": "7803c1e32a70eee763bb09cb707f4b5d2ac2eacc152e658a52a9c7d8933a3e61",
+    "kick-motion.gif": "c7354b662c335fa10149124712b073b3ed05f93ab8fdc0b02a107d2d95e1ed77",
+    "kick-phases.png": "6a2cc015babd8968061591db6d826ead5ef4c0dc39952b208c9b8e2548384370",
+    "mesh-metrics.json": "4f61d080c94c23f9daa369e5e01b148cec08a129e0230fb89535c2a17ba4c025",
+    "render.py": "e03e1e3114b2017fc7f802884c22b537d58cb0b9f3786460fdd21df1fcb6f908"
+  },
+  "fresh_cache_reconstructed_without_original_assets": true,
+  "physical_head_sweep": {
+    "Danielle": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7021623357240925,
+      "heel_to_head_sweep_min_m": 0.005273699166151681,
+      "serialized_heel_contact_error_m": 0.0052737573038948386,
+      "serialized_support_ankle_error_max_m": 0.0010309841096361062,
+      "victim_separation_m": 0.7
+    },
+    "Jessika": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.695816638382284,
+      "heel_to_head_sweep_min_m": 1.734723475976807e-18,
+      "serialized_heel_contact_error_m": 9.649591545638675e-08,
+      "serialized_support_ankle_error_max_m": 0.0002258474768062445,
+      "victim_separation_m": 0.7
+    },
+    "YokoDias": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.6981712487577726,
+      "heel_to_head_sweep_min_m": 3.469446951953614e-18,
+      "serialized_heel_contact_error_m": 7.275092742783007e-08,
+      "serialized_support_ankle_error_max_m": 1.9156543608696779e-07,
+      "victim_separation_m": 0.7
+    },
+    "man": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7,
+      "heel_to_head_sweep_min_m": 1.113606002252634e-16,
+      "serialized_heel_contact_error_m": 5.274801403665696e-08,
+      "serialized_support_ankle_error_max_m": 0.00010980323351353817,
+      "victim_separation_m": 0.7
+    },
+    "man1": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7000000000000001,
+      "heel_to_head_sweep_min_m": 2.4835037038225095e-16,
+      "serialized_heel_contact_error_m": 5.231162636125801e-08,
+      "serialized_support_ankle_error_max_m": 0.0001087976713832543,
+      "victim_separation_m": 0.7
+    },
+    "man2": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7000000000000001,
+      "heel_to_head_sweep_min_m": 2.4835037038225095e-16,
+      "serialized_heel_contact_error_m": 5.231162636125801e-08,
+      "serialized_support_ankle_error_max_m": 0.0001087976713832543,
+      "victim_separation_m": 0.7
+    }
+  },
+  "pillow": "12.2.0",
+  "platform": "Darwin arm64",
+  "prepared_resources": 49,
+  "procedures": {
+    "clean_cache_probe": "Redirect prepare_roundhouse.OUTPUT to an empty tempfile.mkdtemp directory. Deny Path.read_bytes for original /.cache/runtime/ and /inputs/native/ paths. Call prepared(); compare all 49 hashes against manifest files; require unchanged manifest bytes.",
+    "continuity": "For every serialized action/frame pair, compute degrees(2*acos(min(1,abs(dot(q0,q1))/sqrt(dot(q0,q0)*dot(q1,q1))))); retain maximum angle, relative action frame and joint. This is diagnostic, not anatomy acceptance.",
+    "generation": "python3 tools/prepare_roundhouse.py",
+    "offline_pixels": "python3 docs/evidence/roundhouse-kick/render.py --motion",
+    "prepared_readback": "python3 tools/prepare_roundhouse.py --check",
+    "source_cache_negatives": "Temporarily intercept Path.read_bytes to append one space only to RECIPE, then only to the first cache resource. Each prepared() must raise ValueError without writing.",
+    "wrong_manifest_negative": "Before reconstruction, call prepare(write_manifest=False, expected_manifest=<deep copy with first file sha256 set to 64 zeros>); require ValueError and an empty output directory."
+  },
+  "python": "3.14.7",
+  "source_hashes": {
+    "authoring_helpers_sha256": "22b558a0fd28c08050b3214518d278f8f6eb39cfdce89ea93da09e837f0cdf6b",
+    "generator_sha256": "5bf54cc7e7d2f5419f33171af3a67019d34a129886b4449ed824bcc2bea3034f",
+    "recipe_sha256": "8166083f2fcd625ab29b6be24256b7d7e72cbb8e622f1e1158837c1d2eada79d",
+    "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"
+  },
+  "tracked_manifest_unchanged": true,
+  "wrong_committed_output_hash_rejected_before_writes": "Roundhouse reconstructed output differs from committed manifest; regenerate explicitly"
+}

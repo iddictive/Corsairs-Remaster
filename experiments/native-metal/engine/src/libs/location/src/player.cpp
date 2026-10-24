@@ -60,6 +60,7 @@ void Player::Reset()
 // Move the character to the desired position
 void Player::Move(float dltTime)
 {
+    if (IsRoundhouseControlled()) return;
     kSMReload += dltTime * 0.7f;
     if (kSMReload > 1.0f)
         kSMReload = 1.0f;
@@ -165,6 +166,9 @@ void Player::Move(float dltTime)
             }
             if (IsFight())
             {
+                CONTROL_STATE kickControl;
+                core.Controls->GetControlState("ChrRoundhouse", kickControl);
+                if (kickControl.state == CST_ACTIVATED && StartRoundhouse()) return;
                 if (IsDoBlock())
                 {
                     // boal -->

@@ -1,0 +1,983 @@
+{
+  "acceptance": "Exact bind, metric FK and offline skinned mesh proof; installed gameplay replay remains separate.",
+  "authoring_helpers_sha256": "22b558a0fd28c08050b3214518d278f8f6eb39cfdce89ea93da09e837f0cdf6b",
+  "banks": {
+    "Angellica": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_Angellica",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "Danielle": {
+      "actions": {
+        "getup_back": [
+          219,
+          339
+        ],
+        "getup_front": [
+          98,
+          218
+        ],
+        "roundhouse_kick": [
+          1,
+          97
+        ]
+      },
+      "bank": "Roundhouse_Danielle",
+      "heel_offset": [
+        -0.002425819943233167,
+        -0.045296020654494576,
+        -0.03453094714958561
+      ]
+    },
+    "Jessika": {
+      "actions": {
+        "getup_back": [
+          219,
+          339
+        ],
+        "getup_front": [
+          98,
+          218
+        ],
+        "roundhouse_kick": [
+          1,
+          97
+        ]
+      },
+      "bank": "Roundhouse_Jessika",
+      "heel_offset": [
+        -2.5010959863646122e-12,
+        -0.04920498596406996,
+        -0.02879009439737302
+      ]
+    },
+    "Lo_Man": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_Lo_Man",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "ManKSM": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_ManKSM",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "Milenace": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_Milenace",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "Moscovit": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_Moscovit",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "YokoDias": {
+      "actions": {
+        "getup_back": [
+          219,
+          339
+        ],
+        "getup_front": [
+          98,
+          218
+        ],
+        "roundhouse_kick": [
+          1,
+          97
+        ]
+      },
+      "bank": "Roundhouse_YokoDias",
+      "heel_offset": [
+        -5.144270373268412e-13,
+        -0.04499999704860401,
+        -0.03499999676419245
+      ]
+    },
+    "beatrice2": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_beatrice2",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "genres": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_genres",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "man": {
+      "actions": {
+        "getup_back": [
+          219,
+          339
+        ],
+        "getup_front": [
+          98,
+          218
+        ],
+        "roundhouse_kick": [
+          1,
+          97
+        ]
+      },
+      "bank": "Roundhouse_man",
+      "heel_offset": [
+        -0.007181757328327432,
+        -0.04492936211727703,
+        -0.03434782483529069
+      ]
+    },
+    "man1": {
+      "actions": {
+        "getup_back": [
+          219,
+          339
+        ],
+        "getup_front": [
+          98,
+          218
+        ],
+        "roundhouse_kick": [
+          1,
+          97
+        ]
+      },
+      "bank": "Roundhouse_man1",
+      "heel_offset": [
+        -0.00718175893057155,
+        -0.0449293726895376,
+        -0.034347833217369506
+      ]
+    },
+    "man2": {
+      "actions": {
+        "getup_back": [
+          219,
+          339
+        ],
+        "getup_front": [
+          98,
+          218
+        ],
+        "roundhouse_kick": [
+          1,
+          97
+        ]
+      },
+      "bank": "Roundhouse_man2",
+      "heel_offset": [
+        -0.00718175893057155,
+        -0.0449293726895376,
+        -0.034347833217369506
+      ]
+    },
+    "man_B": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_man_B",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "man_kvl2": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_man_kvl2",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "mushketer": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_mushketer",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "mushketer_whisper": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_mushketer_whisper",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "mushketer_whisper_short": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_mushketer_whisper_short",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "skeleton": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_skeleton",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "towngirl3": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_towngirl3",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "woman": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_woman",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "woman2": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_woman2",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "woman_A2": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_woman_A2",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "woman_B": {
+      "actions": {
+        "getup_back": [
+          122,
+          242
+        ],
+        "getup_front": [
+          1,
+          121
+        ]
+      },
+      "bank": "Roundhouse_woman_B",
+      "heel_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "body_order": [
+    "pelvis",
+    "chest",
+    "head",
+    "leftUpperArm",
+    "leftForearm",
+    "leftHand",
+    "rightUpperArm",
+    "rightForearm",
+    "rightHand",
+    "leftThigh",
+    "leftCalf",
+    "leftFoot",
+    "rightThigh",
+    "rightCalf",
+    "rightFoot"
+  ],
+  "checks": {
+    "Angellica": {},
+    "Danielle": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7021623357240925,
+      "heel_contact_error_m": 0.005273699166151681,
+      "heel_contact_xyz": [
+        -0.07623942168349303,
+        1.5919523016463664,
+        0.7936579758074527
+      ],
+      "heel_height_to_head_m": -0.00474303561405498,
+      "heel_target_xyz": [
+        -0.0770577899109093,
+        1.5966953372604213,
+        0.7958133851660736
+      ],
+      "heel_to_head_sweep_min_m": 0.005273699166151681,
+      "recovery_joint_error": 1.6609750796980904e-07,
+      "recovery_root_error_m": 0.0,
+      "root_contact_correction_xyz": [
+        -0.12593421710290897,
+        -0.053269367680334634,
+        0.041699275232908506
+      ],
+      "serialized_heel_contact_error_m": 0.0052737573038948386,
+      "serialized_support_ankle_error_max_m": 0.0010309841096361062,
+      "striking_knee_xyz": [
+        0.10797271948001946,
+        1.2766662345795434,
+        0.4533571784303049
+      ],
+      "support_ankle_error_max_m": 0.0010309098610880075,
+      "support_foot_xyz": [
+        0.2656370122956275,
+        0.08253085265282611,
+        -0.42844751732620867
+      ],
+      "victim_head_animation_xyz": [
+        -0.0770577899109093,
+        1.5966953372604213,
+        0.7958133851660736
+      ],
+      "victim_separation_m": 0.7
+    },
+    "Jessika": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.695816638382284,
+      "heel_contact_error_m": 2.949029909160572e-17,
+      "heel_contact_xyz": [
+        0.014044602734448748,
+        1.5033711473549887,
+        0.6483151523052859
+      ],
+      "heel_height_to_head_m": 0.0,
+      "heel_target_xyz": [
+        0.014044602734448778,
+        1.5033711473549887,
+        0.6483151523052859
+      ],
+      "heel_to_head_sweep_min_m": 1.734723475976807e-18,
+      "recovery_joint_error": 1.717058928374371e-07,
+      "recovery_root_error_m": 0.0,
+      "root_contact_correction_xyz": [
+        0.14446754545882642,
+        -0.22724389858897864,
+        -0.33617168060811564
+      ],
+      "serialized_heel_contact_error_m": 9.649591545638675e-08,
+      "serialized_support_ankle_error_max_m": 0.0002258474768062445,
+      "striking_knee_xyz": [
+        0.19100357220984274,
+        1.1953333418205223,
+        0.3038676144277249
+      ],
+      "support_ankle_error_max_m": 0.00022581205062064538,
+      "support_foot_xyz": [
+        0.17546089854399088,
+        0.14365781999989036,
+        -0.21717232355314814
+      ],
+      "victim_head_animation_xyz": [
+        0.014044602734448778,
+        1.5033711473549887,
+        0.6483151523052859
+      ],
+      "victim_separation_m": 0.7
+    },
+    "Lo_Man": {},
+    "ManKSM": {},
+    "Milenace": {},
+    "Moscovit": {},
+    "YokoDias": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.6981712487577726,
+      "heel_contact_error_m": 3.469446951953614e-18,
+      "heel_contact_xyz": [
+        -0.010065488438250565,
+        1.4523499503177368,
+        0.5811825478455885
+      ],
+      "heel_height_to_head_m": 0.0,
+      "heel_target_xyz": [
+        -0.010065488438250562,
+        1.4523499503177368,
+        0.5811825478455885
+      ],
+      "heel_to_head_sweep_min_m": 3.469446951953614e-18,
+      "recovery_joint_error": 1.717058928374371e-07,
+      "recovery_root_error_m": 0.0,
+      "root_contact_correction_xyz": [
+        0.07735879646720478,
+        -0.12410016647345268,
+        -0.3692906234186146
+      ],
+      "serialized_heel_contact_error_m": 7.275092742783007e-08,
+      "serialized_support_ankle_error_max_m": 1.9156543608696779e-07,
+      "striking_knee_xyz": [
+        0.14953836621482497,
+        1.1500908517686455,
+        0.26260024466517945
+      ],
+      "support_ankle_error_max_m": 1.4002534869665723e-07,
+      "support_foot_xyz": [
+        0.1832958202118386,
+        0.08065074088888774,
+        -0.19469073736217307
+      ],
+      "victim_head_animation_xyz": [
+        -0.010065488438250562,
+        1.4523499503177368,
+        0.5811825478455885
+      ],
+      "victim_separation_m": 0.7
+    },
+    "beatrice2": {},
+    "genres": {},
+    "man": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7,
+      "heel_contact_error_m": 1.1328952961336746e-16,
+      "heel_contact_xyz": [
+        0.00869165111478112,
+        1.5606996068304202,
+        0.5082384812454264
+      ],
+      "heel_height_to_head_m": 0.0,
+      "heel_target_xyz": [
+        0.008691651114781143,
+        1.5606996068304202,
+        0.5082384812454263
+      ],
+      "heel_to_head_sweep_min_m": 1.113606002252634e-16,
+      "recovery_joint_error": 1.6609750796980904e-07,
+      "recovery_root_error_m": 0.0,
+      "root_contact_correction_xyz": [
+        0.12308493826864801,
+        -0.09905701525764687,
+        -0.560664931049082
+      ],
+      "serialized_heel_contact_error_m": 5.274801403665696e-08,
+      "serialized_support_ankle_error_max_m": 0.00010980323351353817,
+      "striking_knee_xyz": [
+        0.1538474090438783,
+        1.2277077612023644,
+        0.1821020202297422
+      ],
+      "support_ankle_error_max_m": 0.00010983521966219309,
+      "support_foot_xyz": [
+        0.12401764544512209,
+        0.0824047561531514,
+        -0.18016376092588987
+      ],
+      "victim_head_animation_xyz": [
+        0.008691651114781143,
+        1.5606996068304202,
+        0.5082384812454263
+      ],
+      "victim_separation_m": 0.7
+    },
+    "man1": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7000000000000001,
+      "heel_contact_error_m": 2.4835037038225095e-16,
+      "heel_contact_xyz": [
+        0.011438150622482306,
+        1.4925396778369633,
+        0.5249863912006497
+      ],
+      "heel_height_to_head_m": -2.220446049250313e-16,
+      "heel_target_xyz": [
+        0.0114381506224823,
+        1.4925396778369635,
+        0.5249863912006498
+      ],
+      "heel_to_head_sweep_min_m": 2.4835037038225095e-16,
+      "recovery_joint_error": 7.205792662556831e-08,
+      "recovery_root_error_m": 0.0,
+      "root_contact_correction_xyz": [
+        0.1304298883473577,
+        -0.1634554827209882,
+        -0.533749936844153
+      ],
+      "serialized_heel_contact_error_m": 5.231162636125801e-08,
+      "serialized_support_ankle_error_max_m": 0.0001087976713832543,
+      "striking_knee_xyz": [
+        0.15653939879619327,
+        1.1595227711115241,
+        0.1988511231080565
+      ],
+      "support_ankle_error_max_m": 0.00010872738946368411,
+      "support_foot_xyz": [
+        0.12445266390256865,
+        0.082079007861672,
+        -0.18018166479626893
+      ],
+      "victim_head_animation_xyz": [
+        0.0114381506224823,
+        1.4925396778369635,
+        0.5249863912006498
+      ],
+      "victim_separation_m": 0.7
+    },
+    "man2": {
+      "contact_window_seconds": [
+        0.6880000000000001,
+        1.2160000000000002
+      ],
+      "face_capsule_radius_m": 0.22,
+      "far_head_sweep_min_m": 0.7000000000000001,
+      "heel_contact_error_m": 2.4835037038225095e-16,
+      "heel_contact_xyz": [
+        0.011438150622482306,
+        1.4925396778369633,
+        0.5249863912006497
+      ],
+      "heel_height_to_head_m": -2.220446049250313e-16,
+      "heel_target_xyz": [
+        0.0114381506224823,
+        1.4925396778369635,
+        0.5249863912006498
+      ],
+      "heel_to_head_sweep_min_m": 2.4835037038225095e-16,
+      "recovery_joint_error": 7.205792662556831e-08,
+      "recovery_root_error_m": 0.0,
+      "root_contact_correction_xyz": [
+        0.1304298883473577,
+        -0.1634554827209882,
+        -0.533749936844153
+      ],
+      "serialized_heel_contact_error_m": 5.231162636125801e-08,
+      "serialized_support_ankle_error_max_m": 0.0001087976713832543,
+      "striking_knee_xyz": [
+        0.15653939879619327,
+        1.1595227711115241,
+        0.1988511231080565
+      ],
+      "support_ankle_error_max_m": 0.00010872738946368411,
+      "support_foot_xyz": [
+        0.12445266390256865,
+        0.082079007861672,
+        -0.18018166479626893
+      ],
+      "victim_head_animation_xyz": [
+        0.0114381506224823,
+        1.4925396778369635,
+        0.5249863912006498
+      ],
+      "victim_separation_m": 0.7
+    },
+    "man_B": {},
+    "man_kvl2": {},
+    "mushketer": {},
+    "mushketer_whisper": {},
+    "mushketer_whisper_short": {},
+    "skeleton": {},
+    "towngirl3": {},
+    "woman": {},
+    "woman2": {},
+    "woman_A2": {},
+    "woman_B": {}
+  },
+  "files": {
+    "RESOURCE/INI/roundhouse-rigs.ini": {
+      "bytes": 46806,
+      "sha256": "342a45b126c8b64135d3084158c76578ba55bcfad00f1cd4d0026e2a94951539"
+    },
+    "RESOURCE/animation/Roundhouse_Angellica.an": {
+      "bytes": 159088,
+      "sha256": "dc2687c898e7661df282f7ba0ffaa1a1c686508b0cded0e87e1b124060717c48"
+    },
+    "RESOURCE/animation/Roundhouse_Angellica.ani": {
+      "bytes": 260,
+      "sha256": "003b2b4790048a05fcb69db125a2c581f10fb16ef2a0c8294d93ba4f2ddd77d8"
+    },
+    "RESOURCE/animation/Roundhouse_Danielle.an": {
+      "bytes": 702460,
+      "sha256": "9af6ca6f2ea95b3b3074090649af6d144008119c4d641c5b0a51996e0943ed3b"
+    },
+    "RESOURCE/animation/Roundhouse_Danielle.ani": {
+      "bytes": 374,
+      "sha256": "921c3cbfdfa5b036f6a12a731a90d4751a9ecd378c1fe8261d8ce54592777e7a"
+    },
+    "RESOURCE/animation/Roundhouse_Jessika.an": {
+      "bytes": 271436,
+      "sha256": "6c1cc4dbbdbfb212c4220aeb5732b0d48b8640d08ff507ad68016801062967fa"
+    },
+    "RESOURCE/animation/Roundhouse_Jessika.ani": {
+      "bytes": 373,
+      "sha256": "b4b98ad2a839e94b32e745d0209496efa0dd2a278d1d39b2d5c9e7a36992f4db"
+    },
+    "RESOURCE/animation/Roundhouse_Lo_Man.an": {
+      "bytes": 108336,
+      "sha256": "0f2d16618faa5d3024242bbcb3ccedaa944f7196c7eb6f42531ff0816b4e7aaa"
+    },
+    "RESOURCE/animation/Roundhouse_Lo_Man.ani": {
+      "bytes": 257,
+      "sha256": "49cf8de19c7fefa975e33410d7c18eb47d4e5c364fdf95fb41615274ad4ea03c"
+    },
+    "RESOURCE/animation/Roundhouse_ManKSM.an": {
+      "bytes": 159088,
+      "sha256": "f30b2fcb27a3bd9e1a906e88b8c39b7c6be0c4e3b2ac171bf3fc829eda4af4d2"
+    },
+    "RESOURCE/animation/Roundhouse_ManKSM.ani": {
+      "bytes": 257,
+      "sha256": "b980df7b5891ad6d7e95815ab972982c03af60e5badbe3f4dc25eecd2cf9aa84"
+    },
+    "RESOURCE/animation/Roundhouse_Milenace.an": {
+      "bytes": 159088,
+      "sha256": "ef396c4fec36f2a4266bd059cbc6263c1b42861d038a158e2fc947b7f9ae4619"
+    },
+    "RESOURCE/animation/Roundhouse_Milenace.ani": {
+      "bytes": 259,
+      "sha256": "86c5387ed5e0cc1da33783f1f5064ef3443fb82c2d14ace80bf8ffe700f783ab"
+    },
+    "RESOURCE/animation/Roundhouse_Moscovit.an": {
+      "bytes": 166896,
+      "sha256": "c50e9b91cd22c6f9f374e105bf9e6eb2a0f87d9b144ae7d1b2b69efcbd72dac1"
+    },
+    "RESOURCE/animation/Roundhouse_Moscovit.ani": {
+      "bytes": 259,
+      "sha256": "23ed30f19c9886bbfc892cb1671a9df3f8f7cb97e9ebfbc4117a02081323fbbe"
+    },
+    "RESOURCE/animation/Roundhouse_YokoDias.an": {
+      "bytes": 222332,
+      "sha256": "710e89858dbd11148980a6b11324fc925a91ac6b0f8de3a81ca40967e38daa7d"
+    },
+    "RESOURCE/animation/Roundhouse_YokoDias.ani": {
+      "bytes": 374,
+      "sha256": "e10bec504d0be7aadc67b0c2bf531900f2256b6624676adff45a2a328b985c0b"
+    },
+    "RESOURCE/animation/Roundhouse_beatrice2.an": {
+      "bytes": 159088,
+      "sha256": "ef396c4fec36f2a4266bd059cbc6263c1b42861d038a158e2fc947b7f9ae4619"
+    },
+    "RESOURCE/animation/Roundhouse_beatrice2.ani": {
+      "bytes": 260,
+      "sha256": "9e2f833ac3c77bfc5123e0e4f7f24b108ed75f26d2f5a56b6ebb668ca64e85ae"
+    },
+    "RESOURCE/animation/Roundhouse_genres.an": {
+      "bytes": 483120,
+      "sha256": "b6005d005f437040a43ea177488b58df55368810ea26581c9747428d361efc89"
+    },
+    "RESOURCE/animation/Roundhouse_genres.ani": {
+      "bytes": 257,
+      "sha256": "bb4ee06223f49182e80f59792e3e8f735d0a8791d662ebdd2bea69634e09617a"
+    },
+    "RESOURCE/animation/Roundhouse_man.an": {
+      "bytes": 675180,
+      "sha256": "2f4d9663eb44384bd64afae40e0eba2543d6800421a2b6c4dbdc7d2df7d234ad"
+    },
+    "RESOURCE/animation/Roundhouse_man.ani": {
+      "bytes": 369,
+      "sha256": "0bd621a4194fa932be5fcd686ccd3169e8f028893272323a93f93f9db04a2568"
+    },
+    "RESOURCE/animation/Roundhouse_man1.an": {
+      "bytes": 435116,
+      "sha256": "396fc3e4d725f0f7d5daa74436f5a163e7f829d09690e60d8d448a60b0f6494b"
+    },
+    "RESOURCE/animation/Roundhouse_man1.ani": {
+      "bytes": 370,
+      "sha256": "4643e5d0b77ae5f8a4a36e92682f8afd8b3bf6ef325903b7919646e96339afa9"
+    },
+    "RESOURCE/animation/Roundhouse_man2.an": {
+      "bytes": 435116,
+      "sha256": "cdabe1cb30b9e1844cccd40c278fbca7a2109ba8d6be6be4dc22c76bf82250c6"
+    },
+    "RESOURCE/animation/Roundhouse_man2.ani": {
+      "bytes": 370,
+      "sha256": "2cde7ab229a04074aeab619df26daa69ec199725dbf1437a55f4afe295de50c5"
+    },
+    "RESOURCE/animation/Roundhouse_man_B.an": {
+      "bytes": 311344,
+      "sha256": "73eb9df484bc2c52c4aaf1248bf10f10c9f94bf8f19d37bc3842c7d4ace48f01"
+    },
+    "RESOURCE/animation/Roundhouse_man_B.ani": {
+      "bytes": 256,
+      "sha256": "7f5e068334cfdbe7da26e1375a56e92602dc159f1e18a16196a7956fe29b2d44"
+    },
+    "RESOURCE/animation/Roundhouse_man_kvl2.an": {
+      "bytes": 159088,
+      "sha256": "e738a4af89651d5a7a371e529a7918a83e989bd695aad4c9b95206f00ff792bd"
+    },
+    "RESOURCE/animation/Roundhouse_man_kvl2.ani": {
+      "bytes": 259,
+      "sha256": "f01267351c17541eae757bf688ac4c746d36570a9e5f7348a75f679a230d27fb"
+    },
+    "RESOURCE/animation/Roundhouse_mushketer.an": {
+      "bytes": 483120,
+      "sha256": "3ecd3748d7dfb58bc5e3c14857bb086a8bde245307843551dc34853ad8b4d591"
+    },
+    "RESOURCE/animation/Roundhouse_mushketer.ani": {
+      "bytes": 260,
+      "sha256": "4919604d7133dbe8ea91d2d2bdc8a99dee54c884ceca351bdecfeb01a0e4be74"
+    },
+    "RESOURCE/animation/Roundhouse_mushketer_whisper.an": {
+      "bytes": 159088,
+      "sha256": "03a91571c3a18b2e4b2e682c8a70c31e5fd8807198c05c2ae48c84dc2cb7ab5a"
+    },
+    "RESOURCE/animation/Roundhouse_mushketer_whisper.ani": {
+      "bytes": 268,
+      "sha256": "f2a944f02fd0f1a706f2995e335b7b4a6b9c7e27ff7a1afc864e1f5985826983"
+    },
+    "RESOURCE/animation/Roundhouse_mushketer_whisper_short.an": {
+      "bytes": 159088,
+      "sha256": "03a91571c3a18b2e4b2e682c8a70c31e5fd8807198c05c2ae48c84dc2cb7ab5a"
+    },
+    "RESOURCE/animation/Roundhouse_mushketer_whisper_short.ani": {
+      "bytes": 274,
+      "sha256": "b2a29a6c784ead89ed56358467ba228c92e908eff1ca29af2dc4840f939538b3"
+    },
+    "RESOURCE/animation/Roundhouse_skeleton.an": {
+      "bytes": 483120,
+      "sha256": "af0f83934d9611d1e27ad5920f612718a1ea6f74e53c9fd4303eba12e1e287c2"
+    },
+    "RESOURCE/animation/Roundhouse_skeleton.ani": {
+      "bytes": 259,
+      "sha256": "e42b348f6ba75e91737f477814cf61e1d84fd47741fd092c1b1d50b26bfc0260"
+    },
+    "RESOURCE/animation/Roundhouse_towngirl3.an": {
+      "bytes": 174704,
+      "sha256": "68edda5feed9672d6d81644b7f4eb8b6025747c913c8eff64038ad4dbce5e8f7"
+    },
+    "RESOURCE/animation/Roundhouse_towngirl3.ani": {
+      "bytes": 260,
+      "sha256": "1c0bac7d4fa1eb5a11da8dcbf3c48e09e2fb037a2a1a0ce7839d154380d8324a"
+    },
+    "RESOURCE/animation/Roundhouse_woman.an": {
+      "bytes": 502640,
+      "sha256": "2999bee64d878a70cee5aef926b0eafd40a2f3205e575eb5b7593443078da3cb"
+    },
+    "RESOURCE/animation/Roundhouse_woman.ani": {
+      "bytes": 256,
+      "sha256": "f513108c285d644f144cf5a144ec451ebdc81ae73c34ad13e2f3df975d1f42ce"
+    },
+    "RESOURCE/animation/Roundhouse_woman2.an": {
+      "bytes": 330864,
+      "sha256": "3a21ac0a1c68c92e48e7bbe8f2ec4fe668a1e4374fa054c363fd7913f6335377"
+    },
+    "RESOURCE/animation/Roundhouse_woman2.ani": {
+      "bytes": 257,
+      "sha256": "865e540ec1af2db66a2f6dc194900eb584accad75c7eadef0c2294cddf9831ed"
+    },
+    "RESOURCE/animation/Roundhouse_woman_A2.an": {
+      "bytes": 502640,
+      "sha256": "8637ccda89693d824bfa1a9bfcb5c48d0647926da5522bcb06dbcf3c427f4cc8"
+    },
+    "RESOURCE/animation/Roundhouse_woman_A2.ani": {
+      "bytes": 259,
+      "sha256": "55be08d5e90adf83ee79677238cd2e216dd827c4f4ce018b21ad7dda91160718"
+    },
+    "RESOURCE/animation/Roundhouse_woman_B.an": {
+      "bytes": 174704,
+      "sha256": "68edda5feed9672d6d81644b7f4eb8b6025747c913c8eff64038ad4dbce5e8f7"
+    },
+    "RESOURCE/animation/Roundhouse_woman_B.ani": {
+      "bytes": 258,
+      "sha256": "dc061fc1c0a1500b8a62141786cd5ef07ceb6ad56bd56ac9f4590a695f77bd07"
+    }
+  },
+  "generator_sha256": "5bf54cc7e7d2f5419f33171af3a67019d34a129886b4449ed824bcc2bea3034f",
+  "recipe_sha256": "8166083f2fcd625ab29b6be24256b7d7e72cbb8e622f1e1158837c1d2eada79d",
+  "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
+  "version": 1
+}

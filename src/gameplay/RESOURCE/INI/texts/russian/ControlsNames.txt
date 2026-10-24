@@ -90,6 +90,7 @@ ChrForward2 {Идти вперёд (альтернативная)}
 ChrBackward1 {Идти назад}
 ChrRunStick {Перейти на бег}
 BOAL_ActivateRush {Включить режим 'Берсерк'}
+ChrRoundhouse {Удар пяткой с разворота}
 ChrBlock {Блок}
 ChrAltAttackBase {Удар / Круговой удар}
 ChrAttackBreakBase {Пробивающий удар / Финт}

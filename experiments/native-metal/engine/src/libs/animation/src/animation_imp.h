@@ -51,6 +51,11 @@ class AnimationImp final : public Animation
     int32_t GetNumBones() const override;
     // Get animation matrix for bone
     CMatrix &GetAnimationMatrix(int32_t iBone) const override;
+    int32_t GetBoneParent(int32_t iBone) const override;
+    const CMatrix &GetInverseBindMatrix(int32_t iBone) const override;
+    void SetPoseOverride(const CMatrix *skinningMatrices, int32_t count) override;
+    void ClearPoseOverride() override;
+    void EvaluatePose() override { BuildAnimationMatrices(); }
     // misc
     // Get custom data for animation
     const char *GetData(const char *dataName) const override;
@@ -133,6 +138,7 @@ class AnimationImp final : public Animation
     bool isUserBlend;
     // Skeleton matrices
     CMatrix *matrix;
+    std::vector<CMatrix> poseOverride;
     // Internal event subscribers
     AnimationEventListener *ae_listeners[ae_numevents][ANIIMP_MAXLISTENERS];
     // Subscribers to external events

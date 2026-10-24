@@ -13,6 +13,7 @@
 #include "matrix.h"
 #include "vma.hpp"
 #include <cstdint>
+#include <memory>
 
 #include "locator_array.h"
 #include "model_array.h"
@@ -21,6 +22,7 @@
 
 class MODEL;
 class Lights;
+namespace roundhouse { class RagdollWorld; }
 
 class Location : public Entity
 {
@@ -67,6 +69,9 @@ class Location : public Entity
     // Execution
     void Execute(uint32_t delta_time);
     void Realize(uint32_t delta_time);
+    roundhouse::RagdollWorld *GetRagdollWorld();
+    roundhouse::RagdollWorld *ExistingRagdollWorld() const { return ragdollWorld.get(); }
+    void StepRagdolls(float seconds);
     // Messages
     uint64_t ProcessMessage(MESSAGE &message) override;
 
@@ -159,6 +164,7 @@ class Location : public Entity
 
   private:
     PtcData ptc;
+    std::unique_ptr<roundhouse::RagdollWorld> ragdollWorld;
     int32_t patchJump;
 
     int32_t lastLoadStaticModel;

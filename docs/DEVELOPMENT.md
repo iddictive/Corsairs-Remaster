@@ -112,6 +112,12 @@ Edit registered files directly in `src/gameplay`. New text sources use UTF-8 wit
 python3 tools/sync_metal_gameplay.py apply --path PROGRAM/weather/Init/Evening.c
 ```
 
+Repeatable `--asset <canonical runtime path>` selects assets from the maintained
+manifests and can be combined with `--path`. An explicit selection delivers only
+those scripts/assets; it omits the changelog projection and gameplay variants.
+`--asset` alone delivers no scripts. Native changes still require the normal
+build and engine installer.
+
 The manifest registers paths and frozen pre-receipt bootstrap hashes. Do not add a hash for each new source revision: the delivered predecessor is recorded automatically. A new registered file uses an empty bootstrap list; an existing unrecorded destination with different bytes needs explicit provenance before its first delivery. Missing recorded files and unknown edits reject. Content-addressed backups preserve replaced bytes. Full staging consumes the same sources, and export rejects an unstaged source before copying the app.
 
 The hero dialogue has two existing product variants, declared in `src/gameplay/variants.json`: standard and boarding-loot controls. Their complete source files, including military callbacks, live in `src/gameplay/variants/mainhero`. Initial adoption matches the current source or frozen reviewed predecessors, then the receipt retains its relative source identity. Edit the selected source and use ordinary full script delivery; later edits and fresh exports need no added historical hashes. A delivery does not switch variants. Variant sources remain outside the single-file `--path` and dev `promote` contracts.
@@ -189,6 +195,8 @@ The [world-map mooring evidence](evidence/port-mooring-20261023/README.md)
 records local/world reload coordinates and the retained admission guards.
 The [resident camera continuity evidence](evidence/sea-map-transition-20261023/README.md)
 records stale camera state and the first-frame yaw discontinuity at mode changes.
+The [spinning heel kick](roundhouse-kick.md) records animation, contact, physical
+fall and recovery owners, with reproducible CPU and skinned-mesh evidence.
 
 ## Verification and troubleshooting
 

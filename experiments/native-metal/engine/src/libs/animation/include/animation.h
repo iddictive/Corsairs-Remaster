@@ -186,6 +186,12 @@ class Animation
     virtual int32_t GetNumBones() const = 0;
     // Get animation matrix for bone
     virtual CMatrix &GetAnimationMatrix(int32_t iBone) const = 0;
+    // Immutable skeleton data and per-instance physical/authored pose override.
+    virtual int32_t GetBoneParent(int32_t iBone) const = 0;
+    virtual const CMatrix &GetInverseBindMatrix(int32_t iBone) const = 0;
+    virtual void SetPoseOverride(const CMatrix *skinningMatrices, int32_t count) = 0;
+    virtual void ClearPoseOverride() = 0;
+    virtual void EvaluatePose() = 0;
     // miscellanea
     // Get custom data for animation
     virtual const char *GetData(const char *dataName) const = 0;

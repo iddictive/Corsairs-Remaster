@@ -1,0 +1,92 @@
+// Disposable acceptance source: compile through the native CPU probe's object linkage.
+#define main unused_animation_benchmark_main
+#include "native-animation-cpu-probe.cpp"
+#undef main
+
+void require(bool value, const char *message) {
+    if (!value) throw std::runtime_error(message);
+}
+std::vector<CMatrix> snapshot(Animation &a) {
+    std::vector<CMatrix> result;
+    for (int i = 0; i < a.GetNumBones(); ++i) result.push_back(a.GetAnimationMatrix(i));
+    return result;
+}
+bool equalPalette(Animation &a, const std::vector<CMatrix> &expected) {
+    if (a.GetNumBones() != expected.size()) return false;
+    for (int i = 0; i < a.GetNumBones(); ++i)
+        if (std::memcmp(a.GetAnimationMatrix(i).matrix, expected[i].matrix, sizeof(expected[i].matrix))) return false;
+    return true;
+}
+int main(int argc, char **argv) try {
+    if (argc != 2) return 64;
+    for (const char *rig : {"man", "man2"}) {
+        auto *info = load(std::filesystem::path(argv[1]) / (std::string(rig) + ".an"), rig);
+        auto *a = new AnimationImp(0, info);
+        auto *b = new AnimationImp(1, info);
+        const int bones = a->GetNumBones();
+        std::vector<int> parents;
+        std::vector<CMatrix> binds;
+        for (int i = 0; i < bones; ++i) {
+            const auto *parent = info->GetBone(i).parent;
+            const int expected = parent ? int(parent - &info->GetBone(0)) : -1;
+            require(a->GetBoneParent(i) == expected && b->GetBoneParent(i) == expected, "parent getter mismatch");
+            require(&a->GetInverseBindMatrix(i) == &info->GetBone(i).start, "bind getter owner mismatch");
+            parents.push_back(expected); binds.push_back(a->GetInverseBindMatrix(i));
+        }
+        for (Animation *actor : {static_cast<Animation *>(a), static_cast<Animation *>(b)}) {
+            require(actor->Player(0).SetAction("walk") && actor->Player(0).Play(), "action setup");
+            actor->Player(0).SetPosition(.3f); actor->EvaluatePose();
+        }
+        require(equalPalette(*a, snapshot(*b)), "initial shared-rig actors differ");
+        const auto normal = snapshot(*a);
+        auto custom = normal;
+        custom[0].matrix[12] += 1.25f;
+        custom[bones - 1].matrix[13] -= .75f;
+        a->SetPoseOverride(custom.data(), bones - 1);
+        require(equalPalette(*a, normal), "wrong count changed normal pose");
+        a->SetPoseOverride(nullptr, bones);
+        require(equalPalette(*a, normal), "null input changed normal pose");
+        a->SetPoseOverride(custom.data(), bones);
+        require(equalPalette(*a, custom), "override not immediately visible");
+        auto input = custom;
+        a->SetPoseOverride(input.data(), bones);
+        input[0].matrix[12] += 8.f;
+        a->EvaluatePose();
+        require(equalPalette(*a, custom), "override aliases caller buffer");
+        a->SetPoseOverride(input.data(), bones - 1);
+        a->SetPoseOverride(nullptr, bones);
+        require(equalPalette(*a, custom), "invalid input replaced active override");
+        require(equalPalette(*b, normal), "other actor changed during override installation");
+        for (int step = 0; step < 20; ++step) {
+            const auto previousOther = snapshot(*b);
+            a->Execute(16);
+            require(equalPalette(*a, custom), "Execute lost override");
+            require(equalPalette(*b, previousOther), "Execute mutated other instance palette");
+            b->Execute(16);
+            require(equalPalette(*a, custom), "other Execute lost override");
+            paletteHash(*a); paletteHash(*b);
+        }
+        a->ClearPoseOverride();
+        require(equalPalette(*a, snapshot(*b)), "Clear did not immediately resume current native pose");
+        a->Execute(16); b->Execute(16);
+        require(equalPalette(*a, snapshot(*b)), "Clear did not resume normal Execute");
+        a->ClearPoseOverride();
+        a->Player(0).SetPosition(.7f); b->Player(0).SetPosition(.7f);
+        const float position = a->Player(0).GetPosition();
+        a->EvaluatePose(); b->EvaluatePose();
+        require(a->Player(0).GetPosition() == position, "EvaluatePose advanced playback time");
+        require(equalPalette(*a, snapshot(*b)), "EvaluatePose differs between equal actor states");
+        require(!equalPalette(*a, normal), "EvaluatePose did not apply changed action position");
+        for (int i = 0; i < bones; ++i) {
+            require(a->GetBoneParent(i) == parents[i] && b->GetBoneParent(i) == parents[i], "parent data mutated");
+            require(!std::memcmp(a->GetInverseBindMatrix(i).matrix, binds[i].matrix, sizeof(binds[i].matrix)), "bind data mutated");
+        }
+        std::cout << "pose_api rig=" << rig << " shared_info=pass getter_ownership=pass"
+                  << " immediate_override=pass copied_input=pass wrong_count=pass null_input=pass"
+                  << " retained_across_Execute=pass other_actor_unchanged=pass"
+                  << " Clear_resumes_native=pass EvaluatePose_no_time_advance=pass"
+                  << " changed_position_evaluated=pass parents_immutable=pass inverse_bind_immutable=pass"
+                  << " finite=pass final_palette_hash=" << std::hex << paletteHash(*a) << std::dec << '\n';
+    }
+    return 0;
+} catch (const std::exception &e) { std::cerr << e.what() << '\n'; return 1; }

@@ -9,6 +9,7 @@
 //============================================================================================
 
 #include "location.h"
+#include "roundhouse_ragdoll.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -285,6 +286,9 @@ Location::Location(bool background) : ptc(!background)
 
 Location::~Location()
 {
+    for (const auto &entry : supervisor.character)
+        if (entry.c) entry.c->CancelRoundhouse();
+    ragdollWorld.reset();
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     core.EraseEntity(metalLandLighting);
     if (metalLandLighting && rs) StormMetalLandLocation(rs->GetNativeDevice(), false);
@@ -459,6 +463,7 @@ void Location::Update(uint32_t delta_time)
     // Characters
     if (!isPause)
     {
+        StepRagdolls(dltTime);
         supervisor.PreUpdate(dltTime);
         for (; dltTime > maxDltTime; dltTime -= maxDltTime)
             supervisor.Update(maxDltTime);

@@ -1,0 +1,74 @@
+rig=man bones=123 frames=8698 fps=15 walk=2:18 loop=true
+quality rig=man instances=1 players=1 sequence_hash=5a2fae25a218eedc finite=pass isolation=not-applicable
+sample rig=man instances=1 players=1 round=0 steps=4000 ms=19.984125 checksum=1851310.3774
+sample rig=man instances=1 players=1 round=1 steps=4000 ms=19.84775 checksum=1851310.3774
+sample rig=man instances=1 players=1 round=2 steps=4000 ms=19.781416 checksum=1851310.3774
+sample rig=man instances=1 players=1 round=3 steps=4000 ms=19.89025 checksum=1851310.3774
+sample rig=man instances=1 players=1 round=4 steps=4000 ms=19.587 checksum=1851310.3774
+sample rig=man instances=1 players=1 round=5 steps=4000 ms=19.531625 checksum=1851310.3774
+sample rig=man instances=1 players=1 round=6 steps=4000 ms=19.612209 checksum=1851310.3774
+median rig=man instances=1 players=1 us_per_instance_step=4.945354
+quality rig=man instances=1 players=2 sequence_hash=7aff8d7b8a5170b3 finite=pass isolation=not-applicable
+sample rig=man instances=1 players=2 round=0 steps=4000 ms=31.511125 checksum=1874097.84287
+sample rig=man instances=1 players=2 round=1 steps=4000 ms=32.165292 checksum=1874097.84287
+sample rig=man instances=1 players=2 round=2 steps=4000 ms=30.894667 checksum=1874097.84287
+sample rig=man instances=1 players=2 round=3 steps=4000 ms=30.990625 checksum=1874097.84287
+sample rig=man instances=1 players=2 round=4 steps=4000 ms=31.249041 checksum=1874097.84287
+sample rig=man instances=1 players=2 round=5 steps=4000 ms=31.314584 checksum=1874097.84287
+sample rig=man instances=1 players=2 round=6 steps=4000 ms=31.315709 checksum=1874097.84287
+median rig=man instances=1 players=2 us_per_instance_step=7.828646
+quality rig=man instances=32 players=1 sequence_hash=1de26b8588527647 finite=pass isolation=pass
+sample rig=man instances=32 players=1 round=0 steps=4000 ms=627.427375 checksum=59241898.4479
+sample rig=man instances=32 players=1 round=1 steps=4000 ms=639.090833 checksum=59241898.4479
+sample rig=man instances=32 players=1 round=2 steps=4000 ms=639.360083 checksum=59241898.4479
+sample rig=man instances=32 players=1 round=3 steps=4000 ms=640.174875 checksum=59241898.4479
+sample rig=man instances=32 players=1 round=4 steps=4000 ms=637.857709 checksum=59241898.4479
+sample rig=man instances=32 players=1 round=5 steps=4000 ms=662.201875 checksum=59241898.4479
+sample rig=man instances=32 players=1 round=6 steps=4000 ms=629.843375 checksum=59241898.4479
+median rig=man instances=32 players=1 us_per_instance_step=4.99289713281
+quality rig=man instances=32 players=2 sequence_hash=165f9aa99c2dc378 finite=pass isolation=pass
+sample rig=man instances=32 players=2 round=0 steps=4000 ms=1013.086208 checksum=59971091.8962
+sample rig=man instances=32 players=2 round=1 steps=4000 ms=1000.519334 checksum=59971091.8962
+sample rig=man instances=32 players=2 round=2 steps=4000 ms=1009.359625 checksum=59971091.8962
+sample rig=man instances=32 players=2 round=3 steps=4000 ms=1005.315542 checksum=59971091.8962
+sample rig=man instances=32 players=2 round=4 steps=4000 ms=1000.814542 checksum=59971091.8962
+sample rig=man instances=32 players=2 round=5 steps=4000 ms=1013.140875 checksum=59971091.8962
+sample rig=man instances=32 players=2 round=6 steps=4000 ms=1010.204792 checksum=59971091.8962
+median rig=man instances=32 players=2 us_per_instance_step=7.88562207031
+rig=man2 bones=79 frames=4085 fps=15 walk=2:18 loop=true
+quality rig=man2 instances=1 players=1 sequence_hash=d2542f0fe2fdd3ae finite=pass isolation=not-applicable
+sample rig=man2 instances=1 players=1 round=0 steps=4000 ms=13.186375 checksum=1188286.66637
+sample rig=man2 instances=1 players=1 round=1 steps=4000 ms=13.134084 checksum=1188286.66637
+sample rig=man2 instances=1 players=1 round=2 steps=4000 ms=13.03 checksum=1188286.66637
+sample rig=man2 instances=1 players=1 round=3 steps=4000 ms=13.112209 checksum=1188286.66637
+sample rig=man2 instances=1 players=1 round=4 steps=4000 ms=13.389708 checksum=1188286.66637
+sample rig=man2 instances=1 players=1 round=5 steps=4000 ms=13.45025 checksum=1188286.66637
+sample rig=man2 instances=1 players=1 round=6 steps=4000 ms=13.1655 checksum=1188286.66637
+median rig=man2 instances=1 players=1 us_per_instance_step=3.291375
+quality rig=man2 instances=1 players=2 sequence_hash=85f9156ed419e47c finite=pass isolation=not-applicable
+sample rig=man2 instances=1 players=2 round=0 steps=4000 ms=21.227917 checksum=1210150.05679
+sample rig=man2 instances=1 players=2 round=1 steps=4000 ms=21.3 checksum=1210150.05679
+sample rig=man2 instances=1 players=2 round=2 steps=4000 ms=21.122708 checksum=1210150.05679
+sample rig=man2 instances=1 players=2 round=3 steps=4000 ms=21.386334 checksum=1210150.05679
+sample rig=man2 instances=1 players=2 round=4 steps=4000 ms=21.285208 checksum=1210150.05679
+sample rig=man2 instances=1 players=2 round=5 steps=4000 ms=21.318833 checksum=1210150.05679
+sample rig=man2 instances=1 players=2 round=6 steps=4000 ms=21.085458 checksum=1210150.05679
+median rig=man2 instances=1 players=2 us_per_instance_step=5.321302
+quality rig=man2 instances=32 players=1 sequence_hash=54a5e5b720aad45f finite=pass isolation=pass
+sample rig=man2 instances=32 players=1 round=0 steps=4000 ms=421.079708 checksum=38025139.2095
+sample rig=man2 instances=32 players=1 round=1 steps=4000 ms=422.381375 checksum=38025139.2095
+sample rig=man2 instances=32 players=1 round=2 steps=4000 ms=421.806209 checksum=38025139.2095
+sample rig=man2 instances=32 players=1 round=3 steps=4000 ms=423.399958 checksum=38025139.2095
+sample rig=man2 instances=32 players=1 round=4 steps=4000 ms=423.766625 checksum=38025139.2095
+sample rig=man2 instances=32 players=1 round=5 steps=4000 ms=428.131 checksum=38025139.2095
+sample rig=man2 instances=32 players=1 round=6 steps=4000 ms=426.82 checksum=38025139.2095
+median rig=man2 instances=32 players=1 us_per_instance_step=3.30781217188
+quality rig=man2 instances=32 players=2 sequence_hash=3386675192d3acc9 finite=pass isolation=pass
+sample rig=man2 instances=32 players=2 round=0 steps=4000 ms=677.904459 checksum=38724763.9184
+sample rig=man2 instances=32 players=2 round=1 steps=4000 ms=680.522042 checksum=38724763.9184
+sample rig=man2 instances=32 players=2 round=2 steps=4000 ms=681.742916 checksum=38724763.9184
+sample rig=man2 instances=32 players=2 round=3 steps=4000 ms=681.087917 checksum=38724763.9184
+sample rig=man2 instances=32 players=2 round=4 steps=4000 ms=682.530208 checksum=38724763.9184
+sample rig=man2 instances=32 players=2 round=5 steps=4000 ms=678.059375 checksum=38724763.9184
+sample rig=man2 instances=32 players=2 round=6 steps=4000 ms=679.352792 checksum=38724763.9184
+median rig=man2 instances=32 players=2 us_per_instance_step=5.31657845313

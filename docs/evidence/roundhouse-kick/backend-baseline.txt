@@ -1,0 +1,53 @@
+Scope: standalone backend call proxy, not complete game FPS or installed gameplay.
+Captured before first backend behavior write, 2026-10-23.
+Baseline contract: the pre-feature empty path performs no physics, allocation,
+thread creation or solver work. Preserve the no-ragdoll path; active physics is
+new work, accepted by finite captured-pose output, real constraints and actual
+floor/wall/inter-body collisions, sleep and lifecycle cleanup.
+
+Toolchain: Apple clang21.0.0 clang-2100.3.34.2, arm64-apple-darwin27.0.0.
+Compile: /usr/bin/clang++ -O2 -std=c++20 step.cpp timing.cpp -o baseline
+No LTO; the empty call is in a separate TU so calls cannot disappear.
+
+step.cpp:
+void baseline_step(float) {}
+
+timing.cpp:
+#include <chrono>
+#include <cstdio>
+void baseline_step(float);
+int main(){constexpr int n=10000000; auto a=std::chrono::steady_clock::now(); for(int i=0;i<n;++i) baseline_step(1.0f/60.0f); auto b=std::chrono::steady_clock::now(); std::printf("IDLE_BASELINE iterations=%d total_ms=%.6f ns_per_tick=%.3f\n",n,std::chrono::duration<double,std::milli>(b-a).count(),std::chrono::duration<double,std::nano>(b-a).count()/n);}
+
+Raw result:
+IDLE_BASELINE iterations=10000000 total_ms=8.331834 ns_per_tick=0.833
+
+Jolt official release: https://github.com/jrouwe/JoltPhysics/releases/tag/v5.6.0
+Ragdoll API: https://jrouwe.github.io/JoltPhysics/class_ragdoll.html
+Options: https://github.com/jrouwe/JoltPhysics/blob/v5.6.0/Build/CMakeLists.txt
+Source API: https://github.com/jrouwe/JoltPhysics/blob/v5.6.0/Jolt/Physics/Ragdoll/Ragdoll.h
+Mesh winding: https://github.com/jrouwe/JoltPhysics/blob/v5.6.0/Jolt/Physics/Collision/Shape/MeshShape.h
+Archive: https://codeload.github.com/jrouwe/JoltPhysics/tar.gz/refs/tags/v5.6.0
+Raw checksum readout:
+JOLT_V5_6_0_SHA256=6e069ee0172478cc78182047aac87e5310ba14a67a53348ae14cc37801fd3f8e BYTES=19390751
+
+Reuse choice: adopt maintained Jolt Ragdoll, SwingTwistConstraint, capsule/sphere,
+MeshShape, sleeping and the single-threaded job system. A custom Verlet/body
+solver would duplicate collision/constraint work and is rejected. The engine's
+COLLIDE::Clip supplies real triangles; unfinished LOCAL_COLLIDE is excluded.
+
+Probe command (repo root):
+CODEX_SCRATCH_DIR=<empty-task-local-temp-directory> python3 docs/evidence/roundhouse-kick/backend-probe.py.txt
+
+The caller supplies and owns cleanup of the temporary directory. This evidence
+run used a 1GiB,10-minute bounded temp producer and2 compiler workers; this is
+an observation about the run, not a prerequisite for reproduction.
+Retained logs replace private
+repository/scratch paths with <repo>/<scratch>, preserving raw values and flags.
+The final run also compiles the unchanged pre-feature empty control with the
+same CMake Release flags as the backend for a comparable idle call measurement.
+
+The recorded run used2 workers and removed its temporary dependency/build
+output after retaining source/procedure/raw values here. Reproduction uses
+the caller-provided temporary directory and cleanup described above.
+Acceptance is backend-only; engine build, installed runtime and player replay
+remain the parent integration owner's work.

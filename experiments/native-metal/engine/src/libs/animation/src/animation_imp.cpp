@@ -12,6 +12,7 @@
 #include "animation_service_imp.h"
 #include "core.h"
 #include "debug-trap.h"
+#include <algorithm>
 
 //============================================================================================
 
@@ -219,8 +220,39 @@ void AnimationImp::Execute(int32_t dltTime)
 }
 
 // Calculate animation matrices
+int32_t AnimationImp::GetBoneParent(int32_t iBone) const
+{
+    const auto *parent = aniInfo->GetBone(iBone).parent;
+    return parent ? static_cast<int32_t>(parent - &aniInfo->GetBone(0)) : -1;
+}
+
+const CMatrix &AnimationImp::GetInverseBindMatrix(int32_t iBone) const
+{
+    return aniInfo->GetBone(iBone).start;
+}
+
+void AnimationImp::SetPoseOverride(const CMatrix *skinningMatrices, int32_t count)
+{
+    if (!skinningMatrices || count != aniInfo->NumBones())
+        return;
+    poseOverride.assign(skinningMatrices, skinningMatrices + count);
+    std::copy(poseOverride.begin(), poseOverride.end(), matrix);
+}
+
+void AnimationImp::ClearPoseOverride()
+{
+    if (poseOverride.empty()) return;
+    poseOverride.clear();
+    BuildAnimationMatrices();
+}
+
 void AnimationImp::BuildAnimationMatrices()
 {
+    if (!poseOverride.empty())
+    {
+        std::copy(poseOverride.begin(), poseOverride.end(), matrix);
+        return;
+    }
     auto nFrames = aniInfo->GetAniNumFrames();
     auto nbones = aniInfo->NumBones();
     // see how many players are playing, calculate the current blending coefficients

@@ -39,7 +39,9 @@ set(NATIVE_RENDERER_LIB storm_metal CACHE STRING "Direct Metal backend" FORCE)
 add_compile_definitions(FMT_CONSTEVAL= STORM_METAL_AIM_VOLUME_BRIDGE=1 STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 STORM_METAL_SCENE_HUD_BOUNDARY=1 STORM_METAL_INTERFACE_BACK_SCENE=1 STORM_METAL_DYNAMIC_SKY_BRIDGE=1 STORM_METAL_WEATHER_VISUAL_STATE=1 STORM_METAL_ROCKK2=1 STORM_METAL_LIGHT_SHAFT_OPENINGS=1 STORM_METAL_RENDERER_CONSUMERS=1 STORM_METAL_PARTICLE_BRIDGE=1 STORM_METAL_GRASS_BRIDGE=1)
 # GEOS has conditional hull-cut virtuals; every consumer needs the same ABI.
 add_compile_definitions(STORM_METAL_SHIP_HULL_DAMAGE=1)
+include(roundhouse_jolt.cmake)
 add_subdirectory(engine native-engine)
+target_link_libraries(location PRIVATE roundhouse_ragdoll)
 target_sources(xinterface PRIVATE "${STORM_SOURCE}/src/libs/xinterface/src/aviplayer/native_video.mm")
 target_link_libraries(xinterface PRIVATE "-framework AVFoundation" "-framework CoreMedia"
   "-framework CoreVideo" "-framework Foundation")

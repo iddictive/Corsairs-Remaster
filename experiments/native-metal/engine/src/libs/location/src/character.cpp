@@ -9,6 +9,7 @@
 //============================================================================================
 
 #include "character.h"
+#include "roundhouse_character.h"
 #include "characters_groups.h"
 #include "lights.h"
 
@@ -623,6 +624,7 @@ Character::Character()
 
 Character::~Character()
 {
+    CancelRoundhouse();
     auto *m = static_cast<MODEL *>(core.GetEntityPointer(mdl));
     if (m)
     {
@@ -706,6 +708,14 @@ uint64_t Character::ProcessMessage(MESSAGE &message)
     {
         return zExMessage(message);
     }
+    // A loaded corpse still owns a moving physical position used by loot lookup.
+    if (messageID == MSG_CHARACTER_GETPOS)
+    {
+        message.ScriptVariablePointer()->Set(curPos.x);
+        message.ScriptVariablePointer()->Set(curPos.y);
+        message.ScriptVariablePointer()->Set(curPos.z);
+        return 1;
+    }
     if (deadName)
     {
         if (liveValue >= 0)
@@ -725,11 +735,6 @@ uint64_t Character::ProcessMessage(MESSAGE &message)
         return zLoadModel(message);
     case MSG_CHARACTER_GETMODEL:
         message.ScriptVariablePointer()->Set(mdl);
-        return 1;
-    case MSG_CHARACTER_GETPOS:
-        message.ScriptVariablePointer()->Set(curPos.x);
-        message.ScriptVariablePointer()->Set(curPos.y);
-        message.ScriptVariablePointer()->Set(curPos.z);
         return 1;
     case MSG_CHARACTER_GETAY:
         message.ScriptVariablePointer()->Set(ay);
@@ -1438,6 +1443,7 @@ bool Character::IsFireFindTarget() const
 // to attack
 void Character::Attack(Character *enemy, FightAction type)
 {
+    if (IsRoundhouseControlled()) return;
     if (priorityAction.name)
         return;
     if (isSwim)
@@ -1727,6 +1733,7 @@ void Character::StrafeRight()
 // Feint
 void Character::Hit(FightAction type)
 {
+    if (IsRoundhouseControlled()) return;
     /*
     //!!!
     entid_t eid;
@@ -1837,6 +1844,7 @@ void Character::Hit(FightAction type)
 // Shot
 void Character::Fire()
 {
+    if (IsRoundhouseControlled()) return;
     if (priorityAction.name)
         return;
     if (isSwim)
@@ -1995,6 +2003,7 @@ void Character::Reset()
 // Move the character to the desired position
 void Character::Move(float dltTime)
 {
+    if (IsRoundhouseControlled()) return;
     auto *const location = GetLocation();
 
     if (lockMove)
@@ -2313,6 +2322,7 @@ void Character::Move(float dltTime)
 // Update character position
 void Character::Update(float dltTime)
 {
+    const bool roundhouseControlled = UpdateRoundhouse(dltTime);
     auto *const location = GetLocation();
 
     // Updating bars
@@ -2375,80 +2385,85 @@ void Character::Update(float dltTime)
         core.Send_Message(shadow, "ll", MSG_BLADE_ALPHA, blendColor);
     }
     //
-    PtcData &ptc = location->GetPtcData();
-    if (deadName)
-    {
-        if (!priorityAction.name || !storm::iEquals(priorityAction.name, deadName))
-        {
-            priorityAction.SetName(deadName);
-            isSetPriorityAction = false;
-        }
-    }
     MODEL *m = Model();
     if (!m)
         return;
-    if (!isJump)
+    // Physics/authored overrides own only movement and the skeletal pose.
+    // Appearance, deletion, camera fading and light lifetime remain common.
+    if (!roundhouseControlled)
     {
-        // Falling speed
-        vy -= 9.8f * dltTime;
-        curPos.y += vy * dltTime;
-        // Checking the patch
-        currentNode = ptc.Move(currentNode, curPos, oldPos);
-        curPos = oldPos;
-        if (ptc.isBearing)
-            vy = 0.0f;
-        isSlide = ptc.isSlide;
-        if (ptc.isSlide && isEnableJump)
+        PtcData &ptc = location->GetPtcData();
+        if (deadName)
         {
-            if (fall.name && !isFight && !priorityAction.name)
+            if (!priorityAction.name || !storm::iEquals(priorityAction.name, deadName))
             {
-                if (TestJump(curPos + CVECTOR(0.001f * sinf(ay), -0.001f, 0.001f * cosf(ay))))
+                priorityAction.SetName(deadName);
+                isSetPriorityAction = false;
+            }
+        }
+        if (!isJump)
+        {
+            // Falling speed
+            vy -= 9.8f * dltTime;
+            curPos.y += vy * dltTime;
+            // Checking the patch
+            currentNode = ptc.Move(currentNode, curPos, oldPos);
+            curPos = oldPos;
+            if (ptc.isBearing)
+                vy = 0.0f;
+            isSlide = ptc.isSlide;
+            if (ptc.isSlide && isEnableJump)
+            {
+                if (fall.name && !isFight && !priorityAction.name)
                 {
-                    PlaySound("recoil");
-                    isJump = true;
-                    isJumpSnd = true;
-                    jumpSound = SOUND_INVALID_ID;
-                    PlaySound("clothes");
-                    if (fabsf(curPos.y - osculationPoint.y) > 1.5f)
-                        SetPriorityAction(fall.name);
-                    return;
+                    if (TestJump(curPos + CVECTOR(0.001f * sinf(ay), -0.001f, 0.001f * cosf(ay))))
+                    {
+                        PlaySound("recoil");
+                        isJump = true;
+                        isJumpSnd = true;
+                        jumpSound = SOUND_INVALID_ID;
+                        PlaySound("clothes");
+                        if (fabsf(curPos.y - osculationPoint.y) > 1.5f)
+                            SetPriorityAction(fall.name);
+                        return;
+                    }
                 }
             }
         }
+        else
+        {
+            vy = 0.0f;
+        }
+        // SetSoundPosition(recoilSound);
+        // Wave height at a given point
+        CVECTOR chrPos = curPos;
+        if (isSwim && location->IsSwimming())
+        {
+            vy = 0.0f;
+            chrPos.y = seaY;
+        }
+        // put the matrix for the model
+        m->mtx.BuildMatrix(CVECTOR(0.0f, ay + strafeAngle * 3.1415f * 0.25f * 0.8f, 0.0f), chrPos);
+        // - CVECTOR(0.0f, 0.14f, 0.0f));
+        // Walking up the stairs
+        float sn = 0.0f;
+        CVECTOR nodeNorm;
+        ptc.GetNodeNormal(currentNode, nodeNorm);
+        float k = 10.0f * dltTime;
+        if (k > 1.0f)
+            k = 1.0f;
+        movecs += (nodeNorm.y - movecs) * k;
+        isUp = nodeNorm.x * m->mtx.Vz().x + nodeNorm.z * m->mtx.Vz().z <= 0;
+        // Animation
+        /*
+        if(storm::iEquals(characterID, "Blaze"))
+        {
+          location->GetRS()->Print(10, 150, "curFgt = %s", fightNamesTbl[fgtCurType]);
+          location->GetRS()->Print(10, 170, "setFgt = %s", fightNamesTbl[fgtSetType]);
+        }
+        */
+        UpdateAnimation();
     }
-    else
-    {
-        vy = 0.0f;
-    }
-    // SetSoundPosition(recoilSound);
-    // Wave height at a given point
-    CVECTOR chrPos = curPos;
-    if (isSwim && location->IsSwimming())
-    {
-        vy = 0.0f;
-        chrPos.y = seaY;
-    }
-    // put the matrix for the model
-    m->mtx.BuildMatrix(CVECTOR(0.0f, ay + strafeAngle * 3.1415f * 0.25f * 0.8f, 0.0f), chrPos);
-    // - CVECTOR(0.0f, 0.14f, 0.0f));
-    // Walking up the stairs
-    float sn = 0.0f;
-    CVECTOR nodeNorm;
-    ptc.GetNodeNormal(currentNode, nodeNorm);
-    float k = 10.0f * dltTime;
-    if (k > 1.0f)
-        k = 1.0f;
-    movecs += (nodeNorm.y - movecs) * k;
-    isUp = nodeNorm.x * m->mtx.Vz().x + nodeNorm.z * m->mtx.Vz().z <= 0;
-    // Animation
-    /*
-    if(storm::iEquals(characterID, "Blaze"))
-    {
-      location->GetRS()->Print(10, 150, "curFgt = %s", fightNamesTbl[fgtCurType]);
-      location->GetRS()->Print(10, 170, "setFgt = %s", fightNamesTbl[fgtSetType]);
-    }
-    */
-    UpdateAnimation();
     // Analyzing detectors
     for (int32_t i = 0; i < numDetectors; i++)
         detector[i]->Check(dltTime, this);
@@ -2507,7 +2522,7 @@ void Character::Update(float dltTime)
             tuner.chrAlpha = 1.0f;
     }
     //
-    k = dltTime * 4.0f;
+    float k = dltTime * 4.0f;
     if (k > 1.0f)
         k = 1.0f;
     grsPos += (curPos - grsPos) * k;
@@ -2551,6 +2566,7 @@ void Character::Update(float dltTime)
     }
 
     // Procedural head look
+    if (roundhouseControlled) return;
 
     Animation *ani = m->GetAnimation();
     if (!ani)
@@ -2656,6 +2672,7 @@ void Character::Update(float dltTime)
 void Character::ActionEvent(const char *actionName, Animation *animation, int32_t index, int32_t eventID,
                             AnimationEvent event)
 {
+    if (IsRoundhouseControlled()) return;
     if (index != 0)
         return;
     if (event == ae_end)
@@ -2751,6 +2768,7 @@ void Character::ActionEvent(const char *actionName, Animation *animation, int32_
 
 void Character::ActionEvent(Animation *animation, int32_t playerIndex, const char *eventName)
 {
+    if (IsRoundhouseControlled()) return;
     if (playerIndex)
         return;
     const char *actionName = animation->Player(playerIndex).GetAction();
@@ -3176,6 +3194,8 @@ void Character::ReleaseSound(int32_t id)
 
 bool Character::zLoadModel(MESSAGE &message)
 {
+    CancelRoundhouse();
+    roundhouseState.reset();
     char mpath[300];
     core.EraseEntity(shadow);
     core.EraseEntity(waterrings);
@@ -4025,6 +4045,7 @@ bool Character::SetAction(const char *actionName, float tblend, float movespeed,
 
 void Character::UpdateAnimation()
 {
+    if (IsRoundhouseControlled()) return;
     isActiveState = true;
     if (priorityAction.name)
     {

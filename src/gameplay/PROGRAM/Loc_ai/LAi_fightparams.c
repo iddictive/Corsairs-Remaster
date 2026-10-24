@@ -6,6 +6,7 @@
 	"round" круговая
 	"break" пробивающая блок
 	"feint" атака после финта
+	"roundhouse" удар пяткой с разворота
 
 
 */
@@ -17,6 +18,10 @@
 //Расчитать повреждение для персонажа
 float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool isBlocked)
 {
+	if (attackType == "roundhouse")
+	{
+		return 30.0 + 3.0 * Progression_GetPermanentSPECIAL(attack, SPECIAL_S) + 25.0 * LAi_GetCharacterFightLevel(attack);
+	}
 	//Расчитываем повреждение от сабли
 	float min = 10.0;
 	float max = 10.0;
@@ -526,7 +531,7 @@ void LAi_ApplyCharacterAttackDamage(aref attack, aref enemy, string attackType, 
 		//Проверим на смерть
 		LAi_CheckKillCharacter(enemy);
 		//проверим на отравление
-		MakePoisonAttackCheckSex(enemy, attack);
+		if (attackType != "roundhouse") MakePoisonAttackCheckSex(enemy, attack);
 	}
 	//Есть ли оружие у цели
 	bool isSetBalde = (CheckAttribute(enemy, "equip.blade") == true);//(SendMessage(enemy, "ls", MSG_CHARACTER_EX_MSG, "IsSetBalde") != 0);
@@ -944,6 +949,31 @@ void LAi_Location_CharacterSGFire()
 	//Проверим на смерть
 	LAi_CheckKillCharacter(enemy);
 	if (LAi_IsDead(enemy)) LAi_SetResultOfDeath(attack, enemy, CheckAttribute(enemy, "equip.blade"));
+}
+
+#event_handler("Roundhouse_TryStart", "Roundhouse_TryStart");
+bool Roundhouse_TryStart()
+{
+	aref attack = GetEventData();
+	if (LAi_IsDead(attack)) return false;
+	if (!CheckCharacterPerk(attack, "RoundhouseKick")) return false;
+	if (Lai_CharacterGetEnergy(attack) < 35.0) return false;
+	Lai_CharacterChangeEnergy(attack, -35.0);
+	return true;
+}
+
+#event_handler("Roundhouse_CanHit", "Roundhouse_CanHit");
+bool Roundhouse_CanHit()
+{
+	aref attack = GetEventData();
+	aref enemy = GetEventData();
+	if (LAi_IsDead(attack) || LAi_IsDead(enemy)) return false;
+	if (LAi_IsImmortal(enemy)) return false;
+	if (CheckAttribute(attack, "chr_ai.group") && CheckAttribute(enemy, "chr_ai.group"))
+	{
+		if (attack.chr_ai.group == enemy.chr_ai.group) return false;
+	}
+	return true;
 }
 
 #event_handler("ChrAttackAction", "LAi_ChrAttackAction");

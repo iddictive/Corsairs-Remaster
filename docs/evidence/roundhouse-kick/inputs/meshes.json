@@ -1,0 +1,38 @@
+{
+  "Danielle": {
+    "bytes": 96034,
+    "model": "Dan_Howk_0",
+    "sha256": "29639370fd57c5105072d0724207f5edbc521770c6f6fa870658673459347b48",
+    "source": "RESOURCE/MODELS/Characters/Dan_Howk_0.gm"
+  },
+  "Jessika": {
+    "bytes": 155048,
+    "model": "jess0",
+    "sha256": "018ef815abbbb9cc9871ed023f95b290ed8884efa763fc2711df09279edb18d8",
+    "source": "RESOURCE/MODELS/Characters/jess0.gm"
+  },
+  "YokoDias": {
+    "bytes": 133603,
+    "model": "Beatric_0",
+    "sha256": "2899ff70577c3364fff49ce43d07e2fec2dc26621f70390ebbc3c713b08717aa",
+    "source": "RESOURCE/MODELS/Characters/Beatric_0.gm"
+  },
+  "man": {
+    "bytes": 134886,
+    "model": "Blad_0",
+    "sha256": "3cba9f118d0e07d5323fe3f93c578ae2426091161051eaf8a3ebc4b283ef1f0e",
+    "source": "RESOURCE/MODELS/Characters/Blad_0.gm"
+  },
+  "man1": {
+    "bytes": 62298,
+    "model": "barmen_33",
+    "sha256": "454acb4158c3018cb063033669609e10938a5dba2c97a0d73da577307a784051",
+    "source": "RESOURCE/MODELS/Characters/barmen_33.gm"
+  },
+  "man2": {
+    "bytes": 84244,
+    "model": "Researcher",
+    "sha256": "891e5078d1aab966d4b2742be2723b844486bdd4cb8dcde9b6fb905ad649a65b",
+    "source": "RESOURCE/MODELS/Characters/Researcher.gm"
+  }
+}

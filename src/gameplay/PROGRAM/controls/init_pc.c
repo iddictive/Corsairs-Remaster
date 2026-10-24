@@ -130,6 +130,7 @@
 	MapControlToGroup("BOAL_DeadSearch","FightModeControls");
 	
 	CI_CreateAndSetControls( "FightModeControls", "BOAL_ActivateRush", CI_GetKeyCode("KEY_F"), 0, true ); // boal ярость на суше
+	Roundhouse_InitControls();
 	// boal <--
 	
 	//Jonathan A 2009-08-19 -->

@@ -1220,12 +1220,32 @@ int Dead_FindCloseBody()
 	int dchr_index = -1;
 	float x, y, z;
 	float x1, y1, z1, rd, min_rd = 100; // 100 - is super max
+	ref corpse;
+	int corpseIndex;
 	GetCharacterPos(mainChr, &x, &y, &z);
 	
     for(int i = 0; i < Dead_Char_num; i++)
 	{
 	    x1 = Dead_Characters[i].px;
 		z1 = Dead_Characters[i].pz;
+		// Loaded physical corpses can move after the inventory snapshot. Deleted
+		// entries and a character slot reused by a living actor stay untouched.
+		if (x1 != 30000 && z1 != 30000)
+		{
+			corpseIndex = sti(Dead_Characters[i].index);
+			if (corpseIndex >= 0 && corpseIndex < TOTAL_CHARACTERS)
+			{
+				corpse = &Characters[corpseIndex];
+				if (IsEntity(corpse) && corpse.id == Dead_Characters[i].id && LAi_IsDead(corpse))
+				{
+					if (GetCharacterPos(corpse, &x1, &y1, &z1))
+					{
+						Dead_Characters[i].px = x1;
+						Dead_Characters[i].pz = z1;
+					}
+				}
+			}
+		}
 		rd = sqrt(sqr(x1 - x) + sqr(z1 - z))
 		if ( rd < 1.8)
 		{

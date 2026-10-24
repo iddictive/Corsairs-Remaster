@@ -1,0 +1,256 @@
+"""Task evidence, not a maintained test harness.
+
+From the repository root:
+TASK_SCRATCH_DIR=<empty task-owned temporary directory> \
+python3 docs/evidence/roundhouse-kick/script-vm-acceptance.py.txt
+
+The caller owns temporary-directory cleanup; allow 128 MiB, 2200 files and
+60 seconds for this bounded replay.
+
+No game initialization, assets, saves, shared build, install or Git mutation.
+The complete ordinary staged PROGRAM supplies unchanged base files; canonical
+gameplay_sources.read() supplies current maintained runtime projections.
+
+Recorded 2026-10-23 result:
+canonical-program: exit=0, Run=0, script_errors=0; 150 canonical PROGRAM files.
+corpse-registry: exit=0, Run=0, script_errors=0.
+settings-remap: exit=0, Run=0, script_errors=0.
+Probe SHA256: b3e137d5c3408d8e7a5f0b822c93918d69e63bc8e13e1dbbfab6ddfe50b3528d
+LAi_utils.c SHA256: 40cb911aac494633f0e0f38c741ec6aa554a7b6d58788e41bc5ab920451cefdd
+
+The corpse replay substitutes only entity liveness and native position delivery.
+It executes the exact current registry function and actual LAi_IsDead. Native
+dead-character GETPOS acceptance is separate C++ evidence, not this fixture.
+The first full-chain attempt lacked executable-relative engine headers; copying
+the unchanged probe with its matching shared headers resolved that fixture gap.
+
+Earlier bounded VM checks on the same probe also returned Run=0/script_errors=0:
+missing perk, 34 energy and dead attacker reject without consuming energy;
+35 energy admits once and reaches zero; repeat rejects; ordinary enemy admits;
+immortal, same-group, dead victim and dead attacker reject; heel damage is 57.5
+at permanent Strength 5 / FightLevel 0.5 despite blade ranges 1000..2000 versus
+1..2; blocked ordinary fast attack remains zero.
+The subsequent explicit K default supersedes the original B default. Current
+settings-remap evidence checks K default, displayed localized settings row,
+remap to B, preservation of B, old-profile K admission, save/restore of B,
+rejection of occupied G and preservation of OfficersFollow on G.
+perk is personal PlayerOnly, requires BasicDefense and uses PERK_ROUNDHOUSE.
+The settings consumer is interface/option_screen.c FillControlsList(4), which
+feeds AddToControlsList with remapping=true and the ControlsNames translation.
+DoMapToOtherKey applies the choice; interface/option_sl.c GetControlsOptions
+saves it and controls.c RestoreKeysFromOptions restores it. No parallel control
+or settings row is needed. Rendering a live settings window remains outside
+this window-free script replay.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+ROOT = Path.cwd()
+SCRATCH = Path(os.environ['TASK_SCRATCH_DIR'])
+PROBE = ROOT / 'experiments/native-metal/.cache/build/bin/script-vm-probe'
+SOURCE_PROBE = PROBE
+sys.path.insert(0, str(ROOT / 'tools'))
+import gameplay_sources
+
+
+def extract(path, name):
+    text = path.read_text(encoding='utf-8-sig')
+    match = re.search(r'(?m)^(?:void|int|float|bool|string)\s+' + name +
+                      r'\([^;\n]*\)[ \t]*(?://[^\n]*)?\s*\{', text)
+    assert match, name
+    start = text.index('{', match.start())
+    masked = re.sub(r'//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"',
+                    lambda m: ' ' * len(m[0]), text[start:])
+    depth, end = 1, 1
+    while depth:
+        depth += (masked[end] == '{') - (masked[end] == '}')
+        end += 1
+    return text[match.start():start + end]
+
+
+def run(directory, entry, prelude=None):
+    args = [str(PROBE), str(directory), entry, '0']
+    if prelude:
+        args += [entry, prelude]
+    completed = subprocess.run(args, cwd=directory, capture_output=True, text=True)
+    error_file = directory / '.vm-userdata/Logs/error.log'
+    result = dict(exit=completed.returncode, stdout=completed.stdout,
+                  stderr=completed.stderr,
+                  script_errors=error_file.read_text(errors='replace') if error_file.exists() else '')
+    print(json.dumps({directory.name: result}, indent=2))
+    assert completed.returncode == 0 and not result['script_errors'], result
+    return result
+
+
+full = SCRATCH / 'canonical-program'
+stage = ROOT / 'experiments/native-metal/.cache/runtime'
+probe_directory = SCRATCH / 'isolated-probe'
+probe_directory.mkdir()
+PROBE = probe_directory / 'script-vm-probe'
+shutil.copy2(SOURCE_PROBE, PROBE)
+shutil.copytree(stage / 'resource/shared', probe_directory / 'resource/shared')
+shutil.copytree(stage / 'PROGRAM', full)
+sources, _ = gameplay_sources.read()
+for name, (data, _, _) in sources.items():
+    if name.startswith('PROGRAM/'):
+        path = full / Path(name).relative_to('PROGRAM')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+main = full / 'seadogs.c'
+data = main.read_bytes()
+assert len(re.findall(rb'void\s+Main\s*\(', data)) == 1
+main.write_bytes(re.sub(rb'void\s+Main\s*\(', b'void GameMainNotExecuted(', data, count=1))
+(full / 'cases.c').write_text('''
+int Run(){
+ if(!LoadSegment("controls\\init_pc.c")) return 1;
+ UnloadSegment("controls\\init_pc.c");
+ if(!LoadSegment("interface\\perks\\perks_init.c")) return 2;
+ UnloadSegment("interface\\perks\\perks_init.c");
+ if(!LoadSegment("interface\\option_screen.c")) return 3;
+ UnloadSegment("interface\\option_screen.c");
+ return 0;
+}
+''')
+run(full, 'Run', 'seadogs.c')
+
+corpse = SCRATCH / 'corpse-registry'
+corpse.mkdir()
+owner = ROOT / 'src/gameplay/PROGRAM/Loc_ai/LAi_utils.c'
+functions = extract(owner, 'Dead_FindCloseBody')
+assert functions.count('IsEntity(corpse)') == 1
+functions = functions.replace('IsEntity(corpse)', 'FixtureIsEntity(corpse)')
+functions += '\n' + extract(ROOT / 'src/gameplay/PROGRAM/Loc_ai/LAi_character.c', 'LAi_IsDead')
+prelude = r'''
+#define TOTAL_CHARACTERS 4
+object Characters[4], Dead_Characters[4];
+int Dead_Char_num = 1;
+int NativeQueries;
+ref GetMainCharacter(){ return &Characters[0]; }
+bool FixtureIsEntity(ref chr){ return CheckAttribute(chr,"mounted") && sti(chr.mounted); }
+bool GetCharacterPos(ref chr, ref x, ref y, ref z){
+ if(sti(chr.index)==0){ x=0; y=0; z=0; return true; }
+ NativeQueries++;
+ if(!sti(chr.positionAvailable)) return false;
+ x=stf(chr.nativeX); y=0; z=stf(chr.nativeZ); return true;
+}
+void Setup(){
+ DeleteAttribute(&Characters[1],""); DeleteAttribute(&Dead_Characters[0],"");
+ Characters[0].index=0;
+ Characters[1].index=1; Characters[1].id="original";
+ Characters[1].chr_ai.hp=0; Characters[1].mounted=1;
+ Characters[1].positionAvailable=1; Characters[1].nativeX=1; Characters[1].nativeZ=0;
+ Dead_Characters[0].index=1; Dead_Characters[0].id="original";
+ Dead_Characters[0].px=10; Dead_Characters[0].pz=0; NativeQueries=0;
+}
+'''
+cases = r'''
+int Run(){
+ Setup();
+ if(Dead_FindCloseBody()!=0 || Dead_Characters[0].px!=1 || NativeQueries!=1) return 1;
+ Characters[1].nativeX=8;
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=8 || NativeQueries!=2) return 2;
+ Setup(); Dead_Characters[0].px=30000; Dead_Characters[0].pz=30000;
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=30000 || NativeQueries!=0) return 3;
+ Setup(); Characters[1].chr_ai.hp=100;
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=10 || NativeQueries!=0) return 4;
+ Setup(); Characters[1].id="reused-dead-slot";
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=10 || NativeQueries!=0) return 5;
+ Setup(); Characters[1].positionAvailable=0;
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=10 || NativeQueries!=1) return 6;
+ Setup(); Characters[1].positionAvailable=0; Dead_Characters[0].px=1;
+ if(Dead_FindCloseBody()!=0 || Dead_Characters[0].px!=1 || NativeQueries!=1) return 7;
+ Setup(); Characters[1].mounted=0;
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=10 || NativeQueries!=0) return 8;
+ Setup(); Dead_Characters[0].index=TOTAL_CHARACTERS;
+ if(Dead_FindCloseBody()!=-1 || Dead_Characters[0].px!=10 || NativeQueries!=0) return 9;
+ return 0;
+}
+'''
+(corpse / 'cases.c').write_text(prelude + functions + cases)
+run(corpse, 'Run')
+
+settings = SCRATCH / 'settings-remap'
+settings.mkdir()
+control_path = ROOT / 'src/gameplay/PROGRAM/controls/controls.c'
+option_path = ROOT / 'src/gameplay/PROGRAM/interface/option_screen.c'
+selection = {
+    control_path: ['Roundhouse_InitControls', 'RestoreKeysFromOptions', 'CI_GetKeyCode', 'CI_GetKeyName'],
+    option_path: ['FillControlsList', 'AddToControlsList', 'GetGroupNameByMode', 'DoMapToOtherKey', 'KeyAlreadyUsed'],
+    ROOT / 'src/gameplay/PROGRAM/interface/option_sl.c': ['GetControlsOptions'],
+}
+functions = '\n'.join(extract(path, name) for path, names in selection.items() for name in names)
+assert functions.count('SendMessage(') == 2
+functions = functions.replace('SendMessage(', 'FixtureSendMessage(')
+labels = (ROOT / 'src/gameplay/RESOURCE/INI/texts/russian/ControlsNames.txt').read_text()
+label = re.findall(r'(?m)^ChrRoundhouse\s*\{([^}]+)\}', labels)
+assert len(label) == 1
+prelude = r'''
+#define MSG_INTERFACE_MSG_TO_NODE 1
+object objControlsState, GameInterface, Saved, Legacy;
+int g_nCurControlsMode=-1;
+int g_ControlsLngFile=0;
+string KickLabel;
+int FixtureSendMessage(ref target,string format,int code,string node,int command){ return 0; }
+string LanguageConvertString(int file,string key){ if(key=="ChrRoundhouse") return KickLabel; return key; }
+string XI_ConvertString(string key){ return key; }
+void SetKeyChooseWarning(string warning){}
+string CI_CreateAndSetControls(string group,string control,int code,int state,bool remappable){
+ objControlsState.keygroups.(group).(control)=CI_GetKeyName(code);
+ objControlsState.keygroups.(group).(control).state=state;
+ objControlsState.keygroups.(group).(control).remapping=remappable;
+ return "";
+}
+void RebuildControlsRegistry(){}
+void DeckWalk_DefaultShipKeys(){}
+void MapControlToGroup(string control,string group){}
+void ControlsInitFixedShortcuts(){}
+void RunControlsContainers(){}
+'''
+cases = r'''
+int Run(){
+ objControlsState.key_codes.KEY_K=75; objControlsState.key_codes.KEY_K.img="K";
+ objControlsState.key_codes.KEY_B=66; objControlsState.key_codes.KEY_B.img="B";
+ objControlsState.key_codes.KEY_G=71; objControlsState.key_codes.KEY_G.img="G";
+ objControlsState.key_codes.VK_F2=113; objControlsState.key_codes.VK_F6=117;
+ objControlsState.key_codes.VK_F8=119; objControlsState.key_codes.VK_F9=120;
+ objControlsState.grouplist.FightModeControls=true;
+ CI_CreateAndSetControls("FightModeControls","OfficersFollow",71,0,true);
+ Roundhouse_InitControls(); FillControlsList(4);
+ if(GameInterface.controls_list.tr2.userdata.control!="ChrRoundhouse") return 1;
+ if(GameInterface.controls_list.tr2.td2.str!=KickLabel) return 2;
+ if(GameInterface.controls_list.tr2.td1.str!="K") return 3;
+ if(!sti(GameInterface.controls_list.tr2.userdata.remapable)) return 4;
+ GameInterface.controls_list.select=2;
+ if(!DoMapToOtherKey(1,0)) return 5;
+ if(objControlsState.keygroups.FightModeControls.ChrRoundhouse!="KEY_B") return 6;
+ if(GameInterface.controls_list.tr2.td1.str!="B") return 7;
+ Roundhouse_InitControls();
+ if(objControlsState.keygroups.FightModeControls.ChrRoundhouse!="KEY_B") return 8;
+ if(DoMapToOtherKey(2,0)) return 9;
+ if(objControlsState.keygroups.FightModeControls.ChrRoundhouse!="KEY_B") return 10;
+ if(objControlsState.keygroups.FightModeControls.OfficersFollow!="KEY_G") return 11;
+ GetControlsOptions(&Saved);
+ if(Saved.controls.FightModeControls.ChrRoundhouse!="KEY_B") return 12;
+ DeleteAttribute(&objControlsState,"keygroups.FightModeControls.ChrRoundhouse");
+ Legacy.controls.sailing1pers.Ship_TurnLeft1="VK_LEFT";
+ aref arControls;
+ makearef(arControls,Legacy.controls);
+ RestoreKeysFromOptions(arControls);
+ if(objControlsState.keygroups.FightModeControls.ChrRoundhouse!="KEY_K") return 13;
+ makearef(arControls,Saved.controls);
+ RestoreKeysFromOptions(arControls);
+ if(objControlsState.keygroups.FightModeControls.ChrRoundhouse!="KEY_B") return 14;
+ return 0;
+}
+'''
+(settings / 'cases.c').write_text(prelude + functions + cases.replace('int Run(){', 'int Run(){\n KickLabel=' + json.dumps(label[0], ensure_ascii=False) + ';', 1))
+run(settings, 'Run')
+print('probe_sha256=' + hashlib.sha256(PROBE.read_bytes()).hexdigest())
+print('corpse_owner_sha256=' + hashlib.sha256(owner.read_bytes()).hexdigest())
+print('canonical_source_program_files=' + str(sum(name.startswith('PROGRAM/') for name in sources)))

@@ -1,0 +1,294 @@
+// One-off acceptance against all authored rig maps. No engine/window startup.
+#define main synthetic_backend_probe_main
+#include "backend-probe.cpp.txt"
+#undef main
+#include "math3d/quaternion.h"
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <string>
+
+#include "roundhouse_pose.hpp"
+
+static CVECTOR NativeRenderedPoint(CMatrix palette, CMatrix model,const CVECTOR &bindPoint)
+{
+    // Independent native model.cpp/Metal skinMatrix consumer: raw AN skin,
+    // then negate output-local X, then transform into the world.
+    CVECTOR rendered=palette*bindPoint;rendered.x=-rendered.x;return model*rendered;
+}
+struct MeshVertex { CVECTOR point;float weight;int a,b;CVECTOR normal; };
+static CVECTOR NativeMeshPoint(const std::vector<CMatrix> &palette,CMatrix model,const MeshVertex &vertex)
+{
+    CMatrix a=palette[vertex.a],b=palette[vertex.b];
+    CVECTOR point=(a*vertex.point)*vertex.weight+(b*vertex.point)*(1.f-vertex.weight);
+    point.x=-point.x;return model*point;
+}
+static CVECTOR NativeMeshNormal(const std::vector<CMatrix> &palette,const CMatrix &model,const MeshVertex &vertex)
+{
+    const auto transform=[](const CMatrix &m,const CVECTOR &n) { return m.v.vx*n.x+m.v.vy*n.y+m.v.vz*n.z; };
+    CVECTOR normal=transform(palette[vertex.a],vertex.normal)*vertex.weight+
+                   transform(palette[vertex.b],vertex.normal)*(1.f-vertex.weight);
+    normal.x=-normal.x;return transform(model,normal);
+}
+static float Determinant(const CMatrix &m) { return m.v.vx|(m.v.vy^m.v.vz); }
+[[gnu::noinline]] static CMatrix PaletteBridge(const CMatrix &inverseBind,const CMatrix &world,const CMatrix &inverseModel)
+{
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+    return inverseBind*world*inverseModel;
+#else
+    return roundhouse::WorldToSkinPalette(inverseBind,world,inverseModel);
+#endif
+}
+static volatile double bridgeSink;
+
+static CMatrix Inverse(CMatrix m) { m.Transposition(); return m; }
+static CVECTOR ReadVector(std::istream &input)
+{
+    float x,y,z; input>>x>>y>>z;Require(bool(input),"complete vector input");return CVECTOR(x,y,z);
+}
+static std::vector<CMatrix> Forward(const std::vector<int> &parents, const std::vector<CVECTOR> &rest,
+                                    const std::vector<Quaternion> &rotations,const CVECTOR &root)
+{
+    std::vector<CMatrix> result(parents.size());
+    for(std::size_t i=0;i<parents.size();++i) {
+        Matrix rotation;rotations[i].GetMatrix(rotation); CMatrix local; local=rotation;
+        local.Pos()=i==0?root:rest[i];
+        result[i]=parents[i]>=0?local*result[parents[i]]:local;
+    }
+    return result;
+}
+static float MaxMatrixError(const CMatrix &a,const CMatrix &b)
+{
+    float e=0;for(int j=0;j<16;++j)e=std::max(e,std::abs(a.matrix[j]-b.matrix[j]));return e;
+}
+int main(int argc,char **argv)
+{
+    Require(argc==3,"rig and GM input paths");
+    std::ifstream input(argv[1]);int count;input>>count;Require(count==24,"independent supported-rig population=24");
+    std::cout<<std::setprecision(9);
+    float legacyWorst=0;
+    for(int number=0;number<count;++number) {
+        std::string name;int bones;input>>name>>bones;Require(bones>0&&bones<=256,"valid real rig size");
+        roundhouse::RigDefinition rig;rig.headBody=2;rig.jointParents.resize(bones);
+        for(auto &p:rig.jointParents) input>>p;
+        std::vector<CVECTOR> rest;std::vector<Quaternion> bindQ,guardQ;
+        for(int i=0;i<bones;++i)rest.push_back(ReadVector(input));
+        for(auto *q:{&bindQ,&guardQ})for(int i=0;i<bones;++i) {
+            float x,y,z,w;input>>x>>y>>z>>w;q->emplace_back(x,y,z,w);
+        }
+        const auto bindRoot=ReadVector(input),guardRoot=ReadVector(input);(void)bindRoot;
+        for(int i=0;i<15;++i) {
+            roundhouse::BodyDefinition body;
+            input>>body.joint>>body.endJoint>>body.parentBody>>body.mass>>body.radius
+                 >>body.swingRadians>>body.twistMinRadians>>body.twistMaxRadians;
+            rig.bodies.push_back(body);
+        }
+        const auto headOffset=ReadVector(input),heelOffset=ReadVector(input);
+        int vertexCount;input>>vertexCount;std::vector<MeshVertex> mesh;
+        for(int i=0;i<vertexCount;++i) {
+            MeshVertex vertex;vertex.point=ReadVector(input);input>>vertex.weight>>vertex.a>>vertex.b;
+            vertex.normal=ReadVector(input);Require(vertex.a<bones&&vertex.b<bones,"actual mesh consumes this rig");mesh.push_back(vertex);
+        }
+        Require(bool(input),"complete real rig input");
+        // Bone::BuildStartMatrix uses pos0/rest[0], while the sampled animation
+        // root comes from guard_root. Preserve that native distinction.
+        const auto bind=Forward(rig.jointParents,rest,bindQ,rest[0]);
+        const auto current=Forward(rig.jointParents,rest,guardQ,guardRoot);
+        CMatrix model(.12f,.63f,-.08f,3.f,2.8f,-4.f);
+        CMatrix relativeModel(.12f,.63f,-.08f);
+        float front=-1000;
+        for(const auto &body:rig.bodies) {
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+            const CMatrix relative=current[body.joint]*relativeModel;
+#else
+            const CMatrix relative=roundhouse::MirrorJoint(current[body.joint])*relativeModel;
+#endif
+            front=std::max(front,relative.v.pos.z);
+        }
+        // Every actual rig begins with its foremost simulated joint at z=1.4,
+        // clearly separated from the wall at z=2. A later near-wall joint is
+        // therefore a real contact, rather than an unexercised upper bound.
+        model.v.pos.z=1.4f-front;
+        const auto inverseModel=Inverse(model);
+        std::vector<CMatrix> inverseBind(bones),nativePalette(bones),worldPose(bones);
+        float sourceRoundtrip=0,wrongOrderError=0,renderedOriginError=0,offsetError=0,headError=0,heelError=0,wrongWorldError=0;
+        for(int i=0;i<bones;++i) {
+            inverseBind[i]=Inverse(bind[i]);
+            nativePalette[i]=inverseBind[i]*current[i];
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+            worldPose[i]=bind[i]*nativePalette[i]*model;
+            rig.bindWorld.push_back(bind[i]*model);
+#else
+            worldPose[i]=roundhouse::AnimationJointWorld(inverseBind[i],nativePalette[i],model);
+            rig.bindWorld.push_back(roundhouse::MirrorJoint(bind[i])*model);
+#endif
+            const auto renderedOrigin=NativeRenderedPoint(nativePalette[i],model,bind[i].v.pos);
+            renderedOriginError=std::max(renderedOriginError,Distance(worldPose[i].v.pos,renderedOrigin));
+            const CMatrix oldWorld=bind[i]*nativePalette[i]*model;
+            legacyWorst=std::max(legacyWorst,Distance(oldWorld.v.pos,renderedOrigin));
+            sourceRoundtrip=std::max(sourceRoundtrip,MaxMatrixError(oldWorld,current[i]*model));
+#ifndef ROUNDHOUSE_LEGACY_BRIDGE
+            Require(std::abs(Determinant(worldPose[i])-1.f)<.00005f&&std::abs(Determinant(rig.bindWorld[i])-1.f)<.00005f,"conjugated joint stays a proper rotation");
+            const CVECTOR asymmetricOffset(.17f,-.03f,.11f);
+            CMatrix bindJoint=bind[i];
+            const auto expectedOffset=NativeRenderedPoint(nativePalette[i],model,bindJoint*asymmetricOffset);
+            offsetError=std::max(offsetError,Distance(roundhouse::JointPointWorld(worldPose[i],asymmetricOffset),expectedOffset));
+            const CMatrix wrongWorld=roundhouse::MirrorJoint(current[i]*model);
+            wrongWorldError=std::max(wrongWorldError,Distance(wrongWorld.v.pos,renderedOrigin));
+            if(i==rig.bodies[2].joint)headError=Distance(roundhouse::JointPointWorld(worldPose[i],headOffset),NativeRenderedPoint(nativePalette[i],model,bindJoint*headOffset));
+            if(i==rig.bodies[14].joint)heelError=Distance(roundhouse::JointPointWorld(worldPose[i],heelOffset),NativeRenderedPoint(nativePalette[i],model,bindJoint*heelOffset));
+#endif
+            const CMatrix roundtrip=PaletteBridge(inverseBind[i],worldPose[i],inverseModel);
+            Require(MaxMatrixError(roundtrip,nativePalette[i])<.00003f,"native rotated/translated palette roundtrip");
+            const CMatrix wrong=worldPose[i]*inverseBind[i]*inverseModel;
+            wrongOrderError=std::max(wrongOrderError,MaxMatrixError(wrong,nativePalette[i]));
+        }
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+        std::cout<<"LEGACY_RENDER_ORACLE name="<<name<<" origin_error="<<renderedOriginError<<" native_output_x_reflection=missing\n";
+        std::cout.flush();
+#endif
+        if(name=="man") {
+            std::vector<CMatrix> bench(bones);double sum=0;
+            const auto start=std::chrono::steady_clock::now();
+            constexpr int frames=1200,actors=32;
+            CMatrix changingInverse=inverseModel;
+            for(int frame=0;frame<frames;++frame) {
+                changingInverse.v.pos.z=inverseModel.v.pos.z+float(frame&1)*.0001f;
+                for(int actor=0;actor<actors;++actor)for(int bone=0;bone<bones;++bone) {
+                    bench[bone]=PaletteBridge(inverseBind[bone],worldPose[bone],changingInverse);
+                    sum+=bench[bone].matrix[(frame+actor)&15];
+                }
+            }
+            bridgeSink=sum;
+            const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
+            std::cout<<"BRIDGE_TIMING legacy="
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+                     <<1
+#else
+                     <<0
+#endif
+                     <<" frames="<<frames<<" actors="<<actors<<" bones="<<bones<<" ms="<<ms
+                     <<" ns_per_bone="<<ms*1e6/(frames*actors*bones)<<" checksum="<<sum<<'\n';std::cout.flush();
+        }
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+        continue;
+#else
+        Require(renderedOriginError<.00001f,"physical bone origins match native output-X skinning");
+        Require(offsetError<.00001f&&headError<.00001f&&heelError<.00001f,"physical local/heel/head offsets match native skinning");
+        Require(wrongWorldError>1.f,"reflecting the world is an independent rejected alternative");
+#endif
+        Require(wrongOrderError>.01f,"reversed native multiplication order is a meaningful negative");
+        roundhouse::RagdollWorld world;Require(world.SetStaticTriangles(Mesh()),"fixture mesh");
+        const CVECTOR impulse(15.f,2.f,90.f);
+        const auto handle=world.Create(rig,worldPose,impulse,worldPose[rig.bodies[2].joint].v.pos);
+        Require(handle!=0,"authored real rig creates");
+        std::vector<CMatrix> output;Require(world.GetPose(handle,output),"real rig capture");
+        const float initialError=Error(output,worldPose);Require(initialError<.00001f,"real current pose fidelity");
+        float paletteError=0;
+        std::vector<CMatrix> capturedPalette(bones);
+        for(int i=0;i<bones;++i) {
+            const CMatrix palette=PaletteBridge(inverseBind[i],output[i],inverseModel);
+            capturedPalette[i]=palette;
+            paletteError=std::max(paletteError,MaxMatrixError(palette,nativePalette[i]));
+        }
+        Require(paletteError<.00003f,"captured pose converts to exact native skin palette");
+        float meshError=0,normalError=0;
+        for(const auto &vertex:mesh) {
+            meshError=std::max(meshError,Distance(NativeMeshPoint(nativePalette,model,vertex),NativeMeshPoint(capturedPalette,model,vertex)));
+            normalError=std::max(normalError,Distance(NativeMeshNormal(nativePalette,model,vertex),NativeMeshNormal(capturedPalette,model,vertex)));
+        }
+        Require(meshError<.00001f&&normalError<.00001f,"complete actual skinned mesh/normal output survives initial roundtrip");
+        // A second instance of the same rig uses a different full model
+        // transform and impulse. Creation/removal must not touch the first.
+        auto secondRig=rig;auto secondPose=worldPose;
+        CMatrix secondModel(-.07f,-.44f,.05f,-6.f,2.8f,-4.f);
+        for(int i=0;i<bones;++i) {
+            secondRig.bindWorld[i]=roundhouse::MirrorJoint(bind[i])*secondModel;
+            secondPose[i]=roundhouse::AnimationJointWorld(inverseBind[i],nativePalette[i],secondModel);
+        }
+        const auto second=world.Create(secondRig,secondPose,CVECTOR(-10.f,0.f,0.f),secondPose[rig.bodies[2].joint].v.pos);
+        Require(second!=0,"second actual rig instance");
+        std::vector<CMatrix> untouched;world.GetPose(handle,untouched);
+        Require(Error(output,untouched)==0,"per-instance create isolation");
+        world.Remove(second);world.GetPose(handle,untouched);
+        Require(Error(output,untouched)==0&&world.Size()==1,"per-instance removal isolation");
+        float anchorError=0,minY=1000,maxZ=-1000,articulationChange=0;
+        for(int step=0;step<900;++step) {
+            world.Step(1.f/60);world.GetPose(handle,output);
+            for(int i=0;i<bones;++i)for(float value:output[i].matrix)Require(std::isfinite(value),"finite actual skeleton");
+            for(int i=0;i<15;++i) {
+                const int child=rig.bodies[i].joint,parent=rig.bodies[i].parentBody;
+                if(parent>=0) {
+                    const int pj=rig.bodies[parent].joint;
+                    anchorError=std::max(anchorError,std::abs(Distance(output[child].v.pos,output[pj].v.pos)-Distance(worldPose[child].v.pos,worldPose[pj].v.pos)));
+                }
+                minY=std::min(minY,output[child].v.pos.y);maxZ=std::max(maxZ,output[child].v.pos.z);
+            }
+            const int head=rig.bodies[2].joint,pelvis=rig.bodies[0].joint;
+            articulationChange=std::max(articulationChange,std::abs(
+                (output[head].v.vy|output[pelvis].v.vy)-(worldPose[head].v.vy|worldPose[pelvis].v.vy)));
+            // The real skin conversion remains valid after the model is moved
+            // to the pelvis by Character::UpdateRoundhouse.
+            CMatrix movedModel(0.f,.63f,0.f,output[pelvis].v.pos.x,0.f,output[pelvis].v.pos.z);
+            const auto inverseMoved=Inverse(movedModel);
+            for(int i=0;i<bones;++i) {
+                const CMatrix palette=PaletteBridge(inverseBind[i],output[i],inverseMoved);
+                const CMatrix back=roundhouse::AnimationJointWorld(inverseBind[i],palette,movedModel);
+                Require(MaxMatrixError(back,output[i])<.00004f,"moving-model native palette roundtrip after physics");
+            }
+        }
+        Require(anchorError<.15f,"actual rig remains connected under head impulse");
+        Require(minY>-.06f,"actual rig collides with floor");
+        Require(maxZ<2.05f,"actual rig stays behind fixture wall");
+        Require(maxZ>1.88f,"actual rig reaches fixture wall after beginning at z<=1.4");
+        Require(articulationChange>.001f,"actual skeleton articulates rather than one rigid body");
+        world.Remove(handle);Require(world.Size()==0&&!world.GetPose(handle,output),"actual rig cleanup");
+        // Recreate after last-world teardown: covers Jolt registration and
+        // location reuse without a process restart or surviving shape objects.
+        const auto recreated=world.Create(rig,worldPose,CVECTOR(0.f,0.f,0.f),worldPose[rig.bodies[2].joint].v.pos);
+        Require(recreated!=0,"actual rig recreate after last-body cleanup");world.Clear();Require(world.Size()==0,"actual rig clear");
+        std::cout<<"REAL_RIG name="<<name<<" bones="<<bones<<" initial_error="<<initialError
+                 <<" palette_error="<<paletteError<<" raw_fk_sanity="<<sourceRoundtrip
+                 <<" native_joint_error="<<renderedOriginError<<" native_offset_error="<<offsetError
+                 <<" heel_error="<<heelError<<" head_error="<<headError<<" wrong_world_error="<<wrongWorldError
+                 <<" mesh_vertices="<<vertexCount<<" mesh_error="<<meshError<<" mesh_normal_error="<<normalError
+                 <<" reversed_order_error="<<wrongOrderError<<" max_anchor_error="<<anchorError
+                 <<" min_joint_y="<<minY<<" max_joint_z="<<maxZ<<" articulation="<<articulationChange
+                 <<" isolation=pass cleanup=pass\n";
+        std::cout.flush();
+    }
+#ifdef ROUNDHOUSE_LEGACY_BRIDGE
+    std::cout<<"LEGACY_EXPECTED_FAILURE max_native_origin_error="<<legacyWorst<<'\n';
+    return legacyWorst>.01f?1:2;
+#endif
+    std::ifstream geometry(argv[2]);int locations;geometry>>locations;Require(locations==3,"three actual location samples");
+    for(int i=0;i<locations;++i) {
+        std::string name;int floorId,wallId;geometry>>name>>floorId>>wallId;
+        std::vector<CVECTOR> floor,wall;
+        for(int j=0;j<3;++j)floor.push_back(ReadVector(geometry));
+        for(int j=0;j<3;++j)wall.push_back(ReadVector(geometry));
+        const auto normal=ReadVector(geometry);
+        CVECTOR floorCenter=(floor[0]+floor[1]+floor[2])*(1.f/3),wallCenter=(wall[0]+wall[1]+wall[2])*(1.f/3);
+        roundhouse::RigDefinition sphere;sphere.jointParents={-1};sphere.bindWorld.resize(1);sphere.headBody=0;
+        roundhouse::BodyDefinition body;body.joint=0;body.radius=.2f;body.mass=2;sphere.bodies={body};
+        std::vector<CMatrix> pose(1),out;roundhouse::RagdollWorld w;w.SetStaticTriangles(floor);
+        pose[0].v.pos=floorCenter+CVECTOR(0.f,3.f,0.f);
+        const auto h=w.Create(sphere,pose,CVECTOR(0.f,0.f,0.f),pose[0].v.pos);Require(h!=0,"actual GM floor accepted");
+        for(int frame=0;frame<180;++frame)w.Step(1.f/60);w.GetPose(h,out);
+        const float floorGap=out[0].v.pos.y-floorCenter.y;
+        Require(floorGap>.15f&&floorGap<.25f,"unreversed actual GM floor supports falling sphere");w.Clear();
+        float wallGap[2];
+        for(int reverse=0;reverse<2;++reverse) {
+            auto triangle=wall;if(reverse)std::swap(triangle[1],triangle[2]);w.SetStaticTriangles(triangle);
+            pose[0].v.pos=wallCenter+normal*2.f;
+            const auto wh=w.Create(sphere,pose,normal*(-40.f),pose[0].v.pos);Require(wh!=0,"actual GM wall accepted");
+            for(int frame=0;frame<16;++frame)w.Step(1.f/60);w.GetPose(wh,out);
+            wallGap[reverse]=(out[0].v.pos-wallCenter)|normal;w.Clear();
+        }
+        Require(wallGap[0]>.15f&&wallGap[0]<.25f,"actual GM CCW wall stops front-side impact");
+        Require(wallGap[1]<-.5f,"reversed actual wall is a meaningful single-sided negative");
+        std::cout<<"GM_CLIP_WINDING name="<<name<<" floor_triangle="<<floorId<<" floor_gap="<<floorGap
+                 <<" wall_triangle="<<wallId<<" wall_gap="<<wallGap[0]<<" reversed_wall_gap="<<wallGap[1]<<" pass\n";
+    }
+    std::cout<<"PASS native reflection oracle:all24 real joint origins/offsets; proper rotations; complete6GM vertex/normal roundtrip; finite articulation/connected joints; floor/wall; isolation/cleanup; actual3GM CCW/negative winding\n";
+}

@@ -12,6 +12,7 @@ import gameplay_sources
 import metal_engine_source
 import prepare_native_movies
 import prepare_puerto_rico_city
+import prepare_roundhouse
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,10 @@ def compiler_ready():
     return metal_engine_source.ready(built, ENGINE)
 
 
+def source_paths(paths, assets):
+    return [] if paths is None and assets is not None else paths
+
+
 def source_changes(target_root, source_set, state=None, managed=None):
     delivery = gameplay_sources.prepare_delivery(target_root, source_set, state)
     if managed is not None:
@@ -54,7 +59,7 @@ def content_sources(source_set, paths=None):
     return {**sources, **generated}, {**inputs, **snapshots}
 
 
-def asset_changes(asset_root, state, managed=None, inputs=None, claimed=None):
+def asset_changes(asset_root, state, managed=None, inputs=None, claimed=None, selected=None):
     manifest = asset_root / "manifest.json"
     raw = manifest.read_bytes()
     record = json.loads(raw)
@@ -70,6 +75,8 @@ def asset_changes(asset_root, state, managed=None, inputs=None, claimed=None):
             if name in claimed:
                 raise RuntimeError("Asset manifests overlap; no files changed")
             claimed.add(name)
+        if selected is not None and name not in selected:
+            continue
         data = None
         for key, checksum in (("source", "source_sha256"), ("prepared", "sha256")):
             path = gameplay_sources.safe_path(asset_root, Path(spec[key]))
@@ -92,8 +99,10 @@ def asset_changes(asset_root, state, managed=None, inputs=None, claimed=None):
     return changes
 
 
-def plan(target_root=None, paths=None, source_set=None, state=None, managed=None, inputs=None):
+def plan(target_root=None, paths=None, source_set=None, state=None, managed=None, inputs=None, assets=None):
     target_root = TARGET if target_root is None else target_root
+    assets = None if assets is None else set(assets)
+    paths = source_paths(paths, assets)
     source_set = content_sources(gameplay_sources.read(paths) if source_set is None else source_set, paths)
     app = target_root.parent.parent if target_root.name == "Resources" and target_root.parent.name == "Contents" else None
     state = DeliveryState(target_root, app) if state is None else state
@@ -102,9 +111,9 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
     changes = source_changes(target_root, source_set, state, managed)
     if inputs is not None:
         inputs.update(source_set[1])
-    if paths is not None:
+    if paths is not None and assets is None:
         return changes
-    variants = gameplay_sources.read_variants()
+    variants = gameplay_sources.read_variants() if paths is None else ({}, {})
     for name in variants[0]:
         target = state.path(name)
         if not target.is_file():
@@ -129,19 +138,35 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
             changes[name] = (before, after)
     asset_targets = set()
     for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS):
-        changes.update(asset_changes(asset_root, state, managed, inputs, asset_targets))
+        changes.update(asset_changes(asset_root, state, managed, inputs, asset_targets, assets))
     city = prepare_puerto_rico_city
-    recipe_inputs = {path: path.read_bytes() for path in (
-        city.LAYOUT, city.MANIFEST, Path(city.__file__),
-        Path(city.__file__).with_name("puerto_rico_city_blocks.py"))}
-    city_specs = json.loads(recipe_inputs[city.MANIFEST])["files"]
-    if inputs is not None:
-        inputs.update({path: (raw, raw) for path, raw in recipe_inputs.items()})
-    for owner, prepared, specs in (
-        ("src/assets/video/manifest.json", prepare_native_movies.prepared(), {}),
-        ("src/assets/islands/puerto-rico/manifest.json", city.prepared(), city_specs),
+    kick = prepare_roundhouse
+    for module, recipe_paths in (
+        (prepare_native_movies, (prepare_native_movies.MANIFEST,)),
+        (city, (city.LAYOUT, city.MANIFEST, Path(city.__file__),
+                Path(city.__file__).with_name("puerto_rico_city_blocks.py"))),
+        (kick, (kick.RECIPE, kick.SOURCES, kick.MANIFEST, Path(kick.__file__),
+                Path(kick.__file__).with_name("prepare_port_rowboat.py"))),
     ):
-        for relative, source in prepared.items():
+        raw = module.MANIFEST.read_bytes()
+        specs = json.loads(raw)["files"]
+        names = set(prepare_native_movies.movie_paths() if module is prepare_native_movies else specs)
+        if names & asset_targets:
+            raise RuntimeError("Asset manifests overlap; no files changed")
+        asset_targets.update(names)
+        selected = names if assets is None else names & assets
+        if not selected:
+            continue
+        owner = module.MANIFEST.relative_to(PROJECT).as_posix()
+        if inputs is not None:
+            for path in recipe_paths:
+                data = raw if path == module.MANIFEST else path.read_bytes()
+                if path in inputs and inputs[path] != (data, data):
+                    raise RuntimeError("Concurrent prepared asset input; no files changed")
+                inputs[path] = (data, data)
+        for relative, source in module.prepared().items():
+            if relative not in selected:
+                continue
             target = state.path(relative)
             previous = target.read_bytes() if target.is_file() else None
             incoming = source.read_bytes()
@@ -157,7 +182,10 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
                 inputs[source] = (incoming, incoming)
             if previous != incoming:
                 changes[relative] = (previous, incoming)
-    gameplay_sources.verify_layout_assets(target_root, inputs)
+    if assets is not None and assets - asset_targets:
+        raise RuntimeError(f"Not a canonical asset: {', '.join(sorted(assets - asset_targets))}")
+    if paths is None:
+        gameplay_sources.verify_layout_assets(target_root, inputs)
     return changes
 
 
@@ -175,24 +203,24 @@ def delivery_content(target_root, sources=None):
         name: row[0] for name, row in source_set[0].items()}
 
 
-def apply(changes, paths=None, source_set=None):
+def apply(changes, paths=None, source_set=None, assets=None):
     guard = player_guard(INSTALLED_APP) if INSTALLED_APP.is_dir() else nullcontext()
     with guard:
-        apply_locked(changes, paths, source_set)
+        apply_locked(changes, paths, source_set, assets)
 
 
-def apply_locked(changes, paths=None, source_set=None):
+def apply_locked(changes, paths=None, source_set=None, assets=None):
     if not compiler_ready():
         raise RuntimeError("build and stage Metal with the current engine sources before applying gameplay")
     app_resources = INSTALLED_APP / "Contents/Resources"
-    source_set = gameplay_sources.read(paths) if source_set is None else source_set
+    source_set = gameplay_sources.read(source_paths(paths, assets)) if source_set is None else source_set
     runtime_state = DeliveryState(TARGET)
     app_state = DeliveryState(app_resources, INSTALLED_APP) if INSTALLED_APP.is_dir() else None
     runtime_managed, app_managed, variant_inputs = {}, {}, {}
-    if plan(paths=paths, source_set=source_set, state=runtime_state, managed=runtime_managed, inputs=variant_inputs) != changes:
+    if plan(paths=paths, source_set=source_set, state=runtime_state, managed=runtime_managed, inputs=variant_inputs, assets=assets) != changes:
         raise RuntimeError("Concurrent gameplay plan change; no files changed")
     if app_state is not None:
-        plan(app_resources, paths, source_set, app_state, app_managed, variant_inputs)
+        plan(app_resources, paths, source_set, app_state, app_managed, variant_inputs, assets=assets)
     engines = [ENGINE]
     if INSTALLED_APP.is_dir():
         engines.append(INSTALLED_APP / "Contents/MacOS/metal-engine")
@@ -215,9 +243,9 @@ def apply_locked(changes, paths=None, source_set=None):
         batch[app_state.receipt] = app_state.change()
 
     def verify():
-        if plan(paths=paths, source_set=source_set):
+        if plan(paths=paths, source_set=source_set, assets=assets):
             raise RuntimeError("post-apply gameplay comparison failed")
-        if app_state is not None and plan(app_resources, paths, source_set):
+        if app_state is not None and plan(app_resources, paths, source_set, assets=assets):
             raise RuntimeError("post-apply installed gameplay comparison failed")
 
     transact(batch, INSTALLED_APP if app_state is not None else None, verify)
@@ -227,22 +255,23 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("check", "apply"), default="check", nargs="?")
     parser.add_argument("--path", action="append", help="Deliver only this registered canonical gameplay source (repeatable).")
+    parser.add_argument("--asset", action="append", help="Deliver only this manifest-owned asset, optionally with --path (repeatable).")
     args = parser.parse_args()
     try:
-        source_set = gameplay_sources.read(args.path)
-        changes = plan(paths=args.path, source_set=source_set)
+        source_set = gameplay_sources.read(source_paths(args.path, args.asset))
+        changes = plan(paths=args.path, source_set=source_set, assets=args.asset)
         ready = compiler_ready()
         print(f"Metal gameplay: {len(changes)} files pending; compiler {'ready' if ready else 'build/stage pending'}")
         for path in sorted(changes):
             print(path)
         if INSTALLED_APP.is_dir():
-            installed_changes = plan(INSTALLED_APP / "Contents/Resources", args.path, source_set)
+            installed_changes = plan(INSTALLED_APP / "Contents/Resources", args.path, source_set, assets=args.asset)
             print(f"Installed Metal gameplay: {len(installed_changes)} files pending")
             for path in sorted(installed_changes):
                 print(path)
         if args.action == "apply":
-            apply(changes, args.path, source_set)
-            print("Applied to native-metal. SAVE, config and renderer resources unchanged.")
+            apply(changes, args.path, source_set, assets=args.asset)
+            print("Applied to native-metal. SAVE and player config unchanged.")
         return 0
     except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"error: {error}")

@@ -118,6 +118,22 @@
       "cleanup": "Keep sphere, tong contact and framing; calm fine iron/ember detail at 128px. Left learned warm-red state, right aligned muted sepia unlearned state. Review both final TX tiles and the existing reference at delivery size.",
       "preparation": "python3 src/assets/ui/prepare_perk.py src/assets/ui/heated-shot.png src/assets/ui/heated-shot.tga.tx; LANCZOS resize the 2:1 full-bleed sheet to 256x128 and encode one BGRA A8R8G8B8 mip. Existing perk/atlas bytes remain unchanged."
     },
+    "RESOURCE/Textures/INTERFACES/PERKS/roundhouse_kick.tga.tx": {
+      "source": "roundhouse-kick.png",
+      "source_sha256": "b48e72d5c0c16ba8a7e2622bb31b6964bde22216c56d673edc503822c5d37180",
+      "prepared": "roundhouse-kick.tga.tx",
+      "sha256": "021462c02a8ef7295e46b4a6dc120513236aae0d4c67c9d4c6e3f83c5307624b",
+      "dimensions": [256, 128],
+      "source_dimensions": [256, 128],
+      "format": "A8R8G8B8",
+      "consumer": "ChrPerksList.list.RoundhouseKick.TextureGroup; learned/unlearned 128px tiles in character menus and prerequisites",
+      "generation": "built-in imagegen; paired learned/unlearned perk states",
+      "generation_source": "roundhouse-kick-original.png",
+      "generation_source_sha256": "b89b2136f8f9b00862b35853dad5c7165938f760fcc09ebe664e2b6239eb1490",
+      "generation_source_dimensions": [1774, 887],
+      "prompt": "Corsairs painted perk icon: pirate delivering a spinning heel kick to an opponent's face; antique gold rope border, warm parchment inset, learned color state on the left and aligned muted sepia unlearned state on the right; no text.",
+      "preparation": "LANCZOS-resize the full-bleed generated 2:1 sheet to256x128, preserving learned-left/unlearned-right registration; encode with python3 src/assets/ui/prepare_perk.py src/assets/ui/roundhouse-kick.png src/assets/ui/roundhouse-kick.tga.tx as one opaque BGRA A8R8G8B8 mip."
+    },
     "RESOURCE/Textures/INTERFACES/PERKS/raking_fire.tga.tx": {
       "source": "raking-fire.png",
       "source_sha256": "59fa82b8a61fe83b40f56a4c66c348e873c2380b5001ee5ac10c20856c4aacf1",

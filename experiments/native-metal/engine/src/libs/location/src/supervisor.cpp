@@ -79,7 +79,7 @@ void Supervisor::Update(float dltTime)
     for (i = 0; i < character.size() - 1; i++)
     {
         // skip the dead
-        if (character[i].c->liveValue < 0 || character[i].c->deadName)
+        if (character[i].c->liveValue < 0 || character[i].c->deadName || character[i].c->IsPhysicalRagdoll())
             continue;
         character[i].c->startColCharacter = chr;
         auto curPos(character[i].c->curPos);
@@ -89,7 +89,7 @@ void Supervisor::Update(float dltTime)
             // skip the dead
             auto *ci = character[i].c;
             auto *cj = character[j].c;
-            if (cj->liveValue < 0 || cj->deadName)
+            if (cj->liveValue < 0 || cj->deadName || cj->IsPhysicalRagdoll())
                 continue;
             // Distance between characters
             auto d = ~(curPos - cj->curPos);

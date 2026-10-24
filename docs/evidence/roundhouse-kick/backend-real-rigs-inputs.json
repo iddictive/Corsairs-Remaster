@@ -1,0 +1,285 @@
+{
+  "actual_location_samples": [
+    {
+      "bsp": {
+        "nodes": 234801,
+        "triangle_offset": 11084806,
+        "triangles": 81883,
+        "vertex_offset": 10439950,
+        "vertices": 53738
+      },
+      "bytes": 11821753,
+      "floor": {
+        "normal": [
+          -0.0001717295087664888,
+          0.9999999852544879,
+          0.0
+        ],
+        "triangle": 78842,
+        "vertices": [
+          [
+            43.0,
+            2.0,
+            20.972110748291016
+          ],
+          [
+            43.0,
+            2.0,
+            -15.376273155212402
+          ],
+          [
+            22.099267959594727,
+            1.9964107275009155,
+            -3.11447811126709
+          ]
+        ]
+      },
+      "horizontal_ground_faces": {
+        "down": 15,
+        "up": 312
+      },
+      "resource": "Town_PortoBello/Town/PortoBello.gm",
+      "sha256": "2172297a4eb820bf97d37f35a0e732ee3891964f6d4aa203b596b675c25cf740",
+      "wall": {
+        "normal": [
+          1.881331931267382e-06,
+          0.0,
+          0.9999999999982302
+        ],
+        "triangle": 37733,
+        "vertices": [
+          [
+            11.678999900817871,
+            -3.5134975910186768,
+            55.23884201049805
+          ],
+          [
+            19.789630889892578,
+            -3.5135061740875244,
+            55.238826751708984
+          ],
+          [
+            19.789630889892578,
+            1.9564088582992554,
+            55.238826751708984
+          ]
+        ]
+      }
+    },
+    {
+      "bsp": {
+        "nodes": 242072,
+        "triangle_offset": 11434824,
+        "triangles": 87107,
+        "vertex_offset": 10763520,
+        "vertices": 55942
+      },
+      "bytes": 12218787,
+      "floor": {
+        "normal": [
+          -0.0,
+          1.0,
+          0.0
+        ],
+        "triangle": 40417,
+        "vertices": [
+          [
+            -31.181692123413086,
+            2.9765896797180176,
+            24.55167007446289
+          ],
+          [
+            -29.141197204589844,
+            2.9765896797180176,
+            24.55167007446289
+          ],
+          [
+            -31.181692123413086,
+            2.9765896797180176,
+            20.55167007446289
+          ]
+        ]
+      },
+      "horizontal_ground_faces": {
+        "down": 32,
+        "up": 106
+      },
+      "resource": "Town_Caracas/Town/Caracas.gm",
+      "sha256": "148ddc67017434a94806a20f140c39c933d95a50e02b2fbf8122fb1d60aa5746",
+      "wall": {
+        "normal": [
+          0.9999999999973797,
+          2.2892472118896166e-06,
+          0.0
+        ],
+        "triangle": 41321,
+        "vertices": [
+          [
+            -16.565731048583984,
+            3.02773118019104,
+            17.195005416870117
+          ],
+          [
+            -16.565731048583984,
+            3.02773118019104,
+            7.194995403289795
+          ],
+          [
+            -16.56574821472168,
+            10.526326179504395,
+            12.194999694824219
+          ]
+        ]
+      }
+    },
+    {
+      "bsp": {
+        "nodes": 272190,
+        "triangle_offset": 13009748,
+        "triangles": 98738,
+        "vertex_offset": 12270068,
+        "vertices": 61640
+      },
+      "bytes": 13898390,
+      "floor": {
+        "normal": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "triangle": 95434,
+        "vertices": [
+          [
+            -17.715255737304688,
+            2.0,
+            -26.19721794128418
+          ],
+          [
+            -42.58423614501953,
+            2.0,
+            -26.254220962524414
+          ],
+          [
+            -22.833402633666992,
+            2.0,
+            -7.462828636169434
+          ]
+        ]
+      },
+      "horizontal_ground_faces": {
+        "down": 78,
+        "up": 394
+      },
+      "resource": "Town_Havana/Town/Havana.gm",
+      "sha256": "55b332489da183ebffdc89e1fd086adaa7e1e390e3a844440c9a07efff746c39",
+      "wall": {
+        "normal": [
+          -0.9999999999935226,
+          3.0523340808616645e-06,
+          1.907338119141768e-06
+        ],
+        "triangle": 70460,
+        "vertices": [
+          [
+            -22.83380126953125,
+            1.9987514019012451,
+            -7.4630231857299805
+          ],
+          [
+            -22.833791732788086,
+            1.9987510442733765,
+            -2.4629950523376465
+          ],
+          [
+            -22.833778381347656,
+            9.497325897216797,
+            -7.463007926940918
+          ]
+        ]
+      }
+    }
+  ],
+  "compile_argv": "['/usr/bin/c++', '-DFMT_CONSTEVAL=', '-DNDEBUG', '-DSTORM_METAL_AIM_VOLUME_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1', '-DSTORM_METAL_DYNAMIC_SKY_BRIDGE=1', '-DSTORM_METAL_GRASS_BRIDGE=1', '-DSTORM_METAL_INTERFACE_BACK_SCENE=1', '-DSTORM_METAL_ISLAND_GEOMETRY_BRIDGE=1', '-DSTORM_METAL_LIGHT_SHAFT_OPENINGS=1', '-DSTORM_METAL_PARTICLE_BRIDGE=1', '-DSTORM_METAL_RENDERER_CONSUMERS=1', '-DSTORM_METAL_ROCKK2=1', '-DSTORM_METAL_SCENE_HUD_BOUNDARY=1', '-DSTORM_METAL_SHIP_HULL_DAMAGE=1', '-DSTORM_METAL_WEATHER_VISUAL_STATE=1', '-O3', '-DNDEBUG', '-std=gnu++20', '-arch', 'arm64', '-mmacosx-version-min=15.0', '-ffile-prefix-map=<repo>=.', '-pthread', '-I<repo>/experiments/native-metal', '-I<repo>/experiments/native-metal/engine/src/libs/math/include', '-I<repo>/experiments/native-metal/engine/src/libs/shared_headers/include', '-I<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src/Build/..', '-I<repo>/docs/evidence/roundhouse-kick', '-x', 'c++', '<repo>/docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt', '-x', 'none', '<repo>/experiments/native-metal/.cache/build/libroundhouse_ragdoll.a', '<repo>/experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a', '-o', '<scratch>/real-rigs']",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "evidence_contract": "native-reflection-v2; independent native output-X skinning oracle supersedes earlier unmirrored algebra-only proof",
+  "full_mesh_vertex_population": {
+    "Angellica": 0,
+    "Danielle": 1845,
+    "Jessika": 3012,
+    "Lo_Man": 0,
+    "ManKSM": 0,
+    "Milenace": 0,
+    "Moscovit": 0,
+    "YokoDias": 2595,
+    "beatrice2": 0,
+    "genres": 0,
+    "man": 2635,
+    "man1": 1177,
+    "man2": 1609,
+    "man_B": 0,
+    "man_kvl2": 0,
+    "mushketer": 0,
+    "mushketer_whisper": 0,
+    "mushketer_whisper_short": 0,
+    "skeleton": 0,
+    "towngirl3": 0,
+    "woman": 0,
+    "woman2": 0,
+    "woman_A2": 0,
+    "woman_B": 0
+  },
+  "scope": "CPU backend/native matrix probe; actual GM source winding. No running game/window/player or native rendered acceptance.",
+  "source_inputs_sha256": {
+    "docs/evidence/roundhouse-kick/backend-real-rigs.cpp.txt": "388f61396da77bc7f1262dd1c6752dde6beb3b14aa8eeeb445f95753ec12f67c",
+    "docs/evidence/roundhouse-kick/backend-real-rigs.py.txt": "56e1ff27565be42d018d018f65600be4c86b199a5cf976da2b486796d0f3d8d7",
+    "docs/evidence/roundhouse-kick/inputs/Beatric_0.gm": "2899ff70577c3364fff49ce43d07e2fec2dc26621f70390ebbc3c713b08717aa",
+    "docs/evidence/roundhouse-kick/inputs/Blad_0.gm": "3cba9f118d0e07d5323fe3f93c578ae2426091161051eaf8a3ebc4b283ef1f0e",
+    "docs/evidence/roundhouse-kick/inputs/Dan_Howk_0.gm": "29639370fd57c5105072d0724207f5edbc521770c6f6fa870658673459347b48",
+    "docs/evidence/roundhouse-kick/inputs/Researcher.gm": "891e5078d1aab966d4b2742be2723b844486bdd4cb8dcde9b6fb905ad649a65b",
+    "docs/evidence/roundhouse-kick/inputs/barmen_33.gm": "454acb4158c3018cb063033669609e10938a5dba2c97a0d73da577307a784051",
+    "docs/evidence/roundhouse-kick/inputs/jess0.gm": "018ef815abbbb9cc9871ed023f95b290ed8884efa763fc2711df09279edb18d8",
+    "experiments/native-metal/.cache/build/_deps/roundhouse_jolt-build/libJolt.a": "4af5c8b9c4b6413d6b034b08ff5080a8718c7f052b4c6b3eb1022bcfb07804db",
+    "experiments/native-metal/.cache/build/libroundhouse_ragdoll.a": "fa5bc7f3fb62252cc0782beced42d1d17a78da258fd5c63f047a601ea0c75a1b",
+    "experiments/native-metal/.cache/roundhouse/RESOURCE/INI/roundhouse-rigs.ini": "342a45b126c8b64135d3084158c76578ba55bcfad00f1cd4d0026e2a94951539",
+    "experiments/native-metal/backend.mm": "a3a233f9b190e5833b4ba2f72159a3a0a37550c23a8d1763dea1173c6fe0c5a9",
+    "experiments/native-metal/engine/src/libs/animation/src/animation_imp.cpp": "1c25db07055112e834373d3fd67733a0a77677c4cbe56f23f7adb438f988c79a",
+    "experiments/native-metal/engine/src/libs/animation/src/bone.cpp": "c7b5226c377671e07f426e85eb31cae394ac5d83c010c166c43fe83237757638",
+    "experiments/native-metal/engine/src/libs/geometry/src/collide.cpp": "935aeb0df0f611bd19df216ad49cbb038f34dd9ebd12b6772a6c38aaf3633a5b",
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "33421ff0f49d68d5589779a7acedfb5573203fd50906acef203028db015c961a",
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_location.cpp": "17a8b99b897e10989b026a83e01b5d238fc4ecd6eaeb54b6a4375b7be49781a3",
+    "experiments/native-metal/engine/src/libs/math/include/matrix.h": "4823aa6e9f58b1dbb0147c0b0d227423a7d819eb5d08cc488e4ae858e3b67989",
+    "experiments/native-metal/engine/src/libs/model/src/model.cpp": "d9542e2023bfb11a580dfc0122e6d2c7c01725ee9b53ef5e1ef9be8a94631192",
+    "experiments/native-metal/engine/src/libs/model/src/node.cpp": "a64167dd4520a72c9c36716e5abd4376397f2e20f54f4f78c8323931528e30a7",
+    "experiments/native-metal/roundhouse_pose.hpp": "2b713a5ebc01c25edef8edc1b5cc08582f34c58f19d6b57e5ebf6bb7855cd6ef",
+    "experiments/native-metal/roundhouse_ragdoll.cpp": "c8b4d034fd3d0355cc08c289a5121f161b764a43ce2a0f36dc4d93c4f7b91826",
+    "src/assets/roundhouse/manifest.json": "f24bf69f707d1eb8a2efbd4cce849290a35b40cd96e1eb61c725229aefba03e3",
+    "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"
+  },
+  "source_or_built_input_mutation": false,
+  "supported_population": [
+    "Angellica",
+    "Danielle",
+    "Jessika",
+    "Lo_Man",
+    "ManKSM",
+    "Milenace",
+    "Moscovit",
+    "YokoDias",
+    "beatrice2",
+    "genres",
+    "man",
+    "man1",
+    "man2",
+    "man_B",
+    "man_kvl2",
+    "mushketer",
+    "mushketer_whisper",
+    "mushketer_whisper_short",
+    "skeleton",
+    "towngirl3",
+    "woman",
+    "woman2",
+    "woman_A2",
+    "woman_B"
+  ]
+}

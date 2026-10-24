@@ -88,6 +88,12 @@ void DartView_InitControls()
     MapControlToGroup("DartImpactCamera", "BattleInterfaceControls");
 }
 
+void Roundhouse_InitControls()
+{
+    if (CheckAttribute(&objControlsState, "keygroups.FightModeControls.ChrRoundhouse")) return;
+    CI_CreateAndSetControls("FightModeControls", "ChrRoundhouse", CI_GetKeyCode("KEY_K"), 0, true);
+}
+
 void DeckWalk_DefaultShipKeys()
 {
     CI_CreateAndSetControls("Sailing1Pers", "Ship_TurnLeft1", CI_GetKeyCode("VK_LEFT"), 0, true);
@@ -176,6 +182,7 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 	MapControlToGroup("ChrRun", "Sailing1Pers");
 	// Refresh the fixed aim binding even for profiles saved before it existed.
 	CI_CreateAndSetControls("Sailing1Pers", "DeckAimZoom", CI_GetKeyCode("VK_RBUTTON"), 0, false);
+	Roundhouse_InitControls();
 	ControlsInitFixedShortcuts();
 	RunControlsContainers();
 }

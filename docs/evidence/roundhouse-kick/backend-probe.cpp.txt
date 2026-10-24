@@ -1,0 +1,159 @@
+// One-off backend evidence, not a project test target. See backend-probe.py.txt.
+#include "roundhouse_ragdoll.hpp"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+
+static void Require(bool yes, const char *message)
+{
+    if (!yes) { std::fprintf(stderr, "FAIL %s\n", message); std::exit(1); }
+}
+static float Distance(const CVECTOR &a, const CVECTOR &b)
+{
+    const float x=a.x-b.x,y=a.y-b.y,z=a.z-b.z;
+    return std::sqrt(x*x+y*y+z*z);
+}
+static float Error(const std::vector<CMatrix> &a, const std::vector<CMatrix> &b)
+{
+    float e=0;
+    for (std::size_t i=0;i<a.size();++i)
+        for(int j=0;j<16;++j) e=std::max(e,std::abs(a[i].matrix[j]-b[i].matrix[j]));
+    return e;
+}
+static std::vector<CVECTOR> Mesh()
+{
+    // CCW floor and real vertical wall at z=2, looking toward the ragdoll.
+    return {{-20.f,0.f,-20.f},{-20.f,0.f,20.f},{20.f,0.f,20.f},{-20.f,0.f,-20.f},{20.f,0.f,20.f},{20.f,0.f,-20.f},
+            {-20.f,0.f,2.f},{-20.f,20.f,2.f},{20.f,20.f,2.f},{-20.f,0.f,2.f},{20.f,20.f,2.f},{20.f,0.f,2.f}};
+}
+static roundhouse::RigDefinition Rig()
+{
+    roundhouse::RigDefinition r;
+    r.jointParents={-1,0,1,1,3,4,1,6,7,0,9,10,0,12,13,5,2};
+    const CVECTOR points[]={{0,1.0f,0},{0,1.35f,0},{0,1.7f,0},
+      {-.18f,1.45f,0},{-.48f,1.45f,0},{-.75f,1.45f,0},
+      {.18f,1.45f,0},{.48f,1.45f,0},{.75f,1.45f,0},
+      {-.12f,.95f,0},{-.12f,.52f,0},{-.12f,.1f,.06f},
+      {.12f,.95f,0},{.12f,.52f,0},{.12f,.1f,.06f},
+      {-.82f,1.45f,.03f},{.03f,1.73f,.1f}};
+    for(const auto &p:points) { CMatrix m; m.v.pos=p; r.bindWorld.push_back(m); }
+    const int ends[]={1,2,-1,4,5,-1,7,8,-1,10,11,-1,13,14,-1};
+    const int parents[]={-1,0,1,1,3,4,1,6,7,0,9,10,0,12,13};
+    const float radii[]={.13f,.15f,.12f,.06f,.05f,.055f,.06f,.05f,.055f,.075f,.06f,.07f,.075f,.06f,.07f};
+    for(int i=0;i<15;++i) {
+        roundhouse::BodyDefinition b; b.joint=i; b.endJoint=ends[i]; b.parentBody=parents[i];
+        b.radius=radii[i]; b.mass=i<3?8:2; b.swingRadians=.9f; b.twistMinRadians=-.5f;b.twistMaxRadians=.5f;
+        r.bodies.push_back(b);
+    }
+    r.headBody=2; return r;
+}
+static std::vector<CMatrix> Pose(const roundhouse::RigDefinition &r)
+{
+    auto p=r.bindWorld;
+    // Capture differs materially from bind/death animation: raised, leaning,
+    // with one forearm articulated in the horizontal plane.
+    p[5].v.pos.z=.2f; p[5].v.pos.x=-.65f;
+    p[15].v.pos.z=.23f; p[15].v.pos.x=-.72f;
+    const float c=std::cos(.25f),s=std::sin(.25f);
+    for(auto &m:p) {
+        const auto q=m.v.pos;
+        m.v.pos={c*q.x-s*q.y,s*q.x+c*q.y+2.5f,q.z};
+        m.v.vx={c,s,0};m.v.vy={-s,c,0};
+    }
+    return p;
+}
+int main()
+{
+    roundhouse::RagdollWorld w;
+    constexpr int idle=10000000;
+    const auto idleStart=std::chrono::steady_clock::now();
+    for(int i=0;i<idle;++i) w.Step(1.0f/60);
+    const auto idleEnd=std::chrono::steady_clock::now();
+    std::printf("IDLE_BACKEND iterations=%d total_ms=%.6f ns_per_tick=%.3f\n",idle,
+      std::chrono::duration<double,std::milli>(idleEnd-idleStart).count(),
+      std::chrono::duration<double,std::nano>(idleEnd-idleStart).count()/idle);
+    const auto rig=Rig(); const auto initial=Pose(rig); std::vector<CMatrix> pose;
+    Require(w.Create(rig,initial,{12.f,2.f,35.f},initial[2].v.pos)==0,"no fake collision fallback");
+    Require(w.SetStaticTriangles(Mesh()),"mesh accepted");
+    const auto h=w.Create(rig,initial,{12.f,2.f,35.f},initial[2].v.pos);
+    Require(h!=0 && w.Size()==1,"15-body ragdoll created");
+    Require(w.GetPose(h,pose),"initial pose delivered");
+    const float captureError=Error(initial,pose);
+    std::printf("CAPTURE_DIAGNOSTIC max_matrix_error=%.9f\n",captureError);std::fflush(stdout);
+    Require(captureError<.00001f,"actual articulated pose preserved at creation");
+    w.Step(0); std::vector<CMatrix> paused;w.GetPose(h,paused);
+    Require(Error(paused,pose)==0,"pause dt0 preserves exact pose");
+    auto invalid=rig; invalid.jointParents[0]=0;
+    Require(w.Create(invalid,initial,{0.f,0.f,0.f},{0.f,0.f,0.f})==0 && w.Size()==1,"cyclic skeleton rejected without mutation");
+    Require(!w.SetStaticTriangles({{0.f,0.f,0.f}}),"malformed mesh rejected without mutation");
+    float maxAnchorError=0,minY=100,maxZ=-100;
+    const auto start=std::chrono::steady_clock::now();
+    for(int frame=0;frame<1200;++frame) {
+        w.Step(1.0f/60);w.GetPose(h,pose);
+        for(std::size_t i=0;i<rig.bodies.size();++i) {
+            const int p=rig.bodies[i].parentBody;
+            if(p>=0) {
+                const float actual=Distance(pose[i].v.pos,pose[p].v.pos);
+                const float expected=Distance(initial[i].v.pos,initial[p].v.pos);
+                maxAnchorError=std::max(maxAnchorError,std::abs(actual-expected));
+            }
+            minY=std::min(minY,pose[i].v.pos.y);
+            maxZ=std::max(maxZ,pose[i].v.pos.z);
+            for(float v:pose[i].matrix) Require(std::isfinite(v),"finite pose through impact");
+        }
+        // Unsimulated facial/finger articulation stays rigidly attached.
+        Require(std::abs(Distance(pose[15].v.pos,pose[5].v.pos)-Distance(initial[15].v.pos,initial[5].v.pos))<.0001f,"finger follows hand rigid delta");
+        Require(std::abs(Distance(pose[16].v.pos,pose[2].v.pos)-Distance(initial[16].v.pos,initial[2].v.pos))<.0001f,"face follows head rigid delta");
+    }
+    const auto end=std::chrono::steady_clock::now();
+    Require(maxAnchorError<.08f,"limited constraints preserve attachment lengths");
+    Require(minY>-.05f,"floor collision retained");
+    Require(maxZ<2.05f,"wall collision retained");
+    Require(Distance(pose[2].v.pos,initial[2].v.pos)>1,"gravity and head impulse move actual pose");
+    Require(w.IsSleeping(h),"settled skeleton sleeps");
+    const auto sleeping=pose;
+    for(int i=0;i<10000;++i) w.Step(1.0f/60);
+    w.GetPose(h,pose);Require(Error(sleeping,pose)==0,"sleep performs no simulation");
+    std::printf("SKELETON_CAPTURE max_matrix_error=%.9f\n",captureError);
+    std::printf("ACTIVE_15_BODIES frames=1200 total_ms=%.3f max_anchor_error=%.6f min_joint_y=%.6f max_joint_z=%.6f sleeping=1\n",
+      std::chrono::duration<double,std::milli>(end-start).count(),maxAnchorError,minY,maxZ);
+    w.Remove(h);Require(w.Size()==0 && !w.GetPose(h,pose),"remove releases last ragdoll/world");
+    // Independent rigs retain collision, unlike disabled parent/child contacts.
+    roundhouse::RigDefinition sphere;
+    sphere.jointParents={-1};sphere.bindWorld.resize(1);sphere.headBody=0;
+    roundhouse::BodyDefinition body;body.joint=0;body.radius=.2f;body.mass=2;sphere.bodies={body};
+    auto a=sphere.bindWorld,b=a;a[0].v.pos={-.125f,1,0};b[0].v.pos={.125f,1,0};
+    const auto ha=w.Create(sphere,a,{0.f,0.f,0.f},a[0].v.pos), hb=w.Create(sphere,b,{0.f,0.f,0.f},b[0].v.pos);
+    Require(ha&&hb,"independent bodies created");
+    for(int i=0;i<120;++i) w.Step(1.0f/60);
+    w.GetPose(ha,a);w.GetPose(hb,b);const float separation=Distance(a[0].v.pos,b[0].v.pos);
+    Require(separation>.38f,"inter-ragdoll collision separates overlapping spheres");
+    std::printf("INTER_BODY separation=%.6f initial=0.250000 combined_diameter=0.400000\n",separation);
+    w.Clear();Require(w.Size()==0,"clear releases all dynamic bodies");
+    a=sphere.bindWorld;a[0].v.pos={0.f,1.f,0.f};
+    const auto hw=w.Create(sphere,a,{0.f,0.f,40.f},a[0].v.pos);
+    float wallMaxZ=0;
+    for(int i=0;i<60;++i) { w.Step(1.0f/60);w.GetPose(hw,a);wallMaxZ=std::max(wallMaxZ,a[0].v.pos.z); }
+    Require(wallMaxZ>1.7f && wallMaxZ<1.85f,"direct fast impulse reaches and stops at actual mesh wall");
+    std::printf("DIRECT_WALL_CONTACT max_sphere_center_z=%.6f wall_z=2 radius=0.2\n",wallMaxZ);
+    w.Clear();
+    // The same initial state receives exactly four steps despite a large dt.
+    roundhouse::RagdollWorld reference;
+    reference.SetStaticTriangles(Mesh());
+    a=sphere.bindWorld;a[0].v.pos={0.f,3.f,0.f};
+    const auto hc=w.Create(sphere,a,{0.f,0.f,0.f},a[0].v.pos), hr=reference.Create(sphere,a,{0.f,0.f,0.f},a[0].v.pos);
+    w.Step(1000);for(int i=0;i<4;++i) reference.Step(1.0f/60);
+    w.GetPose(hc,a);reference.GetPose(hr,b);Require(Error(a,b)<.000001f,"fixed-step time-debt clamp");
+    std::printf("TIME_DEBT_CLAMP large_dt_vs_four_steps_error=%.9f\n",Error(a,b));
+    w.Clear(); reference.Clear();
+    for(int i=0;i<64;++i) {
+        a=initial;for(auto &m:a)m.v.pos.x+=3*(i%8),m.v.pos.z-=3*(i/8);
+        Require(w.Create(rig,a,{0.f,0.f,0.f},a[2].v.pos)!=0,"64 rig capacity");
+    }
+    Require(w.Size()==64&&w.Create(rig,initial,{0.f,0.f,0.f},initial[2].v.pos)==0,"bounded capacity retains existing rigs");
+    w.Clear();
+    std::puts("PASS 64x15 capacity, actual pose, constraints, gravity/head impulse, floor/wall/inter-body collisions, dt0, sleep, clamp, cleanup, invalid input");
+}
