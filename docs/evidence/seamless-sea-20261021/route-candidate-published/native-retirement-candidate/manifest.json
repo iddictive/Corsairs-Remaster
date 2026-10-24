@@ -1,0 +1,85 @@
+{
+  "kind": "physical ship retirement source cut; private-header compile reject repaired, rebuild pending",
+  "baseline": "../native-source-9eef/manifest.json",
+  "files": [
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.cpp",
+      "snapshot_path": "seafoam.cpp",
+      "sha256": "04457c2e0fba8e507046b0de9737bfdef1c576f799bb353bdcbc836fff785e70",
+      "bytes": 30236
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.h",
+      "snapshot_path": "seafoam.h",
+      "sha256": "051e32f2f01161d20cceb808603dabbd4d4e7b8e731581ef4b6f9ab91ad7f16b",
+      "bytes": 3099
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sailors/src/sailors.cpp",
+      "snapshot_path": "sailors.cpp",
+      "sha256": "733b5d3c7469a99cd974f7e1e2babd46691ad6244427659763f10f99729ccf78",
+      "bytes": 73637
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/touch/src/touch.cpp",
+      "snapshot_path": "touch.cpp",
+      "sha256": "9a7560b1cc40d3847ef41dca5ef6d4983014cacd4073b851d4ea7d00861f50cb",
+      "bytes": 45547
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/src/ship.cpp",
+      "snapshot_path": "ship.cpp",
+      "sha256": "55256859fc8a920956f3217e0b00de9c9a569f6f61294cb0e5906e2980cc583d",
+      "bytes": 180757
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/shared_headers/include/shared/messages.h",
+      "snapshot_path": "messages.h",
+      "sha256": "c77a2a53ffa90f0a213a01b25274bee6f2c99c78a1740475e45f8e0dff343eca",
+      "bytes": 21476
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass.h",
+      "snapshot_path": "spyglass.h",
+      "sha256": "d41d1f1dfcd54cb8b325dedcd3a81c2ac6f8fa55d676882ac464d013b3b86eeb",
+      "bytes": 5299
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass.cpp",
+      "snapshot_path": "spyglass.cpp",
+      "sha256": "07d035318cab995d6f77a6c7afb0d5f2333b7ae715008ffc6aadec4fa4d1842b",
+      "bytes": 27788
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp",
+      "snapshot_path": "ai_group.cpp",
+      "sha256": "1117ae31152ce5ad7b291a866ceceadb6df30f311e0a1973fd743636ce88aa88",
+      "bytes": 15804
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass_borrower.h",
+      "snapshot_path": "spyglass_borrower.h",
+      "sha256": "678767e0917b497dffcd8b0e69575a58cd0da21b724309cddcc60c6876dec15d",
+      "bytes": 166
+    }
+  ],
+  "patch": "retirement.v2.patch",
+  "pending_baseline_binding": "Aggregate9eef equivalence unresolved; group pre-spyglass bytes logically bound by root, individual ship/header hashes verified",
+  "integration_dependency": "messages.h MSG_SHIP_RELEASE50316 is root-owned; included byte-exact in this cut",
+  "ai_group_guard": {
+    "source_path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp",
+    "snapshot_path": "ai_group.cpp",
+    "sha256": "1117ae31152ce5ad7b291a866ceceadb6df30f311e0a1973fd743636ce88aa88",
+    "pre_edit_snapshot_path": "ai_group.pre-spyglass.cpp",
+    "pre_edit_sha256": "54be323edb63980892b699e889e7ada28574b57609c4f949f3ea6cc41b93ae94",
+    "method": "remove exactly the three owned spyglass lines from current bytes, each asserted once; pre-existing ReleaseResidents retained",
+    "measured_cut_binding": "Root confirms logically pre-cut; aggregate equivalence unresolved",
+    "patch": "retirement.v2.patch"
+  },
+  "superseded_attempt": {
+    "patch": "retirement.patch",
+    "guard_patch": "spyglass-release-guard.patch",
+    "group_source": "ai_group.failed-private-include.cpp",
+    "result": "root combined build70818 rejected private spyglass.h include: bi_defines.h unavailable to sea_ai"
+  }
+}

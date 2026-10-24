@@ -1,0 +1,16 @@
+{
+  "returncode": 68,
+  "wall_seconds": 6.621425916906446,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/range-contract-overlay-20261021-193440",
+  "run_path_basis": "repository-relative",
+  "native_counters": {
+    "BenchFrames": 512,
+    "RangeHits0": 0,
+    "RangeHits1": 0,
+    "RangeBad": 1,
+    "hits_fraction": [
+      0.0,
+      0.0
+    ]
+  }
+}

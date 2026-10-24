@@ -1,0 +1,65 @@
+{
+  "exception": {
+    "codes": "0x0000000000000001, 0x0000000000000088",
+    "rawCodes": [
+      1,
+      136
+    ],
+    "type": "EXC_BAD_ACCESS",
+    "signal": "SIGSEGV",
+    "subtype": "KERN_INVALID_ADDRESS at 0x0000000000000088"
+  },
+  "termination": {
+    "flags": 0,
+    "code": 11,
+    "namespace": "SIGNAL",
+    "indicator": "Segmentation fault: 11",
+    "byProc": "exc handler",
+    "byPid": 11420
+  },
+  "faulting_thread": 0,
+  "frames": [
+    {
+      "image": "ordinary",
+      "symbol": "BATTLE_INTERFACE::CheckSeaState()",
+      "symbolLocation": 392,
+      "imageOffset": 237860
+    },
+    {
+      "image": "ordinary",
+      "symbol": "BATTLE_INTERFACE::CheckSeaState()",
+      "symbolLocation": 428,
+      "imageOffset": 237896
+    },
+    {
+      "image": "ordinary",
+      "symbol": "BATTLE_INTERFACE::Execute(unsigned int)",
+      "symbolLocation": 124,
+      "imageOffset": 237140
+    },
+    {
+      "image": "ordinary",
+      "symbol": "CoreImpl::ProcessExecute()",
+      "symbolLocation": 236,
+      "imageOffset": 5485268
+    },
+    {
+      "image": "ordinary",
+      "symbol": "CoreImpl::Run()",
+      "symbolLocation": 1024,
+      "imageOffset": 5482640
+    },
+    {
+      "image": "ordinary",
+      "symbol": "main",
+      "symbolLocation": 2236,
+      "imageOffset": 5331612
+    },
+    {
+      "image": "dyld",
+      "symbol": "start",
+      "symbolLocation": 6688,
+      "imageOffset": 204416
+    }
+  ]
+}

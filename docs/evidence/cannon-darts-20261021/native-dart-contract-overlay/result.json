@@ -1,0 +1,24 @@
+{
+  "returncode": 0,
+  "wall_seconds": 6.827951207989827,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/dart-contract-overlay-20261021-193341",
+  "run_path_basis": "repository-relative",
+  "native_counters": {
+    "BenchFrames": 160,
+    "BenchBad": 0,
+    "BenchOrdinaryHits": 1,
+    "BenchDartHits": 1,
+    "BenchAirburstHits": 1,
+    "BenchLoadedDartHits": 1,
+    "BenchExplosions": 0,
+    "BenchFreshMetadata": 1,
+    "BenchLoadedMetadata": 1,
+    "BenchPhonkChecks": 2
+  },
+  "measured_frames": 128,
+  "warmup_frames": 32,
+  "cpu_wall_mean_ms": 12.4315578125,
+  "cpu_wall_median_ms": 12.34805,
+  "cpu_wall_p95_ms": 13.1788,
+  "max_rss_bytes": 1551335424
+}

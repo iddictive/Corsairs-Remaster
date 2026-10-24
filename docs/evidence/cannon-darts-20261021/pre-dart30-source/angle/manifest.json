@@ -1,0 +1,65 @@
+{
+  "status": "reconstructed from exact inverse of four successful task patches; AICannon.c matches an independent retained pre-edit hash; five engine files have no independent historical hash oracle",
+  "purpose": "pre-Dart30 source recovery and comparison requested by integration owner",
+  "method": "Read current six product files without mutation; reverse exact successful patch payloads in reverse chronological order; replay forward and require byte-for-byte equality with captured current sources; exclude the denied pre-mutation attempt. All non-task source hunks are retained.",
+  "source_boundary": "This reconstructs this task\u2019s immediate pre-edit source state. It does not by itself prove correspondence to frozen binary 9eef.",
+  "successful_patch_count": 4,
+  "roundtrip_all_files_exact": true,
+  "files": [
+    {
+      "source": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.cpp",
+      "retained_copy": "ai_cannon.cpp",
+      "reconstructed_pre_edit_sha256": "b28f255af00536a325917cb1abf354a8d549d5e2cd862872adb159fa5d927a82",
+      "current_dart30_sha256": "d31ecb479400d840efe539b39740dffc2bf8874b2b5f12686c2b982d1cacb76a",
+      "reconstructed_bytes": 9903,
+      "roundtrip_exact": true,
+      "independent_pre_edit_hash_oracle": null
+    },
+    {
+      "source": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h",
+      "retained_copy": "ai_cannon.h",
+      "reconstructed_pre_edit_sha256": "964b92edc1e09778eef9264bacf84fb9df120bda93c32b70dbaa84d296b49df0",
+      "current_dart30_sha256": "7e439bcc200b50f7f147345ad643563f5b1cda4037fa85334d033d4d6bd426d1",
+      "reconstructed_bytes": 3721,
+      "roundtrip_exact": true,
+      "independent_pre_edit_hash_oracle": null
+    },
+    {
+      "source": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp",
+      "retained_copy": "ai_ship_cannon_controller.cpp",
+      "reconstructed_pre_edit_sha256": "270289e073597a95978e84a65f1fc77954d47cb13987fbb04c9830ac32280dee",
+      "current_dart30_sha256": "c50b5973d4d01ff7fd5a8c960c409a66e29253952919f5b7deddfbd162d278d9",
+      "reconstructed_bytes": 95575,
+      "roundtrip_exact": true,
+      "independent_pre_edit_hash_oracle": null
+    },
+    {
+      "source": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.h",
+      "retained_copy": "ai_ship_cannon_controller.h",
+      "reconstructed_pre_edit_sha256": "dde841ad330f1c39544f012b911b1241373726d18f53a318d56700a85b8d527c",
+      "current_dart30_sha256": "5297f87a36b65cb4eb41f757abac01c612ab666ce3bc92c67322f0f2145785e6",
+      "reconstructed_bytes": 7063,
+      "roundtrip_exact": true,
+      "independent_pre_edit_hash_oracle": null
+    },
+    {
+      "source": "experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp",
+      "retained_copy": "manual_aim_geometry.hpp",
+      "reconstructed_pre_edit_sha256": "1c8d504edcc5bc1dd95546c05ab9aee7cab100dd8ef8836b73f138924711cdc6",
+      "current_dart30_sha256": "fb168d34a65e05a8e96b9c962ae234960f4c2e367624a8860d05a26acc09b9d0",
+      "reconstructed_bytes": 15020,
+      "roundtrip_exact": true,
+      "independent_pre_edit_hash_oracle": null
+    },
+    {
+      "source": "src/gameplay/PROGRAM/sea_ai/AICannon.c",
+      "retained_copy": "AICannon.c",
+      "reconstructed_pre_edit_sha256": "87afd06f446be55896a1eceb0e029645570fa93cbc890fb0083ab9c7024e9a67",
+      "current_dart30_sha256": "088b727a218450362e64d2f27c8dc5999b838f34b2cb116ad89f30c6dc0d1266",
+      "reconstructed_bytes": 15968,
+      "roundtrip_exact": true,
+      "independent_pre_edit_hash_oracle": "docs/evidence/cannon-darts-20261021/phonk-ammo/source-sha256.json",
+      "independent_pre_edit_hash_match": true
+    }
+  ]
+}

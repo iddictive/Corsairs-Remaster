@@ -1,0 +1,32 @@
+{
+  "evidence_class": "actual full PROGRAM native hidden CORE loader transport only",
+  "accepted": [
+    "normal LoadGame event reaches real Save load and Sea_Load",
+    "120 valid moving sea frames with six native ships",
+    "original Save SHA unchanged"
+  ],
+  "not_accepted": [
+    "ordinary Barbados to Antigua handover",
+    "25 to 50 and 50 to 25 transitions",
+    "frame hold duration",
+    "stable build performance or final visual quality"
+  ],
+  "scene": "PuertoRico",
+  "first_loaded_frame": 2,
+  "load_frame_wall_ms": 2854.69,
+  "steady_frames": 119,
+  "steady_median_ms": 8.25688,
+  "steady_max_ms": 133.941,
+  "player_ship_eid_preserved_within_scene": true,
+  "player_position_start": [
+    -2720.38,
+    3185.82
+  ],
+  "player_position_end": [
+    -2716.58,
+    3193.81
+  ],
+  "renderer_trace": "header only; STORM_METAL_PROFILE was unset, do not treat as draw/hold evidence",
+  "script_errors": "observed load errors retained in error.log; nonzero and not waived",
+  "cleanup": "managed scratch producer exited; no ordinary or sea-fleet-benchmark process remained"
+}

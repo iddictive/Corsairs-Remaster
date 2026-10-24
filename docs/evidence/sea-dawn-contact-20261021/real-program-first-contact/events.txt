@@ -1,0 +1,7 @@
+canonical_load_event_sent frame=1
+saved_phonk=0 probe_phonk=0 epoch_ms=1384267528.385
+fixture_setup phase=1 after_frame=181 epoch_ms=1384269341.26333 player=1 target=276 driver_knots=10 driver_box=16.5410003662109,69.4900054931641 target_box=12.8707275390625,57.0529403686523 driver_hp=11118 target_hp=5894 pending_geometry=83
+hp_drop phase=1 frame=526 epoch_begin_ms=1384272310.28979 epoch_end_ms=1384272318.927 from=5894 to=5486.2392578125 target_eid=6964851496999452773
+fixture_setup phase=3 after_frame=946 epoch_ms=1384275833.23575 player=1 target=276 driver_knots=10 driver_box=16.5410003662109,69.4900054931641 target_box=12.8707275390625,57.0529403686523 driver_hp=11092.6640625 target_hp=5486.2392578125 pending_geometry=33
+hp_drop phase=3 frame=1300 epoch_begin_ms=1384278775.92725 epoch_end_ms=1384278784.32483 from=5486.2392578125 to=5084.734375 target_eid=6964851496999452773
+contact_complete=1 first_frame=526 second_frame=1300 final_phase=5

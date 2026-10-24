@@ -1,0 +1,42 @@
+[
+  {
+    "args": [
+      "CrimeReleaseCases"
+    ],
+    "exit_code": 0,
+    "stdout": "CrimeReleaseCases=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  },
+  {
+    "args": [
+      "FortCrimeCases"
+    ],
+    "exit_code": 0,
+    "stdout": "FortCrimeCases=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  },
+  {
+    "args": [
+      "CrimeReleaseOldSave",
+      "1",
+      "CrimeReleaseAfterOldSave"
+    ],
+    "exit_code": 0,
+    "stdout": "CrimeReleaseOldSave=0\nCrimeReleaseAfterOldSave=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  },
+  {
+    "args": [
+      "CrimeReleaseNewSave",
+      "1",
+      "CrimeReleaseAfterNewSave"
+    ],
+    "exit_code": 0,
+    "stdout": "CrimeReleaseNewSave=0\nCrimeReleaseAfterNewSave=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "observed_at_utc": "2026-10-21T23:15:39.493430+00:00",
+  "phase": "host resource admission before source clone, compile or native launch",
+  "native_started": false,
+  "compile_started": false,
+  "host_memory_bytes": 51539607552,
+  "memory_pressure_free_percent": 36,
+  "available_from_pressure_estimate_bytes": 18554258718,
+  "required_candidate_peak_plus_host_reserve_bytes": 21474836480,
+  "candidate_peak_limit_bytes": 8589934592,
+  "host_reserve_bytes": 12884901888,
+  "disk_free_bytes": 382844596224,
+  "measured_other_process": {
+    "name": "next-server",
+    "pid": 95755,
+    "rss_bytes": 5971083264,
+    "cpu_percent": 328.0
+  },
+  "disposition": "No foreign process stopped; no quality or residency reduction; source cut remains pending runtime acceptance"
+}

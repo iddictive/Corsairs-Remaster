@@ -1,0 +1,526 @@
+{
+  "status": "causal profile completed; not FPS or performance acceptance",
+  "native_engine_sha256": "fc87c149b0ba380afccfbfebebfcc7a93e36fce03f9021b1327a37dcbce3c411",
+  "source_fingerprint": "8e91506aff4030f7cd085778d693f0c620484fd688fec1e2c5b91d82794091f5",
+  "sampler": {
+    "command": [
+      "/usr/bin/sample",
+      "28883",
+      "10",
+      "1",
+      "-file",
+      "<scratch>/admission.sample.txt"
+    ],
+    "target_pid": 28883,
+    "target_executable": "<scratch>/ordinary",
+    "trigger": "normal old SAVE load completed: sea_eid_change frame=2",
+    "attach_native_elapsed_seconds": 6.752446889877319,
+    "returncode": 0
+  },
+  "native_wall_seconds_perturbed": 22.826673984527588,
+  "observed_main_thread_stack_count": 5611,
+  "inclusive_categories": {
+    "CoreImpl::ProcessExecute": {
+      "inclusive_sample_count": 3397,
+      "percent_of_observed_main_thread_stacks": 60.541792906790235,
+      "raw_lines": [
+        28,
+        4877,
+        4880,
+        4883
+      ]
+    },
+    "CoreImpl::ProcessRealize": {
+      "inclusive_sample_count": 1563,
+      "percent_of_observed_main_thread_stacks": 27.855997148458385,
+      "raw_lines": [
+        4885,
+        7481,
+        7563
+      ]
+    },
+    "WorldMap::Execute": {
+      "inclusive_sample_count": 2082,
+      "percent_of_observed_main_thread_stacks": 37.10568526109428,
+      "raw_lines": [
+        29,
+        2610,
+        4536,
+        4698,
+        4872
+      ]
+    },
+    "WorldMap::UpdateTraffic": {
+      "inclusive_sample_count": 614,
+      "percent_of_observed_main_thread_stacks": 10.942790946355373,
+      "raw_lines": [
+        2611,
+        3192,
+        3202
+      ]
+    },
+    "WdmMerchantShip::FindIslandForce": {
+      "inclusive_sample_count": 401,
+      "percent_of_observed_main_thread_stacks": 7.146676171805383,
+      "raw_lines": [
+        2617,
+        2644,
+        3148
+      ]
+    },
+    "WdmIslands::ObstacleTest": {
+      "inclusive_sample_count": 381,
+      "percent_of_observed_main_thread_stacks": 6.790233469969702,
+      "raw_lines": [
+        2619,
+        2627,
+        2635,
+        2639,
+        2641,
+        3150,
+        3154
+      ]
+    },
+    "TOUCH::Execute": {
+      "inclusive_sample_count": 661,
+      "percent_of_observed_main_thread_stacks": 11.78043129566922,
+      "raw_lines": [
+        1951,
+        4085,
+        4844
+      ]
+    },
+    "TOUCH::TouchIsland": {
+      "inclusive_sample_count": 627,
+      "percent_of_observed_main_thread_stacks": 11.174478702548566,
+      "raw_lines": [
+        1952,
+        2302,
+        2451,
+        2511,
+        2569,
+        2589,
+        2601
+      ]
+    },
+    "storm::ship::shore::embeddedNormal": {
+      "inclusive_sample_count": 139,
+      "percent_of_observed_main_thread_stacks": 2.4772767777579756,
+      "raw_lines": [
+        1954,
+        1996,
+        2304,
+        2329,
+        2513,
+        3836
+      ]
+    },
+    "AIShip::Execute": {
+      "inclusive_sample_count": 258,
+      "percent_of_observed_main_thread_stacks": 4.598110853680271,
+      "raw_lines": [
+        3207,
+        3366,
+        3507,
+        3568,
+        3626,
+        3653,
+        3698,
+        3738,
+        3749,
+        3758,
+        3769,
+        3774,
+        3780,
+        3783,
+        3788,
+        3794,
+        3798
+      ]
+    },
+    "SHIP::Mount": {
+      "inclusive_sample_count": 753,
+      "percent_of_observed_main_thread_stacks": 13.420067724113348,
+      "raw_lines": [
+        525,
+        956,
+        1476,
+        1613,
+        1668,
+        1674,
+        1682,
+        1694,
+        1702,
+        7625,
+        7839,
+        7908,
+        7949,
+        7954
+      ]
+    },
+    "AIShip::CreateShip": {
+      "inclusive_sample_count": 758,
+      "percent_of_observed_main_thread_stacks": 13.509178399572269,
+      "raw_lines": [
+        524,
+        1705,
+        7624,
+        7961
+      ]
+    },
+    "Sailors::Realize": {
+      "inclusive_sample_count": 79,
+      "percent_of_observed_main_thread_stacks": 1.4079486722509356,
+      "raw_lines": [
+        6545,
+        6954,
+        7030,
+        7132,
+        7144,
+        7255,
+        7339,
+        7341,
+        7473
+      ]
+    },
+    "SEAFOAM::Realize": {
+      "inclusive_sample_count": 84,
+      "percent_of_observed_main_thread_stacks": 1.4970593477098557,
+      "raw_lines": [
+        6634,
+        6674,
+        6767,
+        7327
+      ]
+    },
+    "MODELR::Realize": {
+      "inclusive_sample_count": 714,
+      "percent_of_observed_main_thread_stacks": 12.725004455533773,
+      "raw_lines": [
+        4888,
+        5048,
+        5083,
+        5129,
+        5484,
+        5634,
+        5636,
+        5808,
+        6217,
+        6546,
+        6605,
+        6612,
+        6619,
+        6622,
+        6624,
+        6627,
+        6854,
+        7288,
+        7301
+      ]
+    },
+    "ISLAND::Realize": {
+      "inclusive_sample_count": 257,
+      "percent_of_observed_main_thread_stacks": 4.580288718588487,
+      "raw_lines": [
+        4886,
+        6853,
+        7287,
+        7402
+      ]
+    },
+    "storm_metal::compat::decodeToRgba": {
+      "inclusive_sample_count": 266,
+      "percent_of_observed_main_thread_stacks": 4.7406879344145425,
+      "raw_lines": [
+        538,
+        539,
+        770,
+        882,
+        4958,
+        5853,
+        6088,
+        6089,
+        7638,
+        7639,
+        7748,
+        7749,
+        8322,
+        8742,
+        8827,
+        8974
+      ]
+    },
+    "DX9RENDER::TextureLoad": {
+      "inclusive_sample_count": 607,
+      "percent_of_observed_main_thread_stacks": 10.818036000712885,
+      "raw_lines": [
+        534,
+        612,
+        659,
+        671,
+        766,
+        797,
+        804,
+        878,
+        918,
+        1519,
+        1619,
+        1639,
+        1648,
+        1655,
+        6260,
+        6272,
+        7634,
+        7687,
+        7699,
+        7706,
+        7744,
+        7779,
+        7791,
+        8318,
+        8355,
+        8367,
+        8419,
+        8432,
+        8502,
+        8556,
+        8610,
+        8617,
+        8714,
+        8748,
+        8760,
+        8823,
+        8831
+      ]
+    },
+    "GEOM::GEOM": {
+      "inclusive_sample_count": 697,
+      "percent_of_observed_main_thread_stacks": 12.422028158973445,
+      "raw_lines": [
+        531,
+        682,
+        696,
+        704,
+        716,
+        724,
+        736,
+        742,
+        744,
+        756,
+        763,
+        807,
+        819,
+        832,
+        840,
+        852,
+        855,
+        859,
+        875,
+        924,
+        932,
+        944,
+        1492,
+        1500,
+        1514,
+        1526,
+        1538,
+        7631,
+        7720,
+        7732,
+        7741,
+        7799,
+        7811,
+        7827,
+        7924,
+        7936,
+        8315,
+        8376,
+        8388,
+        8400,
+        8416,
+        8444,
+        8456,
+        8499,
+        8532,
+        8544,
+        8553,
+        8649,
+        8661,
+        8679,
+        8711,
+        8771,
+        8783,
+        8795,
+        8849,
+        9065
+      ]
+    }
+  },
+  "self_leaf_top20": [
+    [
+      "GEOM::Clip(GEOS::PLANE const*, int, GEOS::VERTEX const&, float, bool (*)(GEOS::VERTEX const*, int))",
+      378
+    ],
+    [
+      "__read_nocancel",
+      271
+    ],
+    [
+      "COMPILER::BC_Execute(unsigned int, DATA*&, char const*)",
+      261
+    ],
+    [
+      "storm_metal::compat::decodeToRgba(storm_render::AssetFormat, unsigned int, unsigned int, unsigned char const*, unsigned long, unsigned int, std::vector<unsigned char>&)",
+      257
+    ],
+    [
+      "_platform_memmove",
+      240
+    ],
+    [
+      "GEOM::TraceQuery(GEOS::VERTEX&, GEOS::VERTEX&, bool)",
+      174
+    ],
+    [
+      "(anonymous namespace)::Device::draw(storm_render::Primitive, unsigned int, unsigned char const*, unsigned int, void const*, storm_render::IndexFormat, int, sm::IndexedSpan const*, bool, std::array<unsigned long long, 10ul> const*)",
+      151
+    ],
+    [
+      "<deduplicated_symbol>",
+      144
+    ],
+    [
+      "DATA::Copy(DATA*)",
+      137
+    ],
+    [
+      "_platform_strlen",
+      129
+    ],
+    [
+      "mach_absolute_time",
+      119
+    ],
+    [
+      "STRING_CODEC::Convert(char const*, bool&)",
+      95
+    ],
+    [
+      "ATTRIBUTES::GetAttribute(std::basic_string_view<char> const&) const",
+      89
+    ],
+    [
+      "ATTRIBUTES::FindAClass(ATTRIBUTES*, char const*)",
+      84
+    ],
+    [
+      "__cxxabiv1::__si_class_type_info::search_above_dst(__cxxabiv1::__dynamic_cast_info*, void const*, void const*, int, bool) const",
+      83
+    ],
+    [
+      "ISLAND::LocalGroundDepth(float, float, float, float&)",
+      77
+    ],
+    [
+      "std::type_info::operator==[abi:nqe220106](std::type_info const&) const",
+      68
+    ],
+    [
+      "sm::indexedSpan(void const*, bool, unsigned int, int, unsigned int, unsigned int, unsigned long, sm::IndexedSpan&)",
+      66
+    ],
+    [
+      "std::__nth_element[abi:nqe220106]<std::_ClassicAlgPolicy, storm_ship_hull::Broadphase::buildNode(unsigned int, unsigned int)::'lambda'(unsigned int, unsigned int)&, std::__wrap_iter<unsigned int*>>(std::__wrap_iter<unsigned int*>, std::__wrap_iter<unsigned int*>, std::__wrap_iter<unsigned int*>, storm_ship_hull::Broadphase::buildNode(unsigned int, unsigned int)::'lambda'(unsigned int, unsigned int)&)",
+      59
+    ],
+    [
+      "DATA::CompareAndSetResult(DATA*, S_TOKEN_TYPE)",
+      54
+    ]
+  ],
+  "admissions_in_profile_replay": [
+    {
+      "frame": 2,
+      "phase": "0",
+      "loop_elapsed_seconds": 6.114481082999999,
+      "core_wall_ms_perturbed": "4673.234375",
+      "hulls": 6,
+      "asset_models": [
+        "Battleship1",
+        "Galeon1",
+        "Galeon_h1",
+        "Galeon_l1",
+        "Manowar1",
+        "WarTartane1"
+      ]
+    },
+    {
+      "frame": 37,
+      "phase": "0",
+      "loop_elapsed_seconds": 9.853993583,
+      "core_wall_ms_perturbed": "2283.597917",
+      "hulls": 12,
+      "asset_models": [
+        "Barkentine1",
+        "Barque_w1",
+        "Brig_l1",
+        "Brigantine1",
+        "Caravel1",
+        "Cutter1",
+        "Galeon1",
+        "Galeon_l1",
+        "Schooner_w1",
+        "Xebek_l1"
+      ]
+    },
+    {
+      "frame": 183,
+      "phase": "1",
+      "loop_elapsed_seconds": 15.586933541,
+      "core_wall_ms_perturbed": "709.563791",
+      "hulls": 2,
+      "asset_models": [
+        "Barque1"
+      ]
+    },
+    {
+      "frame": 285,
+      "phase": "2",
+      "loop_elapsed_seconds": 17.860691791,
+      "core_wall_ms_perturbed": "286.339166",
+      "hulls": 2,
+      "asset_models": [
+        "Barque1",
+        "Caravel1"
+      ]
+    },
+    {
+      "frame": 303,
+      "phase": "3",
+      "loop_elapsed_seconds": 18.647136624999998,
+      "core_wall_ms_perturbed": "471.057167",
+      "hulls": 2,
+      "asset_models": [
+        "Cutter1",
+        "Xebek_l1"
+      ]
+    }
+  ],
+  "renderer_trace": {
+    "frames": 555,
+    "commands": 557,
+    "status_counts": {
+      "4": 557
+    },
+    "nonpositive_duration_count": 0
+  },
+  "source_runtime_and_original_SAVE_invariance": true,
+  "limits": [
+    "Inclusive categories overlap; do not sum them. Recursive repeats of the same category on one stack are counted once.",
+    "Percentages describe observed main-thread stacks, not CPU time or wall time.",
+    "Sampling perturbs timing and simulation admission ordering; later actual models differ from the unsampled Corvette replay.",
+    "Ten-second aggregate cannot separate first-unseen mounts from steady execution without a separate time-series profile.",
+    "Stopped before actual Save to avoid the known BATTLE_INTERFACE lifetime crash; no SaveLoad/remount result in this profile.",
+    "Requested sample native interval6.752\u201316.752s; loop clock starts after native bootstrap. First12-hull burst is captured, Barque frame183 is near the window end; later285/303 admissions are whole-run telemetry outside the sample."
+  ]
+}

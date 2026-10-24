@@ -1,0 +1,8 @@
+[2026-10-21 19:24:52.600] [info] Initializing native Metal renderer
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 1920x1080; SDL drawable 1920x1080; samples 1
+[StormMetal] water mode: original shader fidelity
+[2026-10-21 19:24:52.620] [info] WARN: STSS: dup restore param type <alphaop[0]> in <resource/techniques/animation.fx> file, technique <animation>
+[2026-10-21 19:24:52.623] [info] Techniques: 15 shaders compiled.
+[2026-10-21 19:24:52.623] [info] Techniques: 215 techniques compiled.
+[2026-10-21 19:24:52.623] [info] Techniques: compiled by 309902 ticks.

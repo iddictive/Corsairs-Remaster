@@ -1,0 +1,12 @@
+{
+  "returncode": 0,
+  "wall_seconds": 6.737208249978721,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/candidate-20261021-192614",
+  "run_path_basis": "repository-relative",
+  "measured_frames": 128,
+  "warmup_frames": 32,
+  "cpu_wall_mean_ms": 16.3488625,
+  "cpu_wall_median_ms": 14.0494,
+  "cpu_wall_p95_ms": 36.9468,
+  "max_rss_bytes": 1848672256
+}

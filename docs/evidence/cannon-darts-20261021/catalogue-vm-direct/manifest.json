@@ -1,0 +1,79 @@
+{
+  "binary_sha256": "f184ebf5ab8f8981fc3a051c2a2ce97dd014abd44d4852b40ee5dd62852397ae",
+  "extracted_functions": {
+    "src/gameplay/PROGRAM/store/goods.h": {
+      "source_sha256": "997cc30c7fd709331ba194abcee53b480232ef379ba28b995b294bdb80a9669a",
+      "names": [
+        "Goods_GetDisplayIndex",
+        "GetGoodWeightByType"
+      ]
+    },
+    "src/gameplay/PROGRAM/store/initGoods.c": {
+      "source_sha256": "e853f70b0ae413dc66b42d83d80289ce131138f491def3ace49a2f90cbe87bbf",
+      "names": [
+        "NavalAmmo_InitDamage",
+        "Airburst_InitGoods",
+        "Darts_InitGoods"
+      ]
+    },
+    "src/gameplay/PROGRAM/store/storeutilite.c": {
+      "source_sha256": "3bcea53b6b5c19c730aeeea8435a25333031e45dcacb55627b75a2ca6a1e3ae2",
+      "names": [
+        "Store_InitAirburst",
+        "Store_EnsureAirburst",
+        "Store_AirburstTradeType",
+        "Store_DartsTradeType",
+        "Store_InitDarts",
+        "Store_EnsureDarts",
+        "Store_CanBuyGoods",
+        "GetStoreGoodsQuantity",
+        "GetStoreGoodsPrice",
+        "SetStoreGoods",
+        "RemoveStoreGoods"
+      ]
+    },
+    "src/gameplay/PROGRAM/Loc_ai/LAi_utilites.c": {
+      "source_sha256": "5f40aa7a7035f4829abd12637343e4e2bdc8ea31dd54b8a592efd9ea56819ed5",
+      "names": [
+        "GetCityNation"
+      ]
+    },
+    "src/gameplay/PROGRAM/worldmap/worldmap_encgen.c": {
+      "source_sha256": "8172c80089556d481ebfd75197deda186197ed29df8dc478cf50a288f7ba5d04",
+      "names": [
+        "WdmRecoveryQuote"
+      ]
+    },
+    "src/gameplay/PROGRAM/battle_interface/BattleInterface.c": {
+      "source_sha256": "62732ae0b4d0a68438de27bef9876d383d8f3fef5ba6734a5bda66e5d1226a6a",
+      "names": [
+        "BI_GetChargeQuantity"
+      ]
+    },
+    "src/gameplay/PROGRAM/characters/characterUtilite.c": {
+      "source_sha256": "f26cc458a19fa583e02e8a22e1e39737142a1281d7dd2f7a27ac027328b54e24",
+      "names": [
+        "GetCargoGoods",
+        "SetCharacterGoods",
+        "RecalculateCargoLoad",
+        "GetCargoMaxSpace",
+        "GetCrewQuantity"
+      ]
+    },
+    "<installed-game>/PROGRAM/colonies/colonies.c": {
+      "source_sha256": "79eb0b87dcad22561a435b895a92e44e158cbbb43c8fd2cb1fd276a3c4f98e26",
+      "names": [
+        "FindColony"
+      ]
+    }
+  },
+  "support_stubs": [
+    "GreatRecipe_Unlocked false",
+    "commerce skill/perk projection from fixture character",
+    "GetCharacter array lookup",
+    "unused cannons lookup/count"
+  ],
+  "fixture_population": "4 colonies,8 stores,2 characters; Goods52 and BI_ChargeState6 serialized before first upgrade",
+  "claim_ceiling": "actual extracted catalogue/store/price/cargo/selector functions and real VM save codec; not whole game OnLoad, store UI or player acceptance",
+  "cases_sha256": "10f690f79df0baad508825f08f6669ed52e18a3073baa8b1f5d75349cbba02ee"
+}

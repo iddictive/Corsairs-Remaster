@@ -1,0 +1,284 @@
+[2026-10-21 19:44:38.977] [info] Initializing native Metal renderer
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 1920x1080; SDL drawable 1920x1080; samples 1
+[StormMetal] water mode: original shader fidelity
+[2026-10-21 19:44:38.991] [info] WARN: STSS: dup restore param type <alphaop[0]> in <resource/techniques/animation.fx> file, technique <animation>
+[2026-10-21 19:44:38.992] [info] Techniques: 12 shaders compiled.
+[2026-10-21 19:44:38.992] [info] Techniques: 120 techniques compiled.
+[2026-10-21 19:44:38.992] [info] Techniques: compiled by 144972 ticks.
+[2026-10-21 19:44:39.053] [info] Using PC_SCREEN parameters
+[2026-10-21 19:44:39.093] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:44:39.218] [info] Native audio: miniaudio initialized
+[2026-10-21 19:44:39.222] [info] Native audio: loaded 395 aliases
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[2026-10-21 19:44:40.030] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=1/0/2 fmt=22 tex=WEATHER\SUN\GLOW\SUN1.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=0 fvf=00000242 test=0 ref=160 func=5 blend=1 src=6 dst=5 zwrite=1 s0=2/2/2 fmt=21 tex=WEATHER\SKIES\11\SKY_FR.TGA s1=14/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_FR.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_FR.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_FR.TGA
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\11\SKY_UP.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\BACKLSCU1.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=MAINMENU\RUSSIAN\SHIPNCLSU3.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=MAINMENU\RUSSIAN\GUNCLSU1.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\CHECKER.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=MAINMENU\RUSSIAN\TAVERN1INS.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\MASTSU1.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=894720068 tex=MAINMENU\BAKLANWINDS.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=5 dst=2 zwrite=1 s0=4/0/2 fmt=22 tex=WEATHER\SEA\PENA\PENA.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=1/0/2 fmt=22 tex=WEATHER\SUN\GLOW\SUNGLOW1.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[2026-10-21 19:44:40.180] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:44:40.192] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseVertexBuffer:2550] (VertexBuffers[id].buff->Release())
+[2026-10-21 19:44:40.192] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 19:44:40.192] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:44:40.671] [info] Using PC_SCREEN parameters
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[2026-10-21 19:44:41.350] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 19:44:41.350] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 19:44:41.350] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 19:44:41.350] [info] Begin pointer = 1717563344? end pointer = 0
+[2026-10-21 19:44:41.350] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 19:44:41.350] [info] Begin pointer = 1717563344? end pointer = 0
+[2026-10-21 19:44:41.350] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 19:44:41.350] [info] Begin pointer = -1644225328? end pointer = 0
+[2026-10-21 19:44:41.350] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 19:44:41.350] [info] Begin pointer = -1644223536? end pointer = 0
+[2026-10-21 19:44:41.350] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 19:44:41.350] [info] Begin pointer = -1644223536? end pointer = 0
+[2026-10-21 19:44:41.585] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.585] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.585] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.585] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.585] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 19:44:41.586] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 19:44:41.624] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.624] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.624] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.624] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:41.922] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:44:41.927] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=4.98
+[2026-10-21 19:44:41.927] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=4.98 floor=5.38
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=BEACH.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=26 tex=SHIPS\MANOWAR1\HULL3\DES2.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=SHIPS\MANOWAR1\HULL3\SHIELD.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=22 tex=SHIPS\MANOWAR1\HULL3\INZANEGUN1.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=25 tex=SHIPS\MANOWAR1\HULL3\WATER1.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=861165636 tex=SHIPS/PARUS_COMMON_TORN.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=861165636 tex=SHIPS/PARUS_COMMON_TORN.TGA s1=2/1/1 fmt=21 tex=SHIPS\GERALD\PIR5.TGA.TX s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\PARUS_SILK.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\PARUS_PAT.TGA s1=2/1/1 fmt=21 tex=SHIPS\GERALD\FRA_6.TGA.TX s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SAIL_ROPE.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=894720068 tex=FLAGS\FLAGALL_SHIP_B.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=21 tex=VANT.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=FISH01.TGA s1=1/2/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=NOLOWCHARACTERS.TGA s1=1/2/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[2026-10-21 19:44:42.420] [info] resource\models\WorldMap\islands\antigua_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.420] [info] resource\models\WorldMap\islands\antigua_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.421] [info] resource\models\WorldMap\islands\barbados_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.421] [info] resource\models\WorldMap\islands\barbados_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.421] [info] resource\models\WorldMap\islands\beliz_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.421] [info] resource\models\WorldMap\islands\beliz_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.421] [info] resource\models\WorldMap\islands\bermudes_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.421] [info] resource\models\WorldMap\islands\bermudes_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.422] [info] resource\models\WorldMap\islands\caiman_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.422] [info] resource\models\WorldMap\islands\caiman_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.422] [info] resource\models\WorldMap\islands\caracas_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.422] [info] resource\models\WorldMap\islands\caracas_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.422] [info] resource\models\WorldMap\islands\cartahena_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.422] [info] resource\models\WorldMap\islands\cartahena_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\cuba1_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\cuba1_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\cuba2_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\cuba2_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\cumana_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\cumana_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\curacao_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\curacao_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\dominica_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.423] [info] resource\models\WorldMap\islands\dominica_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\guadeloupe_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\guadeloupe_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\hispaniola1_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\hispaniola1_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\hispaniola2_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\hispaniola2_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\jamaica_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\jamaica_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\lostshipscity_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.424] [info] resource\models\WorldMap\islands\lostshipscity_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.425] [info] resource\models\WorldMap\islands\maracaibo_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.425] [info] resource\models\WorldMap\islands\maracaibo_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.425] [info] resource\models\WorldMap\islands\martinique_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.425] [info] resource\models\WorldMap\islands\martinique_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.537] [info] resource\models\WorldMap\islands\mein_area.gm: can't open geometry file
+[2026-10-21 19:44:42.537] [info] World map: can't load model of island's area: islands\mein_area
+[2026-10-21 19:44:42.538] [info] resource\models\WorldMap\islands\mein_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.540] [info] resource\models\WorldMap\islands\nevis_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.540] [info] resource\models\WorldMap\islands\nevis_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.540] [info] resource\models\WorldMap\islands\panama_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.540] [info] resource\models\WorldMap\islands\panama_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.540] [info] resource\models\WorldMap\islands\pearl_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.540] [info] resource\models\WorldMap\islands\pearl_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\portobello_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\portobello_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\providence_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\providence_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\puertorico_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\puertorico_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\santacatalina_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\santacatalina_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\sentmartin_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.541] [info] resource\models\WorldMap\islands\sentmartin_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\tenotchitlan_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\tenotchitlan_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\terks_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\terks_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\tortuga_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\tortuga_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\trinidad_palms.gm: can't open geometry file
+[2026-10-21 19:44:42.542] [info] resource\models\WorldMap\islands\trinidad_waves.gm: can't open geometry file
+[2026-10-21 19:44:42.565] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 19:44:42.609] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[2026-10-21 19:44:42.744] [info] Island Set
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=24752 bounds_miss=6495 bounds_bypass=5103 bounds_skip=0 indices_scanned=12242268 indices_avoided=118884390 bounds_cpu_ms=32.298 view_hit=55077 view_miss=580 sampling_shared=32249 sampling_fallback=0 sampling_bytes_saved=112484512
+[StormMetal] submission-cache enabled=1 raster_skipped=318637 shadow_textures_skipped=318420 sampler_reused=382858
+[StormMetal] ffp-specialize enabled=1 frames=120 used=37083 fallback=126 ready=24 variants=24
+[StormMetal] diag: origin=(2932.2,-40.3,-3158.8) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.0 draws=56735 verts=372535712 uploadMB=1091.5 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:43.876] [info] Bad rope data for rope: (model=ships\Cutter1\Cutter1) (rope num = 4) (begin group=0, end group=-1)
+[2026-10-21 19:44:43.876] [info] Begin pointer = 0? end pointer = 793812176
+[2026-10-21 19:44:43.876] [info] Bad rope data for rope: (model=ships\Cutter1\Cutter1) (rope num = 1006) (begin group=0, end group=3)
+[2026-10-21 19:44:43.876] [info] Begin pointer = 0? end pointer = 793812176
+[2026-10-21 19:44:43.958] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:43.958] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:43.959] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:43.959] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:43.959] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 19:44:43.959] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 19:44:44.014] [info] Warning! Found rope with number 0: (model = ships\Caravel1\Caravel1) (label = ropee0)
+[2026-10-21 19:44:44.014] [info] Warning! Found rope with number 0: (model = ships\Caravel1\Caravel1) (label = ropeb0)
+[2026-10-21 19:44:44.286] [info] Warning! Found rope with number 0: (model = ships\Caravel1\Caravel1) (label = ropee0)
+[2026-10-21 19:44:44.286] [info] Warning! Found rope with number 0: (model = ships\Caravel1\Caravel1) (label = ropeb0)
+[2026-10-21 19:44:44.410] [info] SeaAI err: SetSailState, can't find ship for character = fenc_949
+[2026-10-21 19:44:44.502] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:44.502] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:44.502] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:44.502] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:44.549] [info] SeaAI err: SetSailState, can't find ship for character = fenc_951
+[2026-10-21 19:44:44.586] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:44.586] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.620] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:DrawBuffer:2321] (renderDevice->DrawIndexedPrimitive(storm_render::PrimitiveTriangleList, minv, 0, numv, startidx, numtrg))
+[2026-10-21 19:44:44.816] [info] FLOORDIAG floor idx=946 masts=5/5 num=7 vec=7 ideal=27.07 speed=8.98 floor=6.77
+[2026-10-21 19:44:45.693] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=4.97 floor=5.38
+phase=1 frame=181 tag=wait_barbados
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=55090 bounds_miss=9349 bounds_bypass=17458 bounds_skip=0 indices_scanned=13124469 indices_avoided=217577766 bounds_cpu_ms=48.016 view_hit=108492 view_miss=840 sampling_shared=70325 sampling_fallback=0 sampling_bytes_saved=245293600
+[StormMetal] submission-cache enabled=1 raster_skipped=623279 shadow_textures_skipped=697100 sampler_reused=739072
+[StormMetal] ffp-specialize enabled=1 frames=120 used=66323 fallback=0 ready=24 variants=24
+[StormMetal] diag: origin=(-19598.0,-23.8,38265.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.04 pitch=-2.3 draws=166146 verts=889914506 uploadMB=2844.8 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:46.366] [info] FLOORDIAG floor idx=946 masts=5/5 num=7 vec=7 ideal=27.07 speed=10.78 floor=6.77
+[2026-10-21 19:44:46.985] [info] FLOORDIAG floor idx=945 masts=17/17 num=17 vec=17 ideal=29.60 speed=12.05 floor=7.40
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=38926 bounds_miss=9265 bounds_bypass=19320 bounds_skip=0 indices_scanned=14512164 indices_avoided=170462373 bounds_cpu_ms=44.445 view_hit=89072 view_miss=840 sampling_shared=50001 sampling_fallback=0 sampling_bytes_saved=174403488
+[StormMetal] submission-cache enabled=1 raster_skipped=448640 shadow_textures_skipped=493960 sampler_reused=535416
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55424 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:47.611] [info] FLOORDIAG floor idx=945 masts=17/17 num=17 vec=17 ideal=29.60 speed=12.05 floor=7.40
+[StormMetal] diag: origin=(-19562.7,-22.2,38250.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.9 draws=255892 verts=1242143819 uploadMB=4506.8 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:48.281] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.42 floor=7.02
+[2026-10-21 19:44:48.542] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseVertexBuffer:2550] (VertexBuffers[id].buff->Release())
+[2026-10-21 19:44:48.542] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=39730 bounds_miss=9348 bounds_bypass=19320 bounds_skip=0 indices_scanned=14465130 indices_avoided=177583794 bounds_cpu_ms=44.728 view_hit=89971 view_miss=840 sampling_shared=50665 sampling_fallback=0 sampling_bytes_saved=176719520
+[StormMetal] submission-cache enabled=1 raster_skipped=453184 shadow_textures_skipped=500650 sampler_reused=540824
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55905 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:48.952] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.12 floor=7.02
+[StormMetal] diag: origin=(-19562.7,-22.0,38248.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=346457 verts=1604142770 uploadMB=6180.9 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:49.638] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=4.80 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=39883 bounds_miss=9381 bounds_bypass=19320 bounds_skip=0 indices_scanned=14587416 indices_avoided=197682078 bounds_cpu_ms=43.774 view_hit=90304 view_miss=840 sampling_shared=50698 sampling_fallback=0 sampling_bytes_saved=176834624
+[StormMetal] submission-cache enabled=1 raster_skipped=454585 shadow_textures_skipped=500980 sampler_reused=542264
+[StormMetal] ffp-specialize enabled=1 frames=120 used=56005 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:50.642] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=6.53
+[StormMetal] diag: origin=(-19562.7,-21.8,38244.2) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=437385 verts=1997193404 uploadMB=7868.7 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:50.700] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.00 floor=7.02
+[2026-10-21 19:44:51.210] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseVertexBuffer:2550] (VertexBuffers[id].buff->Release())
+[2026-10-21 19:44:51.210] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 19:44:51.412] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.32 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40036 bounds_miss=9404 bounds_bypass=19320 bounds_skip=0 indices_scanned=14647572 indices_avoided=208924803 bounds_cpu_ms=43.653 view_hit=90480 view_miss=840 sampling_shared=50640 sampling_fallback=0 sampling_bytes_saved=176632320
+[StormMetal] submission-cache enabled=1 raster_skipped=454140 shadow_textures_skipped=500400 sampler_reused=541800
+[StormMetal] ffp-specialize enabled=1 frames=120 used=56040 fallback=0 ready=24 variants=24
+[StormMetal] diag: origin=(-19562.7,-21.6,38240.2) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=528430 verts=2395839989 uploadMB=9561.6 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:52.138] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.63 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40156 bounds_miss=9401 bounds_bypass=19320 bounds_skip=0 indices_scanned=15278541 indices_avoided=212191221 bounds_cpu_ms=45.017 view_hit=90597 view_miss=840 sampling_shared=50670 sampling_fallback=0 sampling_bytes_saved=176736960
+[StormMetal] submission-cache enabled=1 raster_skipped=454060 shadow_textures_skipped=500700 sampler_reused=542040
+[StormMetal] ffp-specialize enabled=1 frames=120 used=56075 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:52.979] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.62 floor=7.02
+[StormMetal] diag: origin=(-19562.7,-21.5,38235.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=619623 verts=2799747722 uploadMB=11257.4 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:53.669] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.61 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40203 bounds_miss=9338 bounds_bypass=19320 bounds_skip=0 indices_scanned=14736756 indices_avoided=212014953 bounds_cpu_ms=44.130 view_hit=90581 view_miss=840 sampling_shared=50575 sampling_fallback=0 sampling_bytes_saved=176405600
+[StormMetal] submission-cache enabled=1 raster_skipped=453265 shadow_textures_skipped=499750 sampler_reused=541280
+[StormMetal] ffp-specialize enabled=1 frames=120 used=56050 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:54.273] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseVertexBuffer:2550] (VertexBuffers[id].buff->Release())
+[2026-10-21 19:44:54.273] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 19:44:54.400] [info] FLOORDIAG floor idx=950 masts=4/4 num=4 vec=4 ideal=26.27 speed=5.53 floor=6.57
+[StormMetal] diag: origin=(-19562.7,-21.4,38230.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=710636 verts=3203768960 uploadMB=12993.8 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:55.180] [info] FLOORDIAG floor idx=950 masts=4/4 num=4 vec=4 ideal=26.27 speed=5.47 floor=6.57
+[2026-10-21 19:44:55.245] [info] DX9RENDER: live buffers vertex=798 index=1059 of 10240
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40106 bounds_miss=9357 bounds_bypass=19320 bounds_skip=0 indices_scanned=14634792 indices_avoided=207096000 bounds_cpu_ms=45.061 view_hit=90503 view_miss=840 sampling_shared=50376 sampling_fallback=0 sampling_bytes_saved=175711488
+[StormMetal] submission-cache enabled=1 raster_skipped=451872 shadow_textures_skipped=497760 sampler_reused=539688
+[StormMetal] ffp-specialize enabled=1 frames=120 used=56018 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:56.130] [info] FLOORDIAG floor idx=950 masts=4/4 num=4 vec=4 ideal=26.27 speed=5.38 floor=6.57
+[StormMetal] diag: origin=(-19562.7,-21.3,38224.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=801526 verts=3606065651 uploadMB=14733.5 legacy3D=0 legacyShadow=0
+[2026-10-21 19:44:56.869] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.60 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=39870 bounds_miss=9319 bounds_bypass=19320 bounds_skip=0 indices_scanned=14910810 indices_avoided=205000425 bounds_cpu_ms=46.049 view_hit=90229 view_miss=840 sampling_shared=49821 sampling_fallback=0 sampling_bytes_saved=173775648
+[StormMetal] submission-cache enabled=1 raster_skipped=448280 shadow_textures_skipped=492210 sampler_reused=535248
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55729 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:57.320] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=6.50
+[2026-10-21 19:44:57.629] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.60 floor=7.02
+[StormMetal] diag: origin=(-19562.7,-21.4,38218.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.8 draws=892329 verts=4007049476 uploadMB=16480.0 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40019 bounds_miss=9232 bounds_bypass=19320 bounds_skip=0 indices_scanned=15194556 indices_avoided=201983766 bounds_cpu_ms=50.258 view_hit=90251 view_miss=840 sampling_shared=49492 sampling_fallback=0 sampling_bytes_saved=172628096
+[StormMetal] submission-cache enabled=1 raster_skipped=445764 shadow_textures_skipped=488920 sampler_reused=532296
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55572 fallback=0 ready=24 variants=24
+[2026-10-21 19:44:58.482] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=10.67 floor=9.03
+[2026-10-21 19:44:59.362] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=10.91 floor=9.03
+[StormMetal] diag: origin=(-19562.7,-21.2,38210.1) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.7 draws=982938 verts=4403162711 uploadMB=18240.1 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40043 bounds_miss=9232 bounds_bypass=19320 bounds_skip=0 indices_scanned=15225594 indices_avoided=195718542 bounds_cpu_ms=52.018 view_hit=90160 view_miss=840 sampling_shared=49458 sampling_fallback=0 sampling_bytes_saved=172509504
+[StormMetal] submission-cache enabled=1 raster_skipped=444721 shadow_textures_skipped=488580 sampler_reused=531104
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55423 fallback=0 ready=24 variants=24
+[2026-10-21 19:45:00.369] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=11.19 floor=9.03
+[2026-10-21 19:45:01.321] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=11.43 floor=9.03
+[StormMetal] diag: origin=(-19562.7,-21.1,38200.8) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.7 draws=1073565 verts=4792930355 uploadMB=19974.4 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40252 bounds_miss=9221 bounds_bypass=19320 bounds_skip=0 indices_scanned=15137208 indices_avoided=194201142 bounds_cpu_ms=49.760 view_hit=90043 view_miss=840 sampling_shared=49716 sampling_fallback=0 sampling_bytes_saved=173409408
+[StormMetal] submission-cache enabled=1 raster_skipped=444237 shadow_textures_skipped=491160 sampler_reused=530648
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55273 fallback=0 ready=24 variants=24
+[2026-10-21 19:45:02.171] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=11.66 floor=9.03
+[2026-10-21 19:45:03.030] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=11.86 floor=9.03
+[StormMetal] diag: origin=(-19562.7,-20.8,38192.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.7 draws=1164075 verts=5180557604 uploadMB=21685.4 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40479 bounds_miss=9227 bounds_bypass=19320 bounds_skip=0 indices_scanned=15272514 indices_avoided=196448445 bounds_cpu_ms=47.571 view_hit=90058 view_miss=840 sampling_shared=49845 sampling_fallback=0 sampling_bytes_saved=173859360
+[StormMetal] submission-cache enabled=1 raster_skipped=443579 shadow_textures_skipped=492450 sampler_reused=529936
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55157 fallback=0 ready=24 variants=24
+[2026-10-21 19:45:03.845] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=11.94 floor=9.03
+[2026-10-21 19:45:04.597] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=12.08 floor=9.03
+[StormMetal] diag: origin=(-19562.7,-20.6,38184.8) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.03 pitch=-1.7 draws=1254931 verts=5575625804 uploadMB=23405.7 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40952 bounds_miss=9220 bounds_bypass=19320 bounds_skip=0 indices_scanned=15018192 indices_avoided=200782044 bounds_cpu_ms=46.409 view_hit=90372 view_miss=840 sampling_shared=49809 sampling_fallback=0 sampling_bytes_saved=173733792
+[StormMetal] submission-cache enabled=1 raster_skipped=442263 shadow_textures_skipped=492090 sampler_reused=528432
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55057 fallback=0 ready=24 variants=24
+[2026-10-21 19:45:05.283] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=12.24 floor=9.03
+[2026-10-21 19:45:05.826] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=6.45
+[2026-10-21 19:45:06.479] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=12.40 floor=9.03
+[StormMetal] diag: origin=(-19562.7,-20.8,38172.6) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=3 aimY=-0.03 pitch=-1.7 draws=1345763 verts=5969658347 uploadMB=25117.8 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=40917 bounds_miss=9258 bounds_bypass=19320 bounds_skip=0 indices_scanned=15016680 indices_avoided=200781879 bounds_cpu_ms=49.682 view_hit=90304 view_miss=840 sampling_shared=49928 sampling_fallback=0 sampling_bytes_saved=174148864
+[StormMetal] submission-cache enabled=1 raster_skipped=442599 shadow_textures_skipped=493280 sampler_reused=528816
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55104 fallback=0 ready=24 variants=24
+[2026-10-21 19:45:07.812] [info] FLOORDIAG floor idx=948 masts=3/3 num=6 vec=6 ideal=36.14 speed=12.55 floor=9.03
+route_complete=0 final_phase=1 startup_only=0 startup_succeeded=1
+[2026-10-21 19:45:07.964] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 19:45:07.964] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:45:07.964] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseVertexBuffer:2550] (VertexBuffers[id].buff->Release())
+[2026-10-21 19:45:08.074] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:45:08.074] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 19:45:08.084] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseDevice:880] (renderDevice->Release())

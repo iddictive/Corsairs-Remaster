@@ -1,0 +1,47 @@
+{
+  "os_report_filename": "ordinary-2026-10-21-192454.ips",
+  "exception": {
+    "codes": "0x0000000000000001, 0x0000000000000000",
+    "rawCodes": [
+      1,
+      0
+    ],
+    "type": "EXC_BAD_ACCESS",
+    "signal": "SIGSEGV",
+    "subtype": "KERN_INVALID_ADDRESS at 0x0000000000000000"
+  },
+  "termination": {
+    "flags": 0,
+    "code": 11,
+    "namespace": "SIGNAL",
+    "indicator": "Segmentation fault: 11"
+  },
+  "faulting_thread_frames": [
+    {
+      "image": "ordinary",
+      "symbol": "DX9RENDER::Init()",
+      "symbol_location": 4084,
+      "image_offset": 2537688
+    },
+    {
+      "image": "ordinary",
+      "symbol": "CoreImpl::GetService(char const*)",
+      "symbol_location": 348,
+      "image_offset": 5474788
+    },
+    {
+      "image": "ordinary",
+      "symbol": "main",
+      "symbol_location": 9756,
+      "image_offset": 5325560
+    },
+    {
+      "image": "dyld",
+      "symbol": "start",
+      "symbol_location": 6688,
+      "image_offset": 204416
+    }
+  ],
+  "source_fact": "Observer finalizer calls GetService(dx9render) even after initial Core.Run exception; this may construct renderer before script Render variable exists. Buffered catch output was not flushed before that call.",
+  "claim_ceiling": "The primary Core.Run exception is not yet recovered; this stack does not attribute that primary failure to a product owner."
+}

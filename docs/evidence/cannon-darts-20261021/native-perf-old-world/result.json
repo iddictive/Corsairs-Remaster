@@ -1,0 +1,12 @@
+{
+  "returncode": 0,
+  "wall_seconds": 6.522233792115003,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/perf-old-world-20261021-200353",
+  "run_path_basis": "repository-relative",
+  "measured_frames": 128,
+  "warmup_frames": 32,
+  "cpu_wall_mean_ms": 14.13609375,
+  "cpu_wall_median_ms": 14.071349999999999,
+  "cpu_wall_p95_ms": 14.9472,
+  "max_rss_bytes": 2769453056
+}

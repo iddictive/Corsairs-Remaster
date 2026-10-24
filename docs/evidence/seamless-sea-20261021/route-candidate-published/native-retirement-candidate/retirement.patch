@@ -1,0 +1,201 @@
+--- a/experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.cpp
+@@ -79,12 +79,19 @@
+ 
+ void SEAFOAM::AddShip(entid_t pShipEID)
+ {
++    for (int ship = 0; ship < shipsCount; ++ship)
++        if (shipFoamInfo[ship].shipID == pShipEID) return;
+     if (shipsCount >= MAX_SHIPS)
+         return;
+ 
++    auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShipEID));
++    if (!ship || !ship->GetModel() || !ship->GetModel()->GetNode(0) || !ship->GetModel()->GetNode(0)->geo)
++        return;
++
+     auto *foamInfo = &shipFoamInfo[shipsCount++];
+ 
+-    foamInfo->ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShipEID));
++    foamInfo->shipID = pShipEID;
++    foamInfo->ship = ship;
+     foamInfo->shipModel = foamInfo->ship->GetModel();
+     foamInfo->shipModel->GetNode(0)->geo->GetInfo(foamInfo->hullInfo);
+     foamInfo->enabled = true;
+@@ -121,22 +128,31 @@
+ //--------------------------------------------------------------------
+ void SEAFOAM::ReleaseShipFoam()
+ {
+-    tShipFoamInfo *foamInfo = nullptr;
+-
+-    for (auto ship = 0; ship < shipsCount; ship++)
+-    {
+-        foamInfo = &shipFoamInfo[ship];
+-
+-        foamInfo->carcass[0]->Uninitialize();
+-        delete foamInfo->carcass[0];
+-        foamInfo->carcass[1]->Uninitialize();
+-        delete foamInfo->carcass[1];
+-
+-        delete foamInfo->frontEmitter[0];
+-        delete foamInfo->frontEmitter[1];
+-        delete foamInfo->frontEmitter[2];
+-    }
++    for (auto ship = 0; ship < shipsCount; ship++) ReleaseShipFoam(shipFoamInfo[ship]);
+     shipsCount = 0;
++}
++
++void SEAFOAM::ReleaseShipFoam(tShipFoamInfo &foam)
++{
++    foam.carcass[0]->Uninitialize();
++    delete foam.carcass[0];
++    foam.carcass[1]->Uninitialize();
++    delete foam.carcass[1];
++    for (auto *emitter : foam.frontEmitter) delete emitter;
++    foam = {};
++}
++
++void SEAFOAM::RemoveShip(entid_t shipID)
++{
++    for (int ship = 0; ship < shipsCount; ++ship)
++        if (shipFoamInfo[ship].shipID == shipID)
++        {
++            ReleaseShipFoam(shipFoamInfo[ship]);
++            --shipsCount;
++            if (ship != shipsCount) shipFoamInfo[ship] = shipFoamInfo[shipsCount];
++            shipFoamInfo[shipsCount] = {};
++            return;
++        }
+ }
+ 
+ //--------------------------------------------------------------------
+@@ -586,6 +602,12 @@
+             }
+         return 0;
+     }
++    case MSG_SHIP_CREATE:
++        AddShip(message.EntityID());
++        return outValue;
++    case MSG_SHIP_RELEASE:
++        RemoveShip(message.EntityID());
++        return outValue;
+     case MSG_SHIP_DELETE: {
+         auto *const attrs = message.AttributePointer();
+         tShipFoamInfo *foamInfo = nullptr;
+--- a/experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.h
++++ b/experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.h
+@@ -27,6 +27,7 @@
+     tFoamEmitter hull[2][TRACE_STEPS_Z];
+     CVECTOR levelStarts[2][TRACE_STEPS_Z];
+     GEOS::INFO hullInfo;
++    entid_t shipID = invalid_entity;
+     SHIP_BASE *ship;
+     TCarcass *carcass[2];
+     SEAFOAM_PS *frontEmitter[3];
+@@ -77,6 +78,8 @@
+   private:
+     void InitializeShipFoam();
+     void ReleaseShipFoam();
++    void ReleaseShipFoam(tShipFoamInfo &foam);
++    void RemoveShip(entid_t shipID);
+     void RealizeShipFoam_Particles(tShipFoamInfo &_shipFoamInfo, uint32_t dTime);
+     void RealizeShipFoam_Mesh(tShipFoamInfo &_shipFoamInfo, uint32_t dTime);
+     void CreateTracePoints(tShipFoamInfo *_shipFoamInfo);
+--- a/experiments/native-metal/engine/src/libs/sailors/src/sailors.cpp
++++ b/experiments/native-metal/engine/src/libs/sailors/src/sailors.cpp
+@@ -1882,6 +1882,18 @@
+         break;
+     }
+ 
++    // Physical retirement differs from a sinking ship with living crew.
++    case MSG_SHIP_RELEASE: {
++        const auto shipID = message.EntityID();
++        const auto walk = std::ranges::find_if(shipWalk, [shipID](const auto &entry) { return entry.shipID == shipID; });
++        if (walk != shipWalk.end())
++        {
++            if (walk->bloodID) core.EraseEntity(walk->bloodID);
++            shipWalk.erase(walk);
++        }
++        break;
++    }
++
+     // Removing a ship
+     case MSG_SHIP_DELETE: {
+         
+--- a/experiments/native-metal/engine/src/libs/touch/src/touch.cpp
++++ b/experiments/native-metal/engine/src/libs/touch/src/touch.cpp
+@@ -184,6 +184,19 @@
+ {
+     switch (message.Long())
+     {
++    case MSG_SHIP_RELEASE: {
++        const auto shipID = message.EntityID();
++        for (int32_t i = 0; i < iNumShips; ++i)
++            if (pShips[i]->eID == shipID)
++            {
++                delete pShips[i];
++                --iNumShips;
++                pShips[i] = pShips[iNumShips];
++                pShips[iNumShips] = nullptr;
++                break;
++            }
++        break;
++    }
+     case MSG_SHIP_CREATE:
+         pShips[iNumShips] = new TOUCH_SHIP{};
+         pShips[iNumShips]->eID = message.EntityID();
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship.cpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship.cpp
+@@ -104,6 +104,13 @@
+ SHIP::~SHIP()
+ {
+     CancelPhonkLaserWork();
++    // These scene consumers borrow physical ship/model pointers. Retire their
++    // entries before destroying this model, without emitting a ship death.
++    for (const char *consumer : {"Seafoam", "Sailors", "Touch"})
++        if (const auto entity = core.GetEntityId(consumer))
++            core.Send_Message(entity, "li", MSG_SHIP_RELEASE, GetId());
++    if (const auto lights = static_cast<IShipLights *>(core.GetEntityPointer(shipLights)))
++        lights->Release(this);
+     if (!OrphanCutFragments()) core.EraseEntity(GetModelEID());
+     core.Send_Message(sail_id, "li", MSG_SAIL_DEL_GROUP, GetId());
+     core.Send_Message(rope_id, "li", MSG_ROPE_DEL_GROUP, GetModelEID());
+@@ -3450,6 +3457,8 @@
+     pABox->SetAttributeUseFloat("z", State.vRealBoxSize.z);
+ 
+     bMounted = true;
++    if (const auto foam = core.GetEntityId("Seafoam"))
++        core.Send_Message(foam, "li", MSG_SHIP_CREATE, GetId());
+ #ifdef STORM_METAL_SHIP_HULL_DAMAGE
+     EnsureCutFragments();
+     // Capture immutable CPU input during loading, before a live cut needs it.
+--- a/experiments/native-metal/engine/src/libs/shared_headers/include/shared/messages.h
++++ b/experiments/native-metal/engine/src/libs/shared_headers/include/shared/messages.h
+@@ -51,6 +51,10 @@
+ #define MSG_ISLAND_ADD_FORT 50103 // "li", model_id
+ #define MSG_ISLAND_WORLD_STATE 50104 // "lai", persistent Islands[] attributes, reflection model
+ #define MSG_FLAG_WORLD_SUPPORT 50105 // "li", island cut-state owner
++#define MSG_ISLAND_ATTACH_REGION 50106 // "li", resident IslandRegion entity
++#define MSG_ISLAND_TRANSLATE_REGION 50107 // "lff", fixed scene-frame x/z offset
++#define MSG_ISLAND_SELECT_REGION 50108 // "li", logical active IslandRegion entity
++#define MSG_WORLDMAP_NOTIFY 50109 // "ls", canonical worldMap attribute path
+ 
+ //============================================================================================
+ // Sea Reflection Messages
+@@ -74,6 +78,7 @@
+ #define MSG_SHIP_FLAG_REFRESH 50312 // boal 20.08.06
+ #define MSG_SHIP_SET_CUSTOM_FLAG 50313 // "li", flag entity - Specify a custom flag entity to use for this ship
+ #define MSG_SHIP_SAFE_DELETE 50315
++#define MSG_SHIP_RELEASE 50316 // "li", ship entity - Detach physical consumers without death effects
+ #define MSG_SHIP_GET_SAIL_STATE 50325
+ #define MSG_SHIP_REPAIR_MASTS 50326 // "l", returns restored main-mast count
+ #define MSG_SHIP_CURVES 50400
+--- a/experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass.h
++++ b/experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass.h
+@@ -85,6 +85,7 @@
+     };
+ 
+   public:
++    bool ReferencesCharacter(int32_t index) const { return m_bIsOn && m_nInfoCharacterIndex == index; }
+     ISPYGLASS();
+     ~ISPYGLASS() override;
+     bool Init() override;

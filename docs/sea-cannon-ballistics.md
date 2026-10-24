@@ -54,6 +54,8 @@ superseded low-angle experiment; its exact hit counts do not accept the new
 30-degree law or the current accuracy profile. Native precision and moving combat remain separate gates.
 [Native workload](evidence/cannon-darts-20261021/native-baseline-status.md)
 retains the ordinary-ammunition performance baseline and its exact inputs.
+The [native fixture contract](evidence/cannon-darts-20261021/native-angle30-contract.md#cheap-syntax-preflight-before-native-fixtures)
+describes the CPU syntax preflight and the separate limits of native and visual evidence.
 
 Acceptance requires old-save upgrade, legal pirate purchase/non-pirate rejection,
 charge selection, real dart flight/hit/save-load identity, matching aim preview,

@@ -1,0 +1,18 @@
+{
+  "returncode": 68,
+  "wall_seconds": 3.8504289579577744,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/angle30-functional-20261021-202656",
+  "run_path_basis": "repository-relative",
+  "native_counters": {
+    "BenchFrames": 160,
+    "BenchBad": 1,
+    "BenchOrdinaryHits": 0,
+    "BenchDartHits": 1,
+    "BenchAirburstHits": 1,
+    "BenchLoadedDartHits": 1,
+    "BenchExplosions": 0,
+    "BenchFreshMetadata": 1,
+    "BenchLoadedMetadata": 1,
+    "BenchPhonkChecks": 2
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "source_commit": "e72a91e82d2946428fe32d757d203cfd966a2ee3",
+  "raw_engine_sha256": "fabd945a78aa5fb7ac8a5d2e8c9e4adfb7caf9fd6451cb1729865fc2989ad5ad",
+  "installed_engine_sha256": "374a6a3264b9df5efde8c4065aa93001e750020a66a343e8bbcccacf42dad6dd",
+  "original_save_unchanged": true,
+  "installed_files": {
+    "PROGRAM/sea_ai/AIBalls.c": "d3dca14a9f668e50f85b95a1da88882f5ac2b0ee6c1526739c861f725b19898e",
+    "PROGRAM/sea_ai/AICameras.c": "f8e2ce0dbf89dc233775aefae7b88cbd30c190fcd38b634ce677f498d0a3cb30",
+    "PROGRAM/controls/controls.c": "527bfc8d5f811280bbb1e0452954b5ac9696badd9cd8e70fbfca7964c5a4ec53",
+    "PROGRAM/store/initGoods.c": "fd87731c65d9a8b7bdb3405686d748b628abb305e7ddf44193b5263d009e4eb4",
+    "PROGRAM/store/storeutilite.c": "bf8637da518ded167d42d138e0e0e52230d6533c0d54f4da42150b1c9c9a009c",
+    "RESOURCE/Textures/BALLS/dart.tga.tx": "62acf96545474c08f689592c19a8f23e1dbd8360b130e6d8bab1c3f13faf6731"
+  },
+  "stage_install_exit": 0,
+  "app_signature_verification": "passed by canonical installer",
+  "world_changes_included": false,
+  "player_gameplay_acceptance": "human-owned; not launched by agent"
+}

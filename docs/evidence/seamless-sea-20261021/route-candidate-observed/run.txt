@@ -1,0 +1,2 @@
+core_run_exception=fail to create program
+route_complete=0 final_phase=0 startup_only=1 startup_succeeded=0

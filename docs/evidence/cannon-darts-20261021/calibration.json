@@ -1,0 +1,793 @@
+{
+  "oracle": "analytical warped trajectories + projected real GM triangle silhouette; NOT engine hits",
+  "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+  "triangle_count": 82759,
+  "guns": [
+    [
+      4.21999979019165,
+      10.59000015258789,
+      -27.399999618530273
+    ],
+    [
+      6.119999885559082,
+      4.079999923706055,
+      -25.950000762939453
+    ],
+    [
+      4.949999809265137,
+      8.479999542236328,
+      -25.850000381469727
+    ],
+    [
+      5.869999885559082,
+      6.25,
+      -24.299999237060547
+    ],
+    [
+      4.539999961853027,
+      10.479999542236328,
+      -24.1299991607666
+    ],
+    [
+      5.139999866485596,
+      8.350000381469727,
+      -22.850000381469727
+    ],
+    [
+      6.659999847412109,
+      3.990000009536743,
+      -22.799999237060547
+    ],
+    [
+      6.159999847412109,
+      6.099999904632568,
+      -21.0
+    ],
+    [
+      4.769999980926514,
+      10.180000305175781,
+      -20.020000457763672
+    ],
+    [
+      6.989999771118164,
+      3.880000114440918,
+      -19.450000762939453
+    ],
+    [
+      5.300000190734863,
+      8.220000267028809,
+      -19.399999618530273
+    ],
+    [
+      6.389999866485596,
+      6.0,
+      -17.729999542236328
+    ],
+    [
+      4.949999809265137,
+      9.989999771118164,
+      -16.850000381469727
+    ],
+    [
+      7.329999923706055,
+      3.759999990463257,
+      -16.100000381469727
+    ],
+    [
+      5.480000019073486,
+      8.079999923706055,
+      -16.100000381469727
+    ],
+    [
+      6.510000228881836,
+      5.920000076293945,
+      -14.40999984741211
+    ],
+    [
+      5.110000133514404,
+      9.9399995803833,
+      -13.600000381469727
+    ],
+    [
+      7.510000228881836,
+      3.6600000858306885,
+      -12.699999809265137
+    ],
+    [
+      5.639999866485596,
+      7.96999979019165,
+      -12.699999809265137
+    ],
+    [
+      6.610000133514404,
+      5.800000190734863,
+      -11.09000015258789
+    ],
+    [
+      5.179999828338623,
+      9.899999618530273,
+      -10.539999961853027
+    ],
+    [
+      7.670000076293945,
+      3.559999942779541,
+      -9.399999618530273
+    ],
+    [
+      5.789999961853027,
+      7.869999885559082,
+      -9.260000228881836
+    ],
+    [
+      6.730000019073486,
+      5.760000228881836,
+      -7.800000190734863
+    ],
+    [
+      7.769999980926514,
+      3.490000009536743,
+      -6.019999980926514
+    ],
+    [
+      5.900000095367432,
+      7.809999942779541,
+      -6.0
+    ],
+    [
+      6.03000020980835,
+      7.760000228881836,
+      -2.309999942779541
+    ],
+    [
+      7.829999923706055,
+      3.4100000858306885,
+      -1.9299999475479126
+    ],
+    [
+      6.829999923706055,
+      5.579999923706055,
+      -0.46000000834465027
+    ],
+    [
+      7.829999923706055,
+      3.380000114440918,
+      1.440000057220459
+    ],
+    [
+      6.099999904632568,
+      7.690000057220459,
+      1.5099999904632568
+    ],
+    [
+      6.829999923706055,
+      5.559999942779541,
+      3.200000047683716
+    ],
+    [
+      6.130000114440918,
+      7.659999847412109,
+      4.599999904632568
+    ],
+    [
+      7.800000190734863,
+      3.369999885559082,
+      4.849999904632568
+    ],
+    [
+      6.789999961853027,
+      5.559999942779541,
+      6.519999980926514
+    ],
+    [
+      6.130000114440918,
+      7.659999847412109,
+      7.949999809265137
+    ],
+    [
+      7.739999771118164,
+      3.3399999141693115,
+      8.0
+    ],
+    [
+      6.71999979019165,
+      5.559999942779541,
+      9.789999961853027
+    ],
+    [
+      6.079999923706055,
+      7.650000095367432,
+      11.350000381469727
+    ],
+    [
+      7.679999828338623,
+      3.380000114440918,
+      11.449999809265137
+    ],
+    [
+      6.659999847412109,
+      5.619999885559082,
+      13.149999618530273
+    ],
+    [
+      6.0,
+      7.739999771118164,
+      14.5
+    ],
+    [
+      7.579999923706055,
+      3.4600000381469727,
+      14.75
+    ],
+    [
+      6.480000019073486,
+      5.730000019073486,
+      16.329999923706055
+    ],
+    [
+      5.829999923706055,
+      7.809999942779541,
+      17.829999923706055
+    ],
+    [
+      7.300000190734863,
+      3.549999952316284,
+      18.0
+    ],
+    [
+      6.25,
+      5.769999980926514,
+      19.639999389648438
+    ],
+    [
+      6.800000190734863,
+      3.5999999046325684,
+      21.299999237060547
+    ],
+    [
+      5.519999980926514,
+      7.920000076293945,
+      21.6200008392334
+    ],
+    [
+      5.46999979019165,
+      5.849999904632568,
+      23.239999771118164
+    ],
+    [
+      5.199999809265137,
+      3.6700000762939453,
+      24.75
+    ]
+  ],
+  "seed": 20261021,
+  "pixel_m": 0.02,
+  "accuracy": 0.05,
+  "azimuth_unscaled_halfwidth_deg": 3.0,
+  "elevation_unscaled_halfwidth_deg": 0.375,
+  "cases": [
+    {
+      "cannon_fire_range": 800,
+      "advertised_equal_height_range_m": 2115.9999999999995,
+      "common_ai_bort_delta_m": 0.0,
+      "distance_all_guns_reachable_at_target_band_ceiling_m": 2098.377757964542,
+      "nominal_reachable_guns": 51,
+      "maximum_target_band_y": 9.245,
+      "speed_m_per_ball_second": 211.05238805494213,
+      "nominal_mean_muzzle": [
+        6.292156827216055,
+        6.242941150478289,
+        -3.1839216006737128
+      ],
+      "nominal_elevation_rad": 0.24061978666992945,
+      "nominal_elevation_deg": 13.786498243525182,
+      "cap_rad": 0.24239329083557878,
+      "cap_deg": 13.88811254716576,
+      "effective_height_multiply": 0.4,
+      "nominal_flight_ball_seconds": 10.206691715267038,
+      "nominal_flight_game_seconds": 5.103345857633519,
+      "nominal_apex_world_y": 58.52696381114701,
+      "terminal_dy_dx": -0.09658835011004886,
+      "samples": 51000,
+      "results": [
+        {
+          "canonical_dispersion": 0.0,
+          "effective_dispersion": 0.0,
+          "hit_fraction": 0.8921372549019608,
+          "hit_count": 45499,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.12,
+          "effective_dispersion": 0.12000000000000002,
+          "hit_fraction": 0.8404705882352941,
+          "hit_count": 42864,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.14,
+          "effective_dispersion": 0.14000000000000004,
+          "hit_fraction": 0.8265294117647058,
+          "hit_count": 42153,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.15,
+          "effective_dispersion": 0.15000000000000002,
+          "hit_fraction": 0.8194901960784313,
+          "hit_count": 41794,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.16,
+          "effective_dispersion": 0.16000000000000003,
+          "hit_fraction": 0.8126274509803921,
+          "hit_count": 41444,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.18,
+          "effective_dispersion": 0.18000000000000005,
+          "hit_fraction": 0.7980392156862746,
+          "hit_count": 40700,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.2,
+          "effective_dispersion": 0.20000000000000007,
+          "hit_fraction": 0.7828235294117647,
+          "hit_count": 39924,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.25,
+          "effective_dispersion": 0.25000000000000006,
+          "hit_fraction": 0.7418627450980392,
+          "hit_count": 37835,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.28,
+          "effective_dispersion": 0.2800000000000001,
+          "hit_fraction": 0.7154901960784313,
+          "hit_count": 36490,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.3,
+          "effective_dispersion": 0.30000000000000004,
+          "hit_fraction": 0.7003137254901961,
+          "hit_count": 35716,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.32,
+          "effective_dispersion": 0.32000000000000006,
+          "hit_fraction": 0.6830980392156862,
+          "hit_count": 34838,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.35,
+          "effective_dispersion": 0.35000000000000003,
+          "hit_fraction": 0.6577058823529411,
+          "hit_count": 33543,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.4,
+          "effective_dispersion": 0.40000000000000013,
+          "hit_fraction": 0.6116274509803922,
+          "hit_count": 31193,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.5,
+          "effective_dispersion": 0.5000000000000001,
+          "hit_fraction": 0.5192549019607843,
+          "hit_count": 26482,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 1.0,
+          "effective_dispersion": 1.0000000000000002,
+          "hit_fraction": 0.22217647058823528,
+          "hit_count": 11331,
+          "water_before_target_fraction": 0.0
+        }
+      ]
+    },
+    {
+      "cannon_fire_range": 1600,
+      "advertised_equal_height_range_m": 4231.999999999999,
+      "common_ai_bort_delta_m": 0.0,
+      "distance_all_guns_reachable_at_target_band_ceiling_m": 4214.511469401218,
+      "nominal_reachable_guns": 51,
+      "maximum_target_band_y": 9.245,
+      "speed_m_per_ball_second": 298.4731495585286,
+      "nominal_mean_muzzle": [
+        6.292156827216055,
+        6.242941150478289,
+        -3.1839216006737128
+      ],
+      "nominal_elevation_rad": 0.24151071564146834,
+      "nominal_elevation_deg": 13.837544713440293,
+      "cap_rad": 0.24239329083557878,
+      "cap_deg": 13.88811254716576,
+      "effective_height_multiply": 0.4,
+      "nominal_flight_ball_seconds": 14.52057678484858,
+      "nominal_flight_game_seconds": 7.26028839242429,
+      "nominal_apex_world_y": 110.84540388257047,
+      "terminal_dy_dx": -0.09775137376630334,
+      "samples": 51000,
+      "results": [
+        {
+          "canonical_dispersion": 0.0,
+          "effective_dispersion": 0.0,
+          "hit_fraction": 0.8921372549019608,
+          "hit_count": 45499,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.12,
+          "effective_dispersion": 0.06000000000000001,
+          "hit_fraction": 0.8398823529411765,
+          "hit_count": 42834,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.14,
+          "effective_dispersion": 0.07000000000000002,
+          "hit_fraction": 0.8261372549019608,
+          "hit_count": 42133,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.15,
+          "effective_dispersion": 0.07500000000000001,
+          "hit_fraction": 0.818764705882353,
+          "hit_count": 41757,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.16,
+          "effective_dispersion": 0.08000000000000002,
+          "hit_fraction": 0.8118823529411765,
+          "hit_count": 41406,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.18,
+          "effective_dispersion": 0.09000000000000002,
+          "hit_fraction": 0.7972156862745098,
+          "hit_count": 40658,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.2,
+          "effective_dispersion": 0.10000000000000003,
+          "hit_fraction": 0.7823137254901961,
+          "hit_count": 39898,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.25,
+          "effective_dispersion": 0.12500000000000003,
+          "hit_fraction": 0.7407450980392157,
+          "hit_count": 37778,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.28,
+          "effective_dispersion": 0.14000000000000004,
+          "hit_fraction": 0.7148627450980393,
+          "hit_count": 36458,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.3,
+          "effective_dispersion": 0.15000000000000002,
+          "hit_fraction": 0.6986666666666667,
+          "hit_count": 35632,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.32,
+          "effective_dispersion": 0.16000000000000003,
+          "hit_fraction": 0.6817647058823529,
+          "hit_count": 34770,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.35,
+          "effective_dispersion": 0.17500000000000002,
+          "hit_fraction": 0.6555490196078432,
+          "hit_count": 33433,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.4,
+          "effective_dispersion": 0.20000000000000007,
+          "hit_fraction": 0.6095098039215686,
+          "hit_count": 31085,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.5,
+          "effective_dispersion": 0.25000000000000006,
+          "hit_fraction": 0.5158039215686274,
+          "hit_count": 26306,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 1.0,
+          "effective_dispersion": 0.5000000000000001,
+          "hit_fraction": 0.22076470588235295,
+          "hit_count": 11259,
+          "water_before_target_fraction": 0.0
+        }
+      ]
+    },
+    {
+      "cannon_fire_range": 800,
+      "advertised_equal_height_range_m": 2115.9999999999995,
+      "common_ai_bort_delta_m": 4.4,
+      "distance_all_guns_reachable_at_target_band_ceiling_m": 2098.377757964542,
+      "nominal_reachable_guns": 51,
+      "maximum_target_band_y": 9.245,
+      "speed_m_per_ball_second": 211.05238805494213,
+      "nominal_mean_muzzle": [
+        6.292156827216055,
+        6.242941150478289,
+        -3.1839216006737128
+      ],
+      "nominal_elevation_rad": 0.24061978666992945,
+      "nominal_elevation_deg": 13.786498243525182,
+      "cap_rad": 0.24239329083557878,
+      "cap_deg": 13.88811254716576,
+      "effective_height_multiply": 0.4,
+      "nominal_flight_ball_seconds": 10.206691715267038,
+      "nominal_flight_game_seconds": 5.103345857633519,
+      "nominal_apex_world_y": 58.52696381114701,
+      "terminal_dy_dx": -0.09658835011004886,
+      "samples": 51000,
+      "results": [
+        {
+          "canonical_dispersion": 0.0,
+          "effective_dispersion": 0.0,
+          "hit_fraction": 0.8804117647058823,
+          "hit_count": 44901,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.12,
+          "effective_dispersion": 0.12000000000000002,
+          "hit_fraction": 0.8339215686274509,
+          "hit_count": 42530,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.14,
+          "effective_dispersion": 0.14000000000000004,
+          "hit_fraction": 0.8202156862745098,
+          "hit_count": 41831,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.15,
+          "effective_dispersion": 0.15000000000000002,
+          "hit_fraction": 0.8132941176470588,
+          "hit_count": 41478,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.16,
+          "effective_dispersion": 0.16000000000000003,
+          "hit_fraction": 0.8057450980392157,
+          "hit_count": 41093,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.18,
+          "effective_dispersion": 0.18000000000000005,
+          "hit_fraction": 0.7927058823529411,
+          "hit_count": 40428,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.2,
+          "effective_dispersion": 0.20000000000000007,
+          "hit_fraction": 0.7765490196078432,
+          "hit_count": 39604,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.25,
+          "effective_dispersion": 0.25000000000000006,
+          "hit_fraction": 0.7359019607843137,
+          "hit_count": 37531,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.28,
+          "effective_dispersion": 0.2800000000000001,
+          "hit_fraction": 0.7113725490196079,
+          "hit_count": 36280,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.3,
+          "effective_dispersion": 0.30000000000000004,
+          "hit_fraction": 0.6937450980392157,
+          "hit_count": 35381,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.32,
+          "effective_dispersion": 0.32000000000000006,
+          "hit_fraction": 0.6764509803921569,
+          "hit_count": 34499,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.35,
+          "effective_dispersion": 0.35000000000000003,
+          "hit_fraction": 0.6516666666666666,
+          "hit_count": 33235,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.4,
+          "effective_dispersion": 0.40000000000000013,
+          "hit_fraction": 0.6062941176470589,
+          "hit_count": 30921,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.5,
+          "effective_dispersion": 0.5000000000000001,
+          "hit_fraction": 0.513,
+          "hit_count": 26163,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 1.0,
+          "effective_dispersion": 1.0000000000000002,
+          "hit_fraction": 0.22201960784313726,
+          "hit_count": 11323,
+          "water_before_target_fraction": 0.0
+        }
+      ]
+    },
+    {
+      "cannon_fire_range": 1600,
+      "advertised_equal_height_range_m": 4231.999999999999,
+      "common_ai_bort_delta_m": 4.4,
+      "distance_all_guns_reachable_at_target_band_ceiling_m": 4214.511469401218,
+      "nominal_reachable_guns": 51,
+      "maximum_target_band_y": 9.245,
+      "speed_m_per_ball_second": 298.4731495585286,
+      "nominal_mean_muzzle": [
+        6.292156827216055,
+        6.242941150478289,
+        -3.1839216006737128
+      ],
+      "nominal_elevation_rad": 0.24151071564146834,
+      "nominal_elevation_deg": 13.837544713440293,
+      "cap_rad": 0.24239329083557878,
+      "cap_deg": 13.88811254716576,
+      "effective_height_multiply": 0.4,
+      "nominal_flight_ball_seconds": 14.52057678484858,
+      "nominal_flight_game_seconds": 7.26028839242429,
+      "nominal_apex_world_y": 110.84540388257047,
+      "terminal_dy_dx": -0.09775137376630334,
+      "samples": 51000,
+      "results": [
+        {
+          "canonical_dispersion": 0.0,
+          "effective_dispersion": 0.0,
+          "hit_fraction": 0.8802941176470588,
+          "hit_count": 44895,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.12,
+          "effective_dispersion": 0.06000000000000001,
+          "hit_fraction": 0.8335686274509804,
+          "hit_count": 42512,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.14,
+          "effective_dispersion": 0.07000000000000002,
+          "hit_fraction": 0.8194509803921569,
+          "hit_count": 41792,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.15,
+          "effective_dispersion": 0.07500000000000001,
+          "hit_fraction": 0.8122745098039216,
+          "hit_count": 41426,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.16,
+          "effective_dispersion": 0.08000000000000002,
+          "hit_fraction": 0.8052156862745098,
+          "hit_count": 41066,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.18,
+          "effective_dispersion": 0.09000000000000002,
+          "hit_fraction": 0.7916666666666666,
+          "hit_count": 40375,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.2,
+          "effective_dispersion": 0.10000000000000003,
+          "hit_fraction": 0.7752941176470588,
+          "hit_count": 39540,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.25,
+          "effective_dispersion": 0.12500000000000003,
+          "hit_fraction": 0.7347058823529412,
+          "hit_count": 37470,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.28,
+          "effective_dispersion": 0.14000000000000004,
+          "hit_fraction": 0.7098039215686275,
+          "hit_count": 36200,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.3,
+          "effective_dispersion": 0.15000000000000002,
+          "hit_fraction": 0.6916078431372549,
+          "hit_count": 35272,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.32,
+          "effective_dispersion": 0.16000000000000003,
+          "hit_fraction": 0.6747254901960784,
+          "hit_count": 34411,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.35,
+          "effective_dispersion": 0.17500000000000002,
+          "hit_fraction": 0.6494509803921569,
+          "hit_count": 33122,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.4,
+          "effective_dispersion": 0.20000000000000007,
+          "hit_fraction": 0.6045098039215686,
+          "hit_count": 30830,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 0.5,
+          "effective_dispersion": 0.25000000000000006,
+          "hit_fraction": 0.5106666666666667,
+          "hit_count": 26044,
+          "water_before_target_fraction": 0.0
+        },
+        {
+          "canonical_dispersion": 1.0,
+          "effective_dispersion": 0.5000000000000001,
+          "hit_fraction": 0.22050980392156863,
+          "hit_count": 11246,
+          "water_before_target_fraction": 0.0
+        }
+      ]
+    }
+  ]
+}

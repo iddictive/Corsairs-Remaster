@@ -1,0 +1,41 @@
+{
+  "status": "candidate not accepted; no Save or route reached",
+  "native_startup": {
+    "engine_sha256": "9eefcae5ceb2b328d6712d13d667f74617079a00de72b7bd105702e166b54020",
+    "exit_code": 2,
+    "wall_seconds": 1.043750286102295,
+    "primary_exception": "fail to create program",
+    "compiler_error": "Duplicate variable name: fleet",
+    "compiler_cumulative_line": 42521,
+    "source_owner": "src/gameplay/PROGRAM/sea_ai/sea_traffic.c:SeaTraffic_Admit",
+    "scope": "function locals reused across separate loops; world owner consolidated declarations after this rejection",
+    "live_runtime_and_original_save_unchanged": true,
+    "gpu_slot_released": true
+  },
+  "cpu_diagnostics": [
+    {
+      "evidence": "resource-stale-cpu-error.log",
+      "source": "sea_ai/sea.c:1710",
+      "error": "Invalid Expression",
+      "cause": "disposable projection used stale RESOURCE/shared/messages.h without MSG_ISLAND_SELECT_REGION",
+      "correction_owner": "disposable resource projection; normal stage copies canonical shared_headers/include/shared"
+    },
+    {
+      "evidence": "shared-bound-cpu-error.log",
+      "source": "sea_ai/sea.c:1714",
+      "error": "Invalid syntax",
+      "observation": "local reload declaration collides with existing Reload function in reload.c:125",
+      "correction_owner": "island residency source owner; renamed regionFortReload and added explicit outer-for braces"
+    }
+  ],
+  "final_cpu_compile": {
+    "full_PROGRAM_prelude_passed": true,
+    "PROGRAM_tree_sha256": "e34e312abbaf469d8cb50a083dbba00c11af5ed5cafa3613b047a36452c07c78",
+    "completion_marker": "Function [Main] already declared in: seadogs.c line 238",
+    "meaning": "existing probe compiled full seadogs.c, then deliberately stopped at its second driver Main before any VM Run",
+    "additional_source_fixes": "island outer-for braces and GetEntity out-references; world split three initialized comma declarations",
+    "raw": "cpu-error.log",
+    "inputs": "cpu-compile.json"
+  },
+  "limits": "startup compilation evidence only; native renderer, ordinary Save upgrade, Goods, routes, EID continuity and performance remain untested on candidate"
+}

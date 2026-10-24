@@ -1,0 +1,326 @@
+{
+  "evidence_class": "actual full PROGRAM hidden native CORE ordinary detector route baseline; player visual acceptance remains separate",
+  "status": "PASS transport/crossings/Save roundtrip; no performance improvement claimed",
+  "runtime": {
+    "head": "997239e482101cdd8f437bed20908918e78811e7",
+    "width": 1920,
+    "height": 1080,
+    "timer": "real elapsed time; native120 FPS Limiter; vsync1",
+    "route_wall_seconds": 25.710209846496582,
+    "peak_rss_bytes": 4112334848,
+    "core_frames": 1424,
+    "renderer_frames": 1739,
+    "gpu_commands": 1746
+  },
+  "startup_frames": [
+    {
+      "frame": "0",
+      "wall_ms": 1348.819417
+    },
+    {
+      "frame": "1",
+      "wall_ms": 6.10975
+    },
+    {
+      "frame": "2",
+      "wall_ms": 1888.871875
+    }
+  ],
+  "transitions": [
+    {
+      "from": "PuertoRico",
+      "to": "Barbados",
+      "source_scale": 50,
+      "destination_scale": 50,
+      "first_active_frame": 277,
+      "first_inactive_frame": 336,
+      "active_wall_ms": 1771.862,
+      "captured_hold_observed_wall_ms": 1478.6500409999999,
+      "max_core_wall_ms": 1032.343875,
+      "last_old_world": [
+        900.0,
+        -299.994934082
+      ],
+      "first_new_world": [
+        899.999023438,
+        -299.993560791
+      ],
+      "last_old_yaw": 0.0,
+      "first_new_yaw": 0.0,
+      "old_player_eid": "6961857982103552059",
+      "new_player_eid": "6961876240009527461",
+      "old_sea_eid": "6961855997828661256",
+      "new_sea_eid": "6961875127612997850",
+      "first_new_valid_frame": 301
+    },
+    {
+      "from": "Barbados",
+      "to": "Antigua",
+      "source_scale": 50,
+      "destination_scale": 50,
+      "first_active_frame": 582,
+      "first_inactive_frame": 641,
+      "active_wall_ms": 1721.7657500000005,
+      "captured_hold_observed_wall_ms": 1429.6313750000008,
+      "max_core_wall_ms": 981.367542,
+      "last_old_world": [
+        980.0,
+        -170.487945557
+      ],
+      "first_new_world": [
+        980.0,
+        -170.466651917
+      ],
+      "last_old_yaw": 0.0,
+      "first_new_yaw": 0.0,
+      "old_player_eid": "6961876240009527461",
+      "new_player_eid": "6961892844353093683",
+      "old_sea_eid": "6961875127612997850",
+      "new_sea_eid": "6961892011129438263",
+      "first_new_valid_frame": 606
+    },
+    {
+      "from": "Antigua",
+      "to": "Tortuga",
+      "source_scale": 50,
+      "destination_scale": 50,
+      "first_active_frame": 759,
+      "first_inactive_frame": 819,
+      "active_wall_ms": 1709.4986659999995,
+      "captured_hold_observed_wall_ms": 1408.1306249999998,
+      "max_core_wall_ms": 957.785167,
+      "last_old_world": [
+        -85.2022705078,
+        899.999961853
+      ],
+      "first_new_world": [
+        -85.2030639648,
+        899.999023438
+      ],
+      "last_old_yaw": -1.57079637051,
+      "first_new_yaw": -1.57079994678,
+      "old_player_eid": "6961892844353093683",
+      "new_player_eid": "6961904999110541492",
+      "old_sea_eid": "6961892011129438263",
+      "new_sea_eid": "6961904071397605572",
+      "first_new_valid_frame": 783
+    },
+    {
+      "from": "Tortuga",
+      "to": "Cuba1",
+      "source_scale": 50,
+      "destination_scale": 25,
+      "first_active_frame": 1069,
+      "first_inactive_frame": 1128,
+      "active_wall_ms": 1786.7814999999973,
+      "captured_hold_observed_wall_ms": 1490.6891660000001,
+      "max_core_wall_ms": 1045.013584,
+      "last_old_world": [
+        -85.5138549805,
+        900.0
+      ],
+      "first_new_world": [
+        -85.5545654297,
+        900.0
+      ],
+      "last_old_yaw": -1.57079637051,
+      "first_new_yaw": -1.57079994678,
+      "old_player_eid": "6961904999110541492",
+      "new_player_eid": "6961921990001164306",
+      "old_sea_eid": "6961904071397605572",
+      "new_sea_eid": "6961920757345550388",
+      "first_new_valid_frame": 1093
+    },
+    {
+      "from": "Cuba1",
+      "to": "Tortuga",
+      "source_scale": 25,
+      "destination_scale": 50,
+      "first_active_frame": 1245,
+      "first_inactive_frame": 1303,
+      "active_wall_ms": 1669.0743750000001,
+      "captured_hold_observed_wall_ms": 1375.3962919999976,
+      "max_core_wall_ms": 940.012916,
+      "last_old_world": [
+        -85.2500305176,
+        900.0
+      ],
+      "first_new_world": [
+        -85.2298278809,
+        900.0
+      ],
+      "last_old_yaw": 1.57079637051,
+      "first_new_yaw": 1.57079994678,
+      "old_player_eid": "6961921990001164306",
+      "new_player_eid": "6961933822636064972",
+      "old_sea_eid": "6961920757345550388",
+      "new_sea_eid": "6961932985117442235",
+      "first_new_valid_frame": 1268
+    }
+  ],
+  "steady_cpu_by_location": {
+    "PuertoRico": {
+      "count": 254,
+      "mean_ms": 8.663565641732283,
+      "median_ms": 7.8886045,
+      "p95_ms": 9.000292,
+      "max_ms": 98.422167
+    },
+    "Barbados": {
+      "count": 224,
+      "mean_ms": 8.225346888392858,
+      "median_ms": 8.1279375,
+      "p95_ms": 9.029667,
+      "max_ms": 10.932
+    },
+    "Antigua": {
+      "count": 96,
+      "mean_ms": 8.245702302083334,
+      "median_ms": 8.248292,
+      "p95_ms": 9.043083,
+      "max_ms": 11.107375
+    },
+    "Tortuga": {
+      "count": 306,
+      "mean_ms": 8.251105810457517,
+      "median_ms": 8.2361665,
+      "p95_ms": 9.058917,
+      "max_ms": 10.796083
+    },
+    "Cuba1": {
+      "count": 95,
+      "mean_ms": 8.220591684210527,
+      "median_ms": 8.173417,
+      "p95_ms": 9.11775,
+      "max_ms": 9.247125
+    }
+  },
+  "gpu_sea_drawn_frame_work": {
+    "count": 1318,
+    "mean_ms": 3.934417301343757,
+    "median_ms": 3.6223959177732468,
+    "p95_ms": 5.680207861587405,
+    "max_ms": 21.669333102181554
+  },
+  "gpu_all_present_frame_work": {
+    "count": 1739,
+    "mean_ms": 3.053522791821657,
+    "median_ms": 3.403125097975135,
+    "p95_ms": 5.490416893735528,
+    "max_ms": 21.669333102181554
+  },
+  "gpu_claim_ceiling": "GPU work sums command buffers by renderer frame ID; renderer IDs include loading progress presents and are not CORE frame IDs. Sea-drawn/animated filter is not an exact CPU steady-window mapping.",
+  "state_pairs": [
+    {
+      "from": "barbados_before_antigua",
+      "to": "antigua_after",
+      "actor_indices_before": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "actor_indices_after": [
+        "1",
+        "276",
+        "279",
+        "369",
+        "373",
+        "432"
+      ],
+      "persistent_changes": {},
+      "all_common_native_ship_eids_recreated": true
+    },
+    {
+      "from": "tortuga_50_before_cuba1",
+      "to": "cuba1_25_after",
+      "actor_indices_before": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "actor_indices_after": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "persistent_changes": {},
+      "all_common_native_ship_eids_recreated": true
+    },
+    {
+      "from": "cuba1_25_after",
+      "to": "tortuga_50_after",
+      "actor_indices_before": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "actor_indices_after": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "persistent_changes": {},
+      "all_common_native_ship_eids_recreated": true
+    },
+    {
+      "from": "before_save",
+      "to": "after_roundtrip_load",
+      "actor_indices_before": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "actor_indices_after": [
+        "1",
+        "276",
+        "369",
+        "373",
+        "432"
+      ],
+      "persistent_changes": {},
+      "all_common_native_ship_eids_recreated": true
+    }
+  ],
+  "clock_unique": [
+    [
+      "1668",
+      "12",
+      "29",
+      "6",
+      "5",
+      "0"
+    ]
+  ],
+  "original_save_unchanged": true,
+  "original_profile_inputs_unchanged": true,
+  "notes": [
+    "Only player fleet was moved at labelled fixture setup; real ship physics crossed native authored areas; native detector/admission/SeaLogin performed each handover",
+    "Full scene PNGs are retained evidence, not player acceptance",
+    "No production source, CMake, API or permanent test changed",
+    "Captured hold observation is frame-sampled; active_wall_ms includes reveal",
+    "Complete output quality remains human acceptance; do not infer retained visual quality from timings"
+  ],
+  "gpu_command_status_counts": {
+    "4": 1746
+  },
+  "gpu_nonpositive_duration_count": 0,
+  "frame_observation": {
+    "initial_puertorico": "A central three-masted ship on dark moving sea under clouds, island silhouettes on the horizon; five companion badges at left, compass/date/speed/ammunition HUD at right.",
+    "after_antigua": "The same central ship and HUD arrangement on open sea under a darker cloud region; endpoint images contain a sea scene.",
+    "claim_ceiling": "Endpoint captures establish rendered scene presence only; no player acceptance or complete transition visual verdict."
+  },
+  "observed_script_error_lines": 36,
+  "script_error_claim_ceiling": "Nonzero actual PROGRAM diagnostics retained. Baseline execution/roundtrip succeeded; this does not claim zero script errors or remediation of inherited load/sea-login diagnostics."
+}

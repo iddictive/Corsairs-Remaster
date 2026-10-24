@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-21",
+  "purpose": "index-safe crime reporter detachment before whole-group phantom recycling; registered fort position consumption",
+  "baseline": {
+    "canonical_source": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+    "sha256": "94ac01b7befc19b0016aca61226283374ab0299c7e015a15d55635c9b9690487",
+    "result": 101,
+    "exit_code": 1,
+    "meaning": "replacement character at old slot still matches old target crime"
+  },
+  "candidate": {
+    "canonical_source": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+    "sha256": "897b5e6646ba763fa398c9e3b1f91ab6d938aa877a6401fcd7cc6744b11dcad7",
+    "functions": [
+      "CrimeSea_CanReleaseActor",
+      "CrimeSea_ArchiveActorReporter",
+      "CrimeSea_ReleaseActor",
+      "CrimeSea_ObserveFort"
+    ],
+    "expected_exit_code": 0
+  },
+  "conditions": {
+    "layer": "real isolated script compiler/VM and normal COMPILER::SaveState/LoadState",
+    "save_rounds_per_save_scenario": 1,
+    "gui": false,
+    "gpu_scene": false,
+    "build_performed": false,
+    "user_save_read_or_written": false,
+    "permanent_test_delta": 0,
+    "diagnostic_source": "experiments/native-metal/script_vm_probe.cpp",
+    "diagnostic_binary_sha256": "823d0e165e1eff91c3fa30ae7fcc2e85171fc75d9f1902aed0684a16e7be4491"
+  },
+  "evidence_sha256": {
+    "candidate-results.json": "897b35cdfb6dc9ccc57bc48a8396418b1135bc47e6982a0f8ffe102a48286c56",
+    "baseline-results.json": "2e9623b4835ba965376416ae80a8555ccb78051e48aa0e2f890df99eedcf283a",
+    "candidate-cases.c.txt": "06fb45d21f467dec1e5f98a99edf3ba83e4843a0b2b6f707246e80ff1517a8a4",
+    "baseline-cases.c.txt": "719fb2d1a51b40608f60a5ff14715d4ee434e83dd462351852f7f4da36e9f042"
+  }
+}

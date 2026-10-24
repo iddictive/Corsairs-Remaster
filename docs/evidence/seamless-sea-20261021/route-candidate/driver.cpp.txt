@@ -1,0 +1,92 @@
+// Disposable baseline evidence: existing full PROGRAM and normal CORE frames.
+// Fixture setup moves only the player fleet. Region detection/admission/loading
+// remain production handlers; no synthetic event substitutes for a crossing.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "ship_base.h"
+#include "geometry.h"
+#include "world_map_island_area.hpp"
+#include "sea_map_transition.hpp"
+#include "frame_limiter.hpp"
+#include <SDL2/SDL.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <map>
+#include <set>
+#include <sstream>
+#include <thread>
+#include <spdlog/spdlog.h>
+extern "C" bool StormMetalFlushFrameTrace(void *);
+using Clock=std::chrono::steady_clock;
+VDATA *var(const char *n){return static_cast<VDATA *>(core.GetScriptVariable(n));}
+int flag(const char*n){auto*v=var(n);return v?v->GetInt():-1;}
+ATTRIBUTES* attr(const char*n){auto*v=var(n);if(!v)return nullptr;auto*d=static_cast<DATA*>(v);if(d->GetType()==VAR_REFERENCE&&!d->GetReference())return nullptr;return v->GetAClass();}
+std::string value(ATTRIBUTES*a,const char*n){auto*b=a?a->FindAClass(a,n):nullptr;return b&&b->HasValue()?b->GetValue():"";}
+double number(ATTRIBUTES*a,const char*n){auto*b=a?a->FindAClass(a,n):nullptr;return b?b->GetAttributeAsFloat():0.;}
+SHIP_BASE* playerShip(entid_t*eid=nullptr){auto*p=attr("pchar");for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id)))if(p&&s->GetACharacter()&&value(s->GetACharacter(),"index")==value(p,"index")){if(eid)*eid=id;return s;}return nullptr;}
+int logicalScale(){core_internal.Compiler->SetEventHandler("Probe_SeaLogicalScale","GetSeaToMapScale",0);auto*r=core.Event("Probe_SeaLogicalScale");return r?r->GetInt():0;}
+int scale(){core_internal.Compiler->SetEventHandler("Probe_SeaScale","GetSeaFrameScale",0);auto*r=core.Event("Probe_SeaScale");return r?r->GetInt():0;}
+double frameZero(const char*axis){auto*a=attr("AISea");const auto path=std::string("worldFrame.")+axis;if(value(a,"worldFrame.version")=="1")return number(a,path.c_str());return number(attr("worldMap"),axis);}
+void load(const char*name){core_internal.Compiler->SetEventHandler("evntLoad","LoadGame",0);core.Event("evntLoad","s",name);}
+bool observeGoods(std::ofstream&out,int frame,const char*tag){auto*items=var("Goods");const auto count=items?items->GetElementsNum():0;auto*darts=count>=53?items->GetAClass(52):nullptr;auto*grapes=count>=3?items->GetAClass(2):nullptr;const auto name=value(darts,"Name");const double dartsHull=number(darts,"DamageHull"),grapesHull=number(grapes,"DamageHull");const bool ok=count>=53&&name=="Darts"&&std::abs(dartsHull-2.5)<.000001&&std::abs(grapesHull-5.75)<.000001;out<<"goods_catalogue tag="<<tag<<" frame="<<frame<<" array_size="<<count<<" goods52_name="<<std::quoted(name)<<" goods52_damage_hull="<<dartsHull<<" goods2_damage_hull="<<grapesHull<<" ok="<<ok<<'\n';out.flush();return ok;}
+void flatten(std::ostream&out,ATTRIBUTES*a,const std::string&prefix){if(!a)return;if(a->HasValue())out<<prefix<<'='<<a->GetValue()<<';';for(size_t i=0;i<a->GetAttributesNum();++i){auto*c=a->GetAttributeClass(uint32_t(i));flatten(out,c,prefix+"."+c->GetThisName());}}
+void snapshot(std::ofstream&out,int frame,const char*tag){auto*p=attr("pchar");auto*w=attr("worldMap");auto*e=attr("Environment");out<<"snapshot="<<tag<<" frame="<<frame<<" location="<<value(p,"location")<<" scale="<<scale()<<" date="<<value(e,"date.year")<<'-'<<value(e,"date.month")<<'-'<<value(e,"date.day")<<'T'<<value(e,"date.hour")<<':'<<value(e,"date.min")<<':'<<value(e,"date.sec")<<" zero="<<frameZero("zeroX")<<','<<frameZero("zeroZ")<<'\n';for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id))){auto*c=s->GetACharacter();out<<"actor eid="<<id<<" index="<<value(c,"index")<<" hp="<<value(c,"Ship.HP")<<" sp="<<value(c,"Ship.SP")<<" crew="<<value(c,"Ship.Crew.Quantity")<<" pos="<<s->GetPos().x<<','<<s->GetPos().z<<" yaw="<<s->State.vAng.y<<" velocity="<<s->State.vSpeed.x<<','<<s->State.vSpeed.z<<" cargo=";flatten(out,c?c->FindAClass(c,"Ship.Cargo.Goods"):nullptr,"goods");out<<'\n';}out.flush();}
+bool setup(double x,double z,double yaw,std::ofstream&out,int frame,const char*tag){auto*p=attr("pchar");auto*w=attr("worldMap");auto*ship=playerShip();const int k=scale();if(!ship||!w||(k!=25&&k!=50))return false;const CVECTOR delta(float((x-frameZero("zeroX"))*k-ship->GetPos().x),0.f,float((z-frameZero("zeroZ"))*k-ship->GetPos().z));std::set<std::string>captains{value(p,"index")};auto*companions=p?p->FindAClass(p,"Fellows.Companions"):nullptr;if(companions)for(size_t i=0;i<companions->GetAttributesNum();++i){auto*c=companions->GetAttributeClass(uint32_t(i));if(c&&c->HasValue())captains.insert(c->GetValue());}for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id)))if(captains.contains(value(s->GetACharacter(),"index")))s->SetPos(s->GetPos()+delta);ship->State.vAng.y=float(yaw);ship->State.vRotate=CVECTOR(0.f);ship->State.vSpeed=CVECTOR(0.f);out<<"fixture_setup="<<tag<<" frame="<<frame<<" world="<<x<<','<<z<<" yaw="<<yaw<<" scale="<<k<<" player_fleet_count="<<captains.size()<<'\n';out.flush();return true;}
+void roster(const std::filesystem::path&path){
+ struct Count{int all=0,alive=0;std::string model;};std::map<int,Count>counts;int descriptors=0,entries=0,alive=0;
+ auto*w=attr("worldMap");auto*encounters=w?w->FindAClass(w,"encounters"):nullptr;auto*types=var("ShipsTypes");
+ if(encounters)for(size_t d=0;d<encounters->GetAttributesNum();++d){auto*descriptor=encounters->GetAttributeClass(uint32_t(d));auto*r=descriptor?descriptor->FindAClass(descriptor,"encdata.trafficRoster"):nullptr;if(!r)continue;++descriptors;
+  for(size_t i=0;i<r->GetAttributesNum();++i){auto*ship=r->GetAttributeClass(uint32_t(i));const auto base=value(ship,"baseType");if(base.empty())continue;const int type=std::stoi(base);if(type<0)continue;auto&c=counts[type];++c.all;++entries;if(number(ship,"dead")==0){++c.alive;++alive;}if(types&&uint32_t(type)<types->GetElementsNum())c.model=value(types->GetAClass(uint32_t(type)),"Name");}}
+ std::ofstream out(path);out<<"{\n  \"descriptor_count\": "<<descriptors<<",\n  \"roster_entries\": "<<entries<<",\n  \"alive_hulls\": "<<alive<<",\n  \"base_type_variety\": "<<counts.size()<<",\n  \"base_types\": [\n";bool first=true;for(const auto&[type,c]:counts){if(!first)out<<",\n";first=false;out<<"    {\"base_type\":"<<type<<",\"model\":"<<std::quoted(c.model)<<",\"count\":"<<c.all<<",\"alive\":"<<c.alive<<"}";}out<<"\n  ]\n}\n";
+}
+bool membership(std::ofstream&out){auto*g=static_cast<VGEOMETRY*>(core.GetService("geometry"));if(!g)return false;const std::string old=g->GetTexturePath();g->SetTexturePath("WorldMap\\Geometry\\");struct Case{const char*island;double x,z;bool expected;};const Case cases[]={{"barbados",900,-300,true},{"barbados",980,-170.8,true},{"antigua",980,-170.8,false},{"barbados",980,-170.5,false},{"antigua",980,-170.5,true},{"tortuga",-85.2,900,true},{"cuba1",-85.2,900,false},{"tortuga",-85.46,900,false},{"cuba1",-85.46,900,true}};bool ok=true;for(const auto&c:cases){const auto name=std::string("WorldMap\\islands\\")+c.island+"_area";std::unique_ptr<GEOS>a(g->CreateGeometry(name.c_str(),"",0));const bool observed=storm_map_resources::ContainsIslandArea(a.get(),float(c.x),float(c.z));out<<"area="<<c.island<<" x="<<c.x<<" z="<<c.z<<" expected="<<c.expected<<" observed="<<observed<<'\n';ok=ok&&(observed==c.expected);}g->SetTexturePath(old.c_str());out.flush();return ok;}
+bool capture(const std::filesystem::path&name){auto*r=static_cast<VDX9RENDER*>(core.GetService("dx9render"));if(!r)return false;auto*d=r->GetNativeDevice();storm_render::Surface*t=nullptr,*read=nullptr;if(storm_render::failed(d->GetRenderTarget(&t)))return false;storm_render::SurfaceDesc desc{};t->GetDesc(&desc);bool ok=storm_render::succeeded(d->CreateOffscreenPlainSurface(desc.Width,desc.Height,storm_render::AssetFormat::A8R8G8B8,&read))&&storm_render::succeeded(d->GetRenderTargetData(t,read));if(ok){storm_render::LockedRect px{};ok=storm_render::succeeded(read->LockRect(&px,nullptr,storm_render::lock::readOnly));if(ok){std::ofstream f(name,std::ios::binary);f<<"P6\n"<<desc.Width<<' '<<desc.Height<<"\n255\n";for(unsigned y=0;y<desc.Height;++y)for(unsigned x=0;x<desc.Width;++x){const auto*p=static_cast<const unsigned char*>(px.pBits)+y*px.Pitch+x*4;const char rgb[]={char(p[2]),char(p[1]),char(p[0])};f.write(rgb,3);}ok=bool(f);read->UnlockRect();}}if(read)read->Release();if(t)t->Release();return ok;}
+int main(int argc,char**argv){
+ if(argc!=2)return 64;const auto cwd=std::filesystem::canonical(argv[1]);std::filesystem::current_path(cwd);std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1);setenv("STORM_QUIET_CLIENT","1",1);setenv("STORM_METAL_PROFILE","1",1);setenv("STORM_METAL_FRAME_TRACE",(cwd/"renderer-frames.csv").c_str(),1);
+ mi_option_set(mi_option_show_errors,1);mi_option_set(mi_option_show_stats,0);mi_option_set(mi_option_eager_commit,1);mi_option_set(mi_option_eager_region_commit,1);mi_option_set(mi_option_large_os_pages,1);mi_option_set(mi_option_reserve_huge_os_pages,1);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO))return 65;steamapi::SteamApi::getInstance(true);auto window=storm::OSWindow::Create(1920,1080,0,false,false);if(!window||!window->OSHandle()||(SDL_GetWindowFlags(static_cast<SDL_Window*>(window->OSHandle()))&SDL_WINDOW_SHOWN))return 66;
+ core_internal.Init();core_internal.SetWindow(window);core_internal.InitBase();storm::frame::Limiter limiter(120);
+ std::ofstream rows(cwd/"frames.csv"),actors(cwd/"snapshots.txt"),events(cwd/"events.txt");rows<<std::setprecision(12);events<<std::setprecision(12);actors<<std::setprecision(12);
+ rows<<"frame,elapsed_ms,cpu_wall_ms,real_delta_ms,sim_delta_ms,rss_bytes,peak_rss_bytes,phase,sea_active,sea_loaded,reload,ships,sea_eid,worldmap_eid,transition_eid,transition_active,hold_loading,scene_prepared,location,island,scale,zero_x,zero_z,ship_eid,ship_x,ship_z,world_x,world_z,heading,speed_x,speed_z,clock_year,clock_month,clock_day,clock_hour,clock_min,clock_sec,logical_scale,logical_zero_x,logical_zero_z,world_frame_version,traffic_entity_eid,capture_after_frame\n";
+ int phase=0,stable=0;bool loadSent=false,areas=false,ok=false,saved=false,roundtripPending=false;entid_t lastSea=0,sessionSea=0,sessionPlayer=0;int sessionScale=0;double sessionZeroX=0,sessionZeroZ=0;const auto start=Clock::now();auto phaseStart=start;
+ auto advance=[&](int next,int frame,const char*tag){phase=next;stable=0;phaseStart=Clock::now();events<<"phase="<<next<<" frame="<<frame<<" tag="<<tag<<'\n';events.flush();std::cout<<"phase="<<next<<" frame="<<frame<<" tag="<<tag<<"\n"<<std::flush;};
+ try{for(int frame=0;frame<14000;++frame){
+  if(std::chrono::duration<double>(Clock::now()-start).count()>115){events<<"deadline=1\n";break;}if(phase>0&&std::chrono::duration<double>(Clock::now()-phaseStart).count()>22){events<<"phase_deadline="<<phase<<'\n';break;}
+  SDL_PumpEvents();SDL_FlushEvents(0,SDL_LASTEVENT);std::this_thread::sleep_until(limiter.NextFrame(Clock::now()));
+  const auto begin=Clock::now();if(!core_internal.Run())break;const auto after=Clock::now();const double cpu=std::chrono::duration<double,std::milli>(after-begin).count();
+  auto*p=attr("pchar");auto*w=attr("worldMap");auto*a=attr("AISea");auto*e=attr("Environment");entid_t playerId=0;auto*ship=playerShip(&playerId);const bool valid=flag("bSeaActive")==1&&flag("bSeaLoaded")==1&&ship;const bool active=SeaMapTransition::Active(),hold=SeaMapTransition::Loading();const int k=valid?scale():0;const int logical=valid?logicalScale():0;const auto location=value(p,"location");const auto transition=core.GetEntityId("SeaMapTransition");auto*ta=core.Entity_GetAttributePointer(transition);
+  size_t elapsed=0,user=0,system=0,rss=0,peak=0,commit=0,peakCommit=0,faults=0;mi_process_info(&elapsed,&user,&system,&rss,&peak,&commit,&peakCommit,&faults);
+  if(peak>size_t(8)*1024*1024*1024){events<<"native_peak_rss_limit="<<peak<<"\n";break;}
+  const bool steady=valid&&!active&&flag("bSeaReloadStarted")==0;if(steady)++stable;else stable=0;
+  if(sessionSea&&phase<6&&(core.GetEntityId("sea")!=sessionSea||playerId!=sessionPlayer||active||hold||transition||k!=sessionScale||std::abs(frameZero("zeroX")-sessionZeroX)>.0001||std::abs(frameZero("zeroZ")-sessionZeroZ)>.0001)){events<<"continuity_rejected frame="<<frame<<" sea="<<core.GetEntityId("sea")<<" player="<<playerId<<" transition="<<transition<<" frame_scale="<<k<<"\n";break;}
+  std::string image;
+  if(phase==0&&loadSent&&steady&&stable==180){image="initial-puertorico.ppm";snapshot(actors,frame,"initial_real_save");if(!observeGoods(events,frame,"after_initial_normal_load"))break;if(!membership(events)){events<<"membership_rejected=1\n";break;}areas=true;sessionSea=core.GetEntityId("sea");sessionPlayer=playerId;sessionScale=k;sessionZeroX=frameZero("zeroX");sessionZeroZ=frameZero("zeroZ");roster(cwd/"traffic-roster.json");events<<"continuity_reference sea="<<sessionSea<<" player="<<sessionPlayer<<" frame_scale="<<sessionScale<<" zero="<<sessionZeroX<<","<<sessionZeroZ<<"\n";if(!setup(900,-300,0,events,frame,"barbados_setup"))break;advance(1,frame,"wait_barbados");}
+  else if(phase==1&&steady&&location=="Barbados"&&stable>=60){image="barbados-before.ppm";snapshot(actors,frame,"barbados_before_antigua");if(logicalScale()!=50){events<<"wrong_barbados_scale="<<k<<'\n';break;}if(!setup(980,-170.8,0,events,frame,"barbados_antigua_border"))break;advance(2,frame,"cross_antigua");}
+  else if(phase==2&&steady&&location=="Antigua"&&stable>=60){image="antigua-after.ppm";snapshot(actors,frame,"antigua_after");if(logicalScale()!=50)break;if(!setup(-85.2,900,-1.57079632679,events,frame,"tortuga_setup"))break;advance(3,frame,"wait_tortuga");}
+  else if(phase==3&&steady&&location=="Tortuga"&&stable>=60){image="tortuga-before-cuba.ppm";snapshot(actors,frame,"tortuga_50_before_cuba1");if(logicalScale()!=50)break;if(!setup(-85.2,900,-1.57079632679,events,frame,"tortuga_cuba1_border"))break;advance(4,frame,"cross_cuba1");}
+  else if(phase==4&&steady&&location=="Cuba1"&&stable>=60){image="cuba1-after.ppm";snapshot(actors,frame,"cuba1_25_after");if(logicalScale()!=25)break;if(!setup(-85.46,900,1.57079632679,events,frame,"cuba1_tortuga_border"))break;advance(5,frame,"cross_tortuga");}
+  else if(phase==5&&steady&&location=="Tortuga"&&stable>=60){image="tortuga-after-cuba.ppm";snapshot(actors,frame,"tortuga_50_after");if(logicalScale()!=50)break;snapshot(actors,frame,"before_save");int32_t size=0;std::unique_ptr<char[]>metadata(static_cast<char*>(core.GetSaveData("SAVE\\Probe\\input",size)));const auto saveBegin=Clock::now();saved=metadata&&size>0&&core.SaveState("SAVE\\Probe\\round")&&core.SetSaveData("SAVE\\Probe\\round",metadata.get(),size);events<<"save_ok="<<saved<<" save_wall_ms="<<std::chrono::duration<double,std::milli>(Clock::now()-saveBegin).count()<<'\n';if(!saved)break;roundtripPending=true;advance(6,frame,"normal_roundtrip_load");}
+  else if(phase==6&&steady&&location=="Tortuga"&&stable>=60){image="roundtrip-after.ppm";snapshot(actors,frame,"after_roundtrip_load");if(!observeGoods(events,frame,"after_roundtrip_normal_load"))break;ok=areas&&saved&&logicalScale()==50;advance(7,frame,"complete");}
+  // Only controlled driving, after a labelled setup, before the real transition.
+  if((phase==2&&location=="Barbados")||(phase==4&&location=="Tortuga")||(phase==5&&location=="Cuba1"))if(valid&&!active){ship->State.vSpeed.x=0;ship->State.vSpeed.z=20;}
+  const auto pos=ship?ship->GetPos():CVECTOR(0.f);rows<<frame<<','<<std::chrono::duration<double,std::milli>(after-start).count()<<','<<cpu<<','<<core.GetRDeltaTime()<<','<<core.GetDeltaTime()<<','<<rss<<','<<peak<<','<<phase<<','<<flag("bSeaActive")<<','<<flag("bSeaLoaded")<<','<<flag("bSeaReloadStarted")<<','<<core.GetEntityIds("Ship").size()<<','<<core.GetEntityId("sea")<<','<<core.GetEntityId("worldmap")<<','<<transition<<','<<active<<','<<hold<<','<<value(ta,"scenePrepared")<<','<<location<<','<<value(a,"Island")<<','<<k<<','<<frameZero("zeroX")<<','<<frameZero("zeroZ")<<','<<playerId<<','<<pos.x<<','<<pos.z<<','<<(k?pos.x/k+frameZero("zeroX"):0)<<','<<(k?pos.z/k+frameZero("zeroZ"):0)<<','<<(ship?ship->State.vAng.y:0)<<','<<(ship?ship->State.vSpeed.x:0)<<','<<(ship?ship->State.vSpeed.z:0)<<','<<value(e,"date.year")<<','<<value(e,"date.month")<<','<<value(e,"date.day")<<','<<value(e,"date.hour")<<','<<value(e,"date.min")<<','<<value(e,"date.sec")<<','<<logical<<','<<value(w,"zeroX")<<','<<value(w,"zeroZ")<<','<<value(a,"worldFrame.version")<<','<<core.GetEntityId("WorldMapSeaTraffic")<<','<<image<<'\n';rows.flush();
+  if(!image.empty()){const auto read=Clock::now();events<<"capture="<<image<<" frame="<<frame<<" ok="<<capture(cwd/image)<<" capture_ms="<<std::chrono::duration<double,std::milli>(Clock::now()-read).count()<<'\n';events.flush();}
+  const auto sea=core.GetEntityId("sea");if(sea!=lastSea){events<<"sea_eid_change frame="<<frame<<" from="<<lastSea<<" to="<<sea<<'\n';lastSea=sea;events.flush();}
+  if(roundtripPending){load("SAVE\\Probe\\round");roundtripPending=false;}
+  if(frame>=1&&!loadSent&&p){load("SAVE\\Probe\\input");loadSent=true;events<<"canonical_load_event_sent frame="<<frame<<'\n';events.flush();}
+  if(ok)break;
+ }}catch(const std::exception&error){events<<"exception="<<error.what()<<'\n';}
+ auto*r=static_cast<VDX9RENDER*>(core.GetService("dx9render"));if(r)StormMetalFlushFrameTrace(r->GetNativeDevice());events<<"route_complete="<<ok<<" final_phase="<<phase<<'\n';events.flush();std::cout<<"route_complete="<<ok<<" final_phase="<<phase<<'\n';core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return ok?0:2;
+}

@@ -1,0 +1,1 @@
+record,frame,draws,vertices,buffers,upload_bytes,sails,animated,gpu_memory,drawable_wait_ms,gpu_wait_ms,gpu_start_s,gpu_end_s,status,sea_draws,sky_current,shadow_cubes_complete

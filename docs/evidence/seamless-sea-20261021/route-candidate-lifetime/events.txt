@@ -1,0 +1,105 @@
+sea_eid_change frame=0 from=0 to=6988734349843628043
+canonical_load_event_sent frame=1
+ship_admitted frame=2 phase=0 eid=6988741913281036348 index=1 real_type=132 model="Manowar1" base_type="38" base_model="Manowar" fleet="" roster_slot="" native_x=-2720.34863281 native_z=3185.89550781 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=452.082042694 actor_map_z=524.532913208 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=2 phase=0 eid=6988743609793118309 index=276 real_type=168 model="Galeon_h1" base_type="32" base_model="Galeon_h" fleet="" roster_slot="" native_x=-2824.57177734 native_z=2968.11669922 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=449.997577667 actor_map_z=520.177337646 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=2 phase=0 eid=6988743846016319619 index=369 real_type=86 model="Galeon_l1" base_type="24" base_model="Galeon_l" fleet="" roster_slot="" native_x=-2909.17163086 native_z=2790.69897461 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=448.305580139 actor_map_z=516.628982544 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=2 phase=0 eid=6988744185318736025 index=373 real_type=144 model="Galeon1" base_type="30" base_model="Galeon" fleet="" roster_slot="" native_x=-3023.73071289 native_z=2550.30151367 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=446.014400482 actor_map_z=511.821033478 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=2 phase=0 eid=6988744361412395187 index=432 real_type=174 model="Battleship1" base_type="37" base_model="Battleship" fleet="" roster_slot="" native_x=-3139.41577148 native_z=2364.0065918 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=443.700698853 actor_map_z=508.095134735 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=2 phase=0 eid=6988745422269317334 index=278 real_type=155 model="WarTartane1" base_type="3" base_model="WarTartane" fleet="" roster_slot="" native_x=1336.78564453 native_z=1277.59875488 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=533.224725723 actor_map_z=486.366977692 descriptor_map_x="" descriptor_map_z=""
+ship_identity_probe frame=2 wall_ms=0.055458
+sea_eid_change frame=2 from=6988734349843628043 to=6988739520984252424
+ship_admitted frame=64 phase=0 eid=6988764805456724196 index=940 real_type=154 model="Cutter1" base_type="10" base_model="Cutter" fleet="enc_1" roster_slot="0" native_x=1936.59973145 native_z=2564.49902344 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=545.221008301 actor_map_z=512.104984283 descriptor_map_x="545.221" descriptor_map_z="512.105"
+ship_admitted frame=64 phase=0 eid=6988765776119333219 index=941 real_type=157 model="Galeon_l1" base_type="24" base_model="Galeon_l" fleet="enc_1" roster_slot="1" native_x=2183.43774414 native_z=2524.86279297 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=550.15776825 actor_map_z=511.312259674 descriptor_map_x="545.221" descriptor_map_z="512.105"
+ship_admitted frame=64 phase=0 eid=6988766184141226440 index=942 real_type=158 model="Caravel1" base_type="22" base_model="Caravel" fleet="enc_1" roster_slot="2" native_x=2430.27563477 native_z=2485.22680664 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=555.094528198 actor_map_z=510.519538879 descriptor_map_x="545.221" descriptor_map_z="512.105"
+ship_admitted frame=64 phase=0 eid=6988766566393315803 index=943 real_type=159 model="Schooner_w1" base_type="12" base_model="Schooner_w" fleet="enc_1" roster_slot="3" native_x=2677.11352539 native_z=2445.59057617 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=560.031284332 actor_map_z=509.72681427 descriptor_map_x="545.221" descriptor_map_z="512.105"
+ship_admitted frame=64 phase=0 eid=6988767077494424042 index=944 real_type=161 model="Barque_w1" base_type="14" base_model="Barque_w" fleet="enc_1" roster_slot="4" native_x=2923.95166016 native_z=2405.95458984 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=564.968048096 actor_map_z=508.934093475 descriptor_map_x="545.221" descriptor_map_z="512.105"
+ship_admitted frame=64 phase=0 eid=6988767799048929784 index=945 real_type=167 model="Barkentine1" base_type="16" base_model="Barkentine" fleet="enc_36" roster_slot="0" native_x=1365.24963379 native_z=2424.49951172 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=533.794006348 actor_map_z=509.304992676 descriptor_map_x="533.794" descriptor_map_z="509.305"
+ship_admitted frame=64 phase=0 eid=6988768378869514759 index=946 real_type=175 model="Caravel1" base_type="22" base_model="Caravel" fleet="enc_36" roster_slot="1" native_x=1613.73999023 native_z=2451.93261719 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=538.763813019 actor_map_z=509.853652954 descriptor_map_x="533.794" descriptor_map_z="509.305"
+ship_admitted frame=64 phase=0 eid=6988768804071277082 index=947 real_type=176 model="Brig_l1" base_type="20" base_model="Brig_l" fleet="enc_71" roster_slot="0" native_x=-710.250854492 native_z=6142.24853516 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=492.283996582 actor_map_z=583.659973145 descriptor_map_x="492.284" descriptor_map_z="583.66"
+ship_admitted frame=64 phase=0 eid=6988769310877418025 index=948 real_type=177 model="Schooner_w1" base_type="12" base_model="Schooner_w" fleet="enc_71" roster_slot="1" native_x=-644.16394043 native_z=6383.35546875 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=493.605734825 actor_map_z=588.48210907 descriptor_map_x="492.284" descriptor_map_z="583.66"
+ship_admitted frame=64 phase=0 eid=6988769847748330040 index=949 real_type=178 model="Xebek_l1" base_type="15" base_model="Xebek_l" fleet="enc_71" roster_slot="2" native_x=-578.077026367 native_z=6624.46240234 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=494.927473068 actor_map_z=593.304244995 descriptor_map_x="492.284" descriptor_map_z="583.66"
+ship_admitted frame=64 phase=0 eid=6988770461928653378 index=950 real_type=179 model="Galeon1" base_type="30" base_model="Galeon" fleet="enc_71" roster_slot="3" native_x=-511.990112305 native_z=6865.56933594 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=496.249211311 actor_map_z=598.12638855 descriptor_map_x="492.284" descriptor_map_z="583.66"
+ship_admitted frame=64 phase=0 eid=6988771033159303771 index=951 real_type=183 model="Brigantine1" base_type="17" base_model="Brigantine" fleet="enc_71" roster_slot="4" native_x=-445.903198242 native_z=7106.67578125 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=497.570949554 actor_map_z=602.948516846 descriptor_map_x="492.284" descriptor_map_z="583.66"
+ship_identity_probe frame=64 wall_ms=0.132041
+goods_catalogue tag=after_initial_normal_load frame=181 array_size=53 goods52_name="Darts" goods52_damage_hull=2.5 goods2_damage_hull=5.75 ok=1
+area=barbados x=900 z=-300 expected=1 observed=1
+area=barbados x=980 z=-170.8 expected=1 observed=1
+area=antigua x=980 z=-170.8 expected=0 observed=0
+area=barbados x=980 z=-170.5 expected=0 observed=0
+area=antigua x=980 z=-170.5 expected=1 observed=1
+area=tortuga x=-85.2 z=900 expected=1 observed=1
+area=cuba1 x=-85.2 z=900 expected=0 observed=0
+area=tortuga x=-85.46 z=900 expected=0 observed=0
+area=cuba1 x=-85.46 z=900 expected=1 observed=1
+native_registries tag=initial_normal_load frame=181 ships=18 crew_entries=18 crew_stale_ship_ids=0 crew_host=6988739520984252423 foam_host=6988758753847803961 touch_host=6988740281193463825
+residency_initial region_count=27 terrain_hosts=1 additional_regions=26 script_forts=23 native_forts=23
+continuity_reference sea=6988739520984252424 player=6988741913281036348 frame_scale=50 zero=506.489013672,460.815002441
+fixture_setup=barbados_setup frame=181 world=900,-300 yaw=0 scale=50 player_fleet_count=6
+phase=1 frame=181 tag=wait_barbados
+capture=initial-puertorico.ppm frame=181 ok=1 capture_ms=38.013916
+fixture_setup=barbados_antigua_border frame=241 world=980,-170.8 yaw=0 scale=50 player_fleet_count=6
+phase=2 frame=241 tag=cross_antigua
+capture=barbados-before.ppm frame=241 ok=1 capture_ms=37.851458
+ship_admitted frame=289 phase=2 eid=6988787822186463856 index=279 real_type=184 model="Corvette1" base_type="28" base_model="Corvette" fleet="harbour2" roster_slot="0" native_x=17896.0175781 native_z=-16990.8417969 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=864.409362793 actor_map_z=120.998168945 descriptor_map_x="506.4890137" descriptor_map_z="460.8150024"
+ship_identity_probe frame=289 wall_ms=0.021042
+fixture_setup=tortuga_setup frame=301 world=-85.2,900 yaw=-1.57079632679 scale=50 player_fleet_count=6
+phase=3 frame=301 tag=wait_tortuga
+capture=antigua-after.ppm frame=301 ok=1 capture_ms=36.86975
+fixture_setup=tortuga_cuba1_border frame=361 world=-85.2,900 yaw=-1.57079632679 scale=50 player_fleet_count=6
+phase=4 frame=361 tag=cross_cuba1
+capture=tortuga-before-cuba.ppm frame=361 ok=1 capture_ms=39.748
+fixture_setup=cuba1_tortuga_border frame=421 world=-85.46,900 yaw=1.57079632679 scale=50 player_fleet_count=6
+phase=5 frame=421 tag=cross_tortuga
+capture=cuba1-after.ppm frame=421 ok=1 capture_ms=41.971333
+save_ok=1 save_wall_ms=1198.439292
+phase=6 frame=481 tag=normal_roundtrip_load
+capture=tortuga-after-cuba.ppm frame=481 ok=1 capture_ms=32.41975
+lifetime_registry frame=482 retired_rosters=0 remounted_rosters=0
+ship_admitted frame=482 phase=6 eid=6988819308591710488 index=1 real_type=132 model="Manowar1" base_type="38" base_model="Manowar" fleet="" roster_slot="" native_x=-29586.5175781 native_z=21959.25 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=-85.2413330078 actor_map_z=900 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=482 phase=6 eid=6988820232009679169 index=276 real_type=168 model="Galeon_h1" base_type="32" base_model="Galeon_h" fleet="" roster_slot="" native_x=-29682.7421875 native_z=21753.8710938 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=-87.1658325195 actor_map_z=895.892425537 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=482 phase=6 eid=6988820433873142111 index=369 real_type=86 model="Galeon_l1" base_type="24" base_model="Galeon_l" fleet="" roster_slot="" native_x=-29762.2167969 native_z=21585.7617188 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=-88.7553100586 actor_map_z=892.53024292 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=482 phase=6 eid=6988820700161114485 index=373 real_type=144 model="Galeon1" base_type="30" base_model="Galeon" fleet="" roster_slot="" native_x=-29892.4335938 native_z=21306.4882812 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=-91.3596801758 actor_map_z=886.944763184 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=482 phase=6 eid=6988820846190002578 index=432 real_type=174 model="Battleship1" base_type="37" base_model="Battleship" fleet="" roster_slot="" native_x=-30008.8964844 native_z=21125.1523438 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=-93.6889038086 actor_map_z=883.318054199 descriptor_map_x="" descriptor_map_z=""
+ship_admitted frame=482 phase=6 eid=6988821627874050485 index=278 real_type=155 model="WarTartane1" base_type="3" base_model="WarTartane" fleet="harbour1" roster_slot="0" native_x=1336.78466797 native_z=1277.5994873 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=533.22470665 actor_map_z=486.36699295 descriptor_map_x="533.2246094" descriptor_map_z="486.3670044"
+ship_admitted frame=482 phase=6 eid=6988821881277120956 index=940 real_type=154 model="Cutter1" base_type="10" base_model="Cutter" fleet="enc_1" roster_slot="0" native_x=1908.39245605 native_z=2569.02685547 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=544.656864166 actor_map_z=512.195541382 descriptor_map_x="544.6937866" descriptor_map_z="512.1895752"
+ship_admitted frame=482 phase=6 eid=6988822439622869449 index=941 real_type=157 model="Galeon_l1" base_type="24" base_model="Galeon_l" fleet="enc_1" roster_slot="1" native_x=2166.66577148 native_z=2527.55541992 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=549.822330475 actor_map_z=511.366111755 descriptor_map_x="544.6937866" descriptor_map_z="512.1895752"
+ship_admitted frame=482 phase=6 eid=6988822589946724831 index=942 real_type=158 model="Caravel1" base_type="22" base_model="Caravel" fleet="enc_1" roster_slot="2" native_x=2415.70336914 native_z=2487.56665039 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=554.803081512 actor_map_z=510.566333771 descriptor_map_x="544.6937866" descriptor_map_z="512.1895752"
+ship_admitted frame=482 phase=6 eid=6988822662961168883 index=943 real_type=159 model="Schooner_w1" base_type="12" base_model="Schooner_w" fleet="enc_1" roster_slot="3" native_x=2655.33349609 native_z=2449.08520508 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=559.595684052 actor_map_z=509.796707153 descriptor_map_x="544.6937866" descriptor_map_z="512.1895752"
+ship_admitted frame=482 phase=6 eid=6988822804695089667 index=944 real_type=161 model="Barque_w1" base_type="14" base_model="Barque_w" fleet="enc_1" roster_slot="4" native_x=2901.3684082 native_z=2409.57983398 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=564.51638031 actor_map_z=509.006599426 descriptor_map_x="544.6937866" descriptor_map_z="512.1895752"
+ship_admitted frame=482 phase=6 eid=6988823096752865810 index=945 real_type=167 model="Barkentine1" base_type="16" base_model="Barkentine" fleet="enc_36" roster_slot="0" native_x=1325.39929199 native_z=2420.76635742 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=532.996999741 actor_map_z=509.230331421 descriptor_map_x="533.0939941" descriptor_map_z="509.2369995"
+ship_admitted frame=482 phase=6 eid=6988823345860968994 index=946 real_type=175 model="Caravel1" base_type="22" base_model="Caravel" fleet="enc_36" roster_slot="1" native_x=1587.01098633 native_z=2449.06811523 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=538.229232788 actor_map_z=509.796363831 descriptor_map_x="533.0939941" descriptor_map_z="509.2369995"
+ship_admitted frame=482 phase=6 eid=6988823423170380342 index=947 real_type=176 model="Brig_l1" base_type="20" base_model="Brig_l" fleet="enc_71" roster_slot="0" native_x=-715.302185059 native_z=6124.24707031 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=492.182970047 actor_map_z=583.299942017 descriptor_map_x="492.1934814" descriptor_map_z="583.3348389"
+ship_admitted frame=482 phase=6 eid=6988823569199268422 index=948 real_type=177 model="Schooner_w1" base_type="12" base_model="Schooner_w" fleet="enc_71" roster_slot="1" native_x=-655.523620605 native_z=6350.95458984 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=493.378540993 actor_map_z=587.834091187 descriptor_map_x="492.1934814" descriptor_map_z="583.3348389"
+ship_admitted frame=482 phase=6 eid=6988823762472796758 index=949 real_type=178 model="Xebek_l1" base_type="15" base_model="Xebek_l" fleet="enc_71" roster_slot="2" native_x=-583.349731445 native_z=6605.84472656 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=494.822018623 actor_map_z=592.931900024 descriptor_map_x="492.1934814" descriptor_map_z="583.3348389"
+ship_admitted frame=482 phase=6 eid=6988824020170834529 index=950 real_type=179 model="Galeon1" base_type="30" base_model="Galeon" fleet="enc_71" roster_slot="3" native_x=-519.186523438 native_z=6841.09228516 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=496.105282784 actor_map_z=597.63684082 descriptor_map_x="492.1934814" descriptor_map_z="583.3348389"
+ship_admitted frame=482 phase=6 eid=6988824170494689915 index=951 real_type=183 model="Brigantine1" base_type="17" base_model="Brigantine" fleet="enc_71" roster_slot="4" native_x=-460.158203125 native_z=7066.72851562 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=497.285849571 actor_map_z=602.14956665 descriptor_map_x="492.1934814" descriptor_map_z="583.3348389"
+ship_admitted frame=482 phase=6 eid=6988824368063185547 index=279 real_type=184 model="Corvette1" base_type="28" base_model="Corvette" fleet="harbour2" roster_slot="0" native_x=17881.8203125 native_z=-16989.6699219 frame_scale=50 frame_zero_x=506.489013672 frame_zero_z=460.815002441 actor_map_x=864.125427246 actor_map_z=121.021606445 descriptor_map_x="864.2170410" descriptor_map_z="121.0150146"
+ship_retired frame=482 phase=6 eid=6988741913281036348
+ship_retired frame=482 phase=6 eid=6988743609793118309
+ship_retired frame=482 phase=6 eid=6988743846016319619
+ship_retired frame=482 phase=6 eid=6988744185318736025
+ship_retired frame=482 phase=6 eid=6988744361412395187
+ship_retired frame=482 phase=6 eid=6988745422269317334
+ship_retired frame=482 phase=6 eid=6988764805456724196
+ship_retired frame=482 phase=6 eid=6988765776119333219
+ship_retired frame=482 phase=6 eid=6988766184141226440
+ship_retired frame=482 phase=6 eid=6988766566393315803
+ship_retired frame=482 phase=6 eid=6988767077494424042
+ship_retired frame=482 phase=6 eid=6988767799048929784
+ship_retired frame=482 phase=6 eid=6988768378869514759
+ship_retired frame=482 phase=6 eid=6988768804071277082
+ship_retired frame=482 phase=6 eid=6988769310877418025
+ship_retired frame=482 phase=6 eid=6988769847748330040
+ship_retired frame=482 phase=6 eid=6988770461928653378
+ship_retired frame=482 phase=6 eid=6988771033159303771
+ship_retired frame=482 phase=6 eid=6988787822186463856
+ship_identity_probe frame=482 wall_ms=0.17
+sea_eid_change frame=482 from=6988739520984252424 to=6988809249778302984
+goods_catalogue tag=after_roundtrip_normal_load frame=541 array_size=53 goods52_name="Darts" goods52_damage_hull=2.5 goods2_damage_hull=5.75 ok=1
+native_registries tag=after_roundtrip_normal_load frame=541 ships=19 crew_entries=19 crew_stale_ship_ids=0 crew_host=6988809249778302983 foam_host=6988827305820815414 touch_host=6988810070117056529
+fixture_setup=post_roundtrip_return_puertorico frame=541 world=452.211601257,524.804580688 yaw=0 scale=50 player_fleet_count=6
+phase=7 frame=541 tag=wait_retired_roster_remount
+capture=roundtrip-after.ppm frame=541 ok=1 capture_ms=71.319208
+lifetime_registry frame=543 retired_rosters=1 remounted_rosters=0
+ship_retired frame=543 phase=7 eid=6988824368063185547
+ship_identity_probe frame=543 wall_ms=0.04325

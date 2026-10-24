@@ -1,0 +1,28 @@
+{
+  "kind": "ordinary hidden-world zero-time avoidance correction; unbuilt",
+  "source_path": "experiments/native-metal/engine/src/libs/worldmap/src/wdm_enemy_ship.cpp",
+  "before_sha256": "c8cf93d93541756a5bd5655b031b48c4a1527831e00e238fc95056f51e9a53f7",
+  "after_sha256": "0fa7b9b5011303216b076c03600f885a1bc21081053c8699179dfc31dddd908e",
+  "patch_sha256": "74aa2b564eb737e3fa0ab505b774985cbd16af3d90f1eef654bb9203f332bf96",
+  "before": "wdm_enemy_ship.before.cpp",
+  "after": "wdm_enemy_ship.after.cpp",
+  "patch": "avoidance.patch",
+  "distinct_predecessor": "../../route-candidate-lifetime/native-borrower-candidate/manifest.json",
+  "profile": "../admission.sample.txt",
+  "source_proof": {
+    "eligibility": "WorldMap::IsSeaTraffic and GetTrafficData; excludes quest/qID/authoredPatrol/sinking/needDelete/encounter19",
+    "transient_state": "FindIslandForce writes ix/iz; FindShipsForce sx/sz; Merchant overrides only fade these. Constructor initializes all4. They are not serialized. Every positive step recomputes before applying dt-multiplied speed/turn updates.",
+    "retained": "FindMoveForce, Merchant service/attack stop, lifecycle/arrival/KillTest, partner/role/route updates, descriptor publication, killMe sweep, population, notifications, residency, positive delta and all2D/quest code",
+    "clock": "No timer or accumulated elapsed added. Weather publishes12times per game-hour at250/350simulation-seconds per game-hour; most background frames have accepted dt0.",
+    "measured_scope": "Retained same-phase loaded adjacent frame pairs: lifetime534 and profile473 all have logged calendar delta0. Avoidance366+22/5611main samples is cost attribution, not FPS acceptance."
+  },
+  "disposable_oracle_procedure": [
+    "Reuse copied real SAVE/fullPROGRAM route and same viewport; no permanent test delta.",
+    "On hidden ordinary dt0 frames, sample stack must omit only the two avoidance solvers while descriptor position/heading/speed/route/cargo/roster and creation/retirement sequence match predecessor.",
+    "Run through one natural positive WeatherTimeUpdate pulse and acceleration8x: positive accepted delta remains unchanged; native avoidance executes before integration and far positions/headings/speeds/route choices match predecessor from same state.",
+    "At dt0 issue ordinary route/service changes and retire a fleet; arrival/service/partner cleanup and killMe sweep remain immediate. Preserve actual target release/return remount correctness gate.",
+    "Pause then resume; normal SaveLoad and sea-to-2D-to-sea preserve descriptor state, all-bound camera lease and persistent actor identity. 2D and authored quest paths retain full original avoidance.",
+    "Compare full-path CPU/GPU times and output, including positive pulse frame spikes. Do not infer no-regression from the sampled share."
+  ],
+  "status": "source frozen; root owns build and runtime oracle"
+}

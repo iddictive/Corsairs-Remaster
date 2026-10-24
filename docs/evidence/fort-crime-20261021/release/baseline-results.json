@@ -1,0 +1,6 @@
+{
+  "function": "CrimeReleaseBaseline",
+  "exit_code": 1,
+  "stdout": "CrimeReleaseBaseline=101\nscript_errors=0\n",
+  "stderr": ""
+}

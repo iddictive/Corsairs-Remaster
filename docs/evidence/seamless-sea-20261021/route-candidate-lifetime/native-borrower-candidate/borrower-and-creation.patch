@@ -1,0 +1,226 @@
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship.cpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship.cpp
+@@ -17,6 +17,7 @@
+ #include "math_inlines.h"
+ #include "shared/mast_msg.h"
+ #include "shared/messages.h"
++#include "shared/battle_interface/msg_control.h"
+ #include "shared/sail_msg.h"
+ #include "shared/sea_ai/script_defines.h"
+ #include "shared/sound.h"
+@@ -106,9 +107,13 @@
+     CancelPhonkLaserWork();
+     // These scene consumers borrow physical ship/model pointers. Retire their
+     // entries before destroying this model, without emitting a ship death.
+-    for (const char *consumer : {"Seafoam", "Sailors", "Touch"})
++    for (const char *consumer : {"Seafoam", "Sailors", "Touch", "ShipPointer"})
+         if (const auto entity = core.GetEntityId(consumer))
+             core.Send_Message(entity, "li", MSG_SHIP_RELEASE, GetId());
++    if (const auto character = GetACharacter())
++        if (const auto battle = core.GetEntityId("BATTLE_INTERFACE"))
++            core.Send_Message(battle, "ll", BI_IN_DELETE_SHIP,
++                static_cast<int32_t>(character->GetAttributeAsDword("index", uint32_t(-1))));
+     if (const auto lights = static_cast<IShipLights *>(core.GetEntityPointer(shipLights)))
+         lights->Release(this);
+     if (!OrphanCutFragments()) core.EraseEntity(GetModelEID());
+--- a/experiments/native-metal/engine/src/libs/battle_interface/src/sea/ships_list.cpp
++++ b/experiments/native-metal/engine/src/libs/battle_interface/src/sea/ships_list.cpp
+@@ -165,32 +165,21 @@
+ {
+     if (charIdx == -1L)
+         return;
+-    if (root == nullptr)
+-        return;
+-
+-    auto *sd = root;
+-    if (root->characterIndex == charIdx)
+-    {
+-        root = root->next;
+-        delete sd;
+-        return;
+-    }
+-
+-    auto *pr = root->next;
+-    while (pr != nullptr)
+-    {
+-        if (pr->characterIndex == charIdx)
+-        {
+-            sd->next = pr->next;
+-            delete pr;
++    for (auto **link = &root; *link; link = &(*link)->next)
++    {
++        auto *removed = *link;
++        if (removed->characterIndex == charIdx)
++        {
++            *link = removed->next;
++            if (removed == mainCharacter)
++            {
++                mainCharacter = nullptr;
++                pMainShipAttr = nullptr;
++            }
++            delete removed;
+             return;
+         }
+-        sd = pr;
+-        pr = pr->next;
+-    }
+-
+-    mainCharacter = nullptr;
+-    pMainShipAttr = nullptr;
++    }
+ }
+ 
+ void SHIP_DESCRIBE_LIST::Add(int32_t mainChrIndex, int32_t chIdx, ATTRIBUTES *pChAttr, ATTRIBUTES *pShipAttr, bool bMyShip,
+--- a/experiments/native-metal/engine/src/libs/battle_interface/src/sea/ship_pointer.cpp
++++ b/experiments/native-metal/engine/src/libs/battle_interface/src/sea/ship_pointer.cpp
+@@ -5,6 +5,7 @@
+ #include "math_inlines.h"
+ #include "message.h"
+ #include "shared/battle_interface/msg_control.h"
++#include "shared/messages.h"
+ #include "ship_base.h"
+ 
+ // define the vertices
+@@ -19,6 +20,7 @@
+ SHIPPOINTER::SHIPPOINTER()
+ {
+     m_bVisible = false;
++    m_pShip = nullptr;
+     m_idFriendTex = -1;
+     m_idEnemyTex = -1;
+     m_idVBuf = -1;
+@@ -105,6 +107,15 @@
+ {
+     switch (message.Long())
+     {
++    case MSG_SHIP_RELEASE: {
++        const auto ship = message.EntityID();
++        if (m_pShip && m_pShip->GetId() == ship)
++        {
++            m_pShip = nullptr;
++            m_bVisible = false;
++        }
++        break;
++    }
+     case MSG_SP_CHANGESHIP: {
+         const auto chrIdx = message.Long();
+         m_pShip = FindShipByChrIndex(chrIdx);
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/common_camera.h
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/common_camera.h
+@@ -20,6 +20,11 @@
+     ATTRIBUTES *pACharacter;
+ 
+   public:
++    bool ReferencesCharacter(int index) const
++    {
++        return pACharacter && static_cast<int32_t>(pACharacter->GetAttributeAsDword("index", uint32_t(-1))) == index;
++    }
++
+     bool FindShip()
+     {
+         Assert(pACharacter);
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp
+@@ -280,6 +280,15 @@
+     dartViewApplied = true;
+ }
+ 
++bool storm_sea_cameras::ReferencesCharacter(int index)
++{
++    const auto *owner = static_cast<SEA_CAMERAS *>(core.GetEntityPointer(core.GetEntityId("SEA_CAMERAS")));
++    if (index < 0 || !owner) return false;
++    for (const auto *camera : owner->CamerasArray)
++        if (camera && camera->ReferencesCharacter(index)) return true;
++    return false;
++}
++
+ bool storm_dart_view::ReferencesCharacter(int index)
+ {
+     auto *camera = static_cast<SEA_CAMERAS *>(core.GetEntityPointer(core.GetEntityId("SEA_CAMERAS")));
+--- a/experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h
+@@ -2,6 +2,7 @@
+ 
+ #include "common_camera.h"
+ #include "dart_view_borrower.h"
++#include "camera_borrower.h"
+ 
+ #include <vector>
+ #include <chrono>
+@@ -11,6 +12,7 @@
+ class SEA_CAMERAS : public Entity
+ {
+     friend bool storm_dart_view::ReferencesCharacter(int index);
++    friend bool storm_sea_cameras::ReferencesCharacter(int index);
+     std::vector<COMMON_CAMERA *> CamerasArray;
+     bool bActive;
+     VDX9RENDER *render = nullptr;
+--- a/experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp
+@@ -1,6 +1,7 @@
+ #include "ai_group.h"
+ #include "ai_sea_goods.h"
+ #include "../../sea_cameras/src/dart_view_borrower.h"
++#include "../../sea_cameras/src/camera_borrower.h"
+ #include "../../battle_interface/src/spyglass/spyglass_borrower.h"
+ #include "shared/messages.h"
+ #include <algorithm>
+@@ -45,6 +46,7 @@
+             character->GetAttribute("qID") || character->GetAttributeAsDword("isquest")) return false;
+         if (goods && goods->BorrowsCharacter(static_cast<int32_t>(character->GetAttributeAsDword("index")))) return false;
+         if (storm_dart_view::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
++        if (storm_sea_cameras::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
+         if (ship->GetCannonController()->HasPendingFire()) return false;
+         if (storm_spyglass_view::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
+         // A target in either task slot is still a borrower even when hidden
+--- a/experiments/native-metal/engine/src/libs/ship/include/ship_base.h
++++ b/experiments/native-metal/engine/src/libs/ship/include/ship_base.h
+@@ -107,6 +107,8 @@
+     SHIP_STATE State;
+ 
+     ~SHIP_BASE() override = default;
++
++    virtual void PublishShipPose() = 0;
+ 
+     virtual ATTRIBUTES *GetAShip()
+     {
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship.h
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship.h
+@@ -266,7 +266,6 @@
+     float WhirlpoolYawSpeed();
+     SeaShipEmergenceSample SeaEmergencePose(float seconds);
+     void ApplySeaEmergence(float seconds);
+-    void PublishShipPose();
+     BOOL CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool includePhonk = true);
+     void CalculateImmersion(float seconds);
+     void CheckShip2Strand(float fDeltaTime);
+@@ -314,6 +313,8 @@
+ #endif
+     ~SHIP() override;
+     SHIP();
++
++    void PublishShipPose() override;
+ 
+     float GetMaxSpeedZ() override;
+     float GetMaxSpeedY() override;
+--- a/experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp
+@@ -267,6 +267,8 @@
+     GetRotateController()->Init();
+     pSpeedController = new AIShipSpeedController(this);
+     GetSpeedController()->Init();
++    // Script registration observes the completed placement before the first Execute.
++    pShip->PublishShipPose();
+ }
+ 
+ bool AIShip::isCanPlace(CVECTOR vNewPos) const
+--- /dev/null
++++ b/experiments/native-metal/engine/src/libs/sea_cameras/src/camera_borrower.h
+@@ -0,0 +1,7 @@
++#pragma once
++
++namespace storm_sea_cameras
++{
++// Inactive registered cameras also retain their character binding in saves.
++bool ReferencesCharacter(int index);
++}

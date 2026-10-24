@@ -1,0 +1,229 @@
+# Retained one-off isolated candidate replay; no install or staging command.
+# Run under codex-run-scratch, setting CORSAIRS_REPO_ROOT, CORSAIRS_SOURCE_SAVE,
+# CORSAIRS_EVIDENCE_OUTPUT (containing driver.cpp.txt). Native pilot <=120 seconds.
+import os, pathlib, subprocess, shlex, shutil, hashlib, json, time, re, sys
+from pathlib import Path
+repo=pathlib.Path(os.environ['CORSAIRS_REPO_ROOT']).resolve()
+build=repo/'experiments/native-metal/.cache/build'
+scratch=pathlib.Path(os.environ['CODEX_SCRATCH_DIR'])
+out=pathlib.Path(os.environ['CORSAIRS_EVIDENCE_OUTPUT']).resolve()
+save=pathlib.Path(os.environ['CORSAIRS_SOURCE_SAVE']).resolve()
+digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+source=(out/'driver.cpp.txt').read_text()
+before=digest(save)
+baseline_inputs=json.loads((out.parent/'route-baseline-complete/manifest.json').read_text())
+prepare_only=bool(os.environ.get('CORSAIRS_PROBE_PREPARE_ONLY'))
+baseline_save_matches=before==baseline_inputs['save_sha256_before']
+assert prepare_only or baseline_save_matches,'SAVE input differs from retained ordinary baseline'
+max_native_seconds=15 if os.environ.get('CORSAIRS_PROBE_STARTUP_ONLY') else 120
+installed_engine=Path(os.environ['CORSAIRS_INSTALLED_ENGINE']).resolve()
+installed_engine_before=digest(installed_engine)
+expected_engine_sha=os.environ['CORSAIRS_NATIVE_ENGINE_SHA']
+raw_engine=build/'bin/engine-1'
+compiler_receipt=json.loads((repo/'experiments/native-metal/.cache/gameplay-compiler.json').read_text())
+assert digest(raw_engine)==expected_engine_sha==compiler_receipt['engine_sha256'],'candidate raw engine cut differs from granted source cut'
+assert compiler_receipt['source_sha256']==os.environ['CORSAIRS_SOURCE_CUT_FINGERPRINT'],'candidate compiler receipt differs from granted source cut'
+
+# Admission is separate from speed measurement. Preserve native quality and
+# full residency: fail the run instead of reducing content under pressure.
+host_memory=int(subprocess.check_output(['/usr/sbin/sysctl','-n','hw.memsize'],text=True))
+pressure_before=subprocess.check_output(['/usr/bin/memory_pressure'],text=True)
+free_before=re.search(r'System-wide memory free percentage: (\d+)%',pressure_before)
+assert free_before and host_memory*int(free_before.group(1))//100>=20*1024**3,'8GiB native peak plus12GiB host RAM reserve cannot be admitted'
+assert shutil.disk_usage(scratch).free>=20*1024**3,'host disk reserve below20GiB'
+
+runtime=repo/'experiments/native-metal/.cache/runtime'
+# A full private PROGRAM copy consumes only ~20MB/939 files. Never overlay
+# through a symlink into the staged runtime or the played app.
+sys.path.insert(0,str(repo/'tools'))
+from gameplay_sources import read as read_gameplay_sources
+projected,canonical_inputs=read_gameplay_sources()
+# Follow the normal delivery asset and native-header/technique owners without
+# applying any transaction to the live runtime or the played app.
+import sync_metal_gameplay as delivery
+from delivery_state import DeliveryState, LEGACY_TECHNIQUES
+managed_assets={};asset_inputs={};claimed_assets=set()
+for asset_root in [delivery.UI_ASSETS,delivery.CHARACTER_ASSETS,delivery.RECIPE_ASSETS,delivery.MUSIC_ASSETS]:
+ delivery.asset_changes(asset_root,DeliveryState(runtime),managed_assets,asset_inputs,claimed_assets)
+canonical_inputs.update(asset_inputs)
+for name,(previous,incoming) in managed_assets.items():
+ assert name not in projected,name
+ projected[name]=(incoming,(),None)
+shared=repo/'experiments/native-metal/engine/src/libs/shared_headers/include/shared'
+native_resource_owners={}
+for path in sorted(shared.rglob('*')):
+ if path.is_file():native_resource_owners['RESOURCE/shared/'+path.relative_to(shared).as_posix()]=path
+for name in LEGACY_TECHNIQUES:
+ native_resource_owners['RESOURCE/techniques/'+name]=repo/'experiments/native-metal/engine/src/techniques'/name
+for name,path in native_resource_owners.items():
+ assert name not in projected,name
+ raw=path.read_bytes();projected[name]=(raw,(),None);canonical_inputs[path]=(raw,raw)
+for helper in ['gameplay_sources.py','sync_metal_gameplay.py','delivery_state.py']:
+ path=repo/'tools'/helper;raw=path.read_bytes();canonical_inputs[path]=(raw,raw)
+shutil.copytree(runtime/'PROGRAM',scratch/'PROGRAM',symlinks=False)
+for name,(incoming,legacy,encoding) in projected.items():
+ if name.startswith('PROGRAM/'):
+  target=scratch/name;target.parent.mkdir(parents=True,exist_ok=True)
+  assert not target.is_symlink(),name
+  target.write_bytes(incoming)
+# Reproduce only the resource branches receiving canonical bytes; every
+# unchanged sibling remains a read-only symlink and is never a write target.
+def resource_branch(base,target,changes):
+ assert not target.is_symlink(),target
+ target.mkdir(parents=True,exist_ok=True)
+ children={child.name.casefold():child for child in base.iterdir()} if base.is_dir() else {}
+ groups={};spellings={}
+ for relative,data in changes.items():
+  first,*rest=Path(relative).parts
+  key=first.casefold();spellings.setdefault(key,first)
+  branch=groups.setdefault(key,{});tail='/'.join(rest)
+  assert tail not in branch or branch[tail]==data,relative
+  branch[tail]=data
+ # Canonical manifests use both battle_interface/BATTLE_INTERFACE. Merge
+ # case-insensitively before creating any symlink on the macOS volume.
+ for key in sorted(set(children)|set(groups)):
+  source=children.get(key,base/spellings.get(key,key));destination=target/source.name
+  incoming=groups.get(key)
+  if incoming is None:destination.symlink_to(source.resolve(),target_is_directory=source.is_dir())
+  elif '' in incoming:
+   assert len(incoming)==1 and not destination.is_symlink(),source.name
+   destination.write_bytes(incoming[''])
+  else:resource_branch(source,destination,incoming)
+resource_changes={name.removeprefix('RESOURCE/'):data[0] for name,data in projected.items() if name.startswith('RESOURCE/')}
+resource_branch(runtime/'RESOURCE',scratch/'RESOURCE',resource_changes)
+assert not (scratch/'PROGRAM').is_symlink() and not (scratch/'RESOURCE').is_symlink()
+runtime_program_before=hashlib.sha256(''.join(str(x.relative_to(runtime/'PROGRAM'))+':'+digest(x)+'\n' for x in sorted((runtime/'PROGRAM').rglob('*')) if x.is_file()).encode()).hexdigest()
+runtime_resource_before={name:digest(runtime/name) if (runtime/name).is_file() else None for name in projected if name.startswith('RESOURCE/')}
+
+(scratch/'SAVE/Probe').mkdir(parents=True)
+shutil.copyfile(save,scratch/'SAVE/Probe/input')
+for name in ['options','project.df','metal_graphics']:
+ if (runtime/name).is_file():shutil.copyfile(runtime/name,scratch/name)
+ini=(runtime/'engine.ini').read_text()
+for key,value in [('full_screen','0'),('screen_x','1920'),('screen_y','1080'),('max_fps','120'),('vsync','1'),('show_fps','0')]:
+ ini=re.sub(r'(?m)^'+key+r'\s*=.*$',key+' = '+value,ini)
+(scratch/'engine.ini').write_text(ini)
+profile=Path(os.environ['CORSAIRS_SOURCE_PROFILE']).resolve()
+baseline_profile_matches={n:digest(profile/n) for n in ['options','metal_graphics']}==baseline_inputs['profile_input_sha256']
+assert prepare_only or baseline_profile_matches,'profile settings differ from retained ordinary baseline'
+for name in ['options','metal_graphics']:
+ if (profile/name).is_file():shutil.copyfile(profile/name,scratch/name)
+cpp=scratch/'ordinary.cpp';cpp.write_text(source)
+ninja=repo/'experiments/native-metal/inputs/toolchain/bin/ninja'
+commands=subprocess.check_output([str(ninja),'-C',str(build),'-t','commands','sea-fleet-benchmark'],text=True).splitlines()
+compileline=next(x for x in commands if 'sea_fleet_benchmark.cpp' in x and ' -c ' in x)
+linkline=commands[-1]
+obj=str(scratch/'ordinary.o');exe=str(scratch/'ordinary')
+cc=shlex.split(compileline);cc.insert(1,'-I'+str(repo/'experiments/native-metal'));cc.extend(['-I'+str(repo/'experiments/native-metal/engine/src/apps/engine/src')]);cc[cc.index('-o')+1]=obj;cc[cc.index('-c')+1]=str(cpp)
+if '-MF' in cc:cc[cc.index('-MF')+1]=str(scratch/'ordinary.d')
+ld=shlex.split(linkline)
+assert ld[:2]==[':','&&'] and ld[-2:]==['&&',':'],ld[:3]
+ld=ld[2:-2]
+for i,x in enumerate(ld):
+ if x.endswith('sea_fleet_benchmark.cpp.o'):ld[i]=obj
+ld[ld.index('-o')+1]=exe
+manifest={'kind':'isolated candidate full PROGRAM ordinary route comparison','head':subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip(),'save_sha256_before':before,'save_bytes':save.stat().st_size,'hidden':True,'native_deadline_seconds':max_native_seconds,'startup_only':bool(os.environ.get('CORSAIRS_PROBE_STARTUP_ONLY')),'width':1920,'height':1080,'program':'normal seadogs.c -> evntLoad -> LoadGame -> LoadGame_continue -> LoadEngineState -> saved OnLoad','compile':cc,'link':ld,'binary_inputs':{},'profile_input_sha256':{n:digest(profile/n) for n in ['options','metal_graphics']},'source_inputs':{},'resource_admission':{'native_rss_limit_bytes':8*1024**3,'host_ram_reserve_bytes':12*1024**3,'disk_reserve_bytes':20*1024**3,'scratch_limit_bytes':3*1024**3,'host_memory_bytes':host_memory,'host_free_percent_before':int(free_before.group(1)),'rss_sampling_seconds':.25,'rss_limit_kind':'sampled bound plus native end-of-frame peak check'}}
+manifest['source_inputs']['PROGRAM_tree_sha256']=hashlib.sha256(''.join(str(x.relative_to(scratch/'PROGRAM'))+':'+digest(x)+'\n' for x in sorted((scratch/'PROGRAM').rglob('*')) if x.is_file()).encode()).hexdigest()
+manifest['baseline_input_matches']={'save':baseline_save_matches,'profile':baseline_profile_matches}
+manifest['projection_owner']='tools/gameplay_sources.py:read() runtime_bytes'
+manifest['asset_projection_owner']='tools/sync_metal_gameplay.py:asset_changes() all authored asset roots'
+manifest['native_resource_projection_owner']='experiments/native-metal/run.sh shared header copy and LEGACY_TECHNIQUES staging'
+manifest['native_resource_sources']={name:str(path.relative_to(repo)) for name,path in native_resource_owners.items()}
+manifest['candidate_engine_sha256']=expected_engine_sha
+manifest['raw_engine_path']=str(raw_engine.relative_to(repo))
+manifest['compiler_receipt']=compiler_receipt
+manifest['declared_source_cut_fingerprint']=os.environ['CORSAIRS_SOURCE_CUT_FINGERPRINT']
+import metal_engine_source
+manifest['observed_native_source_fingerprint']=metal_engine_source.fingerprint()
+assert manifest['observed_native_source_fingerprint']==manifest['declared_source_cut_fingerprint'],'native source cut changed'
+manifest['delivery_input_sources']={str(path.relative_to(repo)):hashlib.sha256(raw).hexdigest() for path,(raw,incoming) in canonical_inputs.items()}
+manifest['installed_engine_sha256_before']=installed_engine_before
+manifest['projected_files']={name:hashlib.sha256(row[0]).hexdigest() for name,row in projected.items()}
+manifest['runtime_program_sha256_before']=runtime_program_before
+manifest['native_header_owners']={}
+for name in ['experiments/native-metal/backend.mm','experiments/native-metal/sea_map_transition.hpp','experiments/native-metal/world_map_island_area.hpp','experiments/native-metal/world_map_resources.hpp','experiments/native-metal/world_map_player_model.hpp','experiments/native-metal/engine/src/libs/ship/src/ship.cpp','experiments/native-metal/engine/src/libs/core/src/core_impl.cpp','experiments/native-metal/engine/src/libs/worldmap/src/world_map_resources.cpp']:
+ manifest['source_inputs'][name]=digest(repo/name)
+for name in sorted(set(x for x in ld if x.endswith('.a'))):
+ manifest['binary_inputs'][name]=digest(build/name)
+try:
+ for name,cmd in [('compile',cc),('link',ld)]:
+  proc=subprocess.run(cmd,cwd=build,capture_output=True,text=True,timeout=45)
+  (scratch/(name+'.txt')).write_text(proc.stdout+proc.stderr)
+  if proc.returncode:raise RuntimeError(name+' failed '+str(proc.returncode))
+ # Bind what the candidate translation unit actually consumed, not a
+ # nearby header with the same basename. The compiler produced this .d file.
+ dependencies=shlex.split((scratch/'ordinary.d').read_text().replace('\\\n',' '))
+ expected={name:repo/'experiments/native-metal'/name for name in ['sea_map_transition.hpp','world_map_island_area.hpp','world_map_player_model.hpp']}
+ expected.update({name:repo/'experiments/native-metal/engine/src/libs/worldmap/src'/name for name in ['world_map.h','wdm_objects.h','wdm_enemy_ship.h']})
+ for basename,owner in expected.items():
+  found=sorted(set(str(Path(x).resolve()) for x in dependencies if Path(x).name==basename))
+  owner=owner.resolve()
+  assert found==[str(owner)],(basename,found)
+  manifest['native_header_owners'][basename]={'path':str(owner.relative_to(repo)),'sha256':digest(owner),'proof':'candidate compiler depfile'}
+ if os.environ.get('CORSAIRS_PROBE_PREPARE_ONLY'):
+  manifest.update(prepare_only=True,returncode=0,native_launched=False)
+  raise SystemExit(0)
+ runstart=time.time()
+ rss_samples=[];last_host_check=0.;termination=None
+ with (scratch/'run.txt').open('w') as log:
+  proc=subprocess.Popen([exe,str(scratch)],stdout=log,stderr=subprocess.STDOUT)
+  while proc.poll() is None:
+   now=time.time();sample={'elapsed_seconds':now-runstart}
+   measured=subprocess.run(['/bin/ps','-o','rss=','-p',str(proc.pid)],capture_output=True,text=True,timeout=3)
+   if measured.stdout.strip():
+    sample['rss_bytes']=int(measured.stdout.strip())*1024
+    if sample['rss_bytes']>8*1024**3:termination='native RSS exceeded8GiB sampled bound'
+   if now-last_host_check>=2:
+    pressure=subprocess.run(['/usr/bin/memory_pressure'],capture_output=True,text=True,timeout=4)
+    free=re.search(r'System-wide memory free percentage: (\d+)%',pressure.stdout)
+    if free:
+     sample['host_free_percent']=int(free.group(1))
+     if int(free.group(1))*host_memory//100<12*1024**3:termination='host RAM reserve below12GiB'
+    last_host_check=now
+   rss_samples.append(sample)
+   if now-runstart>max_native_seconds:termination=f'native{max_native_seconds}s deadline'
+   if termination:
+    proc.terminate()
+    try:proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=5)
+    break
+   time.sleep(.25)
+ manifest['native_termination_reason']=termination
+ manifest['rss_samples']=rss_samples
+ manifest['returncode']=proc.returncode;manifest['wall_seconds']=time.time()-runstart
+except Exception as e:
+ if 'proc' in locals() and isinstance(proc,subprocess.Popen) and proc.poll() is None:
+  proc.terminate()
+  try:proc.wait(timeout=5)
+  except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=5)
+ manifest['failure']=str(e)
+finally:
+ manifest['installed_engine_unchanged']=installed_engine_before==digest(installed_engine)
+ manifest['canonical_sources_unchanged_during_run']=all(path.read_bytes()==raw for path,(raw,incoming) in canonical_inputs.items())
+ manifest['runtime_program_unchanged']=runtime_program_before==hashlib.sha256(''.join(str(x.relative_to(runtime/'PROGRAM'))+':'+digest(x)+'\n' for x in sorted((runtime/'PROGRAM').rglob('*')) if x.is_file()).encode()).hexdigest()
+ manifest['runtime_resource_projection_targets_unchanged']=runtime_resource_before=={name:digest(runtime/name) if (runtime/name).is_file() else None for name in projected if name.startswith('RESOURCE/')}
+ manifest['profile_input_sha256_after']={n:digest(profile/n) for n in ['options','metal_graphics']}
+ manifest['save_sha256_after']=digest(save);manifest['original_save_unchanged']=manifest['save_sha256_after']==before
+ out.mkdir(parents=True,exist_ok=True)
+ for name in ['frames.csv','renderer-frames.csv','run.txt','compile.txt','link.txt','events.txt','snapshots.txt','traffic-roster.json']:
+  if (scratch/name).is_file():
+   data=(scratch/name).read_text(errors='replace').replace(str(scratch),'<isolated-runtime>').replace(str(repo),'<repo>').replace(str(pathlib.Path.home()),'<user>')
+   (out/(('prepare-'+name) if manifest.get('prepare_only') else name)).write_text(data)
+ for image in scratch.glob('*.ppm'):
+  target=scratch/(image.stem+'.png')
+  subprocess.run(['/usr/bin/sips','-s','format','png',str(image),'--out',str(target)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True)
+  shutil.copyfile(target,out/target.name)
+ if (scratch/'SAVE/Probe/round').is_file():manifest['roundtrip_save_sha256']=digest(scratch/'SAVE/Probe/round');manifest['roundtrip_save_bytes']=(scratch/'SAVE/Probe/round').stat().st_size
+ for path in (scratch/'userdata/Logs').glob('*.log'):
+  # Diagnostic logs may include save profile and machine paths: redact before retention.
+  data=path.read_text(errors='replace').replace(str(scratch),'<isolated-runtime>').replace(str(repo),'<repo>').replace(str(pathlib.Path.home()),'<user>')
+  (out/path.name).write_text(data)
+ (out/'driver.cpp.txt').write_text(source)
+ manifest['compile']=[x.replace(str(scratch),'<scratch>').replace(str(repo),'<repo>') for x in manifest['compile']]
+ manifest['link']=[x.replace(str(scratch),'<scratch>').replace(str(repo),'<repo>') for x in manifest['link']]
+ manifest['binary_inputs']={k.replace(str(repo),'<repo>'):v for k,v in manifest['binary_inputs'].items()}
+ (out/('prepare-manifest.json' if manifest.get('prepare_only') else 'manifest.json')).write_text(json.dumps(manifest,indent=2))
+ print(json.dumps({k:v for k,v in manifest.items() if k in ('kind','head','returncode','failure','wall_seconds','native_termination_reason','original_save_unchanged','installed_engine_unchanged','runtime_program_unchanged','runtime_resource_projection_targets_unchanged','canonical_sources_unchanged_during_run','resource_admission')},indent=2))
+ if (scratch/'run.txt').exists():
+  lines=(scratch/'run.txt').read_text(errors='replace').splitlines()
+  print('\n'.join(lines[-20:]))

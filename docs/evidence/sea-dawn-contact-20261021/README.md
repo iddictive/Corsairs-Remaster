@@ -38,3 +38,9 @@ are excluded from this public evidence pack.
 reproduction and signed lower-hemisphere correction. The field stays 256×128
 at the existing cadence. Its bounded GPU timings do not establish unchanged
 player-scene FPS; the installed transition remains a separate acceptance step.
+
+[Real PROGRAM contact replay](real-program-first-contact/summary.json) later
+reached two actual nonlethal ship collisions through the full game scripts.
+The first and repeat frames took 8.637 and 8.398 ms; the reported hitch was not
+reproduced in that ordinary-mode copied save. This negative does not establish
+acceptance of every player ship, mode or collision.

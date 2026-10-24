@@ -1,0 +1,75 @@
+{
+  "kind": "exact baseline source snapshots for physical ship retirement repair",
+  "measured_manifest": "../manifest.json",
+  "measured_engine_sha256": "9eefcae5ceb2b328d6712d13d667f74617079a00de72b7bd105702e166b54020",
+  "measured_native_source_fingerprint": "380ab2740ae872bc5b6bb5da941012e28136ec9875cb0b70aa6df19e59377637",
+  "git_source_ref": "e7763bce4ce02ca4c6d07bf4374332542e7d445e",
+  "method": "Implementation snapshots from measured HEAD with clean pre-edit status; ship.cpp additionally matches measured individual hash. Shared messages.h is current minus exact50316 declaration and matches root-provided old header hash. ai_group predecessor is retained separately. Aggregate9eef source fingerprint match remains unresolved.",
+  "files": [
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.cpp",
+      "snapshot_path": "seafoam.cpp",
+      "sha256": "348f24339dc5aadf49cff7215921aa8023b48bc716e6fb9c6c97ef0c7750c74b",
+      "bytes": 29469,
+      "measured_individual_hash_match": false
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_foam/src/seafoam.h",
+      "snapshot_path": "seafoam.h",
+      "sha256": "97d7f6fb99e8a3e1a0a08dd4540765e448ac5728f8f6f66d48e39f57e8bf9634",
+      "bytes": 2978,
+      "measured_individual_hash_match": false
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sailors/src/sailors.cpp",
+      "snapshot_path": "sailors.cpp",
+      "sha256": "268cf53125e5e483940f2bc94e3ea2346d86ac13261910165e7184cc7d0af3c7",
+      "bytes": 73189,
+      "measured_individual_hash_match": false
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/touch/src/touch.cpp",
+      "snapshot_path": "touch.cpp",
+      "sha256": "4bc1f0405e1a442f3228e7f72896a84e2115c36a4e0592370954d93b0f1299c6",
+      "bytes": 45153,
+      "measured_individual_hash_match": false
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/src/ship.cpp",
+      "snapshot_path": "ship.cpp",
+      "sha256": "2eed1c521238963b6a8d09df415e40f3758e61522ee1c1a67e0ffcce2ef1d54c",
+      "bytes": 180163,
+      "measured_individual_hash_match": true
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/shared_headers/include/shared/messages.h",
+      "snapshot_path": "messages.h",
+      "sha256": "9bbb4dbd965b8c61def2c1990c9ada9b8d2a6e9a8dd1a67ef64a2bd9de05cb5d",
+      "bytes": 21374,
+      "measured_individual_hash_match": false,
+      "binding": "root-provided pre50316 hash; reconstructed current-minus-one exact declaration; HEAD-only prior snapshot rejected"
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass.h",
+      "snapshot_path": "spyglass.h",
+      "sha256": "d3bb61186553e38ecbafa5f583c73ccc16f4e0eaf688941fdf8e4dafa5441e23",
+      "bytes": 5195,
+      "measured_individual_hash_match": false,
+      "binding": "clean immediately before the single-line borrower query edit"
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass.cpp",
+      "snapshot_path": "spyglass.cpp",
+      "sha256": "636c6925d4e9d0b84a7e34047f80cd7080afc962b0a5b385b7a39790a5959b11",
+      "bytes": 27527,
+      "measured_individual_hash_match": false,
+      "binding": "clean immediately before owner query implementation edit"
+    }
+  ],
+  "aggregate_baseline_binding": "UNRESOLVED: root sixteen-file override computed cab201... rather than measured380ab...; no aggregate equivalence claimed",
+  "rejected_snapshot": {
+    "snapshot_path": "messages.head-e776.h",
+    "sha256": "8f62a472d2f079612d9bb48006f0a5bb898603b96195dfb0d03455bf85805dc4",
+    "reason": "HEAD-only messages omitted pre-existing island/traffic messages; not measured cut"
+  }
+}

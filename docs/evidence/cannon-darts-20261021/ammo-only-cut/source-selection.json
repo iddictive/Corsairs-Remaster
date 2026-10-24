@@ -1,0 +1,202 @@
+{
+  "base": "e7763bce4ce02ca4c6d07bf4374332542e7d445e",
+  "purpose": "Source input selection for a safe independent ammunition/audio/F11 cut, excluding unaccepted world/fort/region hunks; integration owner owns checkout/build/install.",
+  "files": [
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_balls.cpp",
+      "sha256": "89edb65cf87ea247c589d67b8eb7ce2ca402d56322e9ce99d335ed4584a2b031"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_balls.h",
+      "sha256": "46f829a11fc16405f77bb158e8e5a972faac4a83a1ed0e2fdf0b4c54db9e8557"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.cpp",
+      "sha256": "d31ecb479400d840efe539b39740dffc2bf8874b2b5f12686c2b982d1cacb76a"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h",
+      "sha256": "7e439bcc200b50f7f147345ad643563f5b1cda4037fa85334d033d4d6bd426d1"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp",
+      "sha256": "c50b5973d4d01ff7fd5a8c960c409a66e29253952919f5b7deddfbd162d278d9"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.h",
+      "sha256": "5297f87a36b65cb4eb41f757abac01c612ab666ce3bc92c67322f0f2145785e6"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp",
+      "sha256": "1e4839d3ec2e9c1bb4b7ca6c22fb5c28d488ebb57b0152353d9ea0a06c543158"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_camera_controller.cpp",
+      "sha256": "6ab758b7d7f8e46fa6f041349634858b38885ee988936f67ccfc4304c077587a"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_aim_zoom.h",
+      "sha256": "999f43fb6c72a6125b933410ff4326f4e61dc2273b642cce5050370798d2b0f5"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp",
+      "sha256": "4f0bc9e4720dc3370a170e1961c51a751ba1da448a5c67a8b0d5264a0ccde247"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp",
+      "sha256": "11a4beb26a0d7057276a32644da3ee17b5aa6df95b6b47e03378d325bd6295c3"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h",
+      "sha256": "c4321b3658251f25853e9aee9aae6ac87b5803e6939cc06d499f922b1e68fe60"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/dart_view_borrower.h",
+      "sha256": "fb64dc99068775312cabae45cc7b6ec6fc3ca13ebd9d7fcaf33c0f168d80699f"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp",
+      "sha256": "45f34a27d8759f8dd1b1937140b4296d1f249dc9d1c58efea8cdcfc6e3216dfd"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/techniques/ai/balls.fx",
+      "sha256": "88c899434b530bff8742c65089ea5f1bd54ed76f100ed3bad54c49e03d4e48c4"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/battle_interface/BattleInterface.c",
+      "sha256": "44a23d56e4d40d242573f185fc837a90e9ccabd86fad59507c0640ea1abb535e"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/controls/controls.c",
+      "sha256": "520c949459dcd917d88a15018d9fabd0b98a8a5f58fe09270cfd096f34f2aa70"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/controls/init_pc.c",
+      "sha256": "b9f3a9fdfce4bab4be91fc68ce9fe3857ed0afcecd54829c5d964f4f68e8e7bb"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/interface/store.c",
+      "sha256": "bcc69fb8460ff2ce731ef39a31c160e93d4236edca15e8a5d0f58067a943eadf"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/scripts/sea_phonk.c",
+      "sha256": "0d69ab2e07a9c244604ebe733211c47f94868734f764934152152286fb6293d5"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIBalls.c",
+      "sha256": "c725ce8eb20a490c73c77ec14f642df83e77c10decf4261513b1f56b9bd29388"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AICannon.c",
+      "sha256": "088b727a218450362e64d2f27c8dc5999b838f34b2cb116ad89f30c6dc0d1266"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AICameras.c",
+      "sha256": "f09901d5f46c873d290d3bd823d785179d954d2fc9c5cc167a7a3cf7101ff9c1"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+      "sha256": "36e6a08ccd3f6f9054a4e676be738c29499935d1da3fa9aeca3052aa5366b180"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIFantom.c",
+      "sha256": "b07ce53766f35dd6dd8c6577a4a9617eb553d671d440cb0f7676f88d8a8cc78d"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/direct_sailing.c",
+      "sha256": "8adbf2980798d038d70351a08445b02436ab1bd204078975b696a7baee846610"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/seadogs.c",
+      "sha256": "55fc517c05fe33be4f02df4abf1cd23ce5ba2c32411d86eedb2886cec6f7b95f"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/goods.h",
+      "sha256": "cc370d15be9e2f3d3334ebf8fb35720c1e372560e32cd4795765d54e91899de2"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/initGoods.c",
+      "sha256": "d17dbb11e7b74c4f92ed8adf59ae9c6aaaad602a560bb797048f71f0670d070a"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/initStore.c",
+      "sha256": "9d069caafc66d12f5ca3af681f9d6ba42c7187052a2af493dec3bd7823f17a30"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/storeutilite.c",
+      "sha256": "9cec0c8f3409a3dcec24d5eae614aeaaf1cabdfd185844ac62b6e9ef4112dd3c"
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/interfaces/pictures.ini",
+      "sha256": "04f516e2cb6889003acb308bb20b0cbfdb718956c93aec07d9dad3732c41b8fe"
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/texts/russian/common.ini",
+      "sha256": "0ee41e60a1290f5cb0a3462ffd8eba82015594f13293ea60e7d56fd071da53dc"
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/texts/russian/ControlsNames.txt",
+      "sha256": "af7184eb99b3115fc8686f48b2f77030116f6c63011176703a7297be1227fe14"
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/texts/russian/GoodsDescribe.txt",
+      "sha256": "84d99382579be85d919b8325eecd70ce4ef6c2f5dc5e7da6a15e8c4c6497f45e"
+    },
+    {
+      "path": "src/assets/ui/manifest.json",
+      "sha256": "1df67a693b0f4afc3ad1fea38b735b8b0804e8f7f8e555fc565d8dc5b67c4261"
+    },
+    {
+      "path": "src/assets/ui/airburst-commands.tga.tx",
+      "sha256": "1e882736a6fff27cab18a4acb0168fbbad7ca105d5d4549fc727e133d30847b5"
+    },
+    {
+      "path": "src/assets/ui/airburst-goods.tga.tx",
+      "sha256": "c4dec00acb53ae0e7c8ab941d4708103ad900a94a9a871779d2186c449fe8444"
+    },
+    {
+      "path": "src/assets/ui/airburst-navigator.tga.tx",
+      "sha256": "46e38f8626f2e51ea629761ecb4691ae2b14320c10993b0ab4f9528811de23a1"
+    },
+    {
+      "path": "src/assets/ui/darts.png",
+      "sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9"
+    },
+    {
+      "path": "src/assets/ui/darts-frame.png",
+      "sha256": "b45413a80e980f46b662aa12d1f8b486130adf9b28b7b57def29dba62c9b03d7"
+    },
+    {
+      "path": "src/assets/ui/darts-command-states.png",
+      "sha256": "f91037d8dd038dd170f506fbdfbe6716b9c3ff0781b43bd43e7f8193b47f7d98"
+    },
+    {
+      "path": "src/assets/ui/darts-projectile.tga.tx",
+      "sha256": "62acf96545474c08f689592c19a8f23e1dbd8360b130e6d8bab1c3f13faf6731"
+    },
+    {
+      "path": "src/assets/ui/prepare_darts.py",
+      "sha256": "03d2c824a7c4d2b8e016772b9dbff6f140440beaf3caa6e4b228c2e8361d8058"
+    },
+    {
+      "path": "docs/sea-cannon-ballistics.md",
+      "sha256": "861ee6398c2711692c6c3749604d74f3eb3eea18119cc53db683da319379ddb2"
+    },
+    {
+      "path": "tools/delivery_state.py",
+      "sha256": "d9170f898786fe9f37c816c4208bc508942c4e484fbdea5cebf9369e3b18a956"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp",
+      "sha256": "fb168d34a65e05a8e96b9c962ae234960f4c2e367624a8860d05a26acc09b9d0"
+    },
+    {
+      "path": "experiments/native-metal/audio/audio_voice_policy.h",
+      "sha256": "5da6cfc32ebe3cb0a3da3afc2bc280b23d24342334d73f54c9a5e8b39552e0c7"
+    },
+    {
+      "path": "experiments/native-metal/audio/sound_service.cpp",
+      "sha256": "b52b3ff024fc92ea076feef6fb39a2683ecb7ce4942436880f4112bc01b3bb46"
+    }
+  ]
+}

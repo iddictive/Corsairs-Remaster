@@ -1,0 +1,12 @@
+{
+  "command": [
+    "experiments/native-metal/.cache/build/bin/script-vm-probe",
+    "docs/evidence/cannon-darts-20261021/catalogue-vm-array-adapter",
+    "SeedLegacy",
+    "2",
+    "UpgradeAndCheck"
+  ],
+  "returncode": 1,
+  "stdout": "SeedLegacy=0\nUpgradeAndCheck=0\nUpgradeAndCheck=0\nscript_errors=186\n",
+  "stderr": ""
+}

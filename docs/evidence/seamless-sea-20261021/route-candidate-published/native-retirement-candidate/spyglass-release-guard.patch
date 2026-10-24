@@ -1,0 +1,26 @@
+--- a/experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp
++++ b/experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp
+@@ -1,6 +1,7 @@
+ #include "ai_group.h"
+ #include "ai_sea_goods.h"
+ #include "../../sea_cameras/src/dart_view_borrower.h"
++#include "../../battle_interface/src/spyglass/spyglass.h"
+ #include "shared/messages.h"
+ #include <algorithm>
+ 
+@@ -32,6 +33,7 @@
+     std::vector<AIGroup *> groups;
+     std::vector<AIShip *> ships;
+     auto *goods = static_cast<AISeaGoods *>(core.GetEntityPointer(core.GetEntityId("AISeaGoods")));
++    auto *spyglass = static_cast<ISPYGLASS *>(core.GetEntityPointer(core.GetEntityId("ISPYGLASS")));
+     for (const auto &name : names) {
+         auto *group = FindGroup(name.c_str());
+         if (!group || group->isMainGroup()) return false;
+@@ -45,6 +47,7 @@
+         if (goods && goods->BorrowsCharacter(static_cast<int32_t>(character->GetAttributeAsDword("index")))) return false;
+         if (storm_dart_view::ReferencesCharacter(static_cast<int>(character->GetAttributeAsDword("index")))) return false;
+         if (ship->GetCannonController()->HasPendingFire()) return false;
++        if (spyglass && spyglass->ReferencesCharacter(static_cast<int32_t>(character->GetAttributeAsDword("index")))) return false;
+         // A target in either task slot is still a borrower even when hidden
+         // by a secondary task. Script admission additionally holds battle bundles.
+         for (auto *other : AIShip::AIShips) {

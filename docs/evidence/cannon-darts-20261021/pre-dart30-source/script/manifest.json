@@ -1,0 +1,26 @@
+{
+  "method": "Reverse only exact root-owned Dart30 additions, assert each match count, verify previously recorded independent source SHA before write; engine9eef Goods also restores Norm40 from saved catalogue source. Current working source unchanged.",
+  "files": [
+    {
+      "file": "AIBalls.c",
+      "source": "src/gameplay/PROGRAM/sea_ai/AIBalls.c",
+      "sha256": "420d70f41137b0f14dbd4ba9f268f608df257d2980680708a90d594997730fb3",
+      "historical_hash_verified": true,
+      "oracle": "native-range-inputs.json"
+    },
+    {
+      "file": "pre30-initGoods.c",
+      "source": "src/gameplay/PROGRAM/store/initGoods.c",
+      "sha256": "b6b9088abe77f9bca4d3cf03165b4dab1ddd8d7ef23e9dbb5b55b177694beb4d",
+      "historical_hash_verified": true,
+      "oracle": "pre-Dart30 source receipt"
+    },
+    {
+      "file": "engine9eef-initGoods.c",
+      "source": "src/gameplay/PROGRAM/store/initGoods.c",
+      "sha256": "e853f70b0ae413dc66b42d83d80289ce131138f491def3ace49a2f90cbe87bbf",
+      "historical_hash_verified": true,
+      "oracle": "catalogue-vm-codec-onload-final/manifest.json"
+    }
+  ]
+}

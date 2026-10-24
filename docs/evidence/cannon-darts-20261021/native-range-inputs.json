@@ -1,0 +1,36 @@
+{
+  "inputs": {
+    "balls": {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIBalls.c",
+      "sha256": "420d70f41137b0f14dbd4ba9f268f608df257d2980680708a90d594997730fb3"
+    },
+    "goods": {
+      "path": "src/gameplay/PROGRAM/store/initGoods.c",
+      "sha256": "e853f70b0ae413dc66b42d83d80289ce131138f491def3ace49a2f90cbe87bbf"
+    },
+    "perks": {
+      "path": "src/gameplay/PROGRAM/interface/perks/perks.c",
+      "sha256": "060ed04cc7fc4c4a95d0f2289832606528e4eaa6407c7e9f51d7e4e5dec1c6d8"
+    },
+    "cannons": {
+      "path": "/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/PROGRAM/CANNONS/cannons_init.c",
+      "sha256": "1c4c40310eef4657758c5527d0dfb3eb2b63347cffde994182a762de7fe7756e"
+    },
+    "calibration": {
+      "path": "docs/evidence/cannon-darts-20261021/calibration.json",
+      "sha256": "b8f842e6fea1b0bfafdaa557dbb9cd8c78c1230795d86c8807d5367f0730c956"
+    }
+  },
+  "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+  "ranges_m": [
+    2098.377757964542,
+    4214.511469401218
+  ],
+  "shots_per_range": 1020,
+  "volleys_per_range": 20,
+  "acceptance_hits_inclusive": [
+    663,
+    765
+  ],
+  "script_source_boundary": "Three full ammo helpers and perk lookup; Ball_AddBall launch transform+dispersion verbatim, omitting misfire branch and postlaunch muzzle smoke/audio; four-lane dart identity assigned as current source. Aim uses AICannon-equivalent low ballistic root. No AI controller/reload timing acceptance."
+}

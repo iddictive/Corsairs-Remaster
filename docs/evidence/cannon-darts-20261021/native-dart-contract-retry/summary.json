@@ -1,0 +1,54 @@
+{
+  "warmup_frames": 32,
+  "measured_frames": 128,
+  "percentiles": "nearest rank; median uses middle pair",
+  "cpu_core_wall_ms": {
+    "median": 9.68971,
+    "p95": 10.5025,
+    "p99": 10.7772,
+    "max": 11.3138
+  },
+  "cpu_core_wall_mean_ms": 9.729168828125,
+  "cpu_preparation_estimate_ms": {
+    "median": 9.6660226375,
+    "p95": 10.47800892,
+    "p99": 10.751950042,
+    "max": 11.28859105
+  },
+  "main_completion_cadence_mean_ms": 9.789752953605154,
+  "gpu_execution_union_ms": {
+    "median": 6.931853829883039,
+    "p95": 8.12700018286705,
+    "p99": 8.678250014781952,
+    "max": 9.595374809578061
+  },
+  "required_pass_minima": {
+    "sails": 0,
+    "animated": 334,
+    "sea_draws": 0,
+    "sky_current": 1,
+    "shadow_cubes_complete": 8
+  },
+  "buffer_allocations": {
+    "median": 16.0,
+    "p95": 16.0,
+    "p99": 16.0,
+    "max": 16.0
+  },
+  "upload_bytes": {
+    "median": 7422544.0,
+    "p95": 7432176.0,
+    "p99": 7573568.0,
+    "max": 7573568.0
+  },
+  "draws": {
+    "median": 1484.0,
+    "p95": 1486.0,
+    "p99": 1490.0,
+    "max": 1490.0
+  },
+  "max_gpu_resource_bytes": 1127972864,
+  "max_rss_bytes": 1826291712,
+  "workload_coverage_pass": false,
+  "performance_acceptance": false
+}

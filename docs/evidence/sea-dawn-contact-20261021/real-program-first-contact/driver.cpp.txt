@@ -1,0 +1,81 @@
+// Disposable first-contact evidence. Full PROGRAM and normal SAVE/CORE/event path.
+// Only fixture position/velocity/mode setup is controlled; no event/HP proxy.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "ship_base.h"
+#include "frame_limiter.hpp"
+#include <SDL2/SDL.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <memory>
+#include <set>
+#include <string>
+#include <thread>
+#include <spdlog/spdlog.h>
+extern "C" bool StormMetalFlushFrameTrace(void *);
+extern uint64_t dwRdtsc;
+using Clock=std::chrono::steady_clock;
+VDATA* var(const char*n){return static_cast<VDATA*>(core.GetScriptVariable(n));}
+int flag(const char*n){auto*v=var(n);return v?v->GetInt():-1;}
+ATTRIBUTES* attr(const char*n){auto*v=var(n);if(!v)return nullptr;auto*d=static_cast<DATA*>(v);if(d->GetType()==VAR_REFERENCE&&!d->GetReference())return nullptr;return v->GetAClass();}
+std::string value(ATTRIBUTES*a,const char*n){auto*b=a?a->FindAClass(a,n):nullptr;return b&&b->HasValue()?b->GetValue():"";}
+double number(ATTRIBUTES*a,const char*n){auto*b=a?a->FindAClass(a,n):nullptr;return b?b->GetAttributeAsFloat():0.;}
+SHIP_BASE* shipIndex(const std::string&index,entid_t*eid=nullptr){for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id)))if(value(s->GetACharacter(),"index")==index){if(eid)*eid=id;return s;}return nullptr;}
+void load(){core_internal.Compiler->SetEventHandler("evntLoad","LoadGame",0);core.Event("evntLoad","s","SAVE\\Probe\\input");}
+std::set<std::string> companions(){std::set<std::string>indices;auto*p=attr("pchar");auto*c=p?p->FindAClass(p,"Fellows.Companions"):nullptr;if(c)for(size_t i=0;i<c->GetAttributesNum();++i){auto*child=c->GetAttributeClass(uint32_t(i));if(child&&child->HasValue())indices.insert(child->GetValue());}return indices;}
+size_t pending(){size_t count=0;for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id)))if(auto*m=s->GetModel())for(int n=0;auto*node=m->GetNode(n);++n)if(node->geo&&node->geo->HasPendingHullRebuild())++count;return count;}
+double stamp(){return std::chrono::duration<double,std::milli>(Clock::now().time_since_epoch()).count();}
+bool setup(const std::string&player,const std::string&target,CVECTOR anchor,int phase,int frame,std::ofstream&events){
+ auto*d=shipIndex(player),*t=shipIndex(target);if(!d||!t||d->isDead()||t->isDead())return false;
+ d->State.vAng=CVECTOR(0.f,1.57079632679f,0.f);t->State.vAng=CVECTOR(0.f);
+ for(auto*s:{d,t}){s->State.vRotate=CVECTOR(0.f);s->State.vSpeed=CVECTOR(0.f);s->SetSailState(0.f);s->SetRotate(0.f);s->SetFixedSpeed(false,0.f);}
+ t->SetPos(anchor);d->SetPos(anchor+CVECTOR(-.5f*(d->GetBoxsize().z+t->GetBoxsize().x)-6.f,0.f,0.f));d->State.vSpeed.z=10.f;
+ events<<"fixture_setup phase="<<phase<<" after_frame="<<frame<<" epoch_ms="<<stamp()<<" player="<<player<<" target="<<target<<" driver_knots=10 driver_box="<<d->GetBoxsize().x<<','<<d->GetBoxsize().z<<" target_box="<<t->GetBoxsize().x<<','<<t->GetBoxsize().z<<" driver_hp="<<number(d->GetACharacter(),"Ship.HP")<<" target_hp="<<number(t->GetACharacter(),"Ship.HP")<<" pending_geometry="<<pending()<<'\n';events.flush();return true;
+}
+int main(int argc,char**argv){
+ if(argc!=2)return 64;auto cwd=std::filesystem::canonical(argv[1]);std::filesystem::current_path(cwd);std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1);setenv("STORM_QUIET_CLIENT","1",1);setenv("STORM_METAL_PROFILE","1",1);setenv("STORM_METAL_DAMAGE_TRACE","1",1);setenv("STORM_METAL_STRUCTURAL_CONTACT","0",1);setenv("STORM_METAL_FRAME_TRACE",(cwd/"renderer-frames.csv").c_str(),1);
+ mi_option_set(mi_option_show_errors,1);mi_option_set(mi_option_show_stats,0);mi_option_set(mi_option_eager_commit,1);mi_option_set(mi_option_eager_region_commit,1);mi_option_set(mi_option_large_os_pages,1);mi_option_set(mi_option_reserve_huge_os_pages,1);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO))return 65;steamapi::SteamApi::getInstance(true);auto window=storm::OSWindow::Create(1920,1080,0,false,false);if(!window||!window->OSHandle()||(SDL_GetWindowFlags(static_cast<SDL_Window*>(window->OSHandle()))&SDL_WINDOW_SHOWN))return 66;
+ core_internal.Init();core_internal.SetWindow(window);core_internal.InitBase();storm::frame::Limiter limiter(120);
+ std::ofstream rows(cwd/"frames.csv"),events(cwd/"events.txt");rows<<std::setprecision(15);events<<std::setprecision(15);
+ rows<<"frame,epoch_begin_ms,epoch_end_ms,cpu_wall_ms,real_delta_ms,sim_delta_ms,touch_ms,rss_bytes,peak_rss_bytes,phase,sea_active,sea_loaded,reload,pending_geometry,player_eid,target_eid,player_hp,target_hp,player_x,player_z,target_x,target_z,player_knots,target_knots,target_dead\n";
+ int phase=0,stable=0,firstFrame=-1,secondFrame=-1,finishFrame=-1;bool loadSent=false,modeSet=false,ok=false;std::string player,target;CVECTOR anchor;double hpBefore=0;const auto start=Clock::now();auto phaseStart=start;
+ try{for(int frame=0;frame<14000;++frame){
+  const auto now=Clock::now();if(std::chrono::duration<double>(now-start).count()>115){events<<"deadline=1\n";break;}if(phase>0&&std::chrono::duration<double>(now-phaseStart).count()>15){events<<"phase_deadline="<<phase<<'\n';break;}
+  SDL_PumpEvents();SDL_FlushEvents(0,SDL_LASTEVENT);std::this_thread::sleep_until(limiter.NextFrame(Clock::now()));
+  if(phase==1||phase==3)if(auto*d=shipIndex(player)){d->State.vSpeed.x=0.f;d->State.vSpeed.z=10.f;}
+  const double begin=stamp();if(!core_internal.Run())break;const double end=stamp();
+  auto*p=attr("pchar");if(player.empty()&&p)player=value(p,"index");entid_t playerId=0,targetId=0;auto*d=shipIndex(player,&playerId),*t=target.empty()?nullptr:shipIndex(target,&targetId);
+  const bool valid=flag("bSeaActive")==1&&flag("bSeaLoaded")==1&&flag("bSeaReloadStarted")==0&&d&&core.GetDeltaTime()>0;if(valid)++stable;else stable=0;
+  if(valid&&!modeSet){if(auto*sea=core.Entity_GetAttributePointer(core.GetEntityId("sea"))){events<<"saved_phonk="<<number(sea,"Phonk.Active")<<" probe_phonk=0 epoch_ms="<<stamp()<<'\n';sea->CreateSubAClass(sea,"Phonk")->SetAttributeUseDword("Active",0);}modeSet=true;}
+  if(phase==0&&loadSent&&valid&&stable==180){
+   auto members=companions();for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id))){const auto index=value(s->GetACharacter(),"index");if(index!=player&&members.contains(index)&&!s->isDead()&&number(s->GetACharacter(),"Ship.HP")>1000){target=index;break;}}
+   t=shipIndex(target);if(!t){events<<"missing_live_companion_target=1\n";break;}anchor=d->GetPos();unsigned moved=0;
+   for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id))){auto index=value(s->GetACharacter(),"index");if(index!=player&&index!=target){s->SetPos(anchor+CVECTOR(700.f+100.f*moved,0.f,700.f));++moved;}}
+   hpBefore=number(t->GetACharacter(),"Ship.HP");if(!setup(player,target,anchor,1,frame,events))break;phase=1;phaseStart=Clock::now();
+  }else if((phase==1||phase==3)&&valid&&t){
+   const double hp=number(t->GetACharacter(),"Ship.HP");if(t->isDead()||hp<=0){events<<"unexpected_lethal phase="<<phase<<" frame="<<frame<<'\n';break;}
+   if(hp<hpBefore-.01){events<<"hp_drop phase="<<phase<<" frame="<<frame<<" epoch_begin_ms="<<begin<<" epoch_end_ms="<<end<<" from="<<hpBefore<<" to="<<hp<<" target_eid="<<targetId<<'\n';events.flush();if(phase==1){firstFrame=frame;phase=2;}else{secondFrame=frame;finishFrame=frame+60;phase=4;}phaseStart=Clock::now();}
+  }else if(phase==2&&valid&&frame>=firstFrame+420){
+   if(!t||t->isDead())break;hpBefore=number(t->GetACharacter(),"Ship.HP");if(!setup(player,target,anchor,3,frame,events))break;phase=3;phaseStart=Clock::now();
+  }else if(phase==4&&valid&&frame>=finishFrame){ok=firstFrame>=0&&secondFrame>firstFrame&&t&&!t->isDead();phase=5;}
+  size_t elapsed=0,user=0,system=0,rss=0,peak=0,commit=0,peakCommit=0,faults=0;mi_process_info(&elapsed,&user,&system,&rss,&peak,&commit,&peakCommit,&faults);
+  if(rss>6ull*1024*1024*1024){events<<"rss_limit=1 bytes="<<rss<<'\n';break;}
+  const auto dp=d?d->GetPos():CVECTOR(0.f),tp=t?t->GetPos():CVECTOR(0.f);
+  rows<<frame<<','<<begin<<','<<end<<','<<end-begin<<','<<core.GetRDeltaTime()<<','<<core.GetDeltaTime()<<','<<double(dwRdtsc)*1000./SDL_GetPerformanceFrequency()<<','<<rss<<','<<peak<<','<<phase<<','<<flag("bSeaActive")<<','<<flag("bSeaLoaded")<<','<<flag("bSeaReloadStarted")<<','<<pending()<<','<<playerId<<','<<targetId<<','<<(d?number(d->GetACharacter(),"Ship.HP"):0)<<','<<(t?number(t->GetACharacter(),"Ship.HP"):0)<<','<<dp.x<<','<<dp.z<<','<<tp.x<<','<<tp.z<<','<<(d?d->State.vSpeed.z:0)<<','<<(t?t->State.vSpeed.z:0)<<','<<(t?t->isDead():false)<<'\n';rows.flush();
+  if(frame>=1&&!loadSent&&p){load();loadSent=true;events<<"canonical_load_event_sent frame="<<frame<<'\n';events.flush();stable=0;}
+  if(ok)break;
+ }}catch(const std::exception&error){events<<"exception="<<error.what()<<'\n';}
+ if(auto*r=static_cast<VDX9RENDER*>(core.GetService("dx9render")))StormMetalFlushFrameTrace(r->GetNativeDevice());events<<"contact_complete="<<ok<<" first_frame="<<firstFrame<<" second_frame="<<secondFrame<<" final_phase="<<phase<<'\n';events.flush();
+ core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return ok?0:2;
+}

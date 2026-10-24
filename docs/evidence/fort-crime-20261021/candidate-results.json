@@ -1,0 +1,33 @@
+[
+  {
+    "args": [
+      "FortCrimeCases"
+    ],
+    "exit_code": 0,
+    "stdout": "FortCrimeCases=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  },
+  {
+    "args": [
+      "FortCrimeSeedSave",
+      "1",
+      "FortCrimeAfterSeedSave"
+    ],
+    "exit_code": 0,
+    "stdout": "FortCrimeSeedSave=0\nFortCrimeAfterSeedSave=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  },
+  {
+    "args": [
+      "FortCrimeImmediateSave",
+      "1",
+      "FortCrimeAfterImmediateSave"
+    ],
+    "exit_code": 0,
+    "stdout": "FortCrimeImmediateSave=0\nFortCrimeAfterImmediateSave=0\nscript_errors=0\n",
+    "stderr": "",
+    "errors": ""
+  }
+]

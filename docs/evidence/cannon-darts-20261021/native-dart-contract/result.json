@@ -1,0 +1,6 @@
+{
+  "returncode": 64,
+  "wall_seconds": 0.1925911249127239,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/dart-contract-20261021-192717",
+  "run_path_basis": "repository-relative"
+}

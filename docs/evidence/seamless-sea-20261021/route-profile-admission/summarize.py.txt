@@ -1,0 +1,38 @@
+# One-off parser for this cause-only /usr/bin/sample result, not a benchmark.
+import collections,csv,json,re,shlex
+from pathlib import Path
+p=Path('.')
+lines=(p/'admission.sample.txt').read_text().splitlines()
+nodes=[];stack=[];active=False;main=0
+for no,line in enumerate(lines,1):
+ if re.match(r'\s+\d+ Thread_',line):
+  if active:break
+  if 'Main Thread' in line:active=True;main=int(line.split()[0]);continue
+ if not active:continue
+ match=re.match(r'^([ +!:\|]*)(\d+) (.*?)  \(in (.*?)\)',line)
+ if not match:continue
+ depth=len(match[1]);count=int(match[2]);name=match[3]
+ while stack and stack[-1]['depth']>=depth:stack.pop()
+ node={'depth':depth,'count':count,'name':name,'line':no,'children':0,'ancestors':[x['name'] for x in stack]}
+ if stack:stack[-1]['children']+=count
+ nodes.append(node);stack.append(node)
+categories={}
+for owner in ['CoreImpl::ProcessExecute','CoreImpl::ProcessRealize','WorldMap::Execute','WorldMap::UpdateTraffic','WdmMerchantShip::FindIslandForce','WdmIslands::ObstacleTest','TOUCH::Execute','TOUCH::TouchIsland','storm::ship::shore::embeddedNormal','AIShip::Execute','SHIP::Mount','AIShip::CreateShip','Sailors::Realize','SEAFOAM::Realize','MODELR::Realize','ISLAND::Realize','storm_metal::compat::decodeToRgba','DX9RENDER::TextureLoad','GEOM::GEOM']:
+ selected=[n for n in nodes if n['name'].startswith(owner) and not any(x.startswith(owner) for x in n['ancestors'])]
+ count=sum(n['count'] for n in selected)
+ categories[owner]={'inclusive_sample_count':count,'percent_of_observed_main_thread_stacks':100*count/main,'raw_lines':[n['line'] for n in selected]}
+self_counts=collections.Counter()
+for node in nodes:self_counts[node['name']]+=max(0,node['count']-node['children'])
+rows=list(csv.DictReader((p/'frames.csv').open()));byframe={r['frame']:r for r in rows};admissions={}
+for line in (p/'events.txt').read_text().splitlines():
+ if line.startswith('ship_admitted '):
+  fields=dict(word.split('=',1) for word in shlex.split(line)[1:]);admissions.setdefault(fields['frame'],[]).append(fields)
+admission_rows=[]
+for frame,ships in admissions.items():
+ row=byframe.get(frame,{})
+ admission_rows.append({'frame':int(frame),'phase':ships[0]['phase'],'loop_elapsed_seconds':float(row['elapsed_ms'])/1000 if row else None,'core_wall_ms_perturbed':row.get('cpu_wall_ms'),'hulls':len(ships),'asset_models':sorted(set(s['model'] for s in ships))})
+trace=list(csv.DictReader((p/'renderer-frames.csv').open()));commands=[r for r in trace if r['record']=='command']
+manifest=json.loads((p/'manifest.json').read_text())
+result={'status':'causal profile completed; not FPS or performance acceptance','native_engine_sha256':manifest['candidate_engine_sha256'],'source_fingerprint':manifest['observed_native_source_fingerprint'],'sampler':manifest['sampler'],'native_wall_seconds_perturbed':manifest['wall_seconds'],'observed_main_thread_stack_count':main,'inclusive_categories':categories,'self_leaf_top20':self_counts.most_common(20),'admissions_in_profile_replay':admission_rows,'renderer_trace':{'frames':sum(r['record']=='frame' for r in trace),'commands':len(commands),'status_counts':dict(collections.Counter(r['status'] for r in commands)),'nonpositive_duration_count':sum(float(r['gpu_end_s'] or 0)<=float(r['gpu_start_s'] or 0) for r in commands)},'source_runtime_and_original_SAVE_invariance':all(manifest[k] for k in ['installed_engine_unchanged','canonical_sources_unchanged_during_run','runtime_program_unchanged','runtime_resource_projection_targets_unchanged','original_save_unchanged']),'limits':['Inclusive categories overlap; do not sum them. Recursive repeats of the same category on one stack are counted once.','Percentages describe observed main-thread stacks, not CPU time or wall time.','Sampling perturbs timing and simulation admission ordering; later actual models differ from the unsampled Corvette replay.','Ten-second aggregate cannot separate first-unseen mounts from steady execution without a separate time-series profile.','Stopped before actual Save to avoid the known BATTLE_INTERFACE lifetime crash; no SaveLoad/remount result in this profile.','Requested sample native interval6.752–16.752s; loop clock starts after native bootstrap. First12-hull burst is captured, Barque frame183 is near the window end; later285/303 admissions are whole-run telemetry outside the sample.']}
+(p/'summary.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({'status':result['status'],'main_thread_stacks':main,'sampler_returncode':manifest['sampler']['returncode'],'trace':result['renderer_trace'],'admissions':admission_rows},indent=2))

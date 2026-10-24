@@ -1,0 +1,11 @@
+{
+  "src/gameplay/PROGRAM/scripts/sea_phonk.c": "0d69ab2e07a9c244604ebe733211c47f94868734f764934152152286fb6293d5",
+  "src/gameplay/PROGRAM/sea_ai/AICannon.c": "87afd06f446be55896a1eceb0e029645570fa93cbc890fb0083ab9c7024e9a67",
+  "src/gameplay/PROGRAM/sea_ai/AIShip.c": "36e6a08ccd3f6f9054a4e676be738c29499935d1da3fa9aeca3052aa5366b180",
+  "src/gameplay/PROGRAM/sea_ai/direct_sailing.c": "8adbf2980798d038d70351a08445b02436ab1bd204078975b696a7baee846610",
+  "src/gameplay/PROGRAM/battle_interface/BattleInterface.c": "44a23d56e4d40d242573f185fc837a90e9ccabd86fad59507c0640ea1abb535e",
+  "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp": "1e4839d3ec2e9c1bb4b7ca6c22fb5c28d488ebb57b0152353d9ea0a06c543158",
+  "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_camera_controller.cpp": "6ab758b7d7f8e46fa6f041349634858b38885ee988936f67ccfc4304c077587a",
+  "experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp": "45f34a27d8759f8dd1b1937140b4296d1f249dc9d1c58efea8cdcfc6e3216dfd",
+  "experiments/native-metal/engine/src/libs/ship/src/ship_phonk_laser.cpp": "f1eedd0b9658e65d4bea2c677ddc98473153d3df54d520697cf52ebdd6b2b2dc"
+}

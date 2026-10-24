@@ -1,0 +1,11 @@
+{
+  "command": [
+    "experiments/native-metal/.cache/build/bin/script-vm-probe",
+    "docs/evidence/cannon-darts-20261021/catalogue-vm-direct",
+    "DirectUpgrade",
+    "0"
+  ],
+  "returncode": 0,
+  "stdout": "DirectUpgrade=0\nscript_errors=0\n",
+  "stderr": ""
+}

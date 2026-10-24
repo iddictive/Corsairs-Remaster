@@ -1,5 +1,12 @@
 # Ship collision and contact with sinking ships
 
+## Sparse material groups in fragment cuts
+
+Secondary cuts can retain empty material keys before a nonempty group. Section
+caps take their material and color from the first group containing triangles;
+an entirely empty mesh emits no caps. [Player crash and matching binary evidence](evidence/seamless-sea-20261021/player-crash-20261021/empty-material-cap.md)
+bind the corrected invalid read; player-scene acceptance remains open.
+
 ## First wreck contour preparation
 
 The first contour cache miss now removes exact duplicate XZ vertices before the

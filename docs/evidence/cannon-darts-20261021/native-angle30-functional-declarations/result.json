@@ -1,0 +1,24 @@
+{
+  "returncode": 0,
+  "wall_seconds": 3.3731017920654267,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/angle30-functional-declarations-20261021-202949",
+  "run_path_basis": "repository-relative",
+  "native_counters": {
+    "BenchFrames": 160,
+    "BenchBad": 0,
+    "BenchOrdinaryHits": 1,
+    "BenchDartHits": 1,
+    "BenchAirburstHits": 1,
+    "BenchLoadedDartHits": 1,
+    "BenchExplosions": 0,
+    "BenchFreshMetadata": 1,
+    "BenchLoadedMetadata": 1,
+    "BenchPhonkChecks": 2
+  },
+  "measured_frames": 128,
+  "warmup_frames": 32,
+  "cpu_wall_mean_ms": 10.7521578125,
+  "cpu_wall_median_ms": 10.70585,
+  "cpu_wall_p95_ms": 11.2613,
+  "max_rss_bytes": 2784509952
+}

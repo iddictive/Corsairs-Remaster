@@ -1,0 +1,355 @@
+[2026-10-21 18:36:06.348] [info] Initializing native Metal renderer
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 1920x1080; SDL drawable 1920x1080; samples 1
+[StormMetal] water mode: original shader fidelity
+[2026-10-21 18:36:06.369] [info] WARN: STSS: dup restore param type <alphaop[0]> in <resource/techniques/animation.fx> file, technique <animation>
+[2026-10-21 18:36:06.372] [info] Techniques: 15 shaders compiled.
+[2026-10-21 18:36:06.372] [info] Techniques: 215 techniques compiled.
+[2026-10-21 18:36:06.372] [info] Techniques: compiled by 323584 ticks.
+[2026-10-21 18:36:06.426] [info] Using PC_SCREEN parameters
+[2026-10-21 18:36:06.471] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:36:06.633] [info] Native audio: miniaudio initialized
+[2026-10-21 18:36:06.648] [info] Native audio: loaded 395 aliases
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[2026-10-21 18:36:07.573] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=1/0/2 fmt=22 tex=WEATHER\SUN\GLOW\SUN1.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=0 fvf=00000242 test=0 ref=160 func=5 blend=1 src=6 dst=5 zwrite=1 s0=2/2/2 fmt=21 tex=WEATHER\SKIES\11\SKY_FR.TGA s1=14/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_FR.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_FR.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_FR.TGA
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\11\SKY_UP.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\BACKLSCU1.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=MAINMENU\RUSSIAN\SHIPNCLSU3.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=MAINMENU\RUSSIAN\GUNCLSU1.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\CHECKER.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=MAINMENU\RUSSIAN\TAVERN1INS.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\MASTSU1.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=894720068 tex=MAINMENU\BAKLANWINDS.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=5 dst=2 zwrite=1 s0=4/0/2 fmt=22 tex=WEATHER\SEA\PENA\PENA.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=1/0/2 fmt=22 tex=WEATHER\SUN\GLOW\SUNGLOW1.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[2026-10-21 18:36:07.738] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=INTERFACES\MAINMENU_BUTTONS.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[2026-10-21 18:36:07.752] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:36:07.752] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:36:08.304] [info] Using PC_SCREEN parameters
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[2026-10-21 18:36:09.008] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:36:09.008] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:36:09.008] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:36:09.008] [info] Begin pointer = 1108407632? end pointer = 0
+[2026-10-21 18:36:09.008] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:36:09.008] [info] Begin pointer = 1108407632? end pointer = 0
+[2026-10-21 18:36:09.008] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:36:09.008] [info] Begin pointer = 2046632528? end pointer = 0
+[2026-10-21 18:36:09.008] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:36:09.008] [info] Begin pointer = 2046634320? end pointer = 0
+[2026-10-21 18:36:09.008] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:36:09.008] [info] Begin pointer = 2046634320? end pointer = 0
+[2026-10-21 18:36:09.235] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.235] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.236] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.236] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.236] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:36:09.236] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 18:36:09.272] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.272] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.272] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.273] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:09.552] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:36:09.558] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=4.98
+[2026-10-21 18:36:09.558] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=4.98 floor=5.38
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=BEACH.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=26 tex=SHIPS\MANOWAR1\HULL3\DES2.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=SHIPS\MANOWAR1\HULL3\SHIELD.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=22 tex=SHIPS\MANOWAR1\HULL3\INZANEGUN1.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=25 tex=SHIPS\MANOWAR1\HULL3\WATER1.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=861165636 tex=SHIPS/PARUS_COMMON_TORN.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=861165636 tex=SHIPS/PARUS_COMMON_TORN.TGA s1=2/1/1 fmt=21 tex=SHIPS\GERALD\PIR5.TGA.TX s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\PARUS_SILK.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\PARUS_PAT.TGA s1=2/1/1 fmt=21 tex=SHIPS\GERALD\FRA_6.TGA.TX s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SAIL_ROPE.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=894720068 tex=FLAGS\FLAGALL_SHIP_B.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=21 tex=VANT.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=FISH01.TGA s1=1/2/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[2026-10-21 18:36:09.938] [info] Island Set
+[2026-10-21 18:36:09.941] [info] resource\models\WorldMap\islands\antigua_palms.gm: can't open geometry file
+[2026-10-21 18:36:09.950] [info] resource\models\WorldMap\islands\antigua_waves.gm: can't open geometry file
+[2026-10-21 18:36:09.974] [info] resource\models\WorldMap\islands\barbados_palms.gm: can't open geometry file
+[2026-10-21 18:36:09.983] [info] resource\models\WorldMap\islands\barbados_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.008] [info] resource\models\WorldMap\islands\beliz_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.016] [info] resource\models\WorldMap\islands\beliz_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.041] [info] resource\models\WorldMap\islands\bermudes_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.050] [info] resource\models\WorldMap\islands\bermudes_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.075] [info] resource\models\WorldMap\islands\caiman_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.083] [info] resource\models\WorldMap\islands\caiman_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.108] [info] resource\models\WorldMap\islands\caracas_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.117] [info] resource\models\WorldMap\islands\caracas_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.142] [info] resource\models\WorldMap\islands\cartahena_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.150] [info] resource\models\WorldMap\islands\cartahena_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.174] [info] resource\models\WorldMap\islands\cuba1_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.183] [info] resource\models\WorldMap\islands\cuba1_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.208] [info] resource\models\WorldMap\islands\cuba2_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.217] [info] resource\models\WorldMap\islands\cuba2_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.242] [info] resource\models\WorldMap\islands\cumana_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.250] [info] resource\models\WorldMap\islands\cumana_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.275] [info] resource\models\WorldMap\islands\curacao_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.283] [info] resource\models\WorldMap\islands\curacao_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.308] [info] resource\models\WorldMap\islands\dominica_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.316] [info] resource\models\WorldMap\islands\dominica_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.342] [info] resource\models\WorldMap\islands\guadeloupe_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.349] [info] resource\models\WorldMap\islands\guadeloupe_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.375] [info] resource\models\WorldMap\islands\hispaniola1_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.383] [info] resource\models\WorldMap\islands\hispaniola1_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.407] [info] resource\models\WorldMap\islands\hispaniola2_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.417] [info] resource\models\WorldMap\islands\hispaniola2_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.441] [info] resource\models\WorldMap\islands\jamaica_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.449] [info] resource\models\WorldMap\islands\jamaica_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.474] [info] resource\models\WorldMap\islands\lostshipscity_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.483] [info] resource\models\WorldMap\islands\lostshipscity_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.508] [info] resource\models\WorldMap\islands\maracaibo_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.517] [info] resource\models\WorldMap\islands\maracaibo_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.541] [info] resource\models\WorldMap\islands\martinique_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.549] [info] resource\models\WorldMap\islands\martinique_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.665] [info] resource\models\WorldMap\islands\mein_area.gm: can't open geometry file
+[2026-10-21 18:36:10.674] [info] resource\models\WorldMap\islands\mein_palms.gm: can't open geometry file
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=24449 bounds_miss=6755 bounds_bypass=5040 bounds_skip=0 indices_scanned=12150690 indices_avoided=117036294 bounds_cpu_ms=32.651 view_hit=57242 view_miss=733 sampling_shared=32222 sampling_fallback=0 sampling_bytes_saved=112390336
+[StormMetal] submission-cache enabled=1 raster_skipped=349804 shadow_textures_skipped=318200 sampler_reused=422662
+[StormMetal] ffp-specialize enabled=1 frames=120 used=42215 fallback=179 ready=37 variants=37
+[2026-10-21 18:36:10.707] [info] resource\models\WorldMap\islands\nevis_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.716] [info] resource\models\WorldMap\islands\nevis_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.741] [info] resource\models\WorldMap\islands\panama_palms.gm: can't open geometry file
+[StormMetal] diag: origin=(2932.3,-40.4,-3158.6) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.0 draws=62316 verts=370623893 uploadMB=1140.8 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:10.749] [info] resource\models\WorldMap\islands\panama_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.774] [info] resource\models\WorldMap\islands\pearl_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.783] [info] resource\models\WorldMap\islands\pearl_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.808] [info] resource\models\WorldMap\islands\portobello_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.816] [info] resource\models\WorldMap\islands\portobello_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.841] [info] resource\models\WorldMap\islands\providence_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.849] [info] resource\models\WorldMap\islands\providence_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.875] [info] resource\models\WorldMap\islands\puertorico_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.882] [info] resource\models\WorldMap\islands\puertorico_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.908] [info] resource\models\WorldMap\islands\santacatalina_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.916] [info] resource\models\WorldMap\islands\santacatalina_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.941] [info] resource\models\WorldMap\islands\sentmartin_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.950] [info] resource\models\WorldMap\islands\sentmartin_waves.gm: can't open geometry file
+[2026-10-21 18:36:10.974] [info] resource\models\WorldMap\islands\tenotchitlan_palms.gm: can't open geometry file
+[2026-10-21 18:36:10.983] [info] resource\models\WorldMap\islands\tenotchitlan_waves.gm: can't open geometry file
+[2026-10-21 18:36:11.014] [info] resource\models\WorldMap\islands\terks_palms.gm: can't open geometry file
+[2026-10-21 18:36:11.022] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=4.98 floor=5.38
+[2026-10-21 18:36:11.023] [info] resource\models\WorldMap\islands\terks_waves.gm: can't open geometry file
+[2026-10-21 18:36:11.048] [info] resource\models\WorldMap\islands\tortuga_palms.gm: can't open geometry file
+[2026-10-21 18:36:11.056] [info] resource\models\WorldMap\islands\tortuga_waves.gm: can't open geometry file
+[2026-10-21 18:36:11.080] [info] resource\models\WorldMap\islands\trinidad_palms.gm: can't open geometry file
+[2026-10-21 18:36:11.089] [info] resource\models\WorldMap\islands\trinidad_waves.gm: can't open geometry file
+[2026-10-21 18:36:11.432] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:36:11.461] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+phase=1 frame=181 tag=wait_barbados
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=37353 bounds_miss=9601 bounds_bypass=7560 bounds_skip=0 indices_scanned=11009346 indices_avoided=179428548 bounds_cpu_ms=39.364 view_hit=85602 view_miss=1079 sampling_shared=48401 sampling_fallback=0 sampling_bytes_saved=168822688
+[StormMetal] submission-cache enabled=1 raster_skipped=524940 shadow_textures_skipped=478250 sampler_reused=633144
+[StormMetal] ffp-specialize enabled=1 frames=120 used=63987 fallback=1 ready=38 variants=38
+[StormMetal] diag: origin=(-19496.0,-41.8,38160.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.13 pitch=-7.2 draws=152702 verts=886757931 uploadMB=2685.2 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:12.179] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=6.55 floor=5.38
+[2026-10-21 18:36:12.590] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:36:12.595] [info] World map: can't load model of island's area: islands\mein_area
+[2026-10-21 18:36:13.130] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:36:13.130] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:36:13.130] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:36:13.130] [info] Begin pointer = 1108390608? end pointer = 0
+[2026-10-21 18:36:13.130] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:36:13.130] [info] Begin pointer = 1108390608? end pointer = 0
+[2026-10-21 18:36:13.130] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:36:13.130] [info] Begin pointer = 1108387920? end pointer = 0
+[2026-10-21 18:36:13.130] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:36:13.130] [info] Begin pointer = 1108384336? end pointer = 0
+[2026-10-21 18:36:13.130] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:36:13.130] [info] Begin pointer = 1108384336? end pointer = 0
+[2026-10-21 18:36:13.332] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.332] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.332] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.332] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.332] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:36:13.332] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 18:36:13.364] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.364] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.364] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.364] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=24203 bounds_miss=6152 bounds_bypass=4788 bounds_skip=0 indices_scanned=8054394 indices_avoided=101973687 bounds_cpu_ms=26.649 view_hit=53942 view_miss=684 sampling_shared=31250 sampling_fallback=0 sampling_bytes_saved=109000000
+[StormMetal] submission-cache enabled=1 raster_skipped=331482 shadow_textures_skipped=309460 sampler_reused=399020
+[StormMetal] ffp-specialize enabled=1 frames=120 used=40941 fallback=4 ready=39 variants=39
+[2026-10-21 18:36:13.603] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.603] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.603] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.603] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:13.886] [info] Island Set
+[StormMetal] diag: origin=(2479.9,-41.0,-9225.3) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=201541 verts=1141770092 uploadMB=3615.9 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:14.187] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:36:14.204] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[2026-10-21 18:36:14.520] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=6.55 floor=5.38
+phase=2 frame=383 tag=cross_antigua
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=33889 bounds_miss=7468 bounds_bypass=7738 bounds_skip=0 indices_scanned=16594689 indices_avoided=160602003 bounds_cpu_ms=45.489 view_hit=70753 view_miss=952 sampling_shared=42477 sampling_fallback=0 sampling_bytes_saved=148159776
+[StormMetal] submission-cache enabled=1 raster_skipped=423521 shadow_textures_skipped=420550 sampler_reused=511254
+[StormMetal] ffp-specialize enabled=1 frames=120 used=50917 fallback=1 ready=40 variants=40
+[StormMetal] diag: origin=(-1520.2,-41.0,-15688.5) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=285951 verts=1555398678 uploadMB=5145.3 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:15.397] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=6.55 floor=5.38
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=38397 bounds_miss=8029 bounds_bypass=8760 bounds_skip=0 indices_scanned=12754080 indices_avoided=193784334 bounds_cpu_ms=39.873 view_hit=79106 view_miss=1080 sampling_shared=47497 sampling_fallback=0 sampling_bytes_saved=165669536
+[StormMetal] submission-cache enabled=1 raster_skipped=471497 shadow_textures_skipped=470170 sampler_reused=568576
+[StormMetal] ffp-specialize enabled=1 frames=120 used=58097 fallback=0 ready=40 variants=40
+[StormMetal] diag: origin=(-1520.2,-40.7,-15699.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=369875 verts=1966960642 uploadMB=6704.1 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:16.245] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=6.55 floor=5.38
+[2026-10-21 18:36:16.400] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:36:16.404] [info] World map: can't load model of island's area: islands\mein_area
+[2026-10-21 18:36:17.110] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:36:17.111] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:36:17.111] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:36:17.111] [info] Begin pointer = 1513926480? end pointer = 0
+[2026-10-21 18:36:17.111] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:36:17.111] [info] Begin pointer = 1513926480? end pointer = 0
+[2026-10-21 18:36:17.111] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:36:17.111] [info] Begin pointer = 1513908560? end pointer = 0
+[2026-10-21 18:36:17.111] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:36:17.111] [info] Begin pointer = 1513935440? end pointer = 0
+[2026-10-21 18:36:17.111] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:36:17.111] [info] Begin pointer = 1513935440? end pointer = 0
+[2026-10-21 18:36:17.302] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.302] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.302] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.302] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.302] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:36:17.302] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 18:36:17.333] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.333] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.333] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:17.333] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=16326 bounds_miss=3411 bounds_bypass=3723 bounds_skip=0 indices_scanned=5420484 indices_avoided=82358523 bounds_cpu_ms=17.322 view_hit=33762 view_miss=459 sampling_shared=20225 sampling_fallback=0 sampling_bytes_saved=70544800
+[StormMetal] submission-cache enabled=1 raster_skipped=201626 shadow_textures_skipped=200340 sampler_reused=243619
+[StormMetal] ffp-specialize enabled=1 frames=120 used=24893 fallback=0 ready=40 variants=40
+[2026-10-21 18:36:17.754] [info] Island Set
+[2026-10-21 18:36:18.051] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:36:18.066] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[StormMetal] diag: origin=(-3624.4,-40.5,14093.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=403920 verts=2138392760 uploadMB=7377.5 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:18.179] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=6.55
+phase=3 frame=680 tag=wait_tortuga
+[2026-10-21 18:36:18.753] [info] FLOORDIAG floor idx=432 masts=4/4 num=4 vec=4 ideal=25.92 speed=3.93 floor=6.48
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=35837 bounds_miss=9521 bounds_bypass=6954 bounds_skip=0 indices_scanned=15300915 indices_avoided=179936817 bounds_cpu_ms=43.519 view_hit=73396 view_miss=1023 sampling_shared=46784 sampling_fallback=0 sampling_bytes_saved=163182592
+[StormMetal] submission-cache enabled=1 raster_skipped=446258 shadow_textures_skipped=463070 sampler_reused=540078
+[StormMetal] ffp-specialize enabled=1 frames=120 used=55689 fallback=0 ready=40 variants=40
+[2026-10-21 18:36:19.201] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:36:19.206] [info] World map: can't load model of island's area: islands\mein_area
+[StormMetal] diag: origin=(49336.0,-42.1,-39367.4) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.13 pitch=-7.3 draws=474663 verts=2468256736 uploadMB=8654.5 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:19.935] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:36:19.935] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:36:19.935] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:36:19.935] [info] Begin pointer = -377295024? end pointer = 0
+[2026-10-21 18:36:19.935] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:36:19.935] [info] Begin pointer = -377295024? end pointer = 0
+[2026-10-21 18:36:19.935] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:36:19.935] [info] Begin pointer = 1513941712? end pointer = 0
+[2026-10-21 18:36:19.935] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:36:19.935] [info] Begin pointer = 1513942608? end pointer = 0
+[2026-10-21 18:36:19.935] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:36:19.935] [info] Begin pointer = 1513942608? end pointer = 0
+[2026-10-21 18:36:20.123] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.123] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.123] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.123] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.123] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:36:20.123] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 18:36:20.154] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.155] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.155] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:20.155] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=12290 bounds_miss=3528 bounds_bypass=2501 bounds_skip=0 indices_scanned=4590846 indices_avoided=52896786 bounds_cpu_ms=14.048 view_hit=25634 view_miss=367 sampling_shared=16430 sampling_fallback=0 sampling_bytes_saved=57307840
+[StormMetal] submission-cache enabled=1 raster_skipped=156456 shadow_textures_skipped=162660 sampler_reused=189395
+[StormMetal] ffp-specialize enabled=1 frames=120 used=19634 fallback=0 ready=40 variants=40
+[2026-10-21 18:36:20.580] [info] Island Set
+[2026-10-21 18:36:20.871] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:36:20.888] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[StormMetal] diag: origin=(9256.8,-40.7,-2174.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=515381 verts=2661241589 uploadMB=9439.1 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:21.255] [info] FLOORDIAG floor idx=432 masts=4/4 num=4 vec=4 ideal=25.92 speed=5.69 floor=6.48
+phase=4 frame=856 tag=cross_cuba1
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=37086 bounds_miss=8152 bounds_bypass=7320 bounds_skip=0 indices_scanned=14103021 indices_avoided=175855935 bounds_cpu_ms=44.476 view_hit=75996 view_miss=1080 sampling_shared=46899 sampling_fallback=0 sampling_bytes_saved=163583712
+[StormMetal] submission-cache enabled=1 raster_skipped=463650 shadow_textures_skipped=464190 sampler_reused=560898
+[StormMetal] ffp-specialize enabled=1 frames=120 used=56554 fallback=0 ready=40 variants=40
+[StormMetal] diag: origin=(9264.4,-40.7,-2174.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=596240 verts=3041813109 uploadMB=10890.6 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:22.294] [info] FLOORDIAG floor idx=432 masts=4/4 num=4 vec=4 ideal=25.92 speed=5.40 floor=6.48
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=37210 bounds_miss=8142 bounds_bypass=7320 bounds_skip=0 indices_scanned=12501360 indices_avoided=179351280 bounds_cpu_ms=39.998 view_hit=76557 view_miss=1080 sampling_shared=46832 sampling_fallback=0 sampling_bytes_saved=163350016
+[StormMetal] submission-cache enabled=1 raster_skipped=466459 shadow_textures_skipped=463520 sampler_reused=563936
+[StormMetal] ffp-specialize enabled=1 frames=120 used=57005 fallback=0 ready=40 variants=40
+[2026-10-21 18:36:23.090] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:36:23.095] [info] World map: can't load model of island's area: islands\mein_area
+[StormMetal] diag: origin=(9271.4,-40.8,-2174.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=651336 verts=3302577426 uploadMB=11887.7 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:23.870] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:36:23.870] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:36:23.870] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:36:23.870] [info] Begin pointer = -377293232? end pointer = 0
+[2026-10-21 18:36:23.870] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:36:23.870] [info] Begin pointer = -377293232? end pointer = 0
+[2026-10-21 18:36:23.870] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:36:23.870] [info] Begin pointer = -377306672? end pointer = 0
+[2026-10-21 18:36:23.870] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:36:23.870] [info] Begin pointer = -377309360? end pointer = 0
+[2026-10-21 18:36:23.870] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:36:23.870] [info] Begin pointer = -377309360? end pointer = 0
+[2026-10-21 18:36:24.065] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.065] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.065] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.065] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.065] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:36:24.065] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 18:36:24.096] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.096] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.096] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.096] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.373] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.373] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.373] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:24.373] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=12093 bounds_miss=2649 bounds_bypass=2379 bounds_skip=0 indices_scanned=4106466 indices_avoided=58289166 bounds_cpu_ms=13.171 view_hit=24861 view_miss=351 sampling_shared=15210 sampling_fallback=0 sampling_bytes_saved=53052480
+[StormMetal] submission-cache enabled=1 raster_skipped=151383 shadow_textures_skipped=150540 sampler_reused=183687
+[StormMetal] ffp-specialize enabled=1 frames=120 used=18586 fallback=0 ready=40 variants=40
+[2026-10-21 18:36:24.703] [info] Island Set
+[2026-10-21 18:36:24.979] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=8.52 floor=7.02
+[2026-10-21 18:36:25.001] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:36:25.019] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[StormMetal] diag: origin=(-6924.9,-40.7,-1839.6) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=707244 verts=3534907413 uploadMB=12973.1 legacy3D=0 legacyShadow=0
+phase=5 frame=1157 tag=cross_tortuga
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=35848 bounds_miss=10212 bounds_bypass=10092 bounds_skip=0 indices_scanned=13243326 indices_avoided=158475906 bounds_cpu_ms=48.973 view_hit=79462 view_miss=1042 sampling_shared=47919 sampling_fallback=0 sampling_bytes_saved=167141472
+[StormMetal] submission-cache enabled=1 raster_skipped=469734 shadow_textures_skipped=473020 sampler_reused=566912
+[StormMetal] ffp-specialize enabled=1 frames=120 used=59814 fallback=125 ready=44 variants=44
+[2026-10-21 18:36:25.799] [info] FLOORDIAG floor idx=432 masts=4/4 num=4 vec=4 ideal=25.92 speed=5.92 floor=6.48
+[2026-10-21 18:36:26.177] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:36:26.182] [info] World map: can't load model of island's area: islands\mein_area
+[2026-10-21 18:36:26.914] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:36:26.914] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:36:26.914] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:36:26.914] [info] Begin pointer = -377299504? end pointer = 0
+[2026-10-21 18:36:26.914] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:36:26.914] [info] Begin pointer = -377299504? end pointer = 0
+[2026-10-21 18:36:26.914] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:36:26.914] [info] Begin pointer = -377316528? end pointer = 0
+[2026-10-21 18:36:26.914] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:36:26.914] [info] Begin pointer = -377306672? end pointer = 0
+[2026-10-21 18:36:26.914] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:36:26.914] [info] Begin pointer = -377306672? end pointer = 0
+[StormMetal] diag: origin=(-6699.0,-40.5,-2198.7) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=756222 verts=3726039011 uploadMB=13835.4 legacy3D=0 legacyShadow=0
+[2026-10-21 18:36:27.108] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.108] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.108] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.108] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.108] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:36:27.108] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[2026-10-21 18:36:27.141] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.141] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.141] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.141] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:36:27.572] [info] Island Set
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=13899 bounds_miss=5635 bounds_bypass=3533 bounds_skip=0 indices_scanned=6100647 indices_avoided=63377955 bounds_cpu_ms=23.729 view_hit=31788 view_miss=385 sampling_shared=20576 sampling_fallback=0 sampling_bytes_saved=71769088
+[StormMetal] submission-cache enabled=1 raster_skipped=194582 shadow_textures_skipped=204740 sampler_reused=233583
+[StormMetal] ffp-specialize enabled=1 frames=120 used=24768 fallback=0 ready=44 variants=44
+[2026-10-21 18:36:27.867] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:36:27.883] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[2026-10-21 18:36:28.124] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=3.59
+[2026-10-21 18:36:28.405] [info] FLOORDIAG floor idx=369 masts=4/4 num=4 vec=4 ideal=31.00 speed=9.06 floor=7.75
+[2026-10-21 18:36:29.610] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+phase=6 frame=1330 tag=normal_roundtrip_load

@@ -1,0 +1,121 @@
+{
+  "verdict": "First nonlethal contact hitch was not reproduced on this full PROGRAM ordinary-mode copied-SAVE fixture; original player-scene acceptance remains open.",
+  "consumer": "Frozen native libraries, normal seadogs.c SAVE loader and real TOUCH -> SHIP_SHIP2SHIP_COLLISION -> production script handler; no event/HP proxy.",
+  "conditions": {
+    "width": 1920,
+    "height": 1080,
+    "hidden": true,
+    "phonk_saved": 0,
+    "phonk_probe": 0,
+    "structural_contact": 0,
+    "controlled_changes": "Positions/yaws/native speeds only; other ships separated 700m; player crosses companion broadside at 10kt. Native/event/HP response unmodified. First approach after 180 loaded frames; reset after 420 further frames, preserving real damaged HP.",
+    "native_seconds": 16.983186960220337,
+    "peak_rss_bytes": 3604103168,
+    "native_archive_reference": "docs/evidence/seamless-sea-20261021/route-baseline-complete/manifest.json",
+    "head": "997239e482101cdd8f437bed20908918e78811e7",
+    "PROGRAM_tree_sha256": "b760d0dd93b68abb9e81f84d384d9da34521b558b489d01c4a059714288597a7",
+    "save_sha256": "95bf6c18751044506e70a52ea7092e5e902d111c1e73326eb93a3fdd96909b10"
+  },
+  "measurements": [
+    {
+      "label": "first",
+      "core_frame": 526,
+      "epoch_begin_ms": 1384272310.28979,
+      "epoch_end_ms": 1384272318.927,
+      "cpu_wall_ms": 8.63720893859863,
+      "touch_ms": 0.800041666666667,
+      "synchronous_events": [
+        {
+          "epoch_end_ms": 1384272311.362,
+          "span_id": 192,
+          "owner": "6964850135494819900",
+          "duration_ms": 0.547
+        },
+        {
+          "epoch_end_ms": 1384272311.446,
+          "span_id": 193,
+          "owner": "6964851496999452773",
+          "duration_ms": 0.066
+        }
+      ],
+      "player_native_id": "6964850135494819900",
+      "target_native_id": "6964851496999452773",
+      "player_hp": 11092.6640625,
+      "target_hp": 5486.2392578125,
+      "target_dead": false,
+      "pending_geometry": 62,
+      "neighbor_cpu_ms": [
+        8.85558295249939,
+        7.89220809936523,
+        8.1866660118103,
+        7.99879193305969,
+        8.83570909500122,
+        7.74554204940796
+      ]
+    },
+    {
+      "label": "warm",
+      "core_frame": 1300,
+      "epoch_begin_ms": 1384278775.92725,
+      "epoch_end_ms": 1384278784.32483,
+      "cpu_wall_ms": 8.3975830078125,
+      "touch_ms": 0.507333333333333,
+      "synchronous_events": [
+        {
+          "epoch_end_ms": 1384278776.698,
+          "span_id": 293,
+          "owner": "6964850135494819900",
+          "duration_ms": 0.274
+        },
+        {
+          "epoch_end_ms": 1384278776.763,
+          "span_id": 294,
+          "owner": "6964851496999452773",
+          "duration_ms": 0.054
+        }
+      ],
+      "player_native_id": "6964850135494819900",
+      "target_native_id": "6964851496999452773",
+      "player_hp": 11066.076171875,
+      "target_hp": 5084.734375,
+      "target_dead": false,
+      "pending_geometry": 13,
+      "neighbor_cpu_ms": [
+        8.97229194641113,
+        7.76200008392334,
+        8.03775000572205,
+        7.96695804595947,
+        8.13633298873901,
+        8.0479998588562
+      ]
+    }
+  ],
+  "contact_span_count": 4,
+  "earlier_contact_span_count": 0,
+  "contact_contour_build_span_count": 0,
+  "gpu": {
+    "command_count": 1404,
+    "statuses": {
+      "4": 1404
+    },
+    "command_ms_median": 3.7577709881588817,
+    "command_ms_p95": 5.1968751940876245,
+    "command_ms_max_including_load": 151.12241706810892,
+    "core_frame_mapping": "Not recorded: renderer sequence includes loading presents and sync splits, so no exact per-contact GPU latency claim. Complete command timestamps and status retained."
+  },
+  "preservation": {
+    "original_SAVE_unchanged": true,
+    "original_profile_options_and_metal_graphics_unchanged": true,
+    "shared_PROGRAM_unchanged": true,
+    "production_source_or_libraries_written": false,
+    "permanent_test_delta": 0
+  },
+  "limitations": [
+    "Single companion hull in ordinary mode; hidden renderer, no visual/player-scene acceptance. Cannot generalize to every ship/save/mode or claim original defect fixed.",
+    "Existing ShipLights.c DelEventHandler/islanddensity/no-rAP loader errors also occur in the route baseline; they did not prevent the actual two production collision HP responses.",
+    "Background geometry jobs were still pending (62 first /13 repeat). Their wall durations are asynchronous and cannot alone prove a synchronous frame stall.",
+    "Current world/backend source is being edited by another owner; frozen archive hashes, not current source spelling, bind the consuming native binary."
+  ],
+  "smallest_next_falsifier": "Player reproduces the reported hitch with STORM_METAL_DAMAGE_TRACE=1 on the installed game and identifies the exact collision time/ship/mode; compare same-clock contact-event span with neighboring frame/native timing. Keep the current negative fixture rather than applying an unmeasured script/audio prewarm.",
+  "reproduce": "CORSAIRS_REPO_ROOT=<repo> CORSAIRS_SOURCE_SAVE=<private SAVE> CORSAIRS_SOURCE_PROFILE=<private profile> CORSAIRS_EVIDENCE_OUTPUT=<repo>/docs/evidence/sea-dawn-contact-20261021/real-program-first-contact PYTHONDONTWRITEBYTECODE=1 <CODEX_BIN>/codex-run-scratch run --max-bytes 2147483648 --max-files 5000 --seconds 180 --reserve-bytes 21474836480 -- python3 <repo>/docs/evidence/sea-dawn-contact-20261021/real-program-first-contact/replay.py.txt"
+}

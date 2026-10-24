@@ -1,0 +1,1 @@
+[2026-10-21 18:18:13.835] [compile] [trace] fort_baseline_reputation=50 public_calls=0 native_relation_refresh=0

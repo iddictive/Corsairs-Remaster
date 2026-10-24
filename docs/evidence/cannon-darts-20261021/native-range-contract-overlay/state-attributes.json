@@ -1,0 +1,219 @@
+{
+  "AIBalls": {
+    "CurrentAirburstHullValid": "0",
+    "CurrentAirburstHullDistance": "-1",
+    "CurrentAirburstHullX": "0",
+    "CurrentAirburstHullY": "0",
+    "CurrentAirburstHullZ": "0",
+    "speedmultiply": "2.0000000",
+    "texture": "AllBalls.tga",
+    "darttexture": "BALLS\\\\dart.tga",
+    "dartsize": "0.8000000",
+    "subtexx": "2",
+    "subtexy": "2",
+    "balls": {
+      "grapes": {
+        "goodindex": "1",
+        "size": "0.0550000",
+        "subtexindex": "1"
+      },
+      "knippels": {
+        "goodindex": "2",
+        "size": "0.2400000",
+        "subtexindex": "3"
+      },
+      "balls": {
+        "goodindex": "0",
+        "size": "0.2000000",
+        "subtexindex": "2"
+      },
+      "bombs": {
+        "goodindex": "3",
+        "size": "0.3000000",
+        "subtexindex": "0"
+      }
+    },
+    "isdone": "1",
+    "DartView": {
+      "sequence": "0",
+      "inFlight": "0",
+      "hits": "0"
+    },
+    "currentballtype": "3",
+    "queryactivecount": "1",
+    "activecount": "0"
+  },
+  "Cannon14_15": [
+    {
+      "caliber": "42",
+      "fireangmax": "0.6000000",
+      "timespeedmultiply": "1.0000000",
+      "sizemultiply": "1.0000000",
+      "heightmultiply": "1.0000000",
+      "firerange": "800.0000000",
+      "speedv0": "91.7619095"
+    },
+    {
+      "caliber": "48",
+      "fireangmax": "0.6000000",
+      "timespeedmultiply": "1.0000000",
+      "sizemultiply": "1.0000000",
+      "heightmultiply": "1.0000000",
+      "firerange": "1600.0000000",
+      "speedv0": "129.7709351"
+    }
+  ],
+  "Goods52": {
+    "name": "Darts",
+    "cost": "120",
+    "weight": "1",
+    "units": "20",
+    "speedv0": "2.0000000",
+    "rangemultiply": "2.0000000",
+    "massmultiply": "0.1000000",
+    "npcpiratechance": "6",
+    "npcotherchance": "20",
+    "npcsupplyperclass": "20",
+    "heightmultiply": "0.4000000",
+    "dispersionmultiply": "0.3000000",
+    "accuracyreferencerange": "2116.0000000",
+    "damagehull": "2.5000000",
+    "damagerig": "0.2500000",
+    "damagecrew": "0.0250000",
+    "accuracy": "100.0000000",
+    "reloadspeed": "0.8000000",
+    "afraidwater": "0",
+    "type": "4",
+    "canbecontraband": "1",
+    "norm": "40"
+  },
+  "RangeGun0": {
+    "x": "4.2199998",
+    "y": "10.5900002",
+    "z": "-27.3999996"
+  },
+  "Fleet0_3": [
+    {
+      "index": "0",
+      "maincharacter": "0",
+      "ship": {
+        "pos": {
+          "x": "2098.38",
+          "z": "0",
+          "y": "2.88896"
+        },
+        "ang": {
+          "y": "0",
+          "x": "0",
+          "z": "0"
+        },
+        "speed": {
+          "z": "0",
+          "x": "0",
+          "y": "0"
+        }
+      }
+    },
+    {
+      "index": "1",
+      "maincharacter": "0",
+      "ship": {
+        "pos": {
+          "x": "4214.51",
+          "z": "200",
+          "y": "2.8907"
+        },
+        "ang": {
+          "y": "0",
+          "x": "0",
+          "z": "0"
+        },
+        "speed": {
+          "z": "0",
+          "x": "0",
+          "y": "0"
+        }
+      }
+    },
+    {
+      "index": "1000",
+      "maincharacter": "0",
+      "ship": {
+        "pos": {
+          "x": "0",
+          "z": "0",
+          "y": "0.816377"
+        },
+        "ang": {
+          "y": "0",
+          "x": "-0.000115979",
+          "z": "2.60647e-05"
+        },
+        "speed": {
+          "z": "0",
+          "x": "0",
+          "y": "0"
+        },
+        "cannons": {
+          "type": "14",
+          "charge": {
+            "type": "52"
+          }
+        }
+      },
+      "tmpskill": {
+        "accuracy": "1.0000000",
+        "cannons": "1.0000000"
+      },
+      "perks": {
+        "list": {
+          "gunprofessional": "1",
+          "longrangeshoot": "1"
+        }
+      },
+      "tmpperks": {
+        "longrangeshoot": "1"
+      }
+    },
+    {
+      "index": "1001",
+      "maincharacter": "0",
+      "ship": {
+        "pos": {
+          "x": "0",
+          "z": "200",
+          "y": "0.642801"
+        },
+        "ang": {
+          "y": "0",
+          "x": "-0.000267982",
+          "z": "-0.000115132"
+        },
+        "speed": {
+          "z": "0",
+          "x": "0",
+          "y": "0"
+        },
+        "cannons": {
+          "type": "15",
+          "charge": {
+            "type": "52"
+          }
+        }
+      },
+      "tmpskill": {
+        "accuracy": "1.0000000",
+        "cannons": "1.0000000"
+      },
+      "perks": {
+        "list": {
+          "gunprofessional": "1",
+          "longrangeshoot": "1"
+        }
+      },
+      "tmpperks": {
+        "longrangeshoot": "1"
+      }
+    }
+  ]
+}

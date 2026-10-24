@@ -1,0 +1,879 @@
+[2026-10-21 18:49:50.497] [info] Initializing native Metal renderer
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M3 Max; backbuffer 1920x1080; SDL drawable 1920x1080; samples 1
+[StormMetal] water mode: original shader fidelity
+[2026-10-21 18:49:50.514] [info] WARN: STSS: dup restore param type <alphaop[0]> in <resource/techniques/animation.fx> file, technique <animation>
+[2026-10-21 18:49:50.517] [info] Techniques: 15 shaders compiled.
+[2026-10-21 18:49:50.517] [info] Techniques: 215 techniques compiled.
+[2026-10-21 18:49:50.517] [info] Techniques: compiled by 242295 ticks.
+[2026-10-21 18:49:50.577] [info] Using PC_SCREEN parameters
+[2026-10-21 18:49:50.619] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:49:50.751] [info] Native audio: miniaudio initialized
+[2026-10-21 18:49:50.755] [info] Native audio: loaded 395 aliases
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[2026-10-21 18:49:51.599] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=1/0/2 fmt=22 tex=WEATHER\SUN\GLOW\SUN1.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=0 fvf=00000242 test=0 ref=160 func=5 blend=1 src=6 dst=5 zwrite=1 s0=2/2/2 fmt=21 tex=WEATHER\SKIES\11\SKY_FR.TGA s1=14/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_FR.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_FR.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_FR.TGA
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\11\SKY_UP.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\BACKLSCU1.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=MAINMENU\RUSSIAN\SHIPNCLSU3.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=MAINMENU\RUSSIAN\GUNCLSU1.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\CHECKER.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=MAINMENU\RUSSIAN\TAVERN1INS.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=861165636 tex=MAINMENU\RUSSIAN\MASTSU1.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=894720068 tex=MAINMENU\BAKLANWINDS.TGA s1=1/2/1 fmt=827611204 tex=MAINMENU\RUSSIAN\DETAILWOODU1.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=5 dst=2 zwrite=1 s0=4/0/2 fmt=22 tex=WEATHER\SEA\PENA\PENA.TGA s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=1/0/2 fmt=22 tex=WEATHER\SUN\GLOW\SUNGLOW1.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[2026-10-21 18:49:51.783] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=INTERFACES\MAINMENU_BUTTONS.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[2026-10-21 18:49:51.795] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[2026-10-21 18:49:51.795] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:49:52.309] [info] Using PC_SCREEN parameters
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000144 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[2026-10-21 18:49:53.155] [info] Bad rope length = 0.000000 for rope num 130
+[2026-10-21 18:49:53.155] [info] Bad rope length = 0.000000 for rope num 131
+[2026-10-21 18:49:53.155] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 319) (begin group=-1, end group=0)
+[2026-10-21 18:49:53.155] [info] Begin pointer = 1979646672? end pointer = 0
+[2026-10-21 18:49:53.155] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 320) (begin group=-1, end group=0)
+[2026-10-21 18:49:53.155] [info] Begin pointer = 1979646672? end pointer = 0
+[2026-10-21 18:49:53.155] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 132) (begin group=-1, end group=0)
+[2026-10-21 18:49:53.155] [info] Begin pointer = 1979657424? end pointer = 0
+[2026-10-21 18:49:53.155] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 315) (begin group=-1, end group=0)
+[2026-10-21 18:49:53.155] [info] Begin pointer = 1979659216? end pointer = 0
+[2026-10-21 18:49:53.155] [info] Bad rope data for rope: (model=ships\Manowar1\Manowar1) (rope num = 316) (begin group=-1, end group=0)
+[2026-10-21 18:49:53.155] [info] Begin pointer = 1979659216? end pointer = 0
+[HullTiming] time_ms=1384266501.311 phase=legacy-rebuild state=begin id=1 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266549.142 phase=legacy-rebuild state=end id=1 owner=0 node=-1 duration_ms=47.831
+[HullTiming] time_ms=1384266549.283 phase=legacy-rebuild state=begin id=2 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266549.388 phase=legacy-rebuild state=end id=2 owner=0 node=-1 duration_ms=0.106
+[HullTiming] time_ms=1384266549.412 phase=legacy-rebuild state=begin id=3 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266549.484 phase=legacy-rebuild state=end id=3 owner=0 node=-1 duration_ms=0.072
+[HullTiming] time_ms=1384266549.506 phase=legacy-rebuild state=begin id=4 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266549.559 phase=legacy-rebuild state=end id=4 owner=0 node=-1 duration_ms=0.053
+[HullTiming] time_ms=1384266549.566 phase=legacy-rebuild state=begin id=5 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266549.587 phase=legacy-rebuild state=end id=5 owner=0 node=-1 duration_ms=0.021
+[HullTiming] time_ms=1384266549.594 phase=legacy-rebuild state=begin id=6 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266549.613 phase=legacy-rebuild state=end id=6 owner=0 node=-1 duration_ms=0.019
+[HullTiming] time_ms=1384266550.398 phase=legacy-rebuild state=begin id=7 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266552.675 phase=legacy-rebuild state=end id=7 owner=0 node=-1 duration_ms=2.276
+[HullTiming] time_ms=1384266552.735 phase=legacy-rebuild state=begin id=8 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266552.902 phase=legacy-rebuild state=end id=8 owner=0 node=-1 duration_ms=0.167
+[HullTiming] time_ms=1384266552.952 phase=legacy-rebuild state=begin id=9 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266553.108 phase=legacy-rebuild state=end id=9 owner=0 node=-1 duration_ms=0.156
+[HullTiming] time_ms=1384266553.169 phase=legacy-rebuild state=begin id=10 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266553.343 phase=legacy-rebuild state=end id=10 owner=0 node=-1 duration_ms=0.174
+[HullTiming] time_ms=1384266554.209 phase=legacy-rebuild state=begin id=11 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266556.808 phase=legacy-rebuild state=end id=11 owner=0 node=-1 duration_ms=2.599
+[HullTiming] time_ms=1384266556.934 phase=legacy-rebuild state=begin id=12 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266557.140 phase=legacy-rebuild state=end id=12 owner=0 node=-1 duration_ms=0.206
+[HullTiming] time_ms=1384266557.236 phase=legacy-rebuild state=begin id=13 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266557.468 phase=legacy-rebuild state=end id=13 owner=0 node=-1 duration_ms=0.232
+[HullTiming] time_ms=1384266557.532 phase=legacy-rebuild state=begin id=14 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266557.685 phase=legacy-rebuild state=end id=14 owner=0 node=-1 duration_ms=0.153
+[HullTiming] time_ms=1384266558.214 phase=legacy-rebuild state=begin id=15 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266559.730 phase=legacy-rebuild state=end id=15 owner=0 node=-1 duration_ms=1.516
+[HullTiming] time_ms=1384266559.742 phase=legacy-rebuild state=begin id=16 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266559.761 phase=legacy-rebuild state=end id=16 owner=0 node=-1 duration_ms=0.019
+[HullTiming] time_ms=1384266559.768 phase=legacy-rebuild state=begin id=17 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266559.782 phase=legacy-rebuild state=end id=17 owner=0 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384266559.897 phase=legacy-rebuild state=begin id=18 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266560.232 phase=legacy-rebuild state=end id=18 owner=0 node=-1 duration_ms=0.335
+[HullTiming] time_ms=1384266560.282 phase=legacy-rebuild state=begin id=19 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266560.432 phase=legacy-rebuild state=end id=19 owner=0 node=-1 duration_ms=0.150
+[HullTiming] time_ms=1384266560.464 phase=legacy-rebuild state=begin id=20 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266560.560 phase=legacy-rebuild state=end id=20 owner=0 node=-1 duration_ms=0.096
+[HullTiming] time_ms=1384266560.579 phase=legacy-rebuild state=begin id=21 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266560.606 phase=legacy-rebuild state=end id=21 owner=0 node=-1 duration_ms=0.027
+[HullTiming] time_ms=1384266568.632 phase=material-restore state=begin id=22 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266568.658 phase=material-restore state=begin id=23 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266568.965 phase=pristine-ineligible state=event id=0 owner=3605590324155369722 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266570.332 phase=physical-cache state=begin id=24 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266570.487 phase=physical-cache state=end id=24 owner=6964850921473835070 node=-1 duration_ms=0.155
+[HullTiming] time_ms=1384266570.721 phase=material-restore state=end id=23 owner=6964850921473835070 node=-1 duration_ms=2.063
+[HullTiming] time_ms=1384266586.653 phase=pristine-ineligible state=event id=0 owner=8998192053144848158 node=0 duration_ms=0.000
+[HullTiming] time_ms=1384266613.580 phase=legacy-rebuild state=begin id=25 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.185 phase=legacy-rebuild state=end id=25 owner=0 node=-1 duration_ms=14.605
+[HullTiming] time_ms=1384266628.228 phase=legacy-rebuild state=begin id=26 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.267 phase=legacy-rebuild state=end id=26 owner=0 node=-1 duration_ms=0.039
+[HullTiming] time_ms=1384266628.279 phase=legacy-rebuild state=begin id=27 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.314 phase=legacy-rebuild state=end id=27 owner=0 node=-1 duration_ms=0.035
+[HullTiming] time_ms=1384266628.328 phase=legacy-rebuild state=begin id=28 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.351 phase=legacy-rebuild state=end id=28 owner=0 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384266628.358 phase=legacy-rebuild state=begin id=29 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.368 phase=legacy-rebuild state=end id=29 owner=0 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1384266628.387 phase=legacy-rebuild state=begin id=30 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.425 phase=legacy-rebuild state=end id=30 owner=0 node=-1 duration_ms=0.038
+[HullTiming] time_ms=1384266628.448 phase=legacy-rebuild state=begin id=31 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.500 phase=legacy-rebuild state=end id=31 owner=0 node=-1 duration_ms=0.052
+[HullTiming] time_ms=1384266628.514 phase=legacy-rebuild state=begin id=32 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.561 phase=legacy-rebuild state=end id=32 owner=0 node=-1 duration_ms=0.047
+[HullTiming] time_ms=1384266628.566 phase=legacy-rebuild state=begin id=33 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.574 phase=legacy-rebuild state=end id=33 owner=0 node=-1 duration_ms=0.008
+[HullTiming] time_ms=1384266628.583 phase=legacy-rebuild state=begin id=34 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.606 phase=legacy-rebuild state=end id=34 owner=0 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384266628.615 phase=legacy-rebuild state=begin id=35 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.637 phase=legacy-rebuild state=end id=35 owner=0 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384266628.642 phase=legacy-rebuild state=begin id=36 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.651 phase=legacy-rebuild state=end id=36 owner=0 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384266628.678 phase=legacy-rebuild state=begin id=37 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.740 phase=legacy-rebuild state=end id=37 owner=0 node=-1 duration_ms=0.062
+[HullTiming] time_ms=1384266628.745 phase=legacy-rebuild state=begin id=38 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.755 phase=legacy-rebuild state=end id=38 owner=0 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384266628.760 phase=legacy-rebuild state=begin id=39 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.769 phase=legacy-rebuild state=end id=39 owner=0 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384266628.777 phase=legacy-rebuild state=begin id=40 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.796 phase=legacy-rebuild state=end id=40 owner=0 node=-1 duration_ms=0.019
+[HullTiming] time_ms=1384266628.816 phase=legacy-rebuild state=begin id=41 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.825 phase=legacy-rebuild state=end id=41 owner=0 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384266628.852 phase=legacy-rebuild state=begin id=42 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.921 phase=legacy-rebuild state=end id=42 owner=0 node=-1 duration_ms=0.069
+[HullTiming] time_ms=1384266628.926 phase=legacy-rebuild state=begin id=43 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.939 phase=legacy-rebuild state=end id=43 owner=0 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384266628.943 phase=legacy-rebuild state=begin id=44 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.955 phase=legacy-rebuild state=end id=44 owner=0 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1384266628.959 phase=legacy-rebuild state=begin id=45 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.966 phase=legacy-rebuild state=end id=45 owner=0 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384266628.970 phase=legacy-rebuild state=begin id=46 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266628.982 phase=legacy-rebuild state=end id=46 owner=0 node=-1 duration_ms=0.011
+[2026-10-21 18:49:53.412] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.412] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.412] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.412] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.412] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = fale0)
+[2026-10-21 18:49:53.412] [info] Warning! Found rope with number 0: (model = ships\Galeon_l1\Galeon_l1) (label = falb0)
+[HullTiming] time_ms=1384266699.647 phase=legacy-rebuild state=begin id=47 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.259 phase=legacy-rebuild state=end id=47 owner=0 node=-1 duration_ms=11.612
+[HullTiming] time_ms=1384266711.313 phase=legacy-rebuild state=begin id=48 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.390 phase=legacy-rebuild state=end id=48 owner=0 node=-1 duration_ms=0.077
+[HullTiming] time_ms=1384266711.409 phase=legacy-rebuild state=begin id=49 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.465 phase=legacy-rebuild state=end id=49 owner=0 node=-1 duration_ms=0.055
+[HullTiming] time_ms=1384266711.471 phase=legacy-rebuild state=begin id=50 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.482 phase=legacy-rebuild state=end id=50 owner=0 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1384266711.490 phase=legacy-rebuild state=begin id=51 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.504 phase=legacy-rebuild state=end id=51 owner=0 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384266711.572 phase=legacy-rebuild state=begin id=52 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.765 phase=legacy-rebuild state=end id=52 owner=0 node=-1 duration_ms=0.194
+[HullTiming] time_ms=1384266711.773 phase=legacy-rebuild state=begin id=53 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.790 phase=legacy-rebuild state=end id=53 owner=0 node=-1 duration_ms=0.017
+[HullTiming] time_ms=1384266711.797 phase=legacy-rebuild state=begin id=54 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266711.813 phase=legacy-rebuild state=end id=54 owner=0 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384266711.874 phase=legacy-rebuild state=begin id=55 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266712.087 phase=legacy-rebuild state=end id=55 owner=0 node=-1 duration_ms=0.213
+[HullTiming] time_ms=1384266712.095 phase=legacy-rebuild state=begin id=56 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266712.113 phase=legacy-rebuild state=end id=56 owner=0 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1384266712.119 phase=legacy-rebuild state=begin id=57 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266712.135 phase=legacy-rebuild state=end id=57 owner=0 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384266712.167 phase=legacy-rebuild state=begin id=58 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266712.192 phase=legacy-rebuild state=end id=58 owner=0 node=-1 duration_ms=0.026
+[HullTiming] time_ms=1384266712.199 phase=legacy-rebuild state=begin id=59 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266712.218 phase=legacy-rebuild state=end id=59 owner=0 node=-1 duration_ms=0.019
+[HullTiming] time_ms=1384266712.227 phase=legacy-rebuild state=begin id=60 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266712.254 phase=legacy-rebuild state=end id=60 owner=0 node=-1 duration_ms=0.026
+[2026-10-21 18:49:53.451] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.451] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.451] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[2026-10-21 18:49:53.451] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureLoadUsingD3DX:1737] (storm_render::ImageLoadTextureFromFile(renderDevice, path, &pTex))
+[HullTiming] time_ms=1384266739.626 phase=legacy-rebuild state=begin id=61 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266753.822 phase=legacy-rebuild state=end id=61 owner=0 node=-1 duration_ms=14.196
+[HullTiming] time_ms=1384266753.882 phase=legacy-rebuild state=begin id=62 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266753.956 phase=legacy-rebuild state=end id=62 owner=0 node=-1 duration_ms=0.074
+[HullTiming] time_ms=1384266753.974 phase=legacy-rebuild state=begin id=63 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.024 phase=legacy-rebuild state=end id=63 owner=0 node=-1 duration_ms=0.051
+[HullTiming] time_ms=1384266754.033 phase=legacy-rebuild state=begin id=64 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.047 phase=legacy-rebuild state=end id=64 owner=0 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384266754.054 phase=legacy-rebuild state=begin id=65 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.066 phase=legacy-rebuild state=end id=65 owner=0 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1384266754.188 phase=legacy-rebuild state=begin id=66 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.576 phase=legacy-rebuild state=end id=66 owner=0 node=-1 duration_ms=0.387
+[HullTiming] time_ms=1384266754.585 phase=legacy-rebuild state=begin id=67 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.603 phase=legacy-rebuild state=end id=67 owner=0 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1384266754.611 phase=legacy-rebuild state=begin id=68 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.628 phase=legacy-rebuild state=end id=68 owner=0 node=-1 duration_ms=0.017
+[HullTiming] time_ms=1384266754.635 phase=legacy-rebuild state=begin id=69 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266754.652 phase=legacy-rebuild state=end id=69 owner=0 node=-1 duration_ms=0.017
+[HullTiming] time_ms=1384266754.748 phase=legacy-rebuild state=begin id=70 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.232 phase=legacy-rebuild state=end id=70 owner=0 node=-1 duration_ms=0.484
+[HullTiming] time_ms=1384266755.245 phase=legacy-rebuild state=begin id=71 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.271 phase=legacy-rebuild state=end id=71 owner=0 node=-1 duration_ms=0.026
+[HullTiming] time_ms=1384266755.282 phase=legacy-rebuild state=begin id=72 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.302 phase=legacy-rebuild state=end id=72 owner=0 node=-1 duration_ms=0.020
+[HullTiming] time_ms=1384266755.312 phase=legacy-rebuild state=begin id=73 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.334 phase=legacy-rebuild state=end id=73 owner=0 node=-1 duration_ms=0.021
+[HullTiming] time_ms=1384266755.341 phase=legacy-rebuild state=begin id=74 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.353 phase=legacy-rebuild state=end id=74 owner=0 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384266755.362 phase=legacy-rebuild state=begin id=75 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.384 phase=legacy-rebuild state=end id=75 owner=0 node=-1 duration_ms=0.022
+[HullTiming] time_ms=1384266755.390 phase=legacy-rebuild state=begin id=76 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.404 phase=legacy-rebuild state=end id=76 owner=0 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384266755.440 phase=legacy-rebuild state=begin id=77 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.515 phase=legacy-rebuild state=end id=77 owner=0 node=-1 duration_ms=0.074
+[HullTiming] time_ms=1384266755.527 phase=legacy-rebuild state=begin id=78 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266755.556 phase=legacy-rebuild state=end id=78 owner=0 node=-1 duration_ms=0.029
+[HullTiming] time_ms=1384266922.192 phase=legacy-rebuild state=begin id=79 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266958.762 phase=legacy-rebuild state=end id=79 owner=0 node=-1 duration_ms=36.569
+[HullTiming] time_ms=1384266958.833 phase=legacy-rebuild state=begin id=80 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266958.943 phase=legacy-rebuild state=end id=80 owner=0 node=-1 duration_ms=0.110
+[HullTiming] time_ms=1384266958.966 phase=legacy-rebuild state=begin id=81 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266959.036 phase=legacy-rebuild state=end id=81 owner=0 node=-1 duration_ms=0.070
+[HullTiming] time_ms=1384266959.053 phase=legacy-rebuild state=begin id=82 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266959.104 phase=legacy-rebuild state=end id=82 owner=0 node=-1 duration_ms=0.050
+[HullTiming] time_ms=1384266959.114 phase=legacy-rebuild state=begin id=83 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266959.133 phase=legacy-rebuild state=end id=83 owner=0 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1384266959.140 phase=legacy-rebuild state=begin id=84 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266959.161 phase=legacy-rebuild state=end id=84 owner=0 node=-1 duration_ms=0.021
+[HullTiming] time_ms=1384266959.834 phase=legacy-rebuild state=begin id=85 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266961.840 phase=legacy-rebuild state=end id=85 owner=0 node=-1 duration_ms=2.006
+[HullTiming] time_ms=1384266961.899 phase=legacy-rebuild state=begin id=86 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266961.923 phase=legacy-rebuild state=end id=86 owner=0 node=-1 duration_ms=0.024
+[HullTiming] time_ms=1384266961.930 phase=legacy-rebuild state=begin id=87 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266961.946 phase=legacy-rebuild state=end id=87 owner=0 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384266961.953 phase=legacy-rebuild state=begin id=88 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266961.975 phase=legacy-rebuild state=end id=88 owner=0 node=-1 duration_ms=0.022
+[HullTiming] time_ms=1384266962.908 phase=legacy-rebuild state=begin id=89 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266965.458 phase=legacy-rebuild state=end id=89 owner=0 node=-1 duration_ms=2.550
+[HullTiming] time_ms=1384266965.478 phase=legacy-rebuild state=begin id=90 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266965.499 phase=legacy-rebuild state=end id=90 owner=0 node=-1 duration_ms=0.022
+[HullTiming] time_ms=1384266965.507 phase=legacy-rebuild state=begin id=91 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266965.529 phase=legacy-rebuild state=end id=91 owner=0 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384266965.538 phase=legacy-rebuild state=begin id=92 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266965.557 phase=legacy-rebuild state=end id=92 owner=0 node=-1 duration_ms=0.019
+[HullTiming] time_ms=1384266966.003 phase=legacy-rebuild state=begin id=93 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266967.338 phase=legacy-rebuild state=end id=93 owner=0 node=-1 duration_ms=1.335
+[HullTiming] time_ms=1384266967.362 phase=legacy-rebuild state=begin id=94 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266967.409 phase=legacy-rebuild state=end id=94 owner=0 node=-1 duration_ms=0.047
+[HullTiming] time_ms=1384266967.422 phase=legacy-rebuild state=begin id=95 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266967.449 phase=legacy-rebuild state=end id=95 owner=0 node=-1 duration_ms=0.027
+[HullTiming] time_ms=1384266967.457 phase=legacy-rebuild state=begin id=96 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266967.475 phase=legacy-rebuild state=end id=96 owner=0 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1384266971.095 phase=legacy-rebuild state=begin id=97 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266981.133 phase=legacy-rebuild state=end id=97 owner=0 node=-1 duration_ms=10.038
+[HullTiming] time_ms=1384266981.179 phase=legacy-rebuild state=begin id=98 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384266981.222 phase=legacy-rebuild state=end id=98 owner=0 node=-1 duration_ms=0.043
+[HullTiming] time_ms=1384267049.321 phase=legacy-rebuild state=begin id=99 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.098 phase=legacy-rebuild state=end id=99 owner=0 node=-1 duration_ms=3.777
+[HullTiming] time_ms=1384267053.128 phase=legacy-rebuild state=begin id=100 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.149 phase=legacy-rebuild state=end id=100 owner=0 node=-1 duration_ms=0.022
+[HullTiming] time_ms=1384267053.165 phase=legacy-rebuild state=begin id=101 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.195 phase=legacy-rebuild state=end id=101 owner=0 node=-1 duration_ms=0.031
+[HullTiming] time_ms=1384267053.214 phase=legacy-rebuild state=begin id=102 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.251 phase=legacy-rebuild state=end id=102 owner=0 node=-1 duration_ms=0.038
+[HullTiming] time_ms=1384267053.261 phase=legacy-rebuild state=begin id=103 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.277 phase=legacy-rebuild state=end id=103 owner=0 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384267053.384 phase=legacy-rebuild state=begin id=104 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.481 phase=legacy-rebuild state=end id=104 owner=0 node=-1 duration_ms=0.096
+[HullTiming] time_ms=1384267053.555 phase=legacy-rebuild state=begin id=105 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.719 phase=legacy-rebuild state=end id=105 owner=0 node=-1 duration_ms=0.164
+[HullTiming] time_ms=1384267053.740 phase=legacy-rebuild state=begin id=106 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.785 phase=legacy-rebuild state=end id=106 owner=0 node=-1 duration_ms=0.045
+[HullTiming] time_ms=1384267053.844 phase=legacy-rebuild state=begin id=107 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267053.972 phase=legacy-rebuild state=end id=107 owner=0 node=-1 duration_ms=0.128
+[HullTiming] time_ms=1384267054.000 phase=legacy-rebuild state=begin id=108 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267054.082 phase=legacy-rebuild state=end id=108 owner=0 node=-1 duration_ms=0.081
+[HullTiming] time_ms=1384267054.127 phase=legacy-rebuild state=begin id=109 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267054.247 phase=legacy-rebuild state=end id=109 owner=0 node=-1 duration_ms=0.120
+[HullTiming] time_ms=1384267054.269 phase=legacy-rebuild state=begin id=110 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267054.323 phase=legacy-rebuild state=end id=110 owner=0 node=-1 duration_ms=0.053
+[HullTiming] time_ms=1384267054.333 phase=legacy-rebuild state=begin id=111 owner=0 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267054.353 phase=legacy-rebuild state=end id=111 owner=0 node=-1 duration_ms=0.020
+[2026-10-21 18:49:53.786] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:49:53.793] [info] FLOORDIAG entry sail=1.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=4.98
+[2026-10-21 18:49:53.793] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=4.98 floor=5.38
+[HullTiming] time_ms=1384267076.842 phase=material-restore state=begin id=112 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267076.988 phase=pristine-ineligible state=event id=0 owner=3605590324155369722 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267078.438 phase=physical-cache state=begin id=113 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267078.461 phase=physical-cache state=end id=113 owner=6964850921473835070 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384267078.673 phase=material-restore state=end id=112 owner=6964850921473835070 node=-1 duration_ms=1.831
+[HullTiming] time_ms=1384267240.129 phase=physical-cache state=begin id=114 owner=6964850921473835070 node=-1 duration_ms=0.000
+[StormMetal alpha] role=2 fvf=00000252 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=BEACH.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=26 tex=SHIPS\MANOWAR1\HULL3\DES2.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=SHIPS\MANOWAR1\HULL3\SHIELD.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=22 tex=SHIPS\MANOWAR1\HULL3\INZANEGUN1.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=25 tex=SHIPS\MANOWAR1\HULL3\WATER1.TGA s1=1/2/1 fmt=827611204 tex=ISLANDS\PUERTORICO\PUERTORICOMASK.TGA s2=1/2/1 fmt=26 tex=FONTS\INTERFACE NORMAL FONT RUS.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=861165636 tex=SHIPS/PARUS_COMMON_TORN.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=861165636 tex=SHIPS/PARUS_COMMON_TORN.TGA s1=2/1/1 fmt=21 tex=SHIPS\GERALD\PIR5.TGA.TX s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\PARUS_SILK.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\PARUS_PAT.TGA s1=2/1/1 fmt=21 tex=SHIPS\GERALD\FRA_6.TGA.TX s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SAIL_ROPE.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=894720068 tex=FLAGS\FLAGALL_SHIP_B.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=21 tex=VANT.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=FISH01.TGA s1=1/2/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[HullTiming] time_ms=1384267530.856 phase=material-restore state=begin id=115 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267530.923 phase=pristine-ineligible state=event id=0 owner=11071952311190568760 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267531.338 phase=physical-cache state=begin id=116 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267531.348 phase=physical-cache state=end id=116 owner=6964850921473835070 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384267531.426 phase=material-restore state=end id=115 owner=6964850921473835070 node=-1 duration_ms=0.569
+[HullTiming] time_ms=1384267534.064 phase=material-restore state=begin id=117 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267534.124 phase=pristine-ineligible state=event id=0 owner=10447205151125777137 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267534.394 phase=physical-cache state=begin id=118 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267534.419 phase=physical-cache state=end id=118 owner=6964850921473835070 node=-1 duration_ms=0.025
+[HullTiming] time_ms=1384267534.449 phase=material-restore state=end id=117 owner=6964850921473835070 node=-1 duration_ms=0.386
+[HullTiming] time_ms=1384267537.668 phase=material-restore state=begin id=119 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267537.717 phase=pristine-ineligible state=event id=0 owner=4756645824837390990 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267537.871 phase=physical-cache state=begin id=120 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267537.879 phase=physical-cache state=end id=120 owner=6964850921473835070 node=-1 duration_ms=0.008
+[HullTiming] time_ms=1384267537.906 phase=material-restore state=end id=119 owner=6964850921473835070 node=-1 duration_ms=0.238
+[HullTiming] time_ms=1384267597.206 phase=material-restore state=begin id=121 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267598.746 phase=pristine-ineligible state=event id=0 owner=2978330860673791613 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.324] [info] Island Set
+[HullTiming] time_ms=1384267629.777 phase=physical-cache state=begin id=122 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267629.812 phase=physical-cache state=end id=122 owner=6964850921473835070 node=-1 duration_ms=0.035
+[HullTiming] time_ms=1384267634.650 phase=material-restore state=end id=121 owner=6964850921473835070 node=-1 duration_ms=37.444
+[HullTiming] time_ms=1384267682.266 phase=material-restore state=begin id=123 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267682.460 phase=pristine-ineligible state=event id=0 owner=1778402108283767053 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.400] [info] resource\models\WorldMap\islands\antigua_palms.gm: can't open geometry file
+[HullTiming] time_ms=1384267684.462 phase=physical-cache state=begin id=124 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267684.609 phase=physical-cache state=end id=124 owner=6964850921473835070 node=-1 duration_ms=0.145
+[HullTiming] time_ms=1384267685.134 phase=material-restore state=end id=123 owner=6964850921473835070 node=-1 duration_ms=2.868
+[HullTiming] time_ms=1384267686.891 phase=material-restore state=begin id=125 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267687.083 phase=pristine-ineligible state=event id=0 owner=7254571263335950624 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267689.312 phase=physical-cache state=begin id=126 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267689.378 phase=physical-cache state=end id=126 owner=6964850921473835070 node=-1 duration_ms=0.065
+[HullTiming] time_ms=1384267689.723 phase=material-restore state=end id=125 owner=6964850921473835070 node=-1 duration_ms=2.833
+[HullTiming] time_ms=1384267691.970 phase=material-restore state=begin id=127 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267692.457 phase=pristine-ineligible state=event id=0 owner=5710872780208553311 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.410] [info] resource\models\WorldMap\islands\antigua_waves.gm: can't open geometry file
+[HullTiming] time_ms=1384267694.409 phase=physical-cache state=begin id=128 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267694.444 phase=physical-cache state=end id=128 owner=6964850921473835070 node=-1 duration_ms=0.034
+[HullTiming] time_ms=1384267694.766 phase=material-restore state=end id=127 owner=6964850921473835070 node=-1 duration_ms=2.796
+[HullTiming] time_ms=1384267696.785 phase=material-restore state=begin id=129 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267698.601 phase=pristine-ineligible state=event id=0 owner=8573634926809262553 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.436] [info] resource\models\WorldMap\islands\barbados_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.445] [info] resource\models\WorldMap\islands\barbados_waves.gm: can't open geometry file
+[HullTiming] time_ms=1384267730.862 phase=physical-cache state=begin id=130 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267730.950 phase=physical-cache state=end id=130 owner=6964850921473835070 node=-1 duration_ms=0.088
+[HullTiming] time_ms=1384267737.278 phase=material-restore state=end id=129 owner=6964850921473835070 node=-1 duration_ms=40.493
+[HullTiming] time_ms=1384267739.927 phase=material-restore state=begin id=131 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267740.433 phase=pristine-ineligible state=event id=0 owner=5417361506164889092 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267742.276 phase=physical-cache state=begin id=132 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267742.362 phase=physical-cache state=end id=132 owner=6964850921473835070 node=-1 duration_ms=0.086
+[HullTiming] time_ms=1384267743.016 phase=material-restore state=end id=131 owner=6964850921473835070 node=-1 duration_ms=3.090
+[HullTiming] time_ms=1384267745.706 phase=material-restore state=begin id=133 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267746.057 phase=pristine-ineligible state=event id=0 owner=7033014871645150869 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267747.950 phase=physical-cache state=begin id=134 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267748.004 phase=physical-cache state=end id=134 owner=6964850921473835070 node=-1 duration_ms=0.054
+[HullTiming] time_ms=1384267748.338 phase=material-restore state=end id=133 owner=6964850921473835070 node=-1 duration_ms=2.632
+[HullTiming] time_ms=1384267748.742 phase=material-restore state=begin id=135 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267749.203 phase=pristine-ineligible state=event id=0 owner=7877415709342470221 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267751.032 phase=physical-cache state=begin id=136 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267751.046 phase=physical-cache state=end id=136 owner=6964850921473835070 node=-1 duration_ms=0.013
+[HullTiming] time_ms=1384267751.327 phase=material-restore state=end id=135 owner=6964850921473835070 node=-1 duration_ms=2.586
+[HullTiming] time_ms=1384267753.589 phase=material-restore state=begin id=137 owner=6964850921473835070 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.471] [info] resource\models\WorldMap\islands\beliz_palms.gm: can't open geometry file
+[HullTiming] time_ms=1384267754.958 phase=pristine-ineligible state=event id=0 owner=10916454307808742666 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.479] [info] resource\models\WorldMap\islands\beliz_waves.gm: can't open geometry file
+[HullTiming] time_ms=1384267774.453 phase=physical-cache state=begin id=138 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267774.523 phase=physical-cache state=end id=138 owner=6964850921473835070 node=-1 duration_ms=0.070
+[HullTiming] time_ms=1384267777.666 phase=material-restore state=end id=137 owner=6964850921473835070 node=-1 duration_ms=24.077
+[HullTiming] time_ms=1384267778.570 phase=material-restore state=begin id=139 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267778.631 phase=pristine-ineligible state=event id=0 owner=11545460940761232992 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267778.804 phase=physical-cache state=begin id=140 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267778.825 phase=physical-cache state=end id=140 owner=6964850921473835070 node=-1 duration_ms=0.021
+[HullTiming] time_ms=1384267778.887 phase=material-restore state=end id=139 owner=6964850921473835070 node=-1 duration_ms=0.317
+[HullTiming] time_ms=1384267781.729 phase=material-restore state=begin id=141 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267781.827 phase=pristine-ineligible state=event id=0 owner=14787205321912713313 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267782.047 phase=physical-cache state=begin id=142 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267782.057 phase=physical-cache state=end id=142 owner=6964850921473835070 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384267782.086 phase=material-restore state=end id=141 owner=6964850921473835070 node=-1 duration_ms=0.357
+[HullTiming] time_ms=1384267783.354 phase=material-restore state=begin id=143 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267783.664 phase=pristine-ineligible state=event id=0 owner=14309130440167124133 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267786.911 phase=physical-cache state=begin id=144 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267786.944 phase=physical-cache state=end id=144 owner=6964850921473835070 node=-1 duration_ms=0.033
+[HullTiming] time_ms=1384267787.643 phase=material-restore state=end id=143 owner=6964850921473835070 node=-1 duration_ms=4.289
+[2026-10-21 18:49:54.505] [info] resource\models\WorldMap\islands\bermudes_palms.gm: can't open geometry file
+[HullTiming] time_ms=1384267790.492 phase=material-restore state=begin id=145 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267790.701 phase=pristine-ineligible state=event id=0 owner=5662665131091855141 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267792.404 phase=physical-cache state=begin id=146 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267792.471 phase=physical-cache state=end id=146 owner=6964850921473835070 node=-1 duration_ms=0.067
+[HullTiming] time_ms=1384267792.959 phase=material-restore state=end id=145 owner=6964850921473835070 node=-1 duration_ms=2.467
+[HullTiming] time_ms=1384267795.032 phase=material-restore state=begin id=147 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267795.229 phase=pristine-ineligible state=event id=0 owner=11276464968993053534 node=-1 duration_ms=0.000
+[2026-10-21 18:49:54.513] [info] resource\models\WorldMap\islands\bermudes_waves.gm: can't open geometry file
+[HullTiming] time_ms=1384267796.034 phase=physical-cache state=begin id=148 owner=6964850921473835070 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267796.094 phase=physical-cache state=end id=148 owner=6964850921473835070 node=-1 duration_ms=0.060
+[HullTiming] time_ms=1384267796.293 phase=material-restore state=end id=147 owner=6964850921473835070 node=-1 duration_ms=1.261
+[HullTiming] time_ms=1384267800.547 phase=material-restore state=begin id=149 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384267803.017 phase=pristine-ineligible state=event id=0 owner=14349714202700261590 node=0 duration_ms=0.000
+[2026-10-21 18:49:54.538] [info] resource\models\WorldMap\islands\caiman_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.547] [info] resource\models\WorldMap\islands\caiman_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.571] [info] resource\models\WorldMap\islands\caracas_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.579] [info] resource\models\WorldMap\islands\caracas_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.604] [info] resource\models\WorldMap\islands\cartahena_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.612] [info] resource\models\WorldMap\islands\cartahena_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.638] [info] resource\models\WorldMap\islands\cuba1_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.646] [info] resource\models\WorldMap\islands\cuba1_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.671] [info] resource\models\WorldMap\islands\cuba2_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.679] [info] resource\models\WorldMap\islands\cuba2_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.705] [info] resource\models\WorldMap\islands\cumana_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.713] [info] resource\models\WorldMap\islands\cumana_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.737] [info] resource\models\WorldMap\islands\curacao_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.747] [info] resource\models\WorldMap\islands\curacao_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.771] [info] resource\models\WorldMap\islands\dominica_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.780] [info] resource\models\WorldMap\islands\dominica_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.805] [info] resource\models\WorldMap\islands\guadeloupe_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.813] [info] resource\models\WorldMap\islands\guadeloupe_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.838] [info] resource\models\WorldMap\islands\hispaniola1_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.846] [info] resource\models\WorldMap\islands\hispaniola1_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.871] [info] resource\models\WorldMap\islands\hispaniola2_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.881] [info] resource\models\WorldMap\islands\hispaniola2_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.905] [info] resource\models\WorldMap\islands\jamaica_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.913] [info] resource\models\WorldMap\islands\jamaica_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.938] [info] resource\models\WorldMap\islands\lostshipscity_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.946] [info] resource\models\WorldMap\islands\lostshipscity_waves.gm: can't open geometry file
+[2026-10-21 18:49:54.972] [info] resource\models\WorldMap\islands\maracaibo_palms.gm: can't open geometry file
+[2026-10-21 18:49:54.980] [info] resource\models\WorldMap\islands\maracaibo_waves.gm: can't open geometry file
+[HullTiming] time_ms=1384268273.510 phase=physical-cache state=begin id=150 owner=6964851647323308135 node=-1 duration_ms=0.000
+[2026-10-21 18:49:55.005] [info] resource\models\WorldMap\islands\martinique_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.013] [info] resource\models\WorldMap\islands\martinique_waves.gm: can't open geometry file
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=23578 bounds_miss=6071 bounds_bypass=4851 bounds_skip=0 indices_scanned=11886612 indices_avoided=113000910 bounds_cpu_ms=32.321 view_hit=54732 view_miss=706 sampling_shared=30631 sampling_fallback=0 sampling_bytes_saved=106840928
+[StormMetal] submission-cache enabled=1 raster_skipped=334319 shadow_textures_skipped=302440 sampler_reused=404539
+[StormMetal] ffp-specialize enabled=1 frames=120 used=40316 fallback=197 ready=39 variants=39
+[2026-10-21 18:49:55.126] [info] resource\models\WorldMap\islands\mein_area.gm: can't open geometry file
+[2026-10-21 18:49:55.134] [info] resource\models\WorldMap\islands\mein_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.167] [info] resource\models\WorldMap\islands\nevis_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.176] [info] resource\models\WorldMap\islands\nevis_waves.gm: can't open geometry file
+[StormMetal] diag: origin=(2932.2,-40.3,-3158.7) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.0 draws=59877 verts=358689584 uploadMB=1103.4 legacy3D=0 legacyShadow=0
+[2026-10-21 18:49:55.201] [info] resource\models\WorldMap\islands\panama_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.210] [info] resource\models\WorldMap\islands\panama_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.234] [info] resource\models\WorldMap\islands\pearl_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.242] [info] resource\models\WorldMap\islands\pearl_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.268] [info] resource\models\WorldMap\islands\portobello_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.276] [info] resource\models\WorldMap\islands\portobello_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.301] [info] resource\models\WorldMap\islands\providence_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.309] [info] resource\models\WorldMap\islands\providence_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.335] [info] resource\models\WorldMap\islands\puertorico_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.343] [info] resource\models\WorldMap\islands\puertorico_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.368] [info] resource\models\WorldMap\islands\santacatalina_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.375] [info] resource\models\WorldMap\islands\santacatalina_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.401] [info] resource\models\WorldMap\islands\sentmartin_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.409] [info] resource\models\WorldMap\islands\sentmartin_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.435] [info] resource\models\WorldMap\islands\tenotchitlan_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.443] [info] resource\models\WorldMap\islands\tenotchitlan_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.473] [info] resource\models\WorldMap\islands\terks_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.481] [info] FLOORDIAG floor idx=1 masts=4/4 num=4 vec=4 ideal=21.51 speed=4.97 floor=5.38
+[2026-10-21 18:49:55.482] [info] resource\models\WorldMap\islands\terks_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.506] [info] resource\models\WorldMap\islands\tortuga_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.515] [info] resource\models\WorldMap\islands\tortuga_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.540] [info] resource\models\WorldMap\islands\trinidad_palms.gm: can't open geometry file
+[2026-10-21 18:49:55.548] [info] resource\models\WorldMap\islands\trinidad_waves.gm: can't open geometry file
+[2026-10-21 18:49:55.854] [info] Can't load texture resource\textures\DES2.TGA.tx
+[2026-10-21 18:49:55.878] [info] Can't load texture resource\textures\VICTORY2.TGA.tx
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=38765 bounds_miss=9684 bounds_bypass=7560 bounds_skip=0 indices_scanned=10857930 indices_avoided=192406878 bounds_cpu_ms=38.007 view_hit=87614 view_miss=1080 sampling_shared=50190 sampling_fallback=0 sampling_bytes_saved=175062720
+[StormMetal] submission-cache enabled=1 raster_skipped=540387 shadow_textures_skipped=495900 sampler_reused=651736
+[StormMetal] ffp-specialize enabled=1 frames=120 used=65671 fallback=64 ready=40 variants=40
+[StormMetal] diag: origin=(2882.4,-40.9,-3372.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=154801 verts=925064490 uploadMB=2665.4 legacy3D=0 legacyShadow=0
+[2026-10-21 18:49:56.866] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=5.48 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=47983 bounds_miss=14184 bounds_bypass=7560 bounds_skip=0 indices_scanned=9395367 indices_avoided=245969919 bounds_cpu_ms=46.819 view_hit=102759 view_miss=1080 sampling_shared=65726 sampling_fallback=0 sampling_bytes_saved=229252288
+[StormMetal] submission-cache enabled=1 raster_skipped=657706 shadow_textures_skipped=651260 sampler_reused=787304
+[StormMetal] ffp-specialize enabled=1 frames=120 used=80518 fallback=0 ready=40 variants=40
+[StormMetal] diag: origin=(2877.3,-40.9,-3372.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=264277 verts=1589553160 uploadMB=4389.3 legacy3D=0 legacyShadow=0
+[2026-10-21 18:49:58.116] [info] FLOORDIAG floor idx=373 masts=4/4 num=4 vec=4 ideal=28.08 speed=4.91 floor=7.02
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=48249 bounds_miss=14203 bounds_bypass=7560 bounds_skip=0 indices_scanned=9486360 indices_avoided=246032004 bounds_cpu_ms=47.267 view_hit=103281 view_miss=1080 sampling_shared=65608 sampling_fallback=0 sampling_bytes_saved=228840704
+[StormMetal] submission-cache enabled=1 raster_skipped=658539 shadow_textures_skipped=650080 sampler_reused=788256
+[StormMetal] ffp-specialize enabled=1 frames=120 used=80637 fallback=0 ready=40 variants=40
+[StormMetal] diag: origin=(2872.2,-40.9,-3372.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=374327 verts=2255699792 uploadMB=6124.2 legacy3D=0 legacyShadow=0
+[HullTiming] time_ms=1384272031.961 phase=physical-cache state=end id=114 owner=6964850921473835070 node=-1 duration_ms=4791.833
+[HullTiming] time_ms=1384272176.632 phase=material-restore state=end id=22 owner=6964850921473835070 node=-1 duration_ms=5608.000
+[HullTiming] time_ms=1384272182.732 phase=material-restore state=begin id=151 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272182.839 phase=pristine-ineligible state=event id=0 owner=5759790234006740853 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272183.448 phase=physical-cache state=begin id=152 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272183.466 phase=physical-cache state=end id=152 owner=6964851647323308135 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1384272183.553 phase=material-restore state=end id=151 owner=6964851647323308135 node=-1 duration_ms=0.821
+[HullTiming] time_ms=1384272185.133 phase=material-restore state=begin id=153 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272185.210 phase=pristine-ineligible state=event id=0 owner=14450738496573937181 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272185.751 phase=physical-cache state=begin id=154 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272185.785 phase=physical-cache state=end id=154 owner=6964851647323308135 node=-1 duration_ms=0.034
+[HullTiming] time_ms=1384272185.856 phase=material-restore state=end id=153 owner=6964851647323308135 node=-1 duration_ms=0.723
+[HullTiming] time_ms=1384272194.176 phase=material-restore state=begin id=155 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272194.251 phase=pristine-ineligible state=event id=0 owner=2712985477926128741 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272194.559 phase=physical-cache state=begin id=156 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272194.584 phase=physical-cache state=end id=156 owner=6964851647323308135 node=-1 duration_ms=0.025
+[HullTiming] time_ms=1384272194.632 phase=material-restore state=end id=155 owner=6964851647323308135 node=-1 duration_ms=0.457
+[HullTiming] time_ms=1384272197.262 phase=material-restore state=begin id=157 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272197.314 phase=pristine-ineligible state=event id=0 owner=18209668607243535618 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272197.532 phase=physical-cache state=begin id=158 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272197.560 phase=physical-cache state=end id=158 owner=6964851647323308135 node=-1 duration_ms=0.028
+[HullTiming] time_ms=1384272197.585 phase=material-restore state=end id=157 owner=6964851647323308135 node=-1 duration_ms=0.324
+[HullTiming] time_ms=1384272198.670 phase=material-restore state=begin id=159 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272198.797 phase=pristine-ineligible state=event id=0 owner=11002133079090931942 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272199.769 phase=physical-cache state=begin id=160 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272199.798 phase=physical-cache state=end id=160 owner=6964851647323308135 node=-1 duration_ms=0.029
+[HullTiming] time_ms=1384272200.020 phase=material-restore state=end id=159 owner=6964851647323308135 node=-1 duration_ms=1.350
+[HullTiming] time_ms=1384272201.910 phase=material-restore state=begin id=161 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272201.971 phase=pristine-ineligible state=event id=0 owner=17174738841117223358 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272202.130 phase=physical-cache state=begin id=162 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272202.142 phase=physical-cache state=end id=162 owner=6964851647323308135 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384272202.271 phase=material-restore state=end id=161 owner=6964851647323308135 node=-1 duration_ms=0.361
+[HullTiming] time_ms=1384272204.448 phase=material-restore state=begin id=163 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272204.526 phase=pristine-ineligible state=event id=0 owner=2754472815023804363 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272204.784 phase=physical-cache state=begin id=164 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272204.833 phase=physical-cache state=end id=164 owner=6964851647323308135 node=-1 duration_ms=0.049
+[HullTiming] time_ms=1384272204.858 phase=material-restore state=end id=163 owner=6964851647323308135 node=-1 duration_ms=0.410
+[HullTiming] time_ms=1384272206.296 phase=material-restore state=begin id=165 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272206.351 phase=pristine-ineligible state=event id=0 owner=12035735390240973495 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272206.428 phase=physical-cache state=begin id=166 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272206.436 phase=physical-cache state=end id=166 owner=6964851647323308135 node=-1 duration_ms=0.008
+[HullTiming] time_ms=1384272206.452 phase=material-restore state=end id=165 owner=6964851647323308135 node=-1 duration_ms=0.157
+[HullTiming] time_ms=1384272207.527 phase=material-restore state=begin id=167 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272207.564 phase=pristine-ineligible state=event id=0 owner=13453891486886315386 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272207.663 phase=physical-cache state=begin id=168 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272207.679 phase=physical-cache state=end id=168 owner=6964851647323308135 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384272207.702 phase=material-restore state=end id=167 owner=6964851647323308135 node=-1 duration_ms=0.175
+[HullTiming] time_ms=1384272211.124 phase=material-restore state=begin id=169 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272211.188 phase=pristine-ineligible state=event id=0 owner=5469976435117837391 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272211.620 phase=physical-cache state=begin id=170 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272211.633 phase=physical-cache state=end id=170 owner=6964851647323308135 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384272211.708 phase=material-restore state=end id=169 owner=6964851647323308135 node=-1 duration_ms=0.584
+[HullTiming] time_ms=1384272213.466 phase=material-restore state=begin id=171 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272213.672 phase=pristine-ineligible state=event id=0 owner=18001964807483512003 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272214.163 phase=physical-cache state=begin id=172 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272214.178 phase=physical-cache state=end id=172 owner=6964851647323308135 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384272214.262 phase=material-restore state=end id=171 owner=6964851647323308135 node=-1 duration_ms=0.796
+[HullTiming] time_ms=1384272216.071 phase=material-restore state=begin id=173 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272216.135 phase=pristine-ineligible state=event id=0 owner=15068548324276321316 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272216.548 phase=physical-cache state=begin id=174 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272216.554 phase=physical-cache state=end id=174 owner=6964851647323308135 node=-1 duration_ms=0.006
+[HullTiming] time_ms=1384272216.633 phase=material-restore state=end id=173 owner=6964851647323308135 node=-1 duration_ms=0.562
+[HullTiming] time_ms=1384272219.297 phase=material-restore state=begin id=175 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272219.323 phase=pristine-ineligible state=event id=0 owner=7157091895334068000 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272219.397 phase=physical-cache state=begin id=176 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272219.407 phase=physical-cache state=end id=176 owner=6964851647323308135 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384272219.429 phase=material-restore state=end id=175 owner=6964851647323308135 node=-1 duration_ms=0.132
+[HullTiming] time_ms=1384272221.478 phase=material-restore state=begin id=177 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272221.523 phase=pristine-ineligible state=event id=0 owner=289470743147091207 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272221.877 phase=physical-cache state=begin id=178 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272221.890 phase=physical-cache state=end id=178 owner=6964851647323308135 node=-1 duration_ms=0.013
+[HullTiming] time_ms=1384272221.946 phase=material-restore state=end id=177 owner=6964851647323308135 node=-1 duration_ms=0.467
+[HullTiming] time_ms=1384272224.298 phase=material-restore state=begin id=179 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272224.328 phase=pristine-ineligible state=event id=0 owner=12126448071478280296 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272224.437 phase=physical-cache state=begin id=180 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272224.444 phase=physical-cache state=end id=180 owner=6964851647323308135 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384272224.463 phase=material-restore state=end id=179 owner=6964851647323308135 node=-1 duration_ms=0.165
+[HullTiming] time_ms=1384272227.654 phase=material-restore state=begin id=181 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272227.737 phase=pristine-ineligible state=event id=0 owner=14490595893167652353 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272228.439 phase=physical-cache state=begin id=182 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272228.463 phase=physical-cache state=end id=182 owner=6964851647323308135 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384272228.576 phase=material-restore state=end id=181 owner=6964851647323308135 node=-1 duration_ms=0.921
+[HullTiming] time_ms=1384272229.852 phase=material-restore state=begin id=183 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272229.879 phase=pristine-ineligible state=event id=0 owner=3020237577447476652 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272230.010 phase=physical-cache state=begin id=184 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272230.040 phase=physical-cache state=end id=184 owner=6964851647323308135 node=-1 duration_ms=0.031
+[HullTiming] time_ms=1384272230.064 phase=material-restore state=end id=183 owner=6964851647323308135 node=-1 duration_ms=0.211
+[HullTiming] time_ms=1384272232.597 phase=material-restore state=begin id=185 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272232.633 phase=pristine-ineligible state=event id=0 owner=17555855997587642658 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272232.737 phase=physical-cache state=begin id=186 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272232.745 phase=physical-cache state=end id=186 owner=6964851647323308135 node=-1 duration_ms=0.008
+[HullTiming] time_ms=1384272232.769 phase=material-restore state=end id=185 owner=6964851647323308135 node=-1 duration_ms=0.172
+[HullTiming] time_ms=1384272235.818 phase=material-restore state=begin id=187 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272235.859 phase=pristine-ineligible state=event id=0 owner=4506072764728251244 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272236.062 phase=physical-cache state=begin id=188 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272236.074 phase=physical-cache state=end id=188 owner=6964851647323308135 node=-1 duration_ms=0.013
+[HullTiming] time_ms=1384272236.110 phase=material-restore state=end id=187 owner=6964851647323308135 node=-1 duration_ms=0.292
+[HullTiming] time_ms=1384272238.008 phase=material-restore state=begin id=189 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272238.039 phase=pristine-ineligible state=event id=0 owner=6581877683929366694 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272238.148 phase=physical-cache state=begin id=190 owner=6964851647323308135 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272238.172 phase=physical-cache state=end id=190 owner=6964851647323308135 node=-1 duration_ms=0.024
+[HullTiming] time_ms=1384272238.196 phase=material-restore state=end id=189 owner=6964851647323308135 node=-1 duration_ms=0.188
+[HullTiming] time_ms=1384272245.401 phase=material-restore state=begin id=191 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272249.275 phase=pristine-ineligible state=event id=0 owner=9709054688589755433 node=0 duration_ms=0.000
+[HullTiming] time_ms=1384272310.815 phase=contact-ship-event state=begin id=192 owner=6964850135494819900 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272311.362 phase=contact-ship-event state=end id=192 owner=6964850135494819900 node=-1 duration_ms=0.547
+[HullTiming] time_ms=1384272311.380 phase=contact-ship-event state=begin id=193 owner=6964851496999452773 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384272311.446 phase=contact-ship-event state=end id=193 owner=6964851496999452773 node=-1 duration_ms=0.066
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=48263 bounds_miss=14320 bounds_bypass=7560 bounds_skip=0 indices_scanned=9736683 indices_avoided=248076042 bounds_cpu_ms=48.143 view_hit=103536 view_miss=1080 sampling_shared=65738 sampling_fallback=0 sampling_bytes_saved=229294144
+[StormMetal] submission-cache enabled=1 raster_skipped=660075 shadow_textures_skipped=651380 sampler_reused=790288
+[StormMetal] ffp-specialize enabled=1 frames=120 used=80891 fallback=0 ready=40 variants=40
+[HullTiming] time_ms=1384272627.621 phase=physical-cache state=begin id=194 owner=6964852025280430213 node=-1 duration_ms=0.000
+[2026-10-21 18:49:59.603] [info] FLOORDIAG floor idx=369 masts=4/4 num=4 vec=4 ideal=31.00 speed=3.09 floor=7.75
+[StormMetal] diag: origin=(2870.7,-40.8,-3371.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=484627 verts=2926284591 uploadMB=7870.4 legacy3D=0 legacyShadow=0
+[2026-10-21 18:49:59.653] [info] FLOORDIAG entry sail=0.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=0.00
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=48898 bounds_miss=14355 bounds_bypass=7560 bounds_skip=0 indices_scanned=9398427 indices_avoided=252659064 bounds_cpu_ms=44.917 view_hit=104173 view_miss=1080 sampling_shared=66050 sampling_fallback=0 sampling_bytes_saved=230382400
+[StormMetal] submission-cache enabled=1 raster_skipped=661450 shadow_textures_skipped=654500 sampler_reused=792520
+[StormMetal] ffp-specialize enabled=1 frames=120 used=81158 fallback=0 ready=40 variants=40
+[StormMetal] diag: origin=(2872.1,-40.8,-3367.8) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=596003 verts=3602994742 uploadMB=9605.2 legacy3D=0 legacyShadow=0
+[HullTiming] time_ms=1384274090.220 phase=physical-cache state=end id=150 owner=6964851647323308135 node=-1 duration_ms=5816.709
+[HullTiming] time_ms=1384274124.844 phase=material-restore state=end id=149 owner=6964851647323308135 node=-1 duration_ms=6324.297
+[HullTiming] time_ms=1384274126.927 phase=material-restore state=begin id=195 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274127.035 phase=pristine-ineligible state=event id=0 owner=801295345026806342 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274127.929 phase=physical-cache state=begin id=196 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274127.943 phase=physical-cache state=end id=196 owner=6964852025280430213 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384274128.121 phase=material-restore state=end id=195 owner=6964852025280430213 node=-1 duration_ms=1.194
+[HullTiming] time_ms=1384274130.044 phase=material-restore state=begin id=197 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274130.194 phase=pristine-ineligible state=event id=0 owner=801295345026806342 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274131.168 phase=physical-cache state=begin id=198 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274131.198 phase=physical-cache state=end id=198 owner=6964852025280430213 node=-1 duration_ms=0.031
+[HullTiming] time_ms=1384274131.341 phase=material-restore state=end id=197 owner=6964852025280430213 node=-1 duration_ms=1.297
+[HullTiming] time_ms=1384274138.657 phase=material-restore state=begin id=199 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274138.720 phase=pristine-ineligible state=event id=0 owner=8627853027600956290 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274138.882 phase=physical-cache state=begin id=200 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274138.889 phase=physical-cache state=end id=200 owner=6964852025280430213 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384274138.907 phase=material-restore state=end id=199 owner=6964852025280430213 node=-1 duration_ms=0.251
+[HullTiming] time_ms=1384274142.671 phase=material-restore state=begin id=201 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274142.723 phase=pristine-ineligible state=event id=0 owner=412714740182514088 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274142.966 phase=physical-cache state=begin id=202 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274142.976 phase=physical-cache state=end id=202 owner=6964852025280430213 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384274143.003 phase=material-restore state=end id=201 owner=6964852025280430213 node=-1 duration_ms=0.332
+[HullTiming] time_ms=1384274146.903 phase=material-restore state=begin id=203 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274147.106 phase=pristine-ineligible state=event id=0 owner=1995655239061783434 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274150.108 phase=physical-cache state=begin id=204 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274150.148 phase=physical-cache state=end id=204 owner=6964852025280430213 node=-1 duration_ms=0.040
+[HullTiming] time_ms=1384274150.668 phase=material-restore state=end id=203 owner=6964852025280430213 node=-1 duration_ms=3.766
+[HullTiming] time_ms=1384274151.605 phase=material-restore state=begin id=205 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274151.657 phase=pristine-ineligible state=event id=0 owner=8707860759077682213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274151.913 phase=physical-cache state=begin id=206 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274151.924 phase=physical-cache state=end id=206 owner=6964852025280430213 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1384274151.951 phase=material-restore state=end id=205 owner=6964852025280430213 node=-1 duration_ms=0.346
+[HullTiming] time_ms=1384274155.854 phase=material-restore state=begin id=207 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274155.898 phase=pristine-ineligible state=event id=0 owner=15344917512362035406 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274156.246 phase=physical-cache state=begin id=208 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274156.278 phase=physical-cache state=end id=208 owner=6964852025280430213 node=-1 duration_ms=0.031
+[HullTiming] time_ms=1384274156.317 phase=material-restore state=end id=207 owner=6964852025280430213 node=-1 duration_ms=0.463
+[HullTiming] time_ms=1384274160.162 phase=material-restore state=begin id=209 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274160.377 phase=pristine-ineligible state=event id=0 owner=4918534141429581797 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274162.291 phase=physical-cache state=begin id=210 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274162.307 phase=physical-cache state=end id=210 owner=6964852025280430213 node=-1 duration_ms=0.015
+[HullTiming] time_ms=1384274162.750 phase=material-restore state=end id=209 owner=6964852025280430213 node=-1 duration_ms=2.588
+[HullTiming] time_ms=1384274164.294 phase=material-restore state=begin id=211 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274164.336 phase=pristine-ineligible state=event id=0 owner=7407450038450726098 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274164.576 phase=physical-cache state=begin id=212 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274164.592 phase=physical-cache state=end id=212 owner=6964852025280430213 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384274164.621 phase=material-restore state=end id=211 owner=6964852025280430213 node=-1 duration_ms=0.327
+[HullTiming] time_ms=1384274168.505 phase=material-restore state=begin id=213 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274168.546 phase=pristine-ineligible state=event id=0 owner=14251463197235909805 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274168.834 phase=physical-cache state=begin id=214 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274168.841 phase=physical-cache state=end id=214 owner=6964852025280430213 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384274168.866 phase=material-restore state=end id=213 owner=6964852025280430213 node=-1 duration_ms=0.360
+[HullTiming] time_ms=1384274172.781 phase=material-restore state=begin id=215 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274172.893 phase=pristine-ineligible state=event id=0 owner=2092106577901501484 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274173.353 phase=physical-cache state=begin id=216 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274173.369 phase=physical-cache state=end id=216 owner=6964852025280430213 node=-1 duration_ms=0.016
+[HullTiming] time_ms=1384274173.421 phase=material-restore state=end id=215 owner=6964852025280430213 node=-1 duration_ms=0.640
+[HullTiming] time_ms=1384274176.974 phase=material-restore state=begin id=217 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274177.024 phase=pristine-ineligible state=event id=0 owner=17528391480665745699 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274177.275 phase=physical-cache state=begin id=218 owner=6964852025280430213 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274177.282 phase=physical-cache state=end id=218 owner=6964852025280430213 node=-1 duration_ms=0.006
+[HullTiming] time_ms=1384274177.305 phase=material-restore state=end id=217 owner=6964852025280430213 node=-1 duration_ms=0.331
+[HullTiming] time_ms=1384274180.961 phase=material-restore state=begin id=219 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384274187.108 phase=pristine-ineligible state=event id=0 owner=13074900398046980577 node=0 duration_ms=0.000
+[HullTiming] time_ms=1384274423.799 phase=physical-cache state=begin id=220 owner=6964852192784154779 node=-1 duration_ms=0.000
+[2026-10-21 18:50:01.274] [info] FLOORDIAG floor idx=369 masts=4/4 num=4 vec=4 ideal=31.00 speed=2.27 floor=7.75
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=50181 bounds_miss=14457 bounds_bypass=7560 bounds_skip=0 indices_scanned=9595683 indices_avoided=271096401 bounds_cpu_ms=44.813 view_hit=105558 view_miss=1080 sampling_shared=66847 sampling_fallback=0 sampling_bytes_saved=233162336
+[StormMetal] submission-cache enabled=1 raster_skipped=667011 shadow_textures_skipped=662470 sampler_reused=798896
+[StormMetal] ffp-specialize enabled=1 frames=120 used=81795 fallback=0 ready=40 variants=40
+[StormMetal] diag: origin=(2873.4,-40.8,-3365.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=708869 verts=4305555764 uploadMB=11335.6 legacy3D=0 legacyShadow=0
+[HullTiming] time_ms=1384275563.010 phase=physical-cache state=end id=220 owner=6964852192784154779 node=-1 duration_ms=1139.211
+[HullTiming] time_ms=1384275591.155 phase=material-restore state=end id=219 owner=6964852192784154779 node=-1 duration_ms=1410.194
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=51683 bounds_miss=14343 bounds_bypass=7560 bounds_skip=0 indices_scanned=9502524 indices_avoided=290391081 bounds_cpu_ms=45.056 view_hit=106946 view_miss=1080 sampling_shared=67712 sampling_fallback=0 sampling_bytes_saved=236179456
+[StormMetal] submission-cache enabled=1 raster_skipped=673064 shadow_textures_skipped=671120 sampler_reused=805816
+[StormMetal] ffp-specialize enabled=1 frames=120 used=82592 fallback=0 ready=40 variants=40
+[HullTiming] time_ms=1384275592.902 phase=material-restore state=begin id=221 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275592.983 phase=pristine-ineligible state=event id=0 owner=4770481645576309662 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275593.978 phase=physical-cache state=begin id=222 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275593.991 phase=physical-cache state=end id=222 owner=6964852192784154779 node=-1 duration_ms=0.013
+[HullTiming] time_ms=1384275594.125 phase=material-restore state=end id=221 owner=6964852192784154779 node=-1 duration_ms=1.224
+[HullTiming] time_ms=1384275597.933 phase=material-restore state=begin id=223 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275597.990 phase=pristine-ineligible state=event id=0 owner=12793994153860981727 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275598.260 phase=physical-cache state=begin id=224 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275598.272 phase=physical-cache state=end id=224 owner=6964852192784154779 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384275598.294 phase=material-restore state=end id=223 owner=6964852192784154779 node=-1 duration_ms=0.360
+[HullTiming] time_ms=1384275600.708 phase=material-restore state=begin id=225 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275600.735 phase=pristine-ineligible state=event id=0 owner=18209668607243535618 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275600.953 phase=physical-cache state=begin id=226 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275600.960 phase=physical-cache state=end id=226 owner=6964852192784154779 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384275600.985 phase=material-restore state=end id=225 owner=6964852192784154779 node=-1 duration_ms=0.277
+[HullTiming] time_ms=1384275605.268 phase=material-restore state=begin id=227 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275605.675 phase=pristine-ineligible state=event id=0 owner=2326615515294681196 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275609.270 phase=physical-cache state=begin id=228 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275609.301 phase=physical-cache state=end id=228 owner=6964852192784154779 node=-1 duration_ms=0.032
+[HullTiming] time_ms=1384275610.098 phase=material-restore state=end id=227 owner=6964852192784154779 node=-1 duration_ms=4.830
+[HullTiming] time_ms=1384275613.557 phase=material-restore state=begin id=229 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275613.614 phase=pristine-ineligible state=event id=0 owner=86282634999103700 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275613.907 phase=physical-cache state=begin id=230 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275613.915 phase=physical-cache state=end id=230 owner=6964852192784154779 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384275613.958 phase=material-restore state=end id=229 owner=6964852192784154779 node=-1 duration_ms=0.401
+[HullTiming] time_ms=1384275617.453 phase=material-restore state=begin id=231 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275617.494 phase=pristine-ineligible state=event id=0 owner=10180777396972956051 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275617.841 phase=physical-cache state=begin id=232 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275617.853 phase=physical-cache state=end id=232 owner=6964852192784154779 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384275617.890 phase=material-restore state=end id=231 owner=6964852192784154779 node=-1 duration_ms=0.437
+[HullTiming] time_ms=1384275621.699 phase=material-restore state=begin id=233 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275621.740 phase=pristine-ineligible state=event id=0 owner=13416849114189614893 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275622.004 phase=physical-cache state=begin id=234 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275622.015 phase=physical-cache state=end id=234 owner=6964852192784154779 node=-1 duration_ms=0.011
+[HullTiming] time_ms=1384275622.049 phase=material-restore state=end id=233 owner=6964852192784154779 node=-1 duration_ms=0.351
+[HullTiming] time_ms=1384275627.038 phase=material-restore state=begin id=235 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275627.503 phase=pristine-ineligible state=event id=0 owner=1208536752678984706 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275631.379 phase=physical-cache state=begin id=236 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275631.393 phase=physical-cache state=end id=236 owner=6964852192784154779 node=-1 duration_ms=0.014
+[HullTiming] time_ms=1384275632.115 phase=material-restore state=end id=235 owner=6964852192784154779 node=-1 duration_ms=5.077
+[HullTiming] time_ms=1384275635.155 phase=material-restore state=begin id=237 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275635.208 phase=pristine-ineligible state=event id=0 owner=16752945161781558986 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275635.465 phase=physical-cache state=begin id=238 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275635.473 phase=physical-cache state=end id=238 owner=6964852192784154779 node=-1 duration_ms=0.008
+[HullTiming] time_ms=1384275635.503 phase=material-restore state=end id=237 owner=6964852192784154779 node=-1 duration_ms=0.347
+[HullTiming] time_ms=1384275639.943 phase=material-restore state=begin id=239 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275640.003 phase=pristine-ineligible state=event id=0 owner=1917429083899529616 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275640.206 phase=physical-cache state=begin id=240 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275640.212 phase=physical-cache state=end id=240 owner=6964852192784154779 node=-1 duration_ms=0.006
+[HullTiming] time_ms=1384275640.248 phase=material-restore state=end id=239 owner=6964852192784154779 node=-1 duration_ms=0.305
+[HullTiming] time_ms=1384275642.686 phase=material-restore state=begin id=241 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275642.721 phase=pristine-ineligible state=event id=0 owner=13897325320657755874 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275643.097 phase=physical-cache state=begin id=242 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275643.132 phase=physical-cache state=end id=242 owner=6964852192784154779 node=-1 duration_ms=0.034
+[HullTiming] time_ms=1384275643.173 phase=material-restore state=end id=241 owner=6964852192784154779 node=-1 duration_ms=0.487
+[HullTiming] time_ms=1384275647.041 phase=material-restore state=begin id=243 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275647.082 phase=pristine-ineligible state=event id=0 owner=7444268361873409434 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275647.312 phase=physical-cache state=begin id=244 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275647.320 phase=physical-cache state=end id=244 owner=6964852192784154779 node=-1 duration_ms=0.008
+[HullTiming] time_ms=1384275647.350 phase=material-restore state=end id=243 owner=6964852192784154779 node=-1 duration_ms=0.309
+[HullTiming] time_ms=1384275652.120 phase=material-restore state=begin id=245 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275652.149 phase=pristine-ineligible state=event id=0 owner=15844151322462105023 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275652.339 phase=physical-cache state=begin id=246 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275652.345 phase=physical-cache state=end id=246 owner=6964852192784154779 node=-1 duration_ms=0.006
+[HullTiming] time_ms=1384275652.381 phase=material-restore state=end id=245 owner=6964852192784154779 node=-1 duration_ms=0.261
+[HullTiming] time_ms=1384275656.512 phase=material-restore state=begin id=247 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275656.546 phase=pristine-ineligible state=event id=0 owner=17361094852080728307 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275656.635 phase=physical-cache state=begin id=248 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275656.642 phase=physical-cache state=end id=248 owner=6964852192784154779 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384275656.660 phase=material-restore state=end id=247 owner=6964852192784154779 node=-1 duration_ms=0.148
+[HullTiming] time_ms=1384275660.267 phase=material-restore state=begin id=249 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275660.354 phase=pristine-ineligible state=event id=0 owner=10287587921692345009 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275661.124 phase=physical-cache state=begin id=250 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275661.139 phase=physical-cache state=end id=250 owner=6964852192784154779 node=-1 duration_ms=0.015
+[HullTiming] time_ms=1384275661.280 phase=material-restore state=end id=249 owner=6964852192784154779 node=-1 duration_ms=1.013
+[HullTiming] time_ms=1384275671.013 phase=material-restore state=begin id=251 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384275682.426 phase=pristine-ineligible state=event id=0 owner=10685261239744142587 node=0 duration_ms=0.000
+[StormMetal] diag: origin=(2882.8,-40.8,-3372.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=822133 verts=5018982408 uploadMB=13070.1 legacy3D=0 legacyShadow=0
+[2026-10-21 18:50:02.934] [info] FLOORDIAG floor idx=432 masts=4/4 num=4 vec=4 ideal=25.92 speed=2.93 floor=6.48
+[2026-10-21 18:50:03.191] [info] DX9RENDER: live buffers vertex=494 index=600 of 10240
+[HullTiming] time_ms=1384276481.080 phase=physical-cache state=begin id=252 owner=6964852948698398901 node=-1 duration_ms=0.000
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=49212 bounds_miss=14360 bounds_bypass=7560 bounds_skip=0 indices_scanned=9584640 indices_avoided=278982546 bounds_cpu_ms=46.952 view_hit=104495 view_miss=1080 sampling_shared=66477 sampling_fallback=0 sampling_bytes_saved=231871776
+[StormMetal] submission-cache enabled=1 raster_skipped=664200 shadow_textures_skipped=658770 sampler_reused=795960
+[StormMetal] ffp-specialize enabled=1 frames=120 used=81544 fallback=0 ready=40 variants=40
+[HullTiming] time_ms=1384277096.442 phase=physical-cache state=end id=194 owner=6964852025280430213 node=-1 duration_ms=4468.821
+[HullTiming] time_ms=1384277131.332 phase=material-restore state=end id=191 owner=6964852025280430213 node=-1 duration_ms=4885.932
+[HullTiming] time_ms=1384277134.023 phase=material-restore state=begin id=253 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277134.109 phase=pristine-ineligible state=event id=0 owner=4770481645576309662 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277134.959 phase=physical-cache state=begin id=254 owner=6964852192784154779 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277134.971 phase=physical-cache state=end id=254 owner=6964852192784154779 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384277135.080 phase=material-restore state=end id=253 owner=6964852192784154779 node=-1 duration_ms=1.056
+[HullTiming] time_ms=1384277142.555 phase=material-restore state=begin id=255 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277142.656 phase=pristine-ineligible state=event id=0 owner=966047747766339371 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277143.735 phase=physical-cache state=begin id=256 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277143.747 phase=physical-cache state=end id=256 owner=6964852948698398901 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384277143.906 phase=material-restore state=end id=255 owner=6964852948698398901 node=-1 duration_ms=1.351
+[HullTiming] time_ms=1384277146.128 phase=material-restore state=begin id=257 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277146.175 phase=pristine-ineligible state=event id=0 owner=6578499862466236960 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277146.439 phase=physical-cache state=begin id=258 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277146.448 phase=physical-cache state=end id=258 owner=6964852948698398901 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384277146.500 phase=material-restore state=end id=257 owner=6964852948698398901 node=-1 duration_ms=0.371
+[HullTiming] time_ms=1384277149.963 phase=material-restore state=begin id=259 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277149.990 phase=pristine-ineligible state=event id=0 owner=746465358808073066 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277150.173 phase=physical-cache state=begin id=260 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277150.181 phase=physical-cache state=end id=260 owner=6964852948698398901 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384277150.210 phase=material-restore state=end id=259 owner=6964852948698398901 node=-1 duration_ms=0.248
+[HullTiming] time_ms=1384277153.864 phase=material-restore state=begin id=261 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277153.902 phase=pristine-ineligible state=event id=0 owner=9631643214868779258 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277154.038 phase=physical-cache state=begin id=262 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277154.047 phase=physical-cache state=end id=262 owner=6964852948698398901 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384277154.073 phase=material-restore state=end id=261 owner=6964852948698398901 node=-1 duration_ms=0.209
+[HullTiming] time_ms=1384277159.164 phase=material-restore state=begin id=263 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277160.477 phase=pristine-ineligible state=event id=0 owner=14092224700543390328 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277182.721 phase=physical-cache state=begin id=264 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277182.757 phase=physical-cache state=end id=264 owner=6964852948698398901 node=-1 duration_ms=0.035
+[HullTiming] time_ms=1384277186.664 phase=material-restore state=end id=263 owner=6964852948698398901 node=-1 duration_ms=27.501
+[HullTiming] time_ms=1384277187.349 phase=material-restore state=begin id=265 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277187.393 phase=pristine-ineligible state=event id=0 owner=18257527340011432476 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277187.560 phase=physical-cache state=begin id=266 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277187.567 phase=physical-cache state=end id=266 owner=6964852948698398901 node=-1 duration_ms=0.007
+[HullTiming] time_ms=1384277187.597 phase=material-restore state=end id=265 owner=6964852948698398901 node=-1 duration_ms=0.248
+[HullTiming] time_ms=1384277192.318 phase=material-restore state=begin id=267 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277192.360 phase=pristine-ineligible state=event id=0 owner=2299454786360073362 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277192.571 phase=physical-cache state=begin id=268 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277192.580 phase=physical-cache state=end id=268 owner=6964852948698398901 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384277192.607 phase=material-restore state=end id=267 owner=6964852948698398901 node=-1 duration_ms=0.288
+[HullTiming] time_ms=1384277196.541 phase=material-restore state=begin id=269 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277196.603 phase=pristine-ineligible state=event id=0 owner=18315761339031918702 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277196.813 phase=physical-cache state=begin id=270 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277196.829 phase=physical-cache state=end id=270 owner=6964852948698398901 node=-1 duration_ms=0.015
+[HullTiming] time_ms=1384277196.864 phase=material-restore state=end id=269 owner=6964852948698398901 node=-1 duration_ms=0.322
+[StormMetal] diag: origin=(2877.7,-40.8,-3372.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=932200 verts=5712003499 uploadMB=14807.3 legacy3D=0 legacyShadow=0
+[HullTiming] time_ms=1384277200.813 phase=material-restore state=begin id=271 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277202.369 phase=pristine-ineligible state=event id=0 owner=18263304911976841208 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277229.059 phase=physical-cache state=begin id=272 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277229.080 phase=physical-cache state=end id=272 owner=6964852948698398901 node=-1 duration_ms=0.022
+[HullTiming] time_ms=1384277233.842 phase=material-restore state=end id=271 owner=6964852948698398901 node=-1 duration_ms=33.028
+[HullTiming] time_ms=1384277237.795 phase=material-restore state=begin id=273 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277237.855 phase=pristine-ineligible state=event id=0 owner=10220418841874973893 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277238.052 phase=physical-cache state=begin id=274 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277238.062 phase=physical-cache state=end id=274 owner=6964852948698398901 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384277238.096 phase=material-restore state=end id=273 owner=6964852948698398901 node=-1 duration_ms=0.300
+[HullTiming] time_ms=1384277241.797 phase=material-restore state=begin id=275 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277241.843 phase=pristine-ineligible state=event id=0 owner=15759753549590647415 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277242.046 phase=physical-cache state=begin id=276 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277242.065 phase=physical-cache state=end id=276 owner=6964852948698398901 node=-1 duration_ms=0.018
+[HullTiming] time_ms=1384277242.100 phase=material-restore state=end id=275 owner=6964852948698398901 node=-1 duration_ms=0.303
+[HullTiming] time_ms=1384277245.741 phase=material-restore state=begin id=277 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277245.795 phase=pristine-ineligible state=event id=0 owner=1034734377331118374 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277246.003 phase=physical-cache state=begin id=278 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277246.013 phase=physical-cache state=end id=278 owner=6964852948698398901 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384277246.049 phase=material-restore state=end id=277 owner=6964852948698398901 node=-1 duration_ms=0.307
+[HullTiming] time_ms=1384277251.048 phase=material-restore state=begin id=279 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277252.070 phase=pristine-ineligible state=event id=0 owner=7049574110022354603 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277268.657 phase=physical-cache state=begin id=280 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277268.683 phase=physical-cache state=end id=280 owner=6964852948698398901 node=-1 duration_ms=0.026
+[HullTiming] time_ms=1384277271.202 phase=material-restore state=end id=279 owner=6964852948698398901 node=-1 duration_ms=20.154
+[HullTiming] time_ms=1384277276.177 phase=material-restore state=begin id=281 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277276.249 phase=pristine-ineligible state=event id=0 owner=6380463323612691183 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277276.690 phase=physical-cache state=begin id=282 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277276.699 phase=physical-cache state=end id=282 owner=6964852948698398901 node=-1 duration_ms=0.010
+[HullTiming] time_ms=1384277276.777 phase=material-restore state=end id=281 owner=6964852948698398901 node=-1 duration_ms=0.600
+[HullTiming] time_ms=1384277280.445 phase=material-restore state=begin id=283 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277280.519 phase=pristine-ineligible state=event id=0 owner=5370440383783231611 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277280.787 phase=physical-cache state=begin id=284 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277280.796 phase=physical-cache state=end id=284 owner=6964852948698398901 node=-1 duration_ms=0.009
+[HullTiming] time_ms=1384277280.841 phase=material-restore state=end id=283 owner=6964852948698398901 node=-1 duration_ms=0.396
+[HullTiming] time_ms=1384277284.405 phase=material-restore state=begin id=285 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277284.440 phase=pristine-ineligible state=event id=0 owner=16056223236620164498 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277284.655 phase=physical-cache state=begin id=286 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277284.678 phase=physical-cache state=end id=286 owner=6964852948698398901 node=-1 duration_ms=0.023
+[HullTiming] time_ms=1384277284.713 phase=material-restore state=end id=285 owner=6964852948698398901 node=-1 duration_ms=0.307
+[HullTiming] time_ms=1384277289.305 phase=material-restore state=begin id=287 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277295.274 phase=pristine-ineligible state=event id=0 owner=4384310722972443329 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277359.667 phase=physical-cache state=begin id=288 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277359.700 phase=physical-cache state=end id=288 owner=6964852948698398901 node=-1 duration_ms=0.033
+[HullTiming] time_ms=1384277379.010 phase=material-restore state=end id=287 owner=6964852948698398901 node=-1 duration_ms=89.705
+[HullTiming] time_ms=1384277384.053 phase=material-restore state=begin id=289 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277384.179 phase=pristine-ineligible state=event id=0 owner=966047747766339371 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277385.351 phase=physical-cache state=begin id=290 owner=6964852948698398901 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277385.364 phase=physical-cache state=end id=290 owner=6964852948698398901 node=-1 duration_ms=0.012
+[HullTiming] time_ms=1384277385.556 phase=material-restore state=end id=289 owner=6964852948698398901 node=-1 duration_ms=1.503
+[HullTiming] time_ms=1384277393.537 phase=material-restore state=begin id=291 owner=6964853541403885784 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384277394.761 phase=pristine-ineligible state=event id=0 owner=17493829732569142120 node=0 duration_ms=0.000
+[2026-10-21 18:50:04.184] [info] FLOORDIAG floor idx=432 masts=4/4 num=4 vec=4 ideal=25.92 speed=2.70 floor=6.48
+[HullTiming] time_ms=1384277547.593 phase=physical-cache state=begin id=292 owner=6964853541403885784 node=-1 duration_ms=0.000
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=47996 bounds_miss=14396 bounds_bypass=7560 bounds_skip=0 indices_scanned=9613449 indices_avoided=272329443 bounds_cpu_ms=46.044 view_hit=103312 view_miss=1080 sampling_shared=65709 sampling_fallback=0 sampling_bytes_saved=229192992
+[StormMetal] submission-cache enabled=1 raster_skipped=659004 shadow_textures_skipped=651090 sampler_reused=789792
+[StormMetal] ffp-specialize enabled=1 frames=120 used=80829 fallback=0 ready=40 variants=40
+[2026-10-21 18:50:04.476] [info] FLOORDIAG entry sail=0.00 fixed=0 dead=0 stopped=0 surrender=0 blocked=0 speed=0.00
+[StormMetal] diag: origin=(2872.6,-40.8,-3372.9) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.12 pitch=-7.1 draws=1041659 verts=6409099430 uploadMB=16549.1 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=47404 bounds_miss=14301 bounds_bypass=7560 bounds_skip=0 indices_scanned=8556873 indices_avoided=274230876 bounds_cpu_ms=44.970 view_hit=102625 view_miss=1080 sampling_shared=65133 sampling_fallback=0 sampling_bytes_saved=227183904
+[StormMetal] submission-cache enabled=1 raster_skipped=654891 shadow_textures_skipped=645330 sampler_reused=785184
+[StormMetal] ffp-specialize enabled=1 frames=120 used=80253 fallback=0 ready=40 variants=40
+[HullTiming] time_ms=1384278776.425 phase=contact-ship-event state=begin id=293 owner=6964850135494819900 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384278776.698 phase=contact-ship-event state=end id=293 owner=6964850135494819900 node=-1 duration_ms=0.274
+[HullTiming] time_ms=1384278776.709 phase=contact-ship-event state=begin id=294 owner=6964851496999452773 node=-1 duration_ms=0.000
+[HullTiming] time_ms=1384278776.763 phase=contact-ship-event state=end id=294 owner=6964851496999452773 node=-1 duration_ms=0.054
+[2026-10-21 18:50:05.576] [info] FLOORDIAG floor idx=369 masts=4/4 num=4 vec=4 ideal=31.00 speed=2.29 floor=7.75
+[2026-10-21 18:50:06.027] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseIndexBuffer:2560] (IndexBuffers[id].buff->Release())
+[HullTiming] time_ms=1384279348.115 phase=physical-cache state=end id=252 owner=6964852948698398901 node=-1 duration_ms=2867.036
+[HullTiming] time_ms=1384279348.676 phase=physical-cache state=end id=292 owner=6964853541403885784 node=-1 duration_ms=1801.083
+[HullTiming] time_ms=1384279348.702 phase=material-restore state=end id=251 owner=6964852948698398901 node=-1 duration_ms=3677.688
+[HullTiming] time_ms=1384279348.857 phase=material-restore state=end id=291 owner=6964853541403885784 node=-1 duration_ms=1955.320
+[2026-10-21 18:50:06.068] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:50:06.068] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:50:06.068] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:TextureRelease:1974] (Textures[texid].d3dtex->Release())
+[2026-10-21 18:50:06.072] [info] [experiments/native-metal/engine/src/libs/renderer/src/s_device.cpp:ReleaseDevice:880] (renderDevice->Release())

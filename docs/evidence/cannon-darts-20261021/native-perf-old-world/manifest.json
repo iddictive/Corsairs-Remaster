@@ -1,0 +1,21 @@
+{
+  "binary_sha256": "8863f4d0c6d8f7d8f5e822edacaea68ff6ff0e5e243f7a7d29ff5ad86d8e2604",
+  "fixture_inputs": {
+    "day.c": "97ee3b26e1267d0c5e9ee6fcfcdcbc54b6da8521db96d1ab22ed0de84c886d16",
+    "ship-lights.c": "2ff35411463fb6650cf68a598a2ff742366e2760e6939c8630a5a544c81ac11d",
+    "ship-type.c": "a7b6b6d7d9fc81b687a3ce7d73be2cac6375a104a68148cec5804a51a4160ba2",
+    "fixture.c": "f813a8d05edbe6dfe8e5645df0bd8cdf089f8729ec4b87ed432559991494c235",
+    "engine.ini": "ec749ff87d9603d2f502fd350f55c6c7a96ef11ec9128e15c5bcc7dc762cd7e0"
+  },
+  "frames": 160,
+  "resolution": [
+    640,
+    480
+  ],
+  "projectiles": 1024,
+  "ordinary_visible_lane": 512,
+  "ordinary_callback_lane": 512,
+  "final_callback_expectation": 81408,
+  "timeout_seconds": 90,
+  "claim_ceiling": "hidden native ordinary-ball full-path workload; not installed gameplay/hit acceptance"
+}

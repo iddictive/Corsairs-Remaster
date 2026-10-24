@@ -1,0 +1,12 @@
+{
+  "returncode": 65,
+  "binary_sha256": "be0b0200908a9b1fa84f09c0d1175a7444781483d9ebdad31d8d9755ba2786f3",
+  "claim_ceiling": "FullfixtureStormsyntax withtypedbridge andBenchmarkSeed no-op stubs, no native bridge/scene execution",
+  "inputs": {
+    "day.c": "97ee3b26e1267d0c5e9ee6fcfcdcbc54b6da8521db96d1ab22ed0de84c886d16",
+    "ship-lights.c": "2ff35411463fb6650cf68a598a2ff742366e2760e6939c8630a5a544c81ac11d",
+    "cases.c": "c79ca8ba10e00e9e923c75f0ea66dfcff770e70de97a2db4535abae8d02594af",
+    "ship-type.c": "a7b6b6d7d9fc81b687a3ce7d73be2cac6375a104a68148cec5804a51a4160ba2",
+    "native-angle30-source.c": "f21e1cea6de1347cca790523932a729fdeccba51ab7778dab8efb2aae46773ae"
+  }
+}

@@ -1,0 +1,220 @@
+{
+  "status": "rejected: native BATTLE_INTERFACE::CheckSeaState crash after returnPuertoRico retirement; remount not reached",
+  "native_engine_sha256": "fc87c149b0ba380afccfbfebebfcc7a93e36fce03f9021b1327a37dcbce3c411",
+  "native_wall_seconds": 25.169169187545776,
+  "actual_initial_residency": {
+    "regions": 27,
+    "primary_terrain_hosts": 1,
+    "additional_terrain_regions": 26,
+    "script_forts": 23,
+    "native_forts": 23
+  },
+  "initial_normal_load_core_wall_ms": 4943.032625,
+  "baseline_initial_normal_load_core_wall_ms": 1888.871875,
+  "peak_rss_bytes": 7373176832.0,
+  "sampled_native_peak_rss_bytes": 7325401088,
+  "crossing_sea_and_player_eids_same": true,
+  "crossing_transition_or_hold_seen": false,
+  "physical_frame_scales": [
+    "50"
+  ],
+  "logical_region_scales": [
+    [
+      "Antigua",
+      "50"
+    ],
+    [
+      "Barbados",
+      "50"
+    ],
+    [
+      "Cuba1",
+      "25"
+    ],
+    [
+      "Cuba1",
+      "50"
+    ],
+    [
+      "PuertoRico",
+      "50"
+    ],
+    [
+      "Tortuga",
+      "25"
+    ],
+    [
+      "Tortuga",
+      "50"
+    ]
+  ],
+  "steady_cpu_by_location": {
+    "PuertoRico": {
+      "count": 179,
+      "median_ms": 15.937584,
+      "p95_ms": 21.518417,
+      "max_ms": 1615.212542,
+      "baseline_median_ms": 7.8886045,
+      "median_ratio": 2.0203299582327903
+    },
+    "Barbados": {
+      "count": 105,
+      "median_ms": 13.235541,
+      "p95_ms": 18.3295,
+      "max_ms": 21.568792,
+      "baseline_median_ms": 8.1279375,
+      "median_ratio": 1.628400931970749
+    },
+    "Antigua": {
+      "count": 13,
+      "median_ms": 12.814125,
+      "p95_ms": 19.934541,
+      "max_ms": 236.077375,
+      "baseline_median_ms": 8.248292,
+      "median_ratio": 1.553548904427729
+    },
+    "Tortuga": {
+      "count": 124,
+      "median_ms": 13.0487295,
+      "p95_ms": 16.300417,
+      "max_ms": 20.533083,
+      "baseline_median_ms": 8.2361665,
+      "median_ratio": 1.5843207516506619
+    },
+    "Cuba1": {
+      "count": 52,
+      "median_ms": 13.632688,
+      "p95_ms": 17.389042,
+      "max_ms": 99.366041,
+      "baseline_median_ms": 8.173417,
+      "median_ratio": 1.6679300713520426
+    }
+  },
+  "state_pairs": [
+    {
+      "from": "barbados_before_antigua",
+      "to": "antigua_after",
+      "common_actor_count": 18,
+      "persistent_changes": {
+        "948": {
+          "cargo": [
+            "goods=;goods.Food=162;goods.balls=90;goods.grapes=18;goods.knippels=18;goods.bombs=36;goods.powder=162;goods.Sailcloth=8;goods.Planks=6;goods.weapon=12;goods.Rum=4;goods.Medicament=6;",
+            "goods=;goods.Food=162;goods.balls=90;goods.grapes=18;goods.knippels=18;goods.bombs=36;goods.powder=162;goods.Sailcloth=0;goods.Planks=6;goods.weapon=12;goods.Rum=4;goods.Medicament=1;"
+          ]
+        },
+        "951": {
+          "cargo": [
+            "goods=;goods.Food=178;goods.balls=80;goods.grapes=16;goods.knippels=16;goods.bombs=32;goods.powder=144;goods.Sailcloth=0;goods.Planks=0;goods.weapon=18;goods.Rum=6;goods.Medicament=2;goods.Wine=30;",
+            "goods=;goods.Food=178;goods.balls=80;goods.grapes=16;goods.knippels=16;goods.bombs=32;goods.powder=144;goods.Sailcloth=0;goods.Planks=0;goods.weapon=18;goods.Rum=6;goods.Medicament=1;goods.Wine=0;"
+          ]
+        }
+      },
+      "original_loaded_fleet_persistent_changes": {},
+      "all_common_native_ship_eids_same": true
+    },
+    {
+      "from": "tortuga_50_before_cuba1",
+      "to": "cuba1_25_after",
+      "common_actor_count": 19,
+      "persistent_changes": {
+        "948": {
+          "cargo": [
+            "goods=;goods.Food=162;goods.balls=90;goods.grapes=18;goods.knippels=18;goods.bombs=36;goods.powder=162;goods.Sailcloth=0;goods.Planks=6;goods.weapon=12;goods.Rum=4;goods.Medicament=1;",
+            "goods=;goods.Food=162;goods.balls=90;goods.grapes=18;goods.knippels=18;goods.bombs=36;goods.powder=162;goods.Sailcloth=0;goods.Planks=0;goods.weapon=12;goods.Rum=4;goods.Medicament=1;"
+          ]
+        }
+      },
+      "original_loaded_fleet_persistent_changes": {},
+      "all_common_native_ship_eids_same": true
+    },
+    {
+      "from": "cuba1_25_after",
+      "to": "tortuga_50_after",
+      "common_actor_count": 19,
+      "persistent_changes": {},
+      "original_loaded_fleet_persistent_changes": {},
+      "all_common_native_ship_eids_same": true
+    },
+    {
+      "from": "before_save",
+      "to": "after_roundtrip_load",
+      "common_actor_count": 19,
+      "persistent_changes": {},
+      "original_loaded_fleet_persistent_changes": {},
+      "all_common_native_ship_eids_same": false
+    }
+  ],
+  "original_loaded_actor_indices_from_ordinary_baseline": [
+    "1",
+    "276",
+    "278",
+    "369",
+    "373",
+    "432"
+  ],
+  "ship_count_changes": [
+    {
+      "frame": "64",
+      "elapsed_ms": "9427.2905",
+      "cpu_wall_ms": "1615.212542",
+      "phase": "0",
+      "location": "PuertoRico",
+      "ships": "18"
+    },
+    {
+      "frame": "289",
+      "elapsed_ms": "13415.367375",
+      "cpu_wall_ms": "236.077375",
+      "phase": "2",
+      "location": "Antigua",
+      "ships": "19"
+    },
+    {
+      "frame": "543",
+      "elapsed_ms": "23997.894041",
+      "cpu_wall_ms": "124.4165",
+      "phase": "7",
+      "location": "PuertoRico",
+      "ships": "18"
+    }
+  ],
+  "goods_after_initial_normal_load": {
+    "array_size": 53,
+    "name52": "Darts",
+    "damage_hull52": 2.5,
+    "index2_label": "Knippels",
+    "damage_hull2": 5.75,
+    "passed": true
+  },
+  "save_succeeded": true,
+  "save_wall_ms": 1198.439292,
+  "normal_roundtrip_load": "passed60stable frames; active Tortuga scene/new epoch with19ships and no stale crew IDs",
+  "goods_after_roundtrip_load": {
+    "array_size": 53,
+    "name52": "Darts",
+    "damage_hull52": 2.5,
+    "index2_label": "Knippels",
+    "damage_hull2": 5.75,
+    "passed": true
+  },
+  "final_completed_core_frame": 543,
+  "fault": "native-fault.json BATTLE_INTERFACE::CheckSeaState+392, bad address0x88",
+  "gpu": "unavailable: trace0bytes because native crash prevented final flush; no GPU acceptance",
+  "clock_unique": [
+    [
+      "1668",
+      "12",
+      "29",
+      "6",
+      "5",
+      "0"
+    ]
+  ],
+  "remount": "pending: one retired roster and no re-admission before next CORE crash",
+  "crew_after_roundtrip": {
+    "entries": 19,
+    "stale_ship_ids": 0
+  },
+  "source_runtime_and_original_SAVE_invariance": true,
+  "comparison_limit": "same full PROGRAM/settings/routes, but candidate adds full resident terrain and18\u201322 admitted hulls; CPU rows prove observed regression, not its sole cause. Images remain human acceptance."
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "CPU-only full PROGRAM compilation with source diagnostics",
+  "returncode": 65,
+  "PROGRAM_tree_sha256": "cbedf14dd95413b8f8c1c02d1bc1e1d81dd7873b8fb334abaedc4dd455966e41",
+  "binary_sha256": "c8cc842fe5527c9358ab7c18475791a54a967b859619c8c16ff8690d417359be",
+  "binary_owner": "experiments/native-metal/script_vm_probe.cpp",
+  "projection_owner": "tools/gameplay_sources.py:read() runtime_bytes",
+  "debug_setting": "[script] debuginfo=1",
+  "canonical_sources_unchanged": true,
+  "stdout": "",
+  "stderr": ""
+}

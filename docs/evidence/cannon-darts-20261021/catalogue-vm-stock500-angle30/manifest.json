@@ -1,0 +1,159 @@
+{
+  "binary_sha256": "c8cc842fe5527c9358ab7c18475791a54a967b859619c8c16ff8690d417359be",
+  "extracted_functions": {
+    "src/gameplay/PROGRAM/store/goods.h": {
+      "source_sha256": "cc370d15be9e2f3d3334ebf8fb35720c1e372560e32cd4795765d54e91899de2",
+      "names": [
+        "Goods_GetDisplayIndex",
+        "GetGoodWeightByType"
+      ]
+    },
+    "src/gameplay/PROGRAM/store/initGoods.c": {
+      "source_sha256": "d17dbb11e7b74c4f92ed8adf59ae9c6aaaad602a560bb797048f71f0670d070a",
+      "names": [
+        "NavalAmmo_InitDamage",
+        "Airburst_InitGoods",
+        "Darts_InitGoods"
+      ]
+    },
+    "src/gameplay/PROGRAM/store/storeutilite.c": {
+      "source_sha256": "9cec0c8f3409a3dcec24d5eae614aeaaf1cabdfd185844ac62b6e9ef4112dd3c",
+      "names": [
+        "Store_InitAirburst",
+        "Store_EnsureAirburst",
+        "Store_AirburstTradeType",
+        "Store_DartsTradeType",
+        "Store_InitDarts",
+        "Store_EnsureDarts",
+        "Store_CanBuyGoods",
+        "GetStoreGoodsQuantity",
+        "GetStoreGoodsPrice",
+        "SetStoreGoods",
+        "RemoveStoreGoods"
+      ]
+    },
+    "src/gameplay/PROGRAM/Loc_ai/LAi_utilites.c": {
+      "source_sha256": "5f40aa7a7035f4829abd12637343e4e2bdc8ea31dd54b8a592efd9ea56819ed5",
+      "names": [
+        "GetCityNation"
+      ]
+    },
+    "src/gameplay/PROGRAM/worldmap/worldmap_encgen.c": {
+      "source_sha256": "8172c80089556d481ebfd75197deda186197ed29df8dc478cf50a288f7ba5d04",
+      "names": [
+        "WdmRecoveryQuote"
+      ]
+    },
+    "src/gameplay/PROGRAM/battle_interface/BattleInterface.c": {
+      "source_sha256": "44a23d56e4d40d242573f185fc837a90e9ccabd86fad59507c0640ea1abb535e",
+      "names": [
+        "BI_GetChargeQuantity"
+      ]
+    },
+    "src/gameplay/PROGRAM/interface/store.c": {
+      "source_sha256": "bcc69fb8460ff2ce731ef39a31c160e93d4236edca15e8a5d0f58067a943eadf",
+      "names": [
+        "ADD_BUTTON",
+        "ChangeQTY_EDIT"
+      ]
+    },
+    "src/gameplay/PROGRAM/characters/characterUtilite.c": {
+      "source_sha256": "f26cc458a19fa583e02e8a22e1e39737142a1281d7dd2f7a27ac027328b54e24",
+      "names": [
+        "GetCargoGoods",
+        "SetCharacterGoods",
+        "RecalculateCargoLoad",
+        "GetCargoMaxSpace",
+        "GetCrewQuantity"
+      ]
+    },
+    "<installed-game>/PROGRAM/colonies/colonies.c": {
+      "source_sha256": "79eb0b87dcad22561a435b895a92e44e158cbbb43c8fd2cb1fd276a3c4f98e26",
+      "names": [
+        "FindColony"
+      ]
+    }
+  },
+  "onload_migration_slice": {
+    "source": "src/gameplay/PROGRAM/seadogs.c",
+    "source_sha256": "55fc517c05fe33be4f02df4abf1cd23ce5ba2c32411d86eedb2886cec6f7b95f",
+    "first_line": 742,
+    "last_line": 754,
+    "slice_sha256": "8fced09c762a5f8ff9b95e71032aac0af56627122fb8cd58def45c3222046b52",
+    "scope": "Original OnLoad prefix through store migration, with fixture counters; later scene/audio/quest loading excluded"
+  },
+  "support_stubs": [
+    "GreatRecipe_PreLoadActors no-op",
+    "GreatRecipe_Unlocked false",
+    "SeaPhonk_HasUnlimitedAmmo false: ordinary-ammo acceptance only; Phonk separately verified",
+    "commerce skill/perk projection from fixture character",
+    "GetCharacter array lookup",
+    "unused cannons lookup/count",
+    "UI presentation callbacks and unconstrained capacity; quantity/goods logic extracted unchanged"
+  ],
+  "fixture_population": "4 colonies,8 stores,2 characters; Goods52 and BI_ChargeState6 serialized before first upgrade",
+  "execution_mode": "save-codec rounds",
+  "claim_ceiling": "actual extracted catalogue/store/price/cargo/selector functions; codec is exercised only in save-codec mode, not accepted unless error log is empty; not whole game OnLoad, rendered UI or player acceptance",
+  "source_consumer_checks": {
+    "src/gameplay/PROGRAM/interface/store.c": {
+      "source_sha256": "bcc69fb8460ff2ce731ef39a31c160e93d4236edca15e8a5d0f58067a943eadf",
+      "display_mapping_line": 273,
+      "row_index": "i, canonical good ID"
+    },
+    "src/gameplay/PROGRAM/interface/ship.c": {
+      "source_sha256": "174bc757052dfe9d7f5c3dad66621ebba16cc2cad9853ec296c2ff19b5dad7f4",
+      "display_mapping_line": 805,
+      "row_index": "i, canonical good ID"
+    },
+    "src/gameplay/PROGRAM/interface/storage.c": {
+      "source_sha256": "da00ae7d8b088bff92f44a1f2285d2f5afdf22858b71be380371dc398946464c",
+      "display_mapping_line": 204,
+      "row_index": "i, canonical good ID"
+    },
+    "src/gameplay/PROGRAM/interface/transfer_main.c": {
+      "source_sha256": "4789747e7f2a13456ed05b40a24a0c11608942b4fd7a7eb8ca661158f0b200d0",
+      "display_mapping_line": 968,
+      "row_index": "i, canonical good ID"
+    },
+    "src/gameplay/PROGRAM/interface/GoodsTransfer.c": {
+      "source_sha256": "46ac4a60e3a3becf5320da6005546117c20b9c379f6403e337ba9c0f557189a9",
+      "display_mapping_line": 260,
+      "row_index": "i, canonical good ID"
+    },
+    "src/gameplay/PROGRAM/interface/ColonyCapture.c": {
+      "source_sha256": "3bacd4cb87e127632a27fd261415ab89bed8027f0388e917c887be8f5a77b67f",
+      "display_mapping_line": 243,
+      "row_index": "i, canonical good ID"
+    }
+  },
+  "required_catalogue_prefix": [
+    0,
+    1,
+    2,
+    3,
+    52,
+    51,
+    4
+  ],
+  "covered_cases": [
+    "legacy array52 append53 without losing row markers",
+    "repeat migration preserves disabled/depleted stock and price modifiers",
+    "all pirate/current-colony nation + nation flips",
+    "foreign/mobile/missing-colony fake ammunition rows rejected",
+    "fresh stock bounds400\u2013600",
+    "dynamic prices and commerce perks, twice bombs base price",
+    "cargo read/write/weight without pack rounding loss",
+    "legacy selector6 grows7; slot5 Darts,6 Airburst",
+    "53 unique catalogue IDs and six shared consumer transaction indices",
+    "actual store ADD_BUTTON/ChangeQTY_EDIT accepts stock12 and editable quantity1 with Units20"
+  ],
+  "cases_sha256": "86944303bcc082592c1d287d1d669eca1432f5990aaeb53e9e2719b3a8ba967d",
+  "dynamic_segment": {
+    "path": "store/initGoods.c",
+    "sha256": "10078c573649655c076fefa8b8fb018a3aa8076d64994b1754d5e0831edf45fc"
+  },
+  "trade_definitions": {
+    "source": "<installed-game>/PROGRAM/store/store.h",
+    "source_sha256": "8e19bcc91d650aee783fd9a088db7dfce720c0bcdee992026309c595bd9afed8"
+  }
+}

@@ -1,0 +1,27 @@
+object ProbeRegionState;
+aref ProbeRegionResource;
+void ProbeRegionSetup()
+{
+    ProbeRegionState.legacy = bSeaLegacyRegionRestore;
+    ProbeRegionState.regionCountPresent = CheckAttribute(&AISea, "worldFrame.regions.count");
+    if (sti(ProbeRegionState.regionCountPresent)) ProbeRegionState.regionCount = AISea.worldFrame.regions.count;
+    ProbeRegionState.loadedCount = 0;
+    for (int i = 0; i < MAX_ISLANDS; i++)
+    {
+        if (SeaRegionLoaded[i]) ProbeRegionState.loadedCount = sti(ProbeRegionState.loadedCount) + 1;
+    }
+    ProbeRegionState.scriptFortCount = iNumForts;
+    ProbeRegionState.primaryIndex = SeaResidentPrimaryIndex;
+}
+void ProbeRegionGetEntity()
+{
+    ProbeRegionState.resourceFound = GetEntity(ProbeRegionResource, "WdmStaticResources");
+    ProbeRegionState.resourceIsEntity = IsEntity(ProbeRegionResource);
+}
+void ProbeRegionSendMessage()
+{
+    object origins;
+    ProbeRegionState.originReturn = sti(SendMessage(ProbeRegionResource, "sa", "IslandOrigins", &origins));
+    ProbeRegionState.originCountPresent = CheckAttribute(&origins, "count");
+    if (sti(ProbeRegionState.originCountPresent)) ProbeRegionState.originCount = origins.count;
+}

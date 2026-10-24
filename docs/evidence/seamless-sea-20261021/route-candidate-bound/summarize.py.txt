@@ -1,0 +1,44 @@
+# Run with this evidence directory as cwd. Analysis only; no game execution.
+import csv,json,statistics
+from pathlib import Path
+p=Path('.')
+rows=list(csv.DictReader((p/'frames.csv').open()))
+trace=list(csv.DictReader((p/'renderer-frames.csv').open()))
+m=json.loads((p/'manifest.json').read_text())
+f=lambda r,k:float(r[k] or 0)
+q=lambda xs,pct:sorted(xs)[min(len(xs)-1,int((len(xs)-1)*pct))] if xs else None
+median=lambda xs:statistics.median(xs) if xs else None
+phase=[r for r in rows if r['phase']=='1']
+cpu=[f(r,'cpu_wall_ms') for r in phase]
+commands=[r for r in trace if r['record']=='command']
+valid=[r for r in commands if f(r,'gpu_end_s')>f(r,'gpu_start_s')>0]
+group={}
+for r in valid:
+ group[r['frame']]=group.get(r['frame'],0)+(f(r,'gpu_end_s')-f(r,'gpu_start_s'))*1000
+sea_frames={r['frame'] for r in trace if r['record']=='frame' and f(r,'sea_draws')>0 and f(r,'animated')>0}
+gpu=[v for k,v in group.items() if k in sea_frames]
+changes=[];old=6
+for r in rows[3:]:
+ n=int(r['ships'])
+ if n!=old:
+  changes.append({'frame':int(r['frame']),'ships_before':old,'ships_after':n,'cpu_wall_ms':f(r,'cpu_wall_ms'),'elapsed_ms':f(r,'elapsed_ms'),'location':r['location']})
+  old=n
+result={
+ 'status':'rejected before first ordinary region crossing; no candidate performance acceptance',
+ 'native_wall_seconds':m['wall_seconds'],
+ 'first_reject':'phase1 deadline: physical Barbados coordinates retain PuertoRico logical region',
+ 'goods_after_initial_normal_load':{'array_size':53,'name52':'Darts','damage_hull52':2.5,'damage_hull2':5.75,'passed':True},
+ 'normal_roundtrip_save_load':'not reached',
+ 'initial_normal_load_core_wall_ms':f(rows[2],'cpu_wall_ms'),
+ 'peak_rss_bytes':max(f(r,'peak_rss_bytes') for r in rows),
+ 'observed_wrong_region_phase_cpu_ms':{'count':len(cpu),'median':median(cpu),'p95':q(cpu,.95),'max':max(cpu)},
+ 'gpu':{'commands':len(commands),'valid_timed_commands':len(valid),'statuses':sorted(set(r['status'] for r in commands)),'sea_drawn_animated_grouped_work_ms_median':median(gpu),'sea_drawn_animated_grouped_work_ms_p95':q(gpu,.95),'limitation':'renderer progress-present IDs differ from CORE frame IDs; observed rejected scene, not comparable accepted route'},
+ 'ship_count_changes':changes,
+ 'top_cpu_frames_after_initial_load':[{k:r[k] for k in ['frame','cpu_wall_ms','elapsed_ms','phase','location','ships']} for r in sorted(rows[3:],key=lambda r:f(r,'cpu_wall_ms'),reverse=True)[:5]],
+ 'final_observation':{k:phase[-1][k] for k in ['location','island','world_x','world_z','logical_scale','scale','clock_year','clock_month','clock_day','clock_hour','clock_min','clock_sec']},
+ 'same_initial_sea_and_player_eids_through_rejected_attempt':len({r['sea_eid'] for r in rows[2:]})==1 and len({r['ship_eid'] for r in rows[2:]})==1,
+ 'transition_or_hold_seen_after_initial_load':any(r['transition_active']=='1' or r['hold_loading']=='1' for r in rows[2:]),
+ 'source_and_live_invariance_pass':all(m[k] for k in ['installed_engine_unchanged','canonical_sources_unchanged_during_run','runtime_program_unchanged','runtime_resource_projection_targets_unchanged','original_save_unchanged'])
+}
+(p/'summary.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({k:result[k] for k in ['status','initial_normal_load_core_wall_ms','peak_rss_bytes','observed_wrong_region_phase_cpu_ms','gpu','ship_count_changes']},indent=2))

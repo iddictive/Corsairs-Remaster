@@ -1,0 +1,10 @@
+Mechanism probe, 2026-10-21. Actual SEA_CAMERAS method bodies extracted from source; stand-in scene, controls, attributes and renderer, with the real steady clock. Not a native gameplay or visual acceptance test.
+
+Compiler: clang++ -std=c++17 -Wall -Wextra -Werror
+PASS: default-off, old-shot rejection, launch/approach, real-hit hold, miss, pending timeout, cancel, 10x zoom restore, pause, deleted target, telescope, external camera ownership.
+Borrower query: fresh launch and pending target protected; expired hit hold no longer borrows.
+
+Reproduce from repository root with a task-owned temporary directory:
+python3 docs/evidence/cannon-darts-20261021/camera/probe.py "$probe_dir/probe.cpp"
+clang++ -std=c++17 -Wall -Wextra -Werror "$probe_dir/probe.cpp" -o "$probe_dir/probe"
+"$probe_dir/probe"

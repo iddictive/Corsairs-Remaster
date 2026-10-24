@@ -1,0 +1,12 @@
+{
+  "returncode": 0,
+  "wall_seconds": 4.569028792204335,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/perf-current-world-20261021-200420",
+  "run_path_basis": "repository-relative",
+  "measured_frames": 128,
+  "warmup_frames": 32,
+  "cpu_wall_mean_ms": 14.1040875,
+  "cpu_wall_median_ms": 14.066099999999999,
+  "cpu_wall_p95_ms": 15.0122,
+  "max_rss_bytes": 2796847104
+}

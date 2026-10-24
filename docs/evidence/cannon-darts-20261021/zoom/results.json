@@ -1,0 +1,42 @@
+{
+  "utc": "2026-10-21T23:11:58.712610+00:00",
+  "evidence": "portable compiled actual source/header; no native game or renderer replay",
+  "portable_command": [
+    "python3",
+    "experiments/native-metal/deck_aim_zoom_probe.py",
+    "--engine-source",
+    "experiments/native-metal/engine",
+    "--gameplay-source",
+    "src/gameplay"
+  ],
+  "portable_exit": 1,
+  "cap_compile_flags": [
+    "c++",
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pedantic"
+  ],
+  "cap_compile_exit": 0,
+  "cap_exit": 0,
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "python": "Python 3.14.7",
+  "source_sha256_before": {
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_aim_zoom.h": "999f43fb6c72a6125b933410ff4326f4e61dc2273b642cce5050370798d2b0f5",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp": "4f0bc9e4720dc3370a170e1961c51a751ba1da448a5c67a8b0d5264a0ccde247"
+  },
+  "source_sha256_after": {
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_aim_zoom.h": "999f43fb6c72a6125b933410ff4326f4e61dc2273b642cce5050370798d2b0f5",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp": "4f0bc9e4720dc3370a170e1961c51a751ba1da448a5c67a8b0d5264a0ccde247"
+  },
+  "portable_outcome": {
+    "zoom_checks": 1030,
+    "camera_lifecycle": "passed",
+    "renderer_projection_fixture": "compile failed before execution: namespace storm_render not declared, fixture d3d9 vs actual renderDevice mismatch",
+    "gameplay_binding_check": "not reached by aggregate after fixture failure; existing verify_gameplay_bindings helper separately executed successfully against src/gameplay by integration owner"
+  },
+  "cap_checks": 1017,
+  "source_unchanged": true,
+  "native_gameplay": "not run; parent owns build/stage and player replay"
+}

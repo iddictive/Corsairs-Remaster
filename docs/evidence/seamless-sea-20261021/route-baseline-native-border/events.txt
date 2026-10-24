@@ -1,0 +1,39 @@
+sea_eid_change frame=0 from=0 to=6961302831810740235
+canonical_load_event_sent frame=1
+sea_eid_change frame=2 from=6961302831810740235 to=6961308368023584776
+area=barbados x=900 z=-300 expected=1 observed=1
+area=barbados x=980 z=-170.8 expected=1 observed=1
+area=antigua x=980 z=-170.8 expected=0 observed=0
+area=barbados x=980 z=-170.5 expected=0 observed=0
+area=antigua x=980 z=-170.5 expected=1 observed=1
+area=tortuga x=-85.2 z=900 expected=1 observed=1
+area=cuba1 x=-85.2 z=900 expected=0 observed=0
+area=tortuga x=-85.46 z=900 expected=0 observed=0
+area=cuba1 x=-85.46 z=900 expected=1 observed=1
+fixture_setup=barbados_setup frame=181 world=900,-300 yaw=0 scale=50 player_fleet_count=6
+phase=1 frame=181 tag=wait_barbados
+capture=initial-puertorico.ppm frame=181 ok=1 capture_ms=38.355375
+sea_eid_change frame=278 from=6961308368023584776 to=0
+sea_eid_change frame=287 from=0 to=6961327557937463513
+fixture_setup=barbados_antigua_border frame=383 world=980,-170.8 yaw=0 scale=50 player_fleet_count=6
+phase=2 frame=383 tag=cross_antigua
+capture=barbados-before.ppm frame=383 ok=1 capture_ms=37.813
+sea_eid_change frame=564 from=6961327557937463513 to=0
+sea_eid_change frame=585 from=0 to=6961344785051287775
+fixture_setup=tortuga_setup frame=680 world=-85.2,900 yaw=-1.57079632679 scale=50 player_fleet_count=6
+phase=3 frame=680 tag=wait_tortuga
+capture=antigua-after.ppm frame=680 ok=1 capture_ms=36.437083
+sea_eid_change frame=739 from=6961344785051287775 to=0
+sea_eid_change frame=761 from=0 to=6961356866794291264
+fixture_setup=tortuga_cuba1_border frame=856 world=-85.2,900 yaw=-1.57079632679 scale=50 player_fleet_count=6
+phase=4 frame=856 tag=cross_cuba1
+capture=tortuga-before-cuba.ppm frame=856 ok=1 capture_ms=36.786875
+sea_eid_change frame=1041 from=6961356866794291264 to=0
+sea_eid_change frame=1062 from=0 to=6961373492612694035
+fixture_setup=cuba1_tortuga_border frame=1157 world=-85.46,900 yaw=1.57079632679 scale=25 player_fleet_count=6
+phase=5 frame=1157 tag=cross_tortuga
+capture=cuba1-after.ppm frame=1157 ok=1 capture_ms=49.506833
+sea_eid_change frame=1213 from=6961373492612694035 to=0
+sea_eid_change frame=1235 from=0 to=6961386875730788615
+save_ok=1 save_wall_ms=1179.359125
+phase=6 frame=1330 tag=normal_roundtrip_load

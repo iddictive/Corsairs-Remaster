@@ -1,0 +1,14 @@
+sea_eid_change frame=0 from=0 to=6960957177137725451
+canonical_load_event_sent frame=1
+sea_eid_change frame=2 from=6960957177137725451 to=6960963709782982664
+area=barbados x=900 z=-300 expected=1 observed=1
+area=barbados x=900 z=-170.8 expected=1 observed=0
+area=antigua x=900 z=-170.8 expected=0 observed=0
+area=barbados x=900 z=-170.5 expected=0 observed=0
+area=antigua x=900 z=-170.5 expected=1 observed=0
+area=tortuga x=-85.2 z=900 expected=1 observed=1
+area=cuba1 x=-85.2 z=900 expected=0 observed=0
+area=tortuga x=-85.46 z=900 expected=0 observed=0
+area=cuba1 x=-85.46 z=900 expected=1 observed=1
+membership_rejected=1
+route_complete=0 final_phase=0

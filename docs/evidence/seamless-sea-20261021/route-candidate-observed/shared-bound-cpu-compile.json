@@ -1,0 +1,33 @@
+{
+  "kind": "CPU-only full PROGRAM compilation with source diagnostics",
+  "returncode": 65,
+  "PROGRAM_tree_sha256": "cbedf14dd95413b8f8c1c02d1bc1e1d81dd7873b8fb334abaedc4dd455966e41",
+  "binary_sha256": "c8cc842fe5527c9358ab7c18475791a54a967b859619c8c16ff8690d417359be",
+  "binary_owner": "experiments/native-metal/script_vm_probe.cpp",
+  "projection_owner": "tools/gameplay_sources.py:read() runtime_bytes",
+  "debug_setting": "[script] debuginfo=1",
+  "canonical_sources_unchanged": true,
+  "stdout": "",
+  "stderr": "",
+  "script_shared_header_projection_owner": "experiments/native-metal/run.sh:126 canonical engine/src/libs/shared_headers/include/shared -> resource/shared",
+  "script_shared_headers_sha256": {
+    "battle_interface/log_msg.h": "abd56c73b5fdbd20027cf93fa190928452a1e2ff431b375bb5bf645e7d808aa6",
+    "battle_interface/msg_control.h": "8cfa852df54237a55efba44f841f39ff6e81a202b84ed9441b13b658a1346f08",
+    "bimanager/messages.h": "833ef729362e6dcc2b793c8101f057ac80a0e1a93f8f470f2dede6f6ab4eab9c",
+    "controls.h": "693751fd329cd60416d1ff7cbef14792b10ef10cf2c25109f692964c618ec711",
+    "events.h": "24fe5177e124c583cbfe3379ec96a4aca6d68121b363fb0c38ba8d10711bcad6",
+    "interface/messages.h": "22f6d37fbe49c5de2e14645c8db83b5e0eeebee81d9d8d7b38b67d6eb1956349",
+    "layers.h": "2cc77c1dee36eb2579173460928dfa7fbcb798c56af791274f3bcabb8aefd593",
+    "mast_msg.h": "502d67ddd8ad7cd395e78aa642a4a2932565c278685d890c5e9ee71ddea2f89b",
+    "messages.h": "9bbb4dbd965b8c61def2c1990c9ada9b8d2a6e9a8dd1a67ef64a2bd9de05cb5d",
+    "sail_msg.h": "8603d498bdf5bd7b3b99810b6cad853d893d0009183ae87b50693b754be87b17",
+    "sea_ai/deck_collision.hpp": "01d4a03eda26cf70bed8fcdedb8b0559f68af1e796a469521bd1b6d5a4d8e25e",
+    "sea_ai/manual_aim_geometry.hpp": "1c8d504edcc5bc1dd95546c05ab9aee7cab100dd8ef8836b73f138924711cdc6",
+    "sea_ai/manual_aim_volume_bridge.hpp": "9f78b01f40756a8ab50a1ad2755c70f5435737c668a31c2af79ba60231640968",
+    "sea_ai/script_defines.h": "8568545752edf1a94572f4a583f91933b597140205c39f36049817eee065388c",
+    "sea_ai/sea_people.h": "f60d70a603cb8298473829824088abf111ca3ab8fc6ab6fc03d70f77a1414363",
+    "sea_tsunami.hpp": "2098a8e032250c6073aaa6d153711037c5eadec1fb902fdf36ccc3bcf2a36231",
+    "sea_whirlpool.hpp": "9ce1d67574a54fda413dfe1082eee0560f264e0caf2d6a784ed49cf9f8e75b7c",
+    "sound.h": "ce807f173d262a0167b6bd9dee8c5bf9748708bb924b77c444e6b397dd1ed112"
+  }
+}

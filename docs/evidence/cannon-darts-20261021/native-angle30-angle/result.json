@@ -1,0 +1,6 @@
+{
+  "returncode": -6,
+  "wall_seconds": 0.6737361249979585,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/angle30-angle-20261021-203137",
+  "run_path_basis": "repository-relative"
+}

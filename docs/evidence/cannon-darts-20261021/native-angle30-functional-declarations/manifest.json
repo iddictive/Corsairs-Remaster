@@ -1,0 +1,94 @@
+{
+  "binary_sha256": "25d7e2d531074dcecd989bffedfe6aac864359ffdb7e21ef38511a636775217a",
+  "fixture_inputs": {
+    "day.c": "97ee3b26e1267d0c5e9ee6fcfcdcbc54b6da8521db96d1ab22ed0de84c886d16",
+    "ship-lights.c": "2ff35411463fb6650cf68a598a2ff742366e2760e6939c8630a5a544c81ac11d",
+    "ship-type.c": "a7b6b6d7d9fc81b687a3ce7d73be2cac6375a104a68148cec5804a51a4160ba2",
+    "fixture.c": "cd8da7d522dbd61ac0cb38b874512da1d199f35fa446c3b88d180fbd4e1ade9e",
+    "engine.ini": "ec749ff87d9603d2f502fd350f55c6c7a96ef11ec9128e15c5bcc7dc762cd7e0",
+    "native-angle30-legacy-balls.hex": "5d636cc2ee53c3c87ecc1fe05dd32595aec3811650e2c58f2956f2776403a755"
+  },
+  "frames": 160,
+  "resolution": [
+    640,
+    480
+  ],
+  "projectiles": "four sequential BSP shots + three final sprite shots",
+  "timeout_seconds": 90,
+  "claim_ceiling": "hidden native BSP identity, in-memory sea codec, projectile metadata and sprite/tracer output; not installed impact-camera or hit-rate acceptance",
+  "overlay_inputs": {
+    "textures/balls/dart.tga.tx": {
+      "path": "src/assets/ui/darts-projectile.tga.tx",
+      "sha256": "62acf96545474c08f689592c19a8f23e1dbd8360b130e6d8bab1c3f13faf6731"
+    },
+    "techniques/ai/balls.fx": {
+      "path": "experiments/native-metal/engine/src/techniques/ai/balls.fx",
+      "sha256": "88c899434b530bff8742c65089ea5f1bd54ed76f100ed3bad54c49e03d4e48c4"
+    }
+  },
+  "expected_final_ships": 7,
+  "final30_inputs": {
+    "inputs": {
+      "balls": {
+        "path": "src/gameplay/PROGRAM/sea_ai/AIBalls.c",
+        "sha256": "c725ce8eb20a490c73c77ec14f642df83e77c10decf4261513b1f56b9bd29388"
+      },
+      "goods": {
+        "path": "src/gameplay/PROGRAM/store/initGoods.c",
+        "sha256": "d17dbb11e7b74c4f92ed8adf59ae9c6aaaad602a560bb797048f71f0670d070a"
+      },
+      "perks": {
+        "path": "src/gameplay/PROGRAM/interface/perks/perks.c",
+        "sha256": "060ed04cc7fc4c4a95d0f2289832606528e4eaa6407c7e9f51d7e4e5dec1c6d8"
+      },
+      "controller": {
+        "path": "src/gameplay/PROGRAM/sea_ai/AICannon.c",
+        "sha256": "088b727a218450362e64d2f27c8dc5999b838f34b2cb116ad89f30c6dc0d1266"
+      },
+      "ships": {
+        "path": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+        "sha256": "36e6a08ccd3f6f9054a4e676be738c29499935d1da3fa9aeca3052aa5366b180"
+      },
+      "cannons": {
+        "path": "/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/PROGRAM/CANNONS/cannons_init.c",
+        "sha256": "1c4c40310eef4657758c5527d0dfb3eb2b63347cffde994182a762de7fe7756e"
+      },
+      "calibration": {
+        "path": "docs/evidence/cannon-darts-20261021/calibration.json",
+        "sha256": "b8f842e6fea1b0bfafdaa557dbb9cd8c78c1230795d86c8807d5367f0730c956"
+      }
+    },
+    "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+    "ranges_m": [
+      2109.5026722669836,
+      4225.523291675865
+    ],
+    "nominal_master_ranges_m": [
+      2116,
+      4232
+    ],
+    "shots_per_range": 1020,
+    "acceptance_hits_inclusive": [
+      663,
+      765
+    ],
+    "frames": 512,
+    "delta_ms": 16,
+    "time_scale": 1,
+    "angle_degrees": [
+      20,
+      30,
+      40,
+      60,
+      80
+    ],
+    "queue_codec_degrees": 80,
+    "legacy_seed": {
+      "frozen_save_source_sha256": "00401fe3766f93a38313abbe8e686ffaed2761a61370a1c4c4f60a0a4c3d1683",
+      "payload_sha256": "1adcfe8a2678ae5fb65997fdc9cbbebf70c02435710f690859ff661ce30cef8a",
+      "bytes": 104,
+      "origin": "Independently authored prior-format ordinary shot; frozen old and current Save functions byte-identical. Not a player save or historical native save capture."
+    },
+    "claim_ceiling": "Actual AICannon queue/codec, AIBalls kernel and native BSP. Direct queue does not exercise manualcontroller BuildManualAimSolution, reticle UI or installed combat. Range uses actual51GM labels and native low ballistic root, current source launch scatter; no old13.9degree cap."
+  }
+}

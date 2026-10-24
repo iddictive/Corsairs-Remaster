@@ -1,0 +1,12 @@
+{
+  "returncode": 0,
+  "wall_seconds": 3.876971707912162,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/dart-contract-retry-20261021-192742",
+  "run_path_basis": "repository-relative",
+  "measured_frames": 128,
+  "warmup_frames": 32,
+  "cpu_wall_mean_ms": 9.729168828125,
+  "cpu_wall_median_ms": 9.68971,
+  "cpu_wall_p95_ms": 10.5025,
+  "max_rss_bytes": 1826291712
+}

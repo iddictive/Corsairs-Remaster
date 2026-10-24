@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-21",
+  "layer": "real script compiler/VM and normal compiler SaveState/LoadState codec; isolated scripted dependencies",
+  "baseline": {
+    "canonical_source": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+    "git_blob": "96bdff44bd55f5e0471e9b6d657056da5b95d11c",
+    "last_source_commit": "fded7cd2c0499b998c17febf6ec0e1284b354a97",
+    "sha256": "232dd9b0278e325b64f24f5ddee3613994af4aceb8d53986e8e8f3f5a8a42527",
+    "expected_failure": {
+      "function": "FortCrimeCases",
+      "exit_code": 1,
+      "result": 101,
+      "reputation": 50,
+      "public_calls": 0,
+      "native_relation_refresh_calls": 0
+    }
+  },
+  "candidate": {
+    "canonical_source": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+    "sha256": "94ac01b7befc19b0016aca61226283374ab0299c7e015a15d55635c9b9690487",
+    "source_delta": "+75/-5",
+    "expected_success_exit_code": 0,
+    "save_codec_rounds_per_save_scenario": 1
+  },
+  "conditions": {
+    "gui": false,
+    "gpu_scene": false,
+    "user_save_read_or_written": false,
+    "permanent_test_delta": 0,
+    "compiler": "Apple clang 21.0.0 (clang-2100.3.34.2), arm64, Release",
+    "build_target": "script-vm-probe",
+    "build_parallelism": 1
+  },
+  "inputs_sha256": {
+    "src/gameplay/PROGRAM/sea_ai/AIShip.c": "94ac01b7befc19b0016aca61226283374ab0299c7e015a15d55635c9b9690487",
+    "src/gameplay/PROGRAM/sea_ai/AIFort.c": "b95332f47cbbd5ea629bffdbd9c63979e53c91f4d145b8eeddad656e3a54e65c",
+    "src/gameplay/PROGRAM/sea_ai/AISea.c": "fae8f732e3139c7458da0a2ed27e326c84a051b384b83fe5cc8088328cc290dc",
+    "src/gameplay/PROGRAM/nations/nations.c": "4973a3c66f75cee3aba5666a0d1aeee8bc5b21dfd48562be22d40e5b90f400c9",
+    "src/gameplay/PROGRAM/characters/characterUtilite.c": "f26cc458a19fa583e02e8a22e1e39737142a1281d7dd2f7a27ac027328b54e24",
+    "experiments/native-metal/script_vm_probe.cpp": "6c27dcd446ee4dc133a1dbb0486a090915cb3c0753a56c48d8fe811b90f7df3d",
+    "experiments/native-metal/script_vm_probe.cmake": "5458dc539c00761ca19d8595fcfcd063e9e1ccf2779ffd5adbd061ade973cd9f",
+    "experiments/native-metal/engine/src/libs/core/src/compiler.cpp": "5b80f9212a7f55a5d0a94f15aa8f96303e0102a1ab39ab1590414777ceeca71a",
+    "experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.cpp": "b53b24619a851d0508e72e98176383eb45dd24e0309fa0d28822fd7ea6b0b6ae",
+    "experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.cpp": "1ccfebcdf245ace116c2ecbba9053a5518d148a2edfde6e0134f79e841964322",
+    "experiments/native-metal/.cache/build/bin/script-vm-probe": "823d0e165e1eff91c3fa30ae7fcc2e85171fc75d9f1902aed0684a16e7be4491"
+  },
+  "evidence_sha256": {
+    "baseline-run.txt": "2fd94e5661897eefbd3df31a536a24bd44ab2f5dc2611a31876baf68fa44602c",
+    "candidate-results.json": "a9d2533b3a7a1ddfa5e4e58a72c027c3c8008d82bd391567ec7659df3cec50a4",
+    "baseline-trace.txt": "29d0ff900c52bcdf75f5361c7862d2971cfa67aee6201b9e98f76467bd2ed50c",
+    "candidate-cases.c.txt": "b854b0a9873613b011fbb6089047b78c56dab0111b3bed3d001a02bdeff8751f",
+    "baseline-cases.c.txt": "639613a085fb676fe8718d94ea51f9013fbadb523e812efd99d30b86d816fdbd"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "returncode": -6,
+  "wall_seconds": 1.9719269999768585,
+  "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/baseline-20261021-190108",
+  "run_path_basis": "repository-relative; public metadata copy; native raw retained at this diagnostic path"
+}

@@ -1,0 +1,138 @@
+{
+  "kind": "source snapshots before remaining scene borrower repair",
+  "engine_sha256": "fc87c149b0ba380afccfbfebebfcc7a93e36fce03f9021b1327a37dcbce3c411",
+  "measured_native_source_fingerprint": "8e91506aff4030f7cd085778d693f0c620484fd688fec1e2c5b91d82794091f5",
+  "observed_snapshot_source_fingerprint": "8e91506aff4030f7cd085778d693f0c620484fd688fec1e2c5b91d82794091f5",
+  "aggregate_matches_measured_cut": true,
+  "files": [
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/src/ship.cpp",
+      "snapshot_path": "ship.cpp",
+      "sha256": "55256859fc8a920956f3217e0b00de9c9a569f6f61294cb0e5906e2980cc583d",
+      "bytes": 180757
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/sea/ships_list.cpp",
+      "snapshot_path": "ships_list.cpp",
+      "sha256": "0ab9454cdd73ccf712e2a1fc8e3e1619aa695e29d38da36a83744f809256add7",
+      "bytes": 7967
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/sea/ship_pointer.cpp",
+      "snapshot_path": "ship_pointer.cpp",
+      "sha256": "5fe8d07611a92982f42b87a8a1b9b753d089c87e34a91d3239661087b36629ec",
+      "bytes": 5016
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/common_camera.h",
+      "snapshot_path": "common_camera.h",
+      "sha256": "08cf2609a577c2daad4f76de8db22d4d5567874b9ad8bfa65b5888503007e230",
+      "bytes": 2060
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp",
+      "snapshot_path": "sea_cameras.cpp",
+      "sha256": "11a4beb26a0d7057276a32644da3ee17b5aa6df95b6b47e03378d325bd6295c3",
+      "bytes": 14834
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h",
+      "snapshot_path": "sea_cameras.h",
+      "sha256": "c4321b3658251f25853e9aee9aae6ac87b5803e6939cc06d499f922b1e68fe60",
+      "bytes": 1158
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp",
+      "snapshot_path": "ai_group.cpp",
+      "sha256": "1117ae31152ce5ad7b291a866ceceadb6df30f311e0a1973fd743636ce88aa88",
+      "bytes": 15804
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/include/ship_base.h",
+      "snapshot_path": "ship_base.h",
+      "sha256": "6bd0d5f48928fce7b916a677c8011138df2b942394bd8e3fe90da7f3fd0dd658",
+      "bytes": 8093
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/src/ship.h",
+      "snapshot_path": "ship.h",
+      "sha256": "23130f56aaaf3a22d684ede05a3a26bcc6e9c0193707b45a74e1aeb2d4678729",
+      "bytes": 16716
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp",
+      "snapshot_path": "ai_ship.cpp",
+      "sha256": "1e4839d3ec2e9c1bb4b7ca6c22fb5c28d488ebb57b0152353d9ea0a06c543158",
+      "bytes": 25387
+    }
+  ],
+  "parent_evidence": "../manifest.json",
+  "borrower_audit": [
+    {
+      "owner": "battle_interface/sea/ships_list.cpp, battle_ship_sign.cpp, ship_info_images.cpp, battle_navigator.cpp",
+      "creation": "BI_IN_CREATE_SHIP -> Add/Refresh; list owns ship pointer and Ship attribute subtree; icon additionally caches crew/Ship attributes",
+      "retirement": "MISSING in measuredfc87 physical release; correction reuses BI_IN_DELETE_SHIP and its pre-draw SetUpdate; canonical Release must be idempotent and preserve surviving main node",
+      "restore": "normal BI restore/Refresh rebuilds list; remount BI_IN_CREATE_SHIP reacquires"
+    },
+    {
+      "owner": "battle_interface/sea/ship_pointer.cpp",
+      "creation": "MSG_SP_CHANGESHIP stores VAI_OBJBASE pointer",
+      "retirement": "MISSING in measuredfc87; exactEID physical release must clear pointer and visibility",
+      "restore": "selection message reacquires actual incarnation"
+    },
+    {
+      "owner": "sea_cameras/common_camera.h, sea_cameras.cpp",
+      "creation": "AI_CAMERAS_SET_CAMERA binds character root, ship pointer and modelEID; existing normal array has3instances",
+      "retirement": "all-bound borrower lease required, including inactive SaveAPointer owners; no pointer clearing while user camera still owns it",
+      "restore": "Save emits every registered camera; Load SetCharacter resolves restored ship/model; guard prevents original character index reuse"
+    },
+    {
+      "owner": "sea_foam/seafoam.cpp, sailors/sailors.cpp, touch/touch.cpp, ship/ship_lights.cpp, ship/track.cpp",
+      "creation": "Mount and ordinary scene initialization register exact physical ship incarnation",
+      "retirement": "fc87 SHIP destructor exactEID50316 removes foam/crew/touch; existing DelShip and lights Release remove remaining scene caches before model deletion",
+      "restore": "initial registration and remount reacquire by currentEID; old death50301 remains sinking semantics"
+    },
+    {
+      "owner": "sea_ai/ai_group.cpp, ai_ship.cpp, ai_helper.cpp, ai_sea_goods.cpp, ai_ship_task_controller.h, ai_ship_camera_controller.h",
+      "creation": "group owns AIShip/controllers; task/camera/point/helper/goods lists borrow actors/character roots",
+      "retirement": "guards external task+camera refs, pending fire and goods character receipts; ForgetShip, ReleasePoint, RemoveCharacter before group/controller deletion",
+      "restore": "native Load reconstructs actors/controllers, script keeps identity snapshot before release ACK"
+    },
+    {
+      "owner": "weather/rain.cpp",
+      "creation": "drop cache retains fullEID plus ship pointer",
+      "retirement": "Execute validates fullEID before pointer dereference and removes dependent drops; no repair needed",
+      "restore": "cache rebuilt from current scene"
+    },
+    {
+      "owner": "rigging/flag.cpp, sail.cpp, rope.cpp, vant.cpp; ship/fire_place.h; blot/blots.h",
+      "creation": "rigging groups retain model matrix/node/character root; fire/blot belongs to owning ship/model",
+      "retirement": "existing SHIP destructor marks exactgroup deleted, queues owned blot/model deletion; group routines remove/skip before render; no new retirement message needed",
+      "restore": "mount recreates rig/model ownership; preserved death/cut behavior"
+    },
+    {
+      "owner": "sea_cameras/dart_view_borrower.h; battle_interface/spyglass/spyglass_borrower.h; sea_ai/ai_balls.h",
+      "creation": "dart/inspection/balls retain exact character index or fullsourceEID",
+      "retirement": "active dart and spyglass guard; script holds all active balls; pending cannon controller guard",
+      "restore": "dart cancels on Save/Load, spyglass guard active-only, ordinary balls codec retained"
+    },
+    {
+      "owner": "sea_ai/AIShip.c CrimeSea_CanReleaseActor/ReleaseActor and sea_traffic.c",
+      "creation": "crime witness/target/survivor/custody/passenger/quest receipts retain index identity",
+      "retirement": "index-owned survivor/custody/passengers forbid release; witnesses/targets archive ActorId+FleetID+RosterSlot before reset after native ACK; no death/capture emitted",
+      "restore": "VM persists receipts/free-slot ownership; exact cleared receipt must still match before reuse"
+    },
+    {
+      "owner": "sea/sea.cpp, sink_effect/sink_effect.cpp, sea_operator/sea_operator.cpp",
+      "creation": "sea/sink enumerate live ships per call; sink saves copied position; disabled/commented SEA_OPERATOR queue only borrows MainCharacter ship",
+      "retirement": "no active ordinary fleet long-lived pointer beyond protected mainship; sink only on actual death",
+      "restore": "normal scene recreation"
+    }
+  ],
+  "creation_pose_gap": {
+    "observation": "harbour2 slot0 native map864.409/120.998 while descriptor exactly frozen origin506.489/460.815 on creationframe289",
+    "writer": "RegisterHarbours uses script Ship.Pos before first SHIP::Execute; native AIShip::CreateShip already assigned physical SetPos+angle",
+    "correction": "reuse SHIP::PublishShipPose once at end CreateShip before script registration",
+    "acceptance": "new harbour descriptor equals native leader immediately; motion relative anchor starts0; existing member formation offsets retained"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "kind": "unbuilt complete remaining scene borrower and initial pose correction",
+  "baseline": "../native-source-fc87/manifest.json",
+  "baseline_fingerprint": "8e91506aff4030f7cd085778d693f0c620484fd688fec1e2c5b91d82794091f5",
+  "files": [
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/src/ship.cpp",
+      "snapshot_path": "ship.cpp",
+      "sha256": "e6b3e734eede67b8708a8596a2d6321c133d825ffabc897766d2a4eb4c38b278",
+      "bytes": 181096
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/sea/ships_list.cpp",
+      "snapshot_path": "ships_list.cpp",
+      "sha256": "b75d7463562989c499ecd4580d7f6419085ff23070f9b8a9d6049c0287c5f335",
+      "bytes": 7891
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/battle_interface/src/sea/ship_pointer.cpp",
+      "snapshot_path": "ship_pointer.cpp",
+      "sha256": "8a451dce425de9c4fa0a665100566b78605edb8dbcc4c9f993e4fd500fcda6f9",
+      "bytes": 5296
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/common_camera.h",
+      "snapshot_path": "common_camera.h",
+      "sha256": "3c758ff105575177aef5a01df0ff913f0dfce8b99f9404ec939a16b3915b0c81",
+      "bytes": 2237
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp",
+      "snapshot_path": "sea_cameras.cpp",
+      "sha256": "c506134264424cca0551bc48f3dbbbd0e814a5708ca4e0df299ee95df349cff8",
+      "bytes": 15185
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h",
+      "snapshot_path": "sea_cameras.h",
+      "sha256": "4bcaf7688de610d38c67eb5075bdb21786883b8fbb327f43912f16bd91d8b6bc",
+      "bytes": 1254
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp",
+      "snapshot_path": "ai_group.cpp",
+      "sha256": "d82be93228fbf11e48d8cccb041bcb9df36e9cb1e97ffb7b41d5b1b531837345",
+      "bytes": 15980
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/include/ship_base.h",
+      "snapshot_path": "ship_base.h",
+      "sha256": "68359d74d9bf87962f468513363fbbe80807645afd063ca5cfe3d49f915eb1ec",
+      "bytes": 8134
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/ship/src/ship.h",
+      "snapshot_path": "ship.h",
+      "sha256": "45d104f03621472679ac982e6f6859edb38b93722824f44bb9037a81e6de025a",
+      "bytes": 16726
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp",
+      "snapshot_path": "ai_ship.cpp",
+      "sha256": "ef1b835185550d8b3a3af3d29d6fe64b806f3993a3e0cd1cefee9f1d93743d1a",
+      "bytes": 25503
+    },
+    {
+      "source_path": "experiments/native-metal/engine/src/libs/sea_cameras/src/camera_borrower.h",
+      "snapshot_path": "camera_borrower.h",
+      "sha256": "31547404307c5375d2993aa6ae77e8003cf683cb6733e0582e47dea23bf4cfad",
+      "bytes": 160
+    }
+  ],
+  "patch": "borrower-and-creation.patch",
+  "nearest_negatives": [
+    "canonical duplicate/absent BI delete preserves main cache",
+    "actual SaveLoad then target physical retirement and return/remount",
+    "inactive camera binding holds actor until camera rebind",
+    "new harbour descriptor/native leader coordinates agree before first Execute; member offsets preserved"
+  ],
+  "status": "source frozen; root owns build/replay; human acceptance pending"
+}

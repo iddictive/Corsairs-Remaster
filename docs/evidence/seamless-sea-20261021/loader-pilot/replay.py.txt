@@ -1,0 +1,70 @@
+# Retained one-off pilot procedure; not a permanent test or accepted performance harness.
+# Run under codex-run-scratch, setting CORSAIRS_REPO_ROOT, CORSAIRS_SOURCE_SAVE,
+# CORSAIRS_EVIDENCE_OUTPUT (containing driver.cpp.txt). Native pilot <=120 seconds.
+import os, pathlib, subprocess, shlex, shutil, hashlib, json, time, re
+repo=pathlib.Path(os.environ['CORSAIRS_REPO_ROOT']).resolve()
+build=repo/'experiments/native-metal/.cache/build'
+scratch=pathlib.Path(os.environ['CODEX_SCRATCH_DIR'])
+out=pathlib.Path(os.environ['CORSAIRS_EVIDENCE_OUTPUT']).resolve()
+save=pathlib.Path(os.environ['CORSAIRS_SOURCE_SAVE']).resolve()
+digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+source=(out/'driver.cpp.txt').read_text()
+before=digest(save)
+runtime=repo/'experiments/native-metal/.cache/runtime'
+(scratch/'PROGRAM').symlink_to(runtime/'PROGRAM',target_is_directory=True)
+(scratch/'RESOURCE').symlink_to(runtime/'RESOURCE',target_is_directory=True)
+(scratch/'SAVE/Probe').mkdir(parents=True)
+shutil.copyfile(save,scratch/'SAVE/Probe/input')
+for name in ['options','project.df']:
+ if (runtime/name).is_file():shutil.copyfile(runtime/name,scratch/name)
+ini=(runtime/'engine.ini').read_text()
+for key,value in [('full_screen','0'),('screen_x','960'),('screen_y','600'),('max_fps','0'),('vsync','0'),('show_fps','0')]:
+ ini=re.sub(r'(?m)^'+key+r'\s*=.*$',key+' = '+value,ini)
+(scratch/'engine.ini').write_text(ini)
+cpp=scratch/'ordinary.cpp';cpp.write_text(source)
+ninja=repo/'experiments/native-metal/inputs/toolchain/bin/ninja'
+commands=subprocess.check_output([str(ninja),'-C',str(build),'-t','commands','sea-fleet-benchmark'],text=True).splitlines()
+compileline=next(x for x in commands if 'sea_fleet_benchmark.cpp' in x and ' -c ' in x)
+linkline=commands[-1]
+obj=str(scratch/'ordinary.o');exe=str(scratch/'ordinary')
+cc=shlex.split(compileline);cc[cc.index('-o')+1]=obj;cc[cc.index('-c')+1]=str(cpp)
+if '-MF' in cc:cc[cc.index('-MF')+1]=str(scratch/'ordinary.d')
+ld=shlex.split(linkline)
+assert ld[:2]==[':','&&'] and ld[-2:]==['&&',':'],ld[:3]
+ld=ld[2:-2]
+for i,x in enumerate(ld):
+ if x.endswith('sea_fleet_benchmark.cpp.o'):ld[i]=obj
+ld[ld.index('-o')+1]=exe
+manifest={'kind':'transport-enabling pilot, not stable performance baseline','head':subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip(),'save_sha256_before':before,'save_bytes':save.stat().st_size,'hidden':True,'native_deadline_seconds':120,'width':960,'height':600,'program':'normal seadogs.c -> evntLoad -> LoadGame -> LoadGame_continue -> LoadEngineState -> saved OnLoad','compile':cc,'link':ld,'binary_inputs':{}}
+for name in ['lib/libcore.a','lib/libship.a','lib/libworldmap.a','lib/librenderer.a','libstorm_metal.a']:
+ manifest['binary_inputs'][name]=digest(build/name)
+try:
+ for name,cmd in [('compile',cc),('link',ld)]:
+  proc=subprocess.run(cmd,cwd=build,capture_output=True,text=True,timeout=45)
+  (scratch/(name+'.txt')).write_text(proc.stdout+proc.stderr)
+  if proc.returncode:raise RuntimeError(name+' failed '+str(proc.returncode))
+ runstart=time.time()
+ with (scratch/'run.txt').open('w') as log:
+  proc=subprocess.run([exe,str(scratch)],stdout=log,stderr=subprocess.STDOUT,timeout=120)
+ manifest['returncode']=proc.returncode;manifest['wall_seconds']=time.time()-runstart
+except Exception as e:manifest['failure']=str(e)
+finally:
+ manifest['save_sha256_after']=digest(save);manifest['original_save_unchanged']=manifest['save_sha256_after']==before
+ out.mkdir(parents=True,exist_ok=True)
+ for name in ['frames.csv','renderer-frames.csv','run.txt','compile.txt','link.txt']:
+  if (scratch/name).is_file():
+   data=(scratch/name).read_text(errors='replace').replace(str(scratch),'<isolated-runtime>').replace(str(repo),'<repo>').replace(str(pathlib.Path.home()),'<user>')
+   (out/name).write_text(data)
+ for path in (scratch/'userdata/Logs').glob('*.log'):
+  # Diagnostic logs may include save profile and machine paths: redact before retention.
+  data=path.read_text(errors='replace').replace(str(scratch),'<isolated-runtime>').replace(str(repo),'<repo>').replace(str(pathlib.Path.home()),'<user>')
+  (out/path.name).write_text(data)
+ (out/'driver.cpp.txt').write_text(source)
+ manifest['compile']=[x.replace(str(scratch),'<scratch>').replace(str(repo),'<repo>') for x in manifest['compile']]
+ manifest['link']=[x.replace(str(scratch),'<scratch>').replace(str(repo),'<repo>') for x in manifest['link']]
+ manifest['binary_inputs']={k.replace(str(repo),'<repo>'):v for k,v in manifest['binary_inputs'].items()}
+ (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
+ print(json.dumps({k:v for k,v in manifest.items() if k not in ('compile','link','binary_inputs')},indent=2))
+ if (scratch/'run.txt').exists():
+  lines=(scratch/'run.txt').read_text(errors='replace').splitlines()
+  print('\n'.join(lines[-20:]))

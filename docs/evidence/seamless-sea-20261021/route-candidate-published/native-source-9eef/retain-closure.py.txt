@@ -1,0 +1,73 @@
+"""Retain the measured native cut against its published Git base, without editing it."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+repo = Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(repo / "tools"))
+import metal_engine_source
+
+base = "e7763bce4ce02ca4c6d07bf4374332542e7d445e"
+expected = "380ab2740ae872bc5b6bb5da941012e28136ec9875cb0b70aa6df19e59377637"
+owner = Path(__file__).resolve().parent
+overrides = {}
+for row in json.loads((owner / "manifest.json").read_text())["files"]:
+    overrides[row["source_path"]] = (owner / row["snapshot_path"]).read_bytes()
+angle = repo / "docs/evidence/cannon-darts-20261021/pre-dart30-source/angle"
+for row in json.loads((angle / "manifest.json").read_text())["files"]:
+    if row["source"].startswith("experiments/"):
+        overrides[row["source"]] = (angle / row["retained_copy"]).read_bytes()
+group = "experiments/native-metal/engine/src/libs/sea_ai/src/ai_group.cpp"
+overrides[group] = (owner.parent / "native-retirement-candidate/ai_group.pre-spyglass.cpp").read_bytes()
+fort = "experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.cpp"
+text = (repo / fort).read_text()
+start = text.index("\n                // Idle batteries")
+end = text.index("\n            }", start)
+overrides[fort] = (text[:start] + '''                core.Event(CANNON_RECALCULATE_PARAMETERS, "l", GetIndex(pF->GetACharacter()));
+
+                fSpeedV0 = GetSpeedV0(k);''' + text[end:]).encode()
+for name in ("audio_voice_policy.h", "sound_service.cpp"):
+    path = "experiments/native-metal/audio/" + name
+    overrides[path] = subprocess.check_output(["git", "-C", str(repo), "show", base + ":" + path])
+excluded = {"experiments/native-metal/engine/src/libs/battle_interface/src/spyglass/spyglass_borrower.h"}
+inputs = {}
+value = hashlib.sha256()
+for path in metal_engine_source.source_files():
+    name = path.relative_to(repo).as_posix()
+    if name in excluded:
+        continue
+    data = overrides.get(name, path.read_bytes())
+    inputs[name] = data
+    value.update(name.encode() + b"\0")
+    value.update(hashlib.sha256(data).digest())
+assert value.hexdigest() == expected, (value.hexdigest(), expected)
+
+tree = {}
+for item in subprocess.check_output(["git", "-C", str(repo), "ls-tree", "-rz", base]).split(b"\0"):
+    if item:
+        fields, name = item.split(b"\t", 1)
+        tree[name.decode()] = fields.split()[2].decode()
+retained = []
+all_inputs = {}
+for name, data in inputs.items():
+    digest = hashlib.sha256(data).hexdigest()
+    all_inputs[name] = digest
+    blob = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+    if tree.get(name) == blob:
+        continue
+    destination = owner / "closure" / name
+    if destination.exists():
+        assert destination.read_bytes() == data, name
+    else:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+    retained.append({"source": name, "snapshot": destination.relative_to(owner).as_posix(), "sha256": digest})
+record = {"base_git_commit": base, "native_source_fingerprint": expected,
+          "input_count": len(inputs), "restoration": "Use the Git base and replace only retained source paths; files outside input_sha256 are excluded from this cut.",
+          "retained_files": retained, "input_sha256": all_inputs,
+          "engine_sha256": "9eefcae5ceb2b328d6712d13d667f74617079a00de72b7bd105702e166b54020"}
+destination = owner / "closure-manifest.json"
+destination.write_text(json.dumps(record, indent=2) + "\n")
+print(json.dumps({"status": "matched", "fingerprint": expected, "inputs": len(inputs), "retained_files": len(retained)}))

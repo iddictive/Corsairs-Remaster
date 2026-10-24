@@ -1,0 +1,126 @@
+{
+  "evidence_class": "completed ordinary native route/CPU/hold observations before disposable observer crash; GPU trace and Save roundtrip unaccepted",
+  "transitions": [
+    {
+      "from": "PuertoRico",
+      "to": "Barbados",
+      "first_active_frame": 276,
+      "first_inactive_frame": 323,
+      "active_wall_ms": 1689.5562089999994,
+      "max_core_wall_ms": 1129.403167,
+      "last_old_world": [
+        900.0,
+        -299.994934082
+      ],
+      "first_new_world": [
+        899.999023438,
+        -299.993560791
+      ],
+      "last_old_yaw": 0.0,
+      "first_new_yaw": 0.0,
+      "old_player_eid": "6961310713075728442",
+      "new_player_eid": "6961328605909483686",
+      "first_new_valid_frame": 288
+    },
+    {
+      "from": "Barbados",
+      "to": "Antigua",
+      "first_active_frame": 562,
+      "first_inactive_frame": 620,
+      "active_wall_ms": 1731.484042,
+      "max_core_wall_ms": 989.060625,
+      "last_old_world": [
+        980.0,
+        -170.493377686
+      ],
+      "first_new_world": [
+        980.0,
+        -170.472602844
+      ],
+      "last_old_yaw": 0.0,
+      "first_new_yaw": 0.0,
+      "old_player_eid": "6961328605909483686",
+      "new_player_eid": "6961345704174288919",
+      "first_new_valid_frame": 586
+    },
+    {
+      "from": "Antigua",
+      "to": "Tortuga",
+      "first_active_frame": 737,
+      "first_inactive_frame": 796,
+      "active_wall_ms": 1745.451332999999,
+      "max_core_wall_ms": 990.350667,
+      "last_old_world": [
+        -85.2023925781,
+        900.000083923
+      ],
+      "first_new_world": [
+        -85.2030639648,
+        900.000976562
+      ],
+      "last_old_yaw": -1.57079637051,
+      "first_new_yaw": -1.57079994678,
+      "old_player_eid": "6961345704174288919",
+      "new_player_eid": "6961357837456900257",
+      "first_new_valid_frame": 762
+    },
+    {
+      "from": "Tortuga",
+      "to": "Cuba1",
+      "first_active_frame": 1039,
+      "first_inactive_frame": 1097,
+      "active_wall_ms": 1992.9799999999996,
+      "max_core_wall_ms": 1241.806209,
+      "last_old_world": [
+        -85.5102233887,
+        900.0
+      ],
+      "first_new_world": [
+        -85.5509643555,
+        900.0
+      ],
+      "last_old_yaw": -1.57079637051,
+      "first_new_yaw": -1.57079994678,
+      "old_player_eid": "6961357837456900257",
+      "new_player_eid": "6961374729563275299",
+      "first_new_valid_frame": 1063
+    },
+    {
+      "from": "Cuba1",
+      "to": "Tortuga",
+      "first_active_frame": 1211,
+      "first_inactive_frame": 1270,
+      "active_wall_ms": 1783.963040999999,
+      "max_core_wall_ms": 1009.681041,
+      "last_old_world": [
+        -85.2479553223,
+        900.0
+      ],
+      "first_new_world": [
+        -85.2274475098,
+        900.0
+      ],
+      "last_old_yaw": 1.57079637051,
+      "first_new_yaw": 1.57079994678,
+      "old_player_eid": "6961374729563275299",
+      "new_player_eid": "6961387790558822483",
+      "first_new_valid_frame": 1236
+    }
+  ],
+  "peak_rss_bytes": 4254236672,
+  "clock_unique": [
+    [
+      "1668",
+      "12",
+      "29",
+      "6",
+      "5",
+      "0"
+    ]
+  ],
+  "notes": [
+    "Fixture-only setup moved player plus existing companions; actual crossing used production detector/area/admission/SeaLogin",
+    "Native predicate rejected wrong bbox point in separate preserved run",
+    "No whole scene visual or player acceptance claim"
+  ]
+}

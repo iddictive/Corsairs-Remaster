@@ -1,0 +1,8 @@
+{
+  "command": "experiments/native-metal/.cache/build/bin/script-vm-probe docs/evidence/cannon-darts-20261021/codec-control SeedLegacy 2 UpgradeAndCheck",
+  "returncode": 1,
+  "stdout": "SeedLegacy=0\nUpgradeAndCheck=0\nUpgradeAndCheck=0\nscript_errors=182\n",
+  "scope": "Negative control omits required fixture OnLoad. Compiler::OnLoad unconditionally resolves that function after state restoration, so the missing callback explains both Invalid function entries. This is an incomplete fixture contract, not a Darts or VM defect. The original failed fixture and logs remain unchanged.",
+  "resolution_source": "experiments/native-metal/engine/src/libs/core/src/compiler.cpp:6620",
+  "resolved_by": "docs/evidence/cannon-darts-20261021/catalogue-vm-codec-onload-final/result.json"
+}

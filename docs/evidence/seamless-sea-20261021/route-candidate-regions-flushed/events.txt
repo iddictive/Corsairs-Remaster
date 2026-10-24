@@ -1,0 +1,30 @@
+sea_eid_change frame=0 from=0 to=6982418480175775755
+canonical_load_event_sent frame=1
+sea_eid_change frame=2 from=6982418480175775755 to=6982425098720378888
+goods_catalogue tag=after_initial_normal_load frame=181 array_size=53 goods52_name="Darts" goods52_damage_hull=2.5 goods2_damage_hull=5.75 ok=1
+area=barbados x=900 z=-300 expected=1 observed=1
+area=barbados x=980 z=-170.8 expected=1 observed=1
+area=antigua x=980 z=-170.8 expected=0 observed=0
+area=barbados x=980 z=-170.5 expected=0 observed=0
+area=antigua x=980 z=-170.5 expected=1 observed=1
+area=tortuga x=-85.2 z=900 expected=1 observed=1
+area=cuba1 x=-85.2 z=900 expected=0 observed=0
+area=tortuga x=-85.46 z=900 expected=0 observed=0
+area=cuba1 x=-85.46 z=900 expected=1 observed=1
+continuity_reference sea=6982425098720378888 player=6982429127399702587 frame_scale=50 zero=506.489013672,460.815002441
+region_global_exists=1 legacy_value=0
+region_observer_compiled=1
+before_region_script_stage=ProbeRegionSetup
+
+diagnostic.legacy=0;diagnostic.regioncountpresent=0;diagnostic.loadedcount=1;diagnostic.scriptfortcount=1;diagnostic.primaryindex=2;
+before_region_script_stage=ProbeRegionGetEntity
+diagnostic.legacy=0;diagnostic.regioncountpresent=0;diagnostic.loadedcount=1;diagnostic.scriptfortcount=1;diagnostic.primaryindex=2;
+diagnostic.legacy=0;diagnostic.regioncountpresent=0;diagnostic.loadedcount=1;diagnostic.scriptfortcount=1;diagnostic.primaryindex=2;diagnostic.resourcefound=1;diagnostic.resourceisentity=0;
+before_region_script_stage=ProbeRegionSendMessage
+diagnostic.legacy=0;diagnostic.regioncountpresent=0;diagnostic.loadedcount=1;diagnostic.scriptfortcount=1;diagnostic.primaryindex=2;diagnostic.resourcefound=1;diagnostic.resourceisentity=0;
+diagnostic.legacy=0;diagnostic.regioncountpresent=0;diagnostic.loadedcount=1;diagnostic.scriptfortcount=1;diagnostic.primaryindex=2;diagnostic.resourcefound=1;diagnostic.resourceisentity=0;diagnostic.originreturn=0;diagnostic.origincountpresent=0;
+region_script diagnostic.legacy=0;diagnostic.regioncountpresent=0;diagnostic.loadedcount=1;diagnostic.scriptfortcount=1;diagnostic.primaryindex=2;diagnostic.resourcefound=1;diagnostic.resourceisentity=0;diagnostic.originreturn=0;diagnostic.origincountpresent=0;
+region_native terrain_hosts=1 regional_terrain=0 fort_controllers=1 native_forts=1 ships=18 static_resource_eid=6982426288426319903
+before_region_direct_native eid=6982426288426319903 pointer_exists=1 class=WdmStaticResources
+region_direct_native_return=1 native_count=32
+route_complete=0 final_phase=0

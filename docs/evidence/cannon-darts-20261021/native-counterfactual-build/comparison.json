@@ -1,0 +1,71 @@
+{
+  "old": {
+    "returncode": 0,
+    "wall_seconds": 6.522233792115003,
+    "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/perf-old-world-20261021-200353",
+    "run_path_basis": "repository-relative",
+    "measured_frames": 128,
+    "warmup_frames": 32,
+    "cpu_wall_mean_ms": 14.13609375,
+    "cpu_wall_median_ms": 14.071349999999999,
+    "cpu_wall_p95_ms": 14.9472,
+    "max_rss_bytes": 2769453056
+  },
+  "current": {
+    "returncode": 0,
+    "wall_seconds": 4.569028792204335,
+    "run": "experiments/native-metal/.cache/diagnostics/cannon-darts/perf-current-world-20261021-200420",
+    "run_path_basis": "repository-relative",
+    "measured_frames": 128,
+    "warmup_frames": 32,
+    "cpu_wall_mean_ms": 14.1040875,
+    "cpu_wall_median_ms": 14.066099999999999,
+    "cpu_wall_p95_ms": 15.0122,
+    "max_rss_bytes": 2796847104
+  },
+  "rgb_pixel_sha256": [
+    "504e8aeab3020e35f6df983ee24cf9517c95247fe083e92c1bcb396002ab818b",
+    "9aa8b9b5c110e9386c6c35f68bb746eb0f7448ab62a287fa8c7097d31f561720"
+  ],
+  "mean_abs_rgb_difference_0_255": [
+    0.1457421875,
+    0.11826171875,
+    0.067802734375
+  ],
+  "complete_frame_size": [
+    640,
+    480
+  ],
+  "claim_ceiling": "one same-world original ordinary1024-ball pair; no material slowdown observed; no whole-game/dart-heavy/release acceptance",
+  "old_render_coverage": {
+    "sails": 152,
+    "animated": 334,
+    "sea_draws": 1,
+    "sky_current": 1,
+    "shadow_cubes_complete": 8
+  },
+  "old_gpu_union_ms": {
+    "median": 7.506562513299286,
+    "p95": 8.143249899148941,
+    "p99": 8.333624806255102,
+    "max": 8.455125149339437
+  },
+  "current_render_coverage": {
+    "sails": 152,
+    "animated": 334,
+    "sea_draws": 1,
+    "sky_current": 1,
+    "shadow_cubes_complete": 8
+  },
+  "current_gpu_union_ms": {
+    "median": 7.3379999957978725,
+    "p95": 7.683207979425788,
+    "p99": 7.834000047296286,
+    "max": 7.9113750252872705
+  },
+  "relative_change_percent": {
+    "cpu_wall_mean_ms": -0.22641509433962703,
+    "cpu_wall_median_ms": -0.03730985299917888,
+    "cpu_wall_p95_ms": 0.4348640548062388
+  }
+}

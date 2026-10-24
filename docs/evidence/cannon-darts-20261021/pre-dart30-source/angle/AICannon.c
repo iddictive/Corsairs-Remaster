@@ -1,0 +1,459 @@
+#define MAX_CANNON_DAMAGE_DISTANCE				3.0
+
+void DeleteCannonsEnvironment()
+{
+	DelEventHandler(CANNON_GET_RECHARGE_TIME, "Cannon_GetRechargeTime");
+	DelEventHandler(CANNON_GET_FIRE_TIME, "Cannon_GetFireTime");
+	DelEventHandler("Cannon_GetSalvoWindow", "Cannon_GetSalvoWindow");
+	DelEventHandler(CANNON_GET_FIRE_HEIGHT, "Cannon_GetFireHeight");
+	DelEventHandler(CANNON_GET_FIRE_HEIGHT_MULTIPLY, "Cannon_GetFireHeightMultiply");
+	DelEventHandler(CANNON_GET_FIRE_ACCURACY, "Cannon_GetFireAccuracy");
+	DelEventHandler(CANNON_GET_RAKE_CREW_FACTOR, "Cannon_GetRakeCrewFactor");
+	DelEventHandler(CANNON_FIRE, "Cannon_FireCannon");
+	DelEventHandler(CANNON_UNLOAD, "Cannon_UnloadBall");
+	DelEventHandler(CANNON_LOAD, "Cannon_LoadBall");
+	DelEventHandler(CANNON_RECALCULATE_PARAMETERS, "Cannon_RecalculateParametersEvent");
+	DelEventHandler(CANNON_DAMAGE, "Cannon_DamageEvent");
+}
+
+void CreateCannonsEnvironment()
+{
+	SetEventHandler(CANNON_GET_RECHARGE_TIME, "Cannon_GetRechargeTime", 0);
+	SetEventHandler(CANNON_GET_FIRE_TIME, "Cannon_GetFireTime", 0);
+	SetEventHandler("Cannon_GetSalvoWindow", "Cannon_GetSalvoWindow", 0);
+	SetEventHandler(CANNON_GET_FIRE_HEIGHT, "Cannon_GetFireHeight", 0);
+	SetEventHandler(CANNON_GET_FIRE_HEIGHT_MULTIPLY, "Cannon_GetFireHeightMultiply", 0);
+	SetEventHandler(CANNON_GET_FIRE_ACCURACY, "Cannon_GetFireAccuracy", 0);
+	SetEventHandler(CANNON_GET_RAKE_CREW_FACTOR, "Cannon_GetRakeCrewFactor", 0);
+	SetEventHandler(CANNON_FIRE, "Cannon_FireCannon", 0);
+	SetEventHandler(CANNON_UNLOAD, "Cannon_UnloadBall", 0);
+	SetEventHandler(CANNON_LOAD, "Cannon_LoadBall", 0);
+	SetEventHandler(CANNON_RECALCULATE_PARAMETERS, "Cannon_RecalculateParametersEvent", 0);
+	SetEventHandler(CANNON_DAMAGE, "Cannon_DamageEvent", 0);
+
+	SendMessage(&AISea, "lff", AI_MESSAGE_CANNONS_PARAMS, MAX_CANNON_DAMAGE_DISTANCE, 1.0);	// fMaxCannonDamageDistance, fMaxCannonDamageRadiusPoint
+}
+
+bool Cannon_LoadBall()
+{
+	aref	aCharacter = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return true;
+
+	int iBallType = sti(aCharacter.Ship.Cannons.Charge.Type);
+	int iNumBalls = GetCargoGoods(aCharacter, iBallType);
+ 	// boal -->
+	int iNumPowder = GetCargoGoods(aCharacter, GOOD_POWDER);
+	if (iNumBalls > 0 && iNumPowder > 0)
+	{
+		AddCharacterGoodsCannon(aCharacter, iBallType, -1);
+		AddCharacterGoodsCannon(aCharacter, GOOD_POWDER, -1);
+		// boal <--
+		return true;
+	}
+	return false;
+}
+
+void Cannon_UnloadBall()
+{
+	aref aCharacter = GetEventData();
+	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return;
+	if(CheckAttribute(aCharacter, "Ship.Cannons"))
+	{
+		AddCharacterGoodsCannon(aCharacter, sti(aCharacter.Ship.Cannons.Charge.Type), 1);
+	}	
+	// boal -->
+	AddCharacterGoodsCannon(aCharacter, GOOD_POWDER, 1);
+	// boal <--
+}
+
+void AddCharacterGoodsCannon(aref aCharacter, int iGood, int iQuantity)
+{
+	string sGoodName = Goods[iGood].name;
+	aCharacter.Ship.Cargo.Goods.(sGoodName) = sti(aCharacter.Ship.Cargo.Goods.(sGoodName)) + iQuantity;
+	aCharacter.Ship.Cargo.RecalculateCargoLoad = true;
+}
+
+void Cannon_RecalculateParametersEvent()
+{
+	int iCharacterIndex = GetEventData();
+	Cannon_RecalculateParameters(iCharacterIndex);
+}
+
+void Cannon_RecalculateParameters(int iCharacterIndex)
+{
+	if (sti(Characters[iCharacterIndex].Ship.Cannons.Type) == CANNON_TYPE_NONECANNON) { return; }
+
+	ref	rCharacter = GetCharacter(iCharacterIndex);
+	ref	rCannon = GetCannonByType(sti(rCharacter.Ship.Cannons.Type));
+	ref	rBall = GetGoodByType(sti(rCharacter.Ship.Cannons.Charge.Type));
+	if (CheckAttribute(rCharacter, "TmpPerks.LongRangeShoot"))
+	{
+		rCharacter.Ship.Cannons.SpeedV0 = stf(rCannon.SpeedV0) * stf(rBall.SpeedV0) * AIShip_isPerksUse(rCharacter.TmpPerks.LongRangeShoot, 1.0, 1.15); //slib
+	}
+	else
+	{
+	    rCharacter.Ship.Cannons.SpeedV0 = stf(rCannon.SpeedV0) * stf(rBall.SpeedV0);
+	}
+	rCharacter.Ship.Cannons.FireAngMax = rCannon.FireAngMax;
+	rCharacter.Ship.Cannons.FireAngMin = rCannon.FireAngMin;
+	// One ammo-owned launch law feeds actual fire and the native aim preview.
+	rCharacter.Ship.Cannons.DispersionMultiply = Ball_GetDispersionMultiply(rCharacter);
+	rCharacter.Ship.Cannons.FireAngleSineMultiply = 1.0;
+	if (CheckAttribute(rBall, "RangeMultiply"))
+	{
+		float angleScale = stf(rBall.RangeMultiply) / (stf(rBall.SpeedV0) * stf(rBall.SpeedV0));
+		rCharacter.Ship.Cannons.FireAngleSineMultiply = angleScale;
+		rCharacter.Ship.Cannons.FireAngMax = asin(sin(2.0 * stf(rCannon.FireAngMax)) * angleScale) * 0.5;
+	}
+}
+
+
+float Cannon_GetFireHeightMultiply()
+{
+	aref aCharacter = GetEventData();
+	return Ball_GetHeightMultiply(aCharacter);
+}
+
+float Cannon_GetFireAccuracy()
+{
+	aref aCharacter = GetEventData();
+	return Ball_GetAccuracy(aCharacter);
+}
+
+float Cannon_EffectiveCrew(aref aCharacter)
+{
+	float duty = 0.0;
+	if (CheckAttribute(aCharacter, "Ship.FireState.duty")) duty = stf(aCharacter.Ship.FireState.duty);
+	if (duty < 0.0) duty = 0.0;
+	if (duty > 0.48) duty = 0.48;
+	return GetCrewQuantity(aCharacter) * (1.0 - duty);
+}
+
+float Cannon_GetRakeCrewQuality(aref aCharacter)
+{
+	float quality = GetCrewExp(aCharacter, "Cannoners") / GetCrewExpRate();
+	float actualCrew = GetCrewQuantity(aCharacter);
+	if (actualCrew > 0.0) quality *= Cannon_EffectiveCrew(aCharacter) / actualCrew;
+	if (quality < 0.0) { quality = 0.0; }
+	if (quality > 1.0) { quality = 1.0; }
+	return 0.1 + 0.9 * quality;
+}
+
+float Cannon_GetRakeCrewFactor()
+{
+	aref aCharacter = GetEventData();
+	return Cannon_GetRakeCrewQuality(aCharacter);
+}
+
+bool Cannon_HasStandingSailMasts(aref character)
+{
+	if (!CheckAttribute(character, "Ship.Masts")) { return true; }
+	aref masts, mast;
+	makearef(masts, character.Ship.Masts);
+	bool known = false;
+	for (int i = 0; i < GetAttributesNum(masts); i++)
+	{
+		mast = GetAttributeN(masts, i);
+		string name = GetAttributeName(mast);
+		if (strlen(name) < 5 || strcut(name, 0, 3) != "mast") { continue; }
+		int number = sti(strcut(name, 4, strlen(name) - 1));
+		// Native mast1 is horizontal; mast101..199 are its topmast family.
+		if (number <= 1 || (number >= 100 && number < 200)) { continue; }
+		known = true;
+		if (stf(GetAttributeValue(mast)) < 1.0) { return true; }
+	}
+	return !known; // An old/empty record does not prove a demasted ship.
+}
+
+float Cannon_GetFireHeight()
+{
+	aref aCharacter = GetEventData();
+	aref aEnemy = GetEventData();
+
+	ref rBallType = GetGoodByType(sti(aCharacter.Ship.Cannons.Charge.Type));
+	ref rEnemyShip = GetRealShip(sti(aEnemy.Ship.Type));
+
+	string sBallName = rBallType.Name;
+	if (sBallName == "Airburst") sBallName = "Bombs";
+	if (sBallName == "Darts") sBallName = "Balls";
+
+	float Y, DY;
+	Y = stf(rEnemyShip.Height.(sBallName).Y);
+	DY = stf(rEnemyShip.Height.(sBallName).DY);
+
+	// Fort has no Height table (defaults 3/25): aim at the gun band on the walls.
+	bool bFortTarget = CheckAttribute(rEnemyShip, "isFort") && sti(rEnemyShip.isFort);
+	if (bFortTarget)
+	{
+		if (sBallName == "Knippels") { Y = 12.0; DY = 6.0; }
+		else
+		{
+			if (sBallName == "Grapes") { Y = 8.0; DY = 4.0; }
+			else { Y = 8.0; DY = 5.0; } // Balls, Bombs - at the guns
+		}
+	}
+	else
+	{
+		if (sBallName == "Balls" || sBallName == "Bombs")
+		{
+			if (Y < 2.2) { Y = 2.2; }
+		}
+		else
+		{
+			if (sBallName == "Grapes")
+			{
+				if (Y < 3.2) { Y = 3.2; }
+			}
+			else // Knippels: surviving masts, or the ordinary hull band after demasting.
+			{
+				if (!Cannon_HasStandingSailMasts(aEnemy))
+				{
+					Y = stf(rEnemyShip.Height.Balls.Y);
+					DY = stf(rEnemyShip.Height.Balls.DY);
+					if (Y < 2.2) { Y = 2.2; }
+				}
+				else if (Y < 12.0)
+				{
+					int iClass = 4;
+					if (CheckAttribute(rEnemyShip, "Class")) { iClass = sti(rEnemyShip.Class); }
+					if (iClass < 1) { iClass = 1; }
+					if (iClass > 7) { iClass = 7; }
+					Y = 16.3 - 1.3 * iClass; // class1: 15, class4: 11.1, class7: 7.2
+					DY = 4.0;
+				}
+			}
+		}
+	}
+	if (DY <= 0.0) { DY = 2.0; }
+
+	// Spread: gunner skill + crew exp + distance.
+	float fSkill = 0.5;
+	if (CheckAttribute(aCharacter, "TmpSkill.Cannons")) { fSkill = stf(aCharacter.TmpSkill.Cannons); }
+	if (fSkill < 0.0) { fSkill = 0.0; }
+	if (fSkill > 1.0) { fSkill = 1.0; }
+	float fExp = 0.5;
+	ref rShooterShip = GetRealShip(sti(aCharacter.Ship.Type));
+	if (!CheckAttribute(rShooterShip, "isFort") || !sti(rShooterShip.isFort))
+	{
+		float fCrewQty = Cannon_EffectiveCrew(aCharacter);
+		float fOptCrew = GetOptCrewQuantity(aCharacter);
+		if (fOptCrew > 0.0)
+		{
+			fExp = 0.001 + stf(GetCrewExp(aCharacter, "Cannoners") * fCrewQty) / stf(fOptCrew * GetCrewExpRate());
+			if (fExp > 1.0) { fExp = 1.0; }
+		}
+	}
+	float fGun = 0.65 * fSkill + 0.35 * fExp;
+	float fSkillF = 2.2 - 1.9 * fGun; // 2.2 rookie -> 0.3 master
+
+	float fRange = 550.0;
+	ref rCannon = GetCannonByType(sti(aCharacter.Ship.Cannons.Type));
+	if (CheckAttribute(rCannon, "FireRange")) { fRange = stf(rCannon.FireRange); }
+	if (fRange < 1.0) { fRange = 550.0; }
+	float fDist = fRange;
+	if (CheckAttribute(aCharacter, "Ship.Pos.x") && CheckAttribute(aEnemy, "Ship.Pos.x"))
+	{
+		fDist = GetDistance2D(stf(aCharacter.Ship.Pos.x), stf(aCharacter.Ship.Pos.z), stf(aEnemy.Ship.Pos.x), stf(aEnemy.Ship.Pos.z));
+	}
+	float fDistF = 0.35 + 0.65 * fDist / fRange; // 0.35 point-blank -> 1.0 at max range
+	if (fDistF < 0.35) { fDistF = 0.35; }
+	if (fDistF > 1.0) { fDistF = 1.0; }
+
+	Y = Y + (frnd() - 0.5) * DY * fSkillF * fDistF;
+
+	return Y;
+}
+
+float Cannon_GetRechargeTime()
+{
+	aref	aCharacter = GetEventData();
+
+	float	fCannonSkill = 1.0 - stf(aCharacter.TmpSkill.Cannons) / 3.0;
+
+	ref		rCannon = GetCannonByType(sti(aCharacter.Ship.Cannons.Type));
+	float	fReloadTime = GetCannonReloadTime(rCannon); // boal 28.01.03 - 09.02.05
+
+	float fMultiply = 1.0;
+	// boal -->
+    fMultiply = AIShip_isPerksUse(aCharacter.TmpPerks.FastReload, 1.0, 0.9);
+	fMultiply = AIShip_isPerksUse(aCharacter.TmpPerks.ImmediateReload, fMultiply, 0.5); 
+
+	ref refBaseShip = GetRealShip(sti(aCharacter.ship.Type));
+	if (sti(refBaseShip.BaseType) != SHIP_FORT)
+	{
+        // boal 060804 для компа поблажки
+		if (sti(aCharacter.index) != GetMainCharacterIndex())
+		{
+		    fReloadTime -= MOD_SKILL_ENEMY_RATE; // -10c на невозможном
+		}
+		// boal <--
+		float crewQty  = Cannon_EffectiveCrew(aCharacter);
+	    float OptCrew  = GetOptCrewQuantity(aCharacter); 
+	    float MaxCrew  = GetMaxCrewQuantity(aCharacter); 
+	    float fMorale  = GetCharacterCrewMorale(aCharacter); 
+	    
+	    if (crewQty > MaxCrew) crewQty = MaxCrew; // fix 14/03/05
+	    if (OptCrew > 0)
+	    {
+            float  fExp;
+			fExp = 0.001 + stf(GetCrewExp(aCharacter, "Cannoners") * crewQty) / stf(OptCrew * GetCrewExpRate());
+			if (fExp > 1) fExp = 1;
+			fReloadTime = fReloadTime * (1.0 + (1.0 - fExp) * 3.0);
+        }
+	    fReloadTime = fReloadTime * (1.0 + (1.0 - fMorale / MORALE_NORMAL) * 0.2);
+	    
+        if (crewQty <= (GetMinCrewQuantity(aCharacter)))
+        {
+            fReloadTime = fReloadTime * 3.0; //меньше команды - тормозим
+        } 
+    // boal  корректный учет команды <--
+    }
+	ref ammo = GetGoodByType(sti(aCharacter.Ship.Cannons.Charge.Type));
+	if (CheckAttribute(ammo, "ReloadSpeed"))
+	{
+		fReloadTime /= stf(ammo.ReloadSpeed);
+	}
+	return  fMultiply * fReloadTime * fCannonSkill;
+}
+
+// Battery cadence has one quality owner; native ship salvos distribute guns
+// across this window instead of independent random delays that can collapse.
+float Cannon_SalvoWindow(aref aCharacter)
+{
+	ref refBaseShip = GetRealShip(sti(aCharacter.ship.Type));
+	float fCannonSkill = stf(aCharacter.TmpSkill.Cannons);
+	if (fCannonSkill < 0.0) fCannonSkill = 0.0;
+	if (fCannonSkill > 1.0) fCannonSkill = 1.0;
+	float crewQ   = Cannon_EffectiveCrew(aCharacter);
+	float crewMax = stf(refBaseShip.MaxCrew);
+	float crewOpt = stf(refBaseShip.OptCrew);
+	if (crewMax < crewQ) crewQ = crewMax;
+	float fExp = 0.0;
+	if (crewOpt > 0.0 && GetCrewExpRate() > 0.0)
+		fExp = stf(GetCrewExp(aCharacter, "Cannoners") * crewQ) / stf(crewOpt * GetCrewExpRate());
+	if (fExp < 0.0) fExp = 0.0;
+	if (fExp > 1.0) fExp = 1.0;
+	float morale = GetCharacterCrewMorale(aCharacter) / MORALE_NORMAL;
+	if (morale < 0.0) morale = 0.0;
+	if (morale > 1.0) morale = 1.0;
+	float quality = fCannonSkill * fExp * (0.5 + 0.5 * morale);
+	return 10.0 - 6.5 * quality;
+}
+
+float Cannon_GetSalvoWindow()
+{
+	aref aCharacter = GetEventData();
+	return Cannon_SalvoWindow(aCharacter);
+}
+
+// Ships use a short direct/single delay; native batteries apply count cadence
+// and predict each moving-target intercept at that gun's actual queued delay.
+float Cannon_GetFireTime()
+{
+	aref aCharacter = GetEventData();
+	ref refBaseShip = GetRealShip(sti(aCharacter.ship.Type));
+	if (refBaseShip.Name == ShipsTypes[SHIP_FORT].Name) { return frnd() * 20.0; }
+	return 0.05 + frnd() * 0.15;
+}
+
+void Cannon_FireCannon()
+{
+	float fX, fY, fZ, fSpeedV0, fFireDirection, fFireHeightAngle, fCannonDirAng, fMaxFireDistance, fAngle;
+
+	aref aCharacter = GetEventData();
+
+	DeleteAttribute(aCharacter, "Sea_AI.Cannon.Charge"); //должно располагаться здесь, а не выше
+
+	fX = GetEventData();
+	fY = GetEventData();
+	fZ = GetEventData();
+	fSpeedV0 = GetEventData();
+	fFireDirection = GetEventData();
+	fFireHeightAngle = GetEventData();
+	fCannonDirAng = GetEventData();
+	fMaxFireDistance = GetEventData();
+	fAngle = GetEventData();
+
+	Ball_AddBall(aCharacter, fX, fY, fZ, fSpeedV0, fFireDirection, fFireHeightAngle, fCannonDirAng, fMaxFireDistance, fAngle);
+}
+
+// Damage 2 cannon from balls
+float Cannon_DamageEvent()
+{
+	//return 0.0;
+	aref	aCharacter = GetEventData();
+	float	fBallDamage = GetEventData();	// ball damage
+	float	fCurDamage = GetEventData();	// current cannon damage (0.0 .. 1.0)
+	float	fDistance = GetEventData();		// distance from ball 2 cannon
+	float	x = GetEventData();				// x, y, z - cannon position
+	float	y = GetEventData();
+	float	z = GetEventData();
+
+	if(CheckAttribute(aCharacter, "chr_ai.immortal"))
+	{
+		if(sti(aCharacter.chr_ai.immortal) == 1)
+		{
+			return 0.0;
+		}
+	}
+
+	ref	rCannon = GetCannonByType(sti(aCharacter.Ship.Cannons.Type));
+	
+	float fMaxCHP = stf(rCannon.hp);
+	//fCurDamage = (fCurDamage * fMaxCHP + fBallDamage * (1.0 - fDistance / MAX_CANNON_DAMAGE_DISTANCE)) / fMaxCHP;
+    //Log_TestInfo("fBallDamage "  + fBallDamage + " fCurDamage " +fCurDamage + " fMaxCHP " + fMaxCHP + " fDistance " +fDistance);
+    fBallDamage *= 0.1 / fDistance;
+    fCurDamage =  fCurDamage  + fBallDamage / fMaxCHP;  // TO_DO
+    
+	//fCurDamage = fCurDamage - fCurDamage/100*(sti(aCharacter.ship.upgrades.cannons)-1)*20;
+	if (fCurDamage >= 1.0)
+	{
+		fCurDamage = 1.0;
+		CreateBlast(x,y,z);
+		CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
+		Play3DSound("cannon_explosion", x, y, z);
+		if (sti(aCharacter.index) == GetMainCharacterIndex())
+		{
+		    Log_Info(XI_ConvertString("Cannon_DamageEvent"));
+		}
+		aCharacter.Ship.Cargo.RecalculateCargoLoad = true; // boal 27.07.06 пушки - груз
+	}
+
+	return fCurDamage;
+}
+
+int GetBortIntactCannonsNum(ref rCharacter, string sBort, int iNumCannonsOnBort)
+{
+	string sBort_real = sBort;
+	float fDamage;
+
+	if(sBort == "rcannon") sBort_real = "cannonr";
+	if(sBort == "lcannon") sBort_real = "cannonl";
+	if(sBort == "fcannon") sBort_real = "cannonf";
+	if(sBort == "bcannon") sBort_real = "cannonb";
+	
+	if (!CheckAttribute(rCharacter, "Ship.Cannons.Borts." + sBort_real + ".damages") &&
+	    !CheckAttribute(rCharacter, "Ship.Cannons.Borts." + sBort + ".damages")) return iNumCannonsOnBort;
+				
+	aref arDamages;
+	if(CheckAttribute(rCharacter, "Ship.Cannons.Borts." + sBort_real + ".damages"))
+	{
+		makearef(arDamages, rCharacter.Ship.Cannons.Borts.(sBort_real).damages);
+	}
+	else
+	{
+		makearef(arDamages, rCharacter.Ship.Cannons.Borts.(sBort).damages);
+	}	
+	
+	int iNumIntactCannons = 0;
+	int physical = GetAttributesNum(arDamages);
+	if (physical > iNumCannonsOnBort) physical = iNumCannonsOnBort;
+	for (int i=0; i<physical; i++)
+	{
+		fDamage = stf(GetAttributeValue(GetAttributeN(arDamages, i)));
+		if (fDamage < 1.0) { iNumIntactCannons++; }
+	}
+	int iNumRealCannons = iNumIntactCannons;
+	
+	return iNumIntactCannons;
+}

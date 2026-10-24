@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "private_raw_result": ".local-archives/cannon-darts-20261021/native-raw-metadata/baseline-result.json",
+    "sha256": "750c51a7effe1ab2c2ca6413efffd93cec91361cf8b719af7e58cd17ea841219",
+    "public_result": "docs/evidence/cannon-darts-20261021/native-baseline/result.json",
+    "redaction": "run path made repository-relative; measured data and input hashes unchanged"
+  },
+  "baseline-retry": {
+    "private_raw_result": ".local-archives/cannon-darts-20261021/native-raw-metadata/baseline-retry-result.json",
+    "sha256": "db28993514a8a08548ec2e82698347400ab2d5b145a2b7bf3c9ffd3d4020fc19",
+    "public_result": "docs/evidence/cannon-darts-20261021/native-baseline-retry/result.json",
+    "redaction": "run path made repository-relative; measured data and input hashes unchanged"
+  }
+}

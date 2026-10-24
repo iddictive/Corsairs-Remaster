@@ -1,0 +1,575 @@
+{
+  "schema_version": 1,
+  "base": "e7763bce4ce02ca4c6d07bf4374332542e7d445e",
+  "parent_input": "source-selection.json",
+  "parent_input_sha256": "1da53210f1a15b9f3420d3f5cf00e39a965f735b4b63a42b186388303d6172b7",
+  "purpose": "Source input selection for a safe independent ammunition/audio/F11 cut, excluding unaccepted world/fort/region hunks; integration owner owns checkout/build/install.",
+  "patch": "ammo.patch",
+  "patch_sha256": "4a22f23d490f0d5151244f494eb4735a4b321967d8f1540e14f2bbb4cb0ecaf6",
+  "patch_bytes": 1081014,
+  "included_file_count": 48,
+  "files": [
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_balls.cpp",
+      "input_sha256": "89edb65cf87ea247c589d67b8eb7ce2ca402d56322e9ce99d335ed4584a2b031",
+      "base_sha256": "00401fe3766f93a38313abbe8e686ffaed2761a61370a1c4c4f60a0a4c3d1683",
+      "result_sha256": "89edb65cf87ea247c589d67b8eb7ce2ca402d56322e9ce99d335ed4584a2b031",
+      "result_bytes": 50704,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_balls.h",
+      "input_sha256": "46f829a11fc16405f77bb158e8e5a972faac4a83a1ed0e2fdf0b4c54db9e8557",
+      "base_sha256": "79e07e1e8ede9a67788dbc8878bb2b9276cfaf6d20ec13ec74fa25d1e2bfbd97",
+      "result_sha256": "46f829a11fc16405f77bb158e8e5a972faac4a83a1ed0e2fdf0b4c54db9e8557",
+      "result_bytes": 3998,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.cpp",
+      "input_sha256": "d31ecb479400d840efe539b39740dffc2bf8874b2b5f12686c2b982d1cacb76a",
+      "base_sha256": "f5bcecfe4eacafe21df0e26c49da3433b6c2d7988c0b033654fd9217443acc6f",
+      "result_sha256": "d31ecb479400d840efe539b39740dffc2bf8874b2b5f12686c2b982d1cacb76a",
+      "result_bytes": 11858,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h",
+      "input_sha256": "7e439bcc200b50f7f147345ad643563f5b1cda4037fa85334d033d4d6bd426d1",
+      "base_sha256": "63965332249c912a51560892945c4fa3b5912ac4034ee7881ef44ef04ba7e2dd",
+      "result_sha256": "7e439bcc200b50f7f147345ad643563f5b1cda4037fa85334d033d4d6bd426d1",
+      "result_bytes": 4019,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp",
+      "input_sha256": "c50b5973d4d01ff7fd5a8c960c409a66e29253952919f5b7deddfbd162d278d9",
+      "base_sha256": "fc969c1111a478871cd7717b8867425cc42b4992a55a6eadcc9b26353e24473b",
+      "result_sha256": "2290540907c9a6a40183baae0d74062263f1dd02308e07bacabe5542ea5ef950",
+      "result_bytes": 98306,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.h",
+      "input_sha256": "5297f87a36b65cb4eb41f757abac01c612ab666ce3bc92c67322f0f2145785e6",
+      "base_sha256": "c35e17c2e71a280280c6e0f10dfdd58063fe721df4a68a1f70cafa3c527919bd",
+      "result_sha256": "39c4f62a8c4a3ca78533f3710353512b3969057395be6e00ff8f5923ac64f2a4",
+      "result_bytes": 7356,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp",
+      "input_sha256": "1e4839d3ec2e9c1bb4b7ca6c22fb5c28d488ebb57b0152353d9ea0a06c543158",
+      "base_sha256": "06e2e9fe177794dd7a9a3422b33e84f7df2e48c402c675b630e227a16075f92a",
+      "result_sha256": "1e4839d3ec2e9c1bb4b7ca6c22fb5c28d488ebb57b0152353d9ea0a06c543158",
+      "result_bytes": 25387,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_camera_controller.cpp",
+      "input_sha256": "6ab758b7d7f8e46fa6f041349634858b38885ee988936f67ccfc4304c077587a",
+      "base_sha256": "956abde30eaaca1f5e24fd13efaac122ee5f559b58a087084c7d60691776c5cb",
+      "result_sha256": "6ab758b7d7f8e46fa6f041349634858b38885ee988936f67ccfc4304c077587a",
+      "result_bytes": 10355,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_aim_zoom.h",
+      "input_sha256": "999f43fb6c72a6125b933410ff4326f4e61dc2273b642cce5050370798d2b0f5",
+      "base_sha256": "a7cefcd6be9cd4078ba5fad9db7dfbd0f7e32a8c1b6f498a5675e7253705bf7b",
+      "result_sha256": "999f43fb6c72a6125b933410ff4326f4e61dc2273b642cce5050370798d2b0f5",
+      "result_bytes": 4348,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.cpp",
+      "input_sha256": "4f0bc9e4720dc3370a170e1961c51a751ba1da448a5c67a8b0d5264a0ccde247",
+      "base_sha256": "5b47c939a5c4c6d5ce3598b6d502985178e2709cf904ea30ae371b0e86ee524b",
+      "result_sha256": "4f0bc9e4720dc3370a170e1961c51a751ba1da448a5c67a8b0d5264a0ccde247",
+      "result_bytes": 35498,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp",
+      "input_sha256": "11a4beb26a0d7057276a32644da3ee17b5aa6df95b6b47e03378d325bd6295c3",
+      "base_sha256": "4cf567144420dae14556352b41ed4257184d0a9e79773c883daa1ea922b710ad",
+      "result_sha256": "ac998977738b4fa4f2ea5cee86e16d9e953a6c2af19ea5a0caa9b0e51f6d537c",
+      "result_bytes": 13098,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h",
+      "input_sha256": "c4321b3658251f25853e9aee9aae6ac87b5803e6939cc06d499f922b1e68fe60",
+      "base_sha256": "a7546c30ede6dbafe064f3642f72735e846358b0c5b074e3db8c28a600c8845d",
+      "result_sha256": "76eb291d3dbfb2b369bdb68cd5e7f538756a0b0c6a584e3ede7f3dfb0bc6f4aa",
+      "result_bytes": 1061,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp",
+      "input_sha256": "45f34a27d8759f8dd1b1937140b4296d1f249dc9d1c58efea8cdcfc6e3216dfd",
+      "base_sha256": "00f97453474be6e74fc6fcc840c802d9ae5fd29f62ebef90d671fa0e6011d270",
+      "result_sha256": "45f34a27d8759f8dd1b1937140b4296d1f249dc9d1c58efea8cdcfc6e3216dfd",
+      "result_bytes": 14950,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/techniques/ai/balls.fx",
+      "input_sha256": "88c899434b530bff8742c65089ea5f1bd54ed76f100ed3bad54c49e03d4e48c4",
+      "base_sha256": "217086ad035f4b8759b3afabfbc0eeddc6c5f47f6c065d2885c05ebc03acefac",
+      "result_sha256": "88c899434b530bff8742c65089ea5f1bd54ed76f100ed3bad54c49e03d4e48c4",
+      "result_bytes": 802,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/battle_interface/BattleInterface.c",
+      "input_sha256": "44a23d56e4d40d242573f185fc837a90e9ccabd86fad59507c0640ea1abb535e",
+      "base_sha256": "7e938b0f27979f328085edf59996b7902ae6a3252fe03a6792fa799d2840e7ce",
+      "result_sha256": "44a23d56e4d40d242573f185fc837a90e9ccabd86fad59507c0640ea1abb535e",
+      "result_bytes": 129824,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/controls/controls.c",
+      "input_sha256": "520c949459dcd917d88a15018d9fabd0b98a8a5f58fe09270cfd096f34f2aa70",
+      "base_sha256": "fef3905b447d3fc9c23598097f244f3608e2b8899e529db56829c06f747aa9a1",
+      "result_sha256": "520c949459dcd917d88a15018d9fabd0b98a8a5f58fe09270cfd096f34f2aa70",
+      "result_bytes": 14473,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/controls/init_pc.c",
+      "input_sha256": "b9f3a9fdfce4bab4be91fc68ce9fe3857ed0afcecd54829c5d964f4f68e8e7bb",
+      "base_sha256": "6242f5d15cdedc96af2fb58e96925e0277eea9253b14a6d6f75e31b22d981850",
+      "result_sha256": "b9f3a9fdfce4bab4be91fc68ce9fe3857ed0afcecd54829c5d964f4f68e8e7bb",
+      "result_bytes": 32022,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/interface/store.c",
+      "input_sha256": "bcc69fb8460ff2ce731ef39a31c160e93d4236edca15e8a5d0f58067a943eadf",
+      "base_sha256": "419ac3797907da12350e26b17a5c75304661a2723e116b0ab2cf3c5f5c88a008",
+      "result_sha256": "bcc69fb8460ff2ce731ef39a31c160e93d4236edca15e8a5d0f58067a943eadf",
+      "result_bytes": 32463,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/scripts/sea_phonk.c",
+      "input_sha256": "0d69ab2e07a9c244604ebe733211c47f94868734f764934152152286fb6293d5",
+      "base_sha256": "253e903049f45c44ae22654a6ce43e91bd586cf4a5374771f4d50c2d17c2faa8",
+      "result_sha256": "0d69ab2e07a9c244604ebe733211c47f94868734f764934152152286fb6293d5",
+      "result_bytes": 8836,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIBalls.c",
+      "input_sha256": "c725ce8eb20a490c73c77ec14f642df83e77c10decf4261513b1f56b9bd29388",
+      "base_sha256": "2b9ea1d6a2ee4024c47afbe710b0d73fc6b2a929cb6920e7900aaac6e0d69f4f",
+      "result_sha256": "c725ce8eb20a490c73c77ec14f642df83e77c10decf4261513b1f56b9bd29388",
+      "result_bytes": 11580,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AICannon.c",
+      "input_sha256": "088b727a218450362e64d2f27c8dc5999b838f34b2cb116ad89f30c6dc0d1266",
+      "base_sha256": "b6abb9d0198a55642f78f9e01cf7c94443d437ca5088f468ebbbc32b789ffb0d",
+      "result_sha256": "088b727a218450362e64d2f27c8dc5999b838f34b2cb116ad89f30c6dc0d1266",
+      "result_bytes": 16653,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AICameras.c",
+      "input_sha256": "f09901d5f46c873d290d3bd823d785179d954d2fc9c5cc167a7a3cf7101ff9c1",
+      "base_sha256": "975d937faa59223805822fefe6474f2b4ed3b8ff90abf31dd49ef6451abcae3b",
+      "result_sha256": "f09901d5f46c873d290d3bd823d785179d954d2fc9c5cc167a7a3cf7101ff9c1",
+      "result_bytes": 9014,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+      "input_sha256": "36e6a08ccd3f6f9054a4e676be738c29499935d1da3fa9aeca3052aa5366b180",
+      "base_sha256": "232dd9b0278e325b64f24f5ddee3613994af4aceb8d53986e8e8f3f5a8a42527",
+      "result_sha256": "09630024162b1314742fa5d634ccbb6d5a4459b449c181cc9a3e6daf2072dc5f",
+      "result_bytes": 204981,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIFantom.c",
+      "input_sha256": "b07ce53766f35dd6dd8c6577a4a9617eb553d671d440cb0f7676f88d8a8cc78d",
+      "base_sha256": "1c7626319f27c675b9a10235e292d1d90607c0d1c458b97ae3433caead58cd3a",
+      "result_sha256": "2ef8e7de2d7ecd03a6934709f32c65756c9ba2e1394aceb736215fb0d2f519ff",
+      "result_bytes": 32493,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/direct_sailing.c",
+      "input_sha256": "8adbf2980798d038d70351a08445b02436ab1bd204078975b696a7baee846610",
+      "base_sha256": "35cb7e7640a885a95ee660cb440124a5c14d0b9534ce3d248e34060f81a60fc6",
+      "result_sha256": "a0948e8136d833bb37133e8bf174d222d96e9597d983283071a7bcfb78a87171",
+      "result_bytes": 6815,
+      "selection": "curated",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/seadogs.c",
+      "input_sha256": "55fc517c05fe33be4f02df4abf1cd23ce5ba2c32411d86eedb2886cec6f7b95f",
+      "base_sha256": "2621d6384e58d89114488b1745f1a5bfb4798eb0f29bd63a69c73f5dc405489a",
+      "result_sha256": "55fc517c05fe33be4f02df4abf1cd23ce5ba2c32411d86eedb2886cec6f7b95f",
+      "result_bytes": 50705,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/goods.h",
+      "input_sha256": "cc370d15be9e2f3d3334ebf8fb35720c1e372560e32cd4795765d54e91899de2",
+      "base_sha256": "b55c48c93faab1cf39dd2810903ea696b8ab91a7d6f9b186ac851f53f512406b",
+      "result_sha256": "cc370d15be9e2f3d3334ebf8fb35720c1e372560e32cd4795765d54e91899de2",
+      "result_bytes": 2779,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/initGoods.c",
+      "input_sha256": "d17dbb11e7b74c4f92ed8adf59ae9c6aaaad602a560bb797048f71f0670d070a",
+      "base_sha256": "a36723a4bba90ea8f8b852d2557ce1d214662c192280049abbbafe22e7591275",
+      "result_sha256": "d17dbb11e7b74c4f92ed8adf59ae9c6aaaad602a560bb797048f71f0670d070a",
+      "result_bytes": 27871,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/initStore.c",
+      "input_sha256": "9d069caafc66d12f5ca3af681f9d6ba42c7187052a2af493dec3bd7823f17a30",
+      "base_sha256": "9337d162052e6c35683d35c72d765a5dcd6b9554592dbd38077bfb6a3901fde7",
+      "result_sha256": "9d069caafc66d12f5ca3af681f9d6ba42c7187052a2af493dec3bd7823f17a30",
+      "result_bytes": 4714,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/PROGRAM/store/storeutilite.c",
+      "input_sha256": "9cec0c8f3409a3dcec24d5eae614aeaaf1cabdfd185844ac62b6e9ef4112dd3c",
+      "base_sha256": "c8c9098f0d26ce33de8e18e69cc7465721980d823448f246176a2282deea0429",
+      "result_sha256": "9cec0c8f3409a3dcec24d5eae614aeaaf1cabdfd185844ac62b6e9ef4112dd3c",
+      "result_bytes": 20941,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/interfaces/pictures.ini",
+      "input_sha256": "04f516e2cb6889003acb308bb20b0cbfdb718956c93aec07d9dad3732c41b8fe",
+      "base_sha256": "890a1887b84a0461c3a2f3c4c9f6dbcad6cf6c9f9b20eff7ad53ea5b1ca39a1d",
+      "result_sha256": "04f516e2cb6889003acb308bb20b0cbfdb718956c93aec07d9dad3732c41b8fe",
+      "result_bytes": 141706,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/texts/russian/common.ini",
+      "input_sha256": "0ee41e60a1290f5cb0a3462ffd8eba82015594f13293ea60e7d56fd071da53dc",
+      "base_sha256": "6e19bced03f6412ad902ef38fa684cb6352043f2735f3cae3a1f99107bf1fada",
+      "result_sha256": "0ee41e60a1290f5cb0a3462ffd8eba82015594f13293ea60e7d56fd071da53dc",
+      "result_bytes": 181657,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/texts/russian/ControlsNames.txt",
+      "input_sha256": "af7184eb99b3115fc8686f48b2f77030116f6c63011176703a7297be1227fe14",
+      "base_sha256": "a12f119a808a4550af0292833ce2c3961143faf28c867992b1ea06eb68f3ae3c",
+      "result_sha256": "af7184eb99b3115fc8686f48b2f77030116f6c63011176703a7297be1227fe14",
+      "result_bytes": 9057,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/gameplay/RESOURCE/INI/texts/russian/GoodsDescribe.txt",
+      "input_sha256": "84d99382579be85d919b8325eecd70ce4ef6c2f5dc5e7da6a15e8c4c6497f45e",
+      "base_sha256": "86f353d128007f773d82ba42d6ac0b3073675500442b2e8bf95eaf22f83bb10f",
+      "result_sha256": "84d99382579be85d919b8325eecd70ce4ef6c2f5dc5e7da6a15e8c4c6497f45e",
+      "result_bytes": 15277,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/assets/ui/manifest.json",
+      "input_sha256": "1df67a693b0f4afc3ad1fea38b735b8b0804e8f7f8e555fc565d8dc5b67c4261",
+      "base_sha256": "f57735b97bc995c36bd41be2f823fdd06f8f25f057c8e79f66934e060e4db9fe",
+      "result_sha256": "1df67a693b0f4afc3ad1fea38b735b8b0804e8f7f8e555fc565d8dc5b67c4261",
+      "result_bytes": 12688,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/assets/ui/airburst-commands.tga.tx",
+      "input_sha256": "1e882736a6fff27cab18a4acb0168fbbad7ca105d5d4549fc727e133d30847b5",
+      "base_sha256": "85870f5271c26486cf6cd5f2c20c7639306c31a8e9e9b0f6a006215f16a37614",
+      "result_sha256": "1e882736a6fff27cab18a4acb0168fbbad7ca105d5d4549fc727e133d30847b5",
+      "result_bytes": 1048600,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/assets/ui/airburst-goods.tga.tx",
+      "input_sha256": "c4dec00acb53ae0e7c8ab941d4708103ad900a94a9a871779d2186c449fe8444",
+      "base_sha256": "530de1b0ec22aa5d79f19393fba7c7cffe5eaf3d538a7ad5000cbe528ec2581e",
+      "result_sha256": "c4dec00acb53ae0e7c8ab941d4708103ad900a94a9a871779d2186c449fe8444",
+      "result_bytes": 5592428,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/assets/ui/airburst-navigator.tga.tx",
+      "input_sha256": "46e38f8626f2e51ea629761ecb4691ae2b14320c10993b0ab4f9528811de23a1",
+      "base_sha256": "01d50d1865acf49a5a1e81b5ec19717ab8c2101331263c7a47c63789acba8d9c",
+      "result_sha256": "46e38f8626f2e51ea629761ecb4691ae2b14320c10993b0ab4f9528811de23a1",
+      "result_bytes": 524312,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "src/assets/ui/darts.png",
+      "input_sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9",
+      "base_sha256": null,
+      "result_sha256": "68c6d6c9b2e7a27b22394b6615aeaf40f86bd71a7096c62511443e8d38e0c9f9",
+      "result_bytes": 681386,
+      "selection": "exact_current_source",
+      "new_file": true
+    },
+    {
+      "path": "src/assets/ui/darts-frame.png",
+      "input_sha256": "b45413a80e980f46b662aa12d1f8b486130adf9b28b7b57def29dba62c9b03d7",
+      "base_sha256": null,
+      "result_sha256": "b45413a80e980f46b662aa12d1f8b486130adf9b28b7b57def29dba62c9b03d7",
+      "result_bytes": 4202,
+      "selection": "exact_current_source",
+      "new_file": true
+    },
+    {
+      "path": "src/assets/ui/darts-command-states.png",
+      "input_sha256": "f91037d8dd038dd170f506fbdfbe6716b9c3ff0781b43bd43e7f8193b47f7d98",
+      "base_sha256": null,
+      "result_sha256": "f91037d8dd038dd170f506fbdfbe6716b9c3ff0781b43bd43e7f8193b47f7d98",
+      "result_bytes": 10748,
+      "selection": "exact_current_source",
+      "new_file": true
+    },
+    {
+      "path": "src/assets/ui/darts-projectile.tga.tx",
+      "input_sha256": "62acf96545474c08f689592c19a8f23e1dbd8360b130e6d8bab1c3f13faf6731",
+      "base_sha256": null,
+      "result_sha256": "62acf96545474c08f689592c19a8f23e1dbd8360b130e6d8bab1c3f13faf6731",
+      "result_bytes": 349548,
+      "selection": "exact_current_source",
+      "new_file": true
+    },
+    {
+      "path": "src/assets/ui/prepare_darts.py",
+      "input_sha256": "03d2c824a7c4d2b8e016772b9dbff6f140440beaf3caa6e4b228c2e8361d8058",
+      "base_sha256": null,
+      "result_sha256": "03d2c824a7c4d2b8e016772b9dbff6f140440beaf3caa6e4b228c2e8361d8058",
+      "result_bytes": 7825,
+      "selection": "exact_current_source",
+      "new_file": true
+    },
+    {
+      "path": "docs/sea-cannon-ballistics.md",
+      "input_sha256": "861ee6398c2711692c6c3749604d74f3eb3eea18119cc53db683da319379ddb2",
+      "base_sha256": "9257a766655b1e1135c0e26ce98ba9d8edde8a90748dde0dc63aa6c21e58b78f",
+      "result_sha256": "861ee6398c2711692c6c3749604d74f3eb3eea18119cc53db683da319379ddb2",
+      "result_bytes": 10853,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "tools/delivery_state.py",
+      "input_sha256": "d9170f898786fe9f37c816c4208bc508942c4e484fbdea5cebf9369e3b18a956",
+      "base_sha256": "49b7a9a3ec2111c0dc68dbea3dbb407f23425b1950056003d2cc5d43b53b6535",
+      "result_sha256": "d9170f898786fe9f37c816c4208bc508942c4e484fbdea5cebf9369e3b18a956",
+      "result_bytes": 13814,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_ai/manual_aim_geometry.hpp",
+      "input_sha256": "fb168d34a65e05a8e96b9c962ae234960f4c2e367624a8860d05a26acc09b9d0",
+      "base_sha256": "1c8d504edcc5bc1dd95546c05ab9aee7cab100dd8ef8836b73f138924711cdc6",
+      "result_sha256": "fb168d34a65e05a8e96b9c962ae234960f4c2e367624a8860d05a26acc09b9d0",
+      "result_bytes": 15064,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/audio/audio_voice_policy.h",
+      "input_sha256": "5da6cfc32ebe3cb0a3da3afc2bc280b23d24342334d73f54c9a5e8b39552e0c7",
+      "base_sha256": "7bafc2625b53ae6aeb63467c3c597dca3768f25d49cd837103c5129101822a48",
+      "result_sha256": "5da6cfc32ebe3cb0a3da3afc2bc280b23d24342334d73f54c9a5e8b39552e0c7",
+      "result_bytes": 2127,
+      "selection": "exact_current_source",
+      "new_file": false
+    },
+    {
+      "path": "experiments/native-metal/audio/sound_service.cpp",
+      "input_sha256": "b52b3ff024fc92ea076feef6fb39a2683ecb7ce4942436880f4112bc01b3bb46",
+      "base_sha256": "cf3166482ce52d046cd130d6247704f3fbcade200a18394ba8baa2539cc5c45c",
+      "result_sha256": "b52b3ff024fc92ea076feef6fb39a2683ecb7ce4942436880f4112bc01b3bb46",
+      "result_bytes": 19366,
+      "selection": "exact_current_source",
+      "new_file": false
+    }
+  ],
+  "excluded_semantic_chunks": [
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.cpp",
+      "excluded_semantic_chunk": "HasPendingFire definition",
+      "reason": "World residency query; no ammunition caller."
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_cannon_controller.h",
+      "excluded_semantic_chunk": "HasPendingFire declaration",
+      "reason": "Companion to excluded world residency query."
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp",
+      "excluded_semantic_chunk": "storm_dart_view::ReferencesCharacter",
+      "reason": "World traffic actor-lifetime API; impact camera remains."
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h",
+      "excluded_semantic_chunk": "Borrower include/friend",
+      "reason": "Excluded world traffic consumers are absent."
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_cameras/src/dart_view_borrower.h",
+      "excluded_semantic_chunk": "Entire new header",
+      "reason": "Only declares excluded world traffic borrower API."
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+      "excluded_semantic_chunk": "All pre-Ship_MastDamage delta: consequence severity deltas; fort observation/report; reporter identity preservation; actor release/archive; fort incident notifications",
+      "reason": "Crime/fort/world residency behavior stays at published base."
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+      "excluded_semantic_chunk": "Ship_Add2Sea CreateEntity failure return",
+      "reason": "World runtime creation failure handling."
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIShip.c",
+      "excluded_semantic_chunk": "Ship_CheckMainCharacter fort locator owner",
+      "reason": "Independent fort/region lookup repair."
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/AIFantom.c",
+      "excluded_semantic_chunk": "Fantom_CreateShipFromBaseAtIndex allocator and iNumFantoms ownership",
+      "reason": "World traffic slot reuse; rare NPC dart supplies remain."
+    },
+    {
+      "path": "src/gameplay/PROGRAM/sea_ai/direct_sailing.c",
+      "excluded_semantic_chunk": "Sea_DirectSailArea SeaTraffic/PublishRegion short circuit",
+      "reason": "Unaccepted seamless region service; published direct-sail remains and gets required Phonk virtual-ammo transition."
+    }
+  ],
+  "special_cases": [
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_balls.cpp",
+      "finding": "No QueryActiveCount addition in selected source or diff; actual deltas are projectile/ammunition/impact camera."
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.cpp",
+      "finding": "Only diff is required Phonk weapon-selection fire arbitration."
+    }
+  ],
+  "resource_delivery_allowlist": [
+    "RESOURCE/Textures/INTERFACES/goods.tga.tx",
+    "RESOURCE/Textures/BATTLE_INTERFACE/List_icons.tga.tx",
+    "RESOURCE/Textures/BATTLE_INTERFACE/LIST_ICON2.tga.tx",
+    "RESOURCE/Textures/BALLS/dart.tga.tx"
+  ],
+  "atlas_checks": [
+    {
+      "path": "src/assets/ui/airburst-goods.tga.tx",
+      "darts_slots": [
+        [
+          512,
+          512,
+          128
+        ]
+      ],
+      "changed_bytes": 13480,
+      "outside_slots_unchanged": true,
+      "header_unchanged": true
+    },
+    {
+      "path": "src/assets/ui/airburst-commands.tga.tx",
+      "darts_slots": [
+        [
+          640,
+          256,
+          64
+        ],
+        [
+          704,
+          256,
+          64
+        ]
+      ],
+      "changed_bytes": 5382,
+      "outside_slots_unchanged": true,
+      "header_unchanged": true
+    },
+    {
+      "path": "src/assets/ui/airburst-navigator.tga.tx",
+      "darts_slots": [
+        [
+          192,
+          320,
+          64
+        ]
+      ],
+      "changed_bytes": 7443,
+      "outside_slots_unchanged": true,
+      "header_unchanged": true
+    }
+  ],
+  "verification": {
+    "all_49_input_hashes_match": true,
+    "all_49_source_bytes_preserved": true,
+    "private_index_git_apply_cached_check": "PASS against full base tree",
+    "shared_git_index_touched": false,
+    "checkout_source_mutated": false,
+    "compiler_build_stage_or_gpu_used": false,
+    "static_base_dependencies": "GetScenePauseRevision, IsLayerFrozen and GetCameraMagnification exist in base; removed world-only borrower dependencies are not needed by impact view.",
+    "runtime_acceptance": "NOT RUN: parent/shared integration owner owns native compilation, staging, delivery and player acceptance."
+  },
+  "retention": {
+    "canonical_owner": "docs/evidence/cannon-darts-20261021/ammo-only-cut",
+    "next_consumer": "Parent integration owner then shared native build/delivery owner",
+    "reconstruction": "Apply ammo.patch to base; per-file SHA256 binds results. Selection binds untouched original source inputs.",
+    "scratch": "Private diff inputs/index managed and cleaned by codex-run-scratch; retained artifacts have no scratch dependency."
+  }
+}

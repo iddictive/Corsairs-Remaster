@@ -1,0 +1,100 @@
+{
+  "status": "rejected before first ordinary region crossing; no candidate performance acceptance",
+  "native_wall_seconds": 30.462120056152344,
+  "first_reject": "phase1 deadline: physical Barbados coordinates retain PuertoRico logical region",
+  "goods_after_initial_normal_load": {
+    "array_size": 53,
+    "name52": "Darts",
+    "damage_hull52": 2.5,
+    "damage_hull2": 5.75,
+    "passed": true
+  },
+  "normal_roundtrip_save_load": "not reached",
+  "initial_normal_load_core_wall_ms": 2119.756708,
+  "peak_rss_bytes": 4799070208.0,
+  "observed_wrong_region_phase_cpu_ms": {
+    "count": 1717,
+    "median": 10.792542,
+    "p95": 21.375042,
+    "max": 40.827666
+  },
+  "gpu": {
+    "commands": 1937,
+    "valid_timed_commands": 1937,
+    "statuses": [
+      "4"
+    ],
+    "sea_drawn_animated_grouped_work_ms_median": 4.840812529437244,
+    "sea_drawn_animated_grouped_work_ms_p95": 10.494207963347435,
+    "limitation": "renderer progress-present IDs differ from CORE frame IDs; observed rejected scene, not comparable accepted route"
+  },
+  "ship_count_changes": [
+    {
+      "frame": 102,
+      "ships_before": 6,
+      "ships_after": 18,
+      "cpu_wall_ms": 937.837959,
+      "elapsed_ms": 5841.554209,
+      "location": "PuertoRico"
+    }
+  ],
+  "top_cpu_frames_after_initial_load": [
+    {
+      "frame": "102",
+      "cpu_wall_ms": "937.837959",
+      "elapsed_ms": "5841.554209",
+      "phase": "0",
+      "location": "PuertoRico",
+      "ships": "18"
+    },
+    {
+      "frame": "4",
+      "cpu_wall_ms": "392.099416",
+      "elapsed_ms": "3963.67625",
+      "phase": "0",
+      "location": "PuertoRico",
+      "ships": "6"
+    },
+    {
+      "frame": "103",
+      "cpu_wall_ms": "112.167375",
+      "elapsed_ms": "5954.18175",
+      "phase": "0",
+      "location": "PuertoRico",
+      "ships": "18"
+    },
+    {
+      "frame": "1246",
+      "cpu_wall_ms": "40.827666",
+      "elapsed_ms": "19130.97075",
+      "phase": "1",
+      "location": "PuertoRico",
+      "ships": "18"
+    },
+    {
+      "frame": "550",
+      "cpu_wall_ms": "40.306917",
+      "elapsed_ms": "11039.764792",
+      "phase": "1",
+      "location": "PuertoRico",
+      "ships": "18"
+    }
+  ],
+  "final_observation": {
+    "location": "PuertoRico",
+    "island": "PuertoRico",
+    "world_x": "900",
+    "world_z": "-298.394775391",
+    "logical_scale": "50",
+    "scale": "50",
+    "clock_year": "1668",
+    "clock_month": "12",
+    "clock_day": "29",
+    "clock_hour": "6",
+    "clock_min": "10",
+    "clock_sec": "0"
+  },
+  "same_initial_sea_and_player_eids_through_rejected_attempt": true,
+  "transition_or_hold_seen_after_initial_load": false,
+  "source_and_live_invariance_pass": true
+}

@@ -1,0 +1,347 @@
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.0.0
+Thread model: posix
+InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+ignoring nonexistent directory "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1"
+ "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang" -cc1 -triple arm64-apple-macosx15.0.0 -O3 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name ordinary.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -mllvm -extra-vectorizer-passes -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -fno-sized-deallocation -target-sdk-version=27.0 -fdepfile-entry=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/SDKSettings.json -fvisibility-inlines-hidden-static-local-var -fno-modulemap-allow-subdirectory-search -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -enable-tlsdesc -target-cpu apple-m1 -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +ccpp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +flagm -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=<repo>/experiments/native-metal/.cache/build -fdebug-prefix-map=<repo>=. -target-linker-version 1166.2 -v -fcoverage-compilation-dir=<repo>/experiments/native-metal/.cache/build -resource-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21 -dependency-file <isolated-runtime>/ordinary.d -skip-unused-modulemap-deps -MT native-engine/CMakeFiles/sea-fleet-benchmark.dir/__/sea_fleet_benchmark.cpp.o -sys-header-deps -isystem <repo>/experiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include -isystem <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include -isystem <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include/SDL2 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I <repo>/experiments/native-metal -D FMT_CONSTEVAL= -D FMT_HEADER_ONLY -D NOMINMAX -D SENTRY_BUILD_STATIC -D SPDLOG_FMT_EXTERNAL -D SSE2NEON_PRECISE_DIV=1 -D SSE2NEON_PRECISE_MINMAX=1 -D SSE2NEON_PRECISE_SQRT=1 -D STORM_METAL_AIM_VOLUME_BRIDGE=1 -D STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 -D STORM_METAL_DYNAMIC_SKY_BRIDGE=1 -D STORM_METAL_GRASS_BRIDGE=1 -D STORM_METAL_INTERFACE_BACK_SCENE=1 -D STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 -D STORM_METAL_LIGHT_SHAFT_OPENINGS=1 -D STORM_METAL_PARTICLE_BRIDGE=1 -D STORM_METAL_RENDERER_CONSUMERS=1 -D STORM_METAL_ROCKK2=1 -D STORM_METAL_SCENE_HUD_BOUNDARY=1 -D STORM_METAL_SHIP_HULL_DAMAGE=1 -D STORM_METAL_WEATHER_VISUAL_STATE=1 -D "STORM_WATERMARK_FILE=\"storm_build_watermark.hpp\"" -D UNICODE -D _CRT_SECURE_NO_WARNINGS -D _UNICODE -I <repo>/experiments/native-metal/inputs/native -I <repo>/experiments/native-metal/engine/.. -I <repo>/experiments/native-metal/inputs/native/d3d9/dxvk-native/include/native/windows -I <repo>/experiments/native-metal/engine/src/libs/core/src -I <repo>/experiments/native-metal/.cache/build/native-engine/storm -I <repo>/experiments/native-metal/engine/src/libs/core/include -I <repo>/experiments/native-metal/engine/src/libs/diagnostics/include -I <repo>/experiments/native-metal/engine/src/libs/math/include -I <repo>/experiments/native-metal/engine/src/libs/shared_headers/include -I <repo>/experiments/native-metal/engine/src/libs/steam_api/include -I <repo>/experiments/native-metal/inputs/conan/fast_float/3.4.0/_/_/package/5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9/include -I <repo>/experiments/native-metal/engine/src/libs/window/include -I <repo>/experiments/native-metal/engine/src/libs/util/include -I <repo>/experiments/native-metal/inputs/conan/spdlog/1.9.2/_/_/package/70a17ef929dad20e1afdd6cf274326a965e13481/include -I <repo>/experiments/native-metal/inputs/conan/sentry-native/0.6.5/_/_/source/src/include -I <repo>/experiments/native-metal/engine/src/libs/renderer/include -I <repo>/experiments/native-metal -I <repo>/experiments/native-metal/engine/src/libs/geometry/src -I <repo>/experiments/native-metal/inputs/conan/mimalloc/2.1.7/_/_/source/src/include -I <repo>/experiments/native-metal/engine/src/libs/animals/include -I <repo>/experiments/native-metal/engine/src/libs/animation/include -I <repo>/experiments/native-metal/engine/src/libs/collide/include -I <repo>/experiments/native-metal/engine/src/libs/geometry/include -I <repo>/experiments/native-metal/engine/src/libs/model/include -I <repo>/experiments/native-metal/engine/src/libs/sea/include -I <repo>/experiments/native-metal/engine/src/libs/sea_ai/include -I <repo>/experiments/native-metal/engine/src/libs/island/include -I <repo>/experiments/native-metal/engine/src/libs/weather/include -I <repo>/experiments/native-metal/engine/src/libs/ship/include -I <repo>/experiments/native-metal/engine/src/libs/location/include -I <repo>/experiments/native-metal/audio -I <repo>/experiments/native-metal/engine/src/libs/sound_service/include -I <repo>/experiments/native-metal/engine/src/libs/particles/include -I <repo>/experiments/native-metal/engine/src/libs/ball_splash/include -I <repo>/experiments/native-metal/engine/src/libs/battle_interface/include -I <repo>/experiments/native-metal/engine/src/libs/blade/include -I <repo>/experiments/native-metal/engine/src/libs/blot/include -I <repo>/experiments/native-metal/engine/src/libs/dialog/include -I <repo>/experiments/native-metal/engine/src/libs/lighter/include -I <repo>/experiments/native-metal/engine/src/libs/locator/include -I <repo>/experiments/native-metal/engine/src/libs/mast/include -I <repo>/experiments/native-metal/engine/src/libs/pcs_controls/include -I <repo>/experiments/native-metal/engine/src/libs/input/include -I <repo>/experiments/native-metal/engine/src/libs/rigging/include -I <repo>/experiments/native-metal/engine/src/libs/sailors/include -I <repo>/experiments/native-metal/engine/src/libs/script_library/include -I <repo>/experiments/native-metal/engine/src/libs/sea_cameras/include -I <repo>/experiments/native-metal/engine/src/libs/sea_creatures/include -I <repo>/experiments/native-metal/engine/src/libs/sea_foam/include -I <repo>/experiments/native-metal/engine/src/libs/sea_operator/include -I <repo>/experiments/native-metal/engine/src/libs/shadow/include -I <repo>/experiments/native-metal/engine/src/libs/sink_effect/include -I <repo>/experiments/native-metal/engine/src/libs/sound/include -I <repo>/experiments/native-metal/engine/src/libs/teleport/include -I <repo>/experiments/native-metal/engine/src/libs/tornado/include -I <repo>/experiments/native-metal/engine/src/libs/touch/include -I <repo>/experiments/native-metal/engine/src/libs/water_rings/include -I <repo>/experiments/native-metal/engine/src/libs/worldmap/include -I <repo>/experiments/native-metal/engine/src/libs/xinterface/include -D NDEBUG -I <repo>/experiments/native-metal/engine/src/apps/engine/src -I/usr/local/include -internal-isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/include -internal-externc-isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -internal-iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks -internal-iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/SubFrameworks -internal-iframework /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks -fmacro-prefix-map=<repo>=. -fcoverage-prefix-map=<repo>=. -Wno-elaborated-enum-base -std=c++20 -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fno-implicit-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -vectorize-loops -vectorize-slp -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -Wno-error=allocator-wrappers -fdwarf2-cfi-asm -o <isolated-runtime>/ordinary.o -x c++ <isolated-runtime>/ordinary.cpp
+clang -cc1 version 21.0.0 (clang-2100.3.34.2) default target arm64-apple-darwin27.0.0
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/animals/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/ball_splash/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/blade/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/blot/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/dialog/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/lighter/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/locator/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/mast/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/rigging/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sailors/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/script_library/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sea_cameras/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sea_creatures/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sea_foam/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sea_operator/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/shadow/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sink_effect/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/sound/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/teleport/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/tornado/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/touch/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/water_rings/include"
+ignoring nonexistent directory "<repo>/experiments/native-metal/engine/src/libs/worldmap/include"
+ignoring nonexistent directory "/usr/local/include"
+ignoring nonexistent directory "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/local/include"
+ignoring nonexistent directory "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks"
+ignoring duplicate directory "<repo>/experiments/native-metal/engine/.."
+ignoring duplicate directory "<repo>/experiments/native-metal"
+#include "..." search starts here:
+#include <...> search starts here:
+ <repo>/experiments/native-metal
+ <repo>/experiments/native-metal/inputs/native
+ <repo>/experiments/native-metal/inputs/native/d3d9/dxvk-native/include/native/windows
+ <repo>/experiments/native-metal/engine/src/libs/core/src
+ <repo>/experiments/native-metal/.cache/build/native-engine/storm
+ <repo>/experiments/native-metal/engine/src/libs/core/include
+ <repo>/experiments/native-metal/engine/src/libs/diagnostics/include
+ <repo>/experiments/native-metal/engine/src/libs/math/include
+ <repo>/experiments/native-metal/engine/src/libs/shared_headers/include
+ <repo>/experiments/native-metal/engine/src/libs/steam_api/include
+ <repo>/experiments/native-metal/inputs/conan/fast_float/3.4.0/_/_/package/5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9/include
+ <repo>/experiments/native-metal/engine/src/libs/window/include
+ <repo>/experiments/native-metal/engine/src/libs/util/include
+ <repo>/experiments/native-metal/inputs/conan/spdlog/1.9.2/_/_/package/70a17ef929dad20e1afdd6cf274326a965e13481/include
+ <repo>/experiments/native-metal/inputs/conan/sentry-native/0.6.5/_/_/source/src/include
+ <repo>/experiments/native-metal/engine/src/libs/renderer/include
+ <repo>/experiments/native-metal/engine/src/libs/geometry/src
+ <repo>/experiments/native-metal/inputs/conan/mimalloc/2.1.7/_/_/source/src/include
+ <repo>/experiments/native-metal/engine/src/libs/animation/include
+ <repo>/experiments/native-metal/engine/src/libs/collide/include
+ <repo>/experiments/native-metal/engine/src/libs/geometry/include
+ <repo>/experiments/native-metal/engine/src/libs/model/include
+ <repo>/experiments/native-metal/engine/src/libs/sea/include
+ <repo>/experiments/native-metal/engine/src/libs/sea_ai/include
+ <repo>/experiments/native-metal/engine/src/libs/island/include
+ <repo>/experiments/native-metal/engine/src/libs/weather/include
+ <repo>/experiments/native-metal/engine/src/libs/ship/include
+ <repo>/experiments/native-metal/engine/src/libs/location/include
+ <repo>/experiments/native-metal/audio
+ <repo>/experiments/native-metal/engine/src/libs/sound_service/include
+ <repo>/experiments/native-metal/engine/src/libs/particles/include
+ <repo>/experiments/native-metal/engine/src/libs/battle_interface/include
+ <repo>/experiments/native-metal/engine/src/libs/pcs_controls/include
+ <repo>/experiments/native-metal/engine/src/libs/input/include
+ <repo>/experiments/native-metal/engine/src/libs/xinterface/include
+ <repo>/experiments/native-metal/engine/src/apps/engine/src
+ <repo>/experiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include
+ <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include
+ <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include/SDL2
+ /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1
+ /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/include
+ /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+ /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include
+ /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
+ /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/SubFrameworks (framework directory)
+End of search list.
+In file included from <isolated-runtime>/ordinary.cpp:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/core/include/core.h:8:
+In file included from <repo>/experiments/native-metal/engine/src/libs/core/include/controls.h:5:
+<repo>/experiments/native-metal/engine/src/libs/util/include/utf8.h:117:17: warning: result of comparison of constant 237 with expression of type 'const char' is always false [-Wtautological-constant-out-of-range-compare]
+  117 |     if (utf8[0] == 0xed && (utf8[1] & 0xa0) == 0xa0)
+      |         ~~~~~~~ ^  ~~~~
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:16:10: warning: 'Init' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   16 |     void Init();
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:9:18: note: overridden virtual function is here
+    9 |     virtual void Init() = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:18:10: warning: 'InitBase' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   18 |     void InitBase();
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:11:18: note: overridden virtual function is here
+   11 |     virtual void InitBase() = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:19:10: warning: 'ReleaseBase' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   19 |     void ReleaseBase();
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:12:18: note: overridden virtual function is here
+   12 |     virtual void ReleaseBase() = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:21:10: warning: 'CleanUp' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   21 |     void CleanUp();
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:14:18: note: overridden virtual function is here
+   14 |     virtual void CleanUp() = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:26:10: warning: 'Run' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   26 |     bool Run();
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:16:18: note: overridden virtual function is here
+   16 |     virtual bool Run() = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:46:10: warning: 'AppState' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   46 |     void AppState(bool state);
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:19:18: note: overridden virtual function is here
+   19 |     virtual void AppState(bool state) = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:139:10: warning: 'collectCrashInfo' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+  139 |     void collectCrashInfo() const;
+      |          ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:21:18: note: overridden virtual function is here
+   21 |     virtual void collectCrashInfo() const = 0;
+      |                  ^
+In file included from <isolated-runtime>/ordinary.cpp:4:
+<repo>/experiments/native-metal/engine/src/libs/core/src/core_impl.h:141:24: warning: 'initialized' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+  141 |     [[nodiscard]] bool initialized() const
+      |                        ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/core_private.h:17:32: note: overridden virtual function is here
+   17 |     [[nodiscard]] virtual bool initialized() const = 0;
+      |                                ^
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/island/include/island_base.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/cannon_trace.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_cannon.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_helper.h:5:
+<repo>/experiments/native-metal/engine/src/libs/core/include/save_load.h:40:34: warning: 'SetAttribute' is deprecated: Pass attribute value by string_view instead [-Wdeprecated-declarations]
+   40 |                 pV->GetAClass()->SetAttribute("save", pFFSave);
+      |                                  ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/attributes.h:67:7: note: 'SetAttribute' has been explicitly marked deprecated here
+   67 |     [[deprecated("Pass attribute value by string_view instead")]]
+      |       ^
+In file included from <isolated-runtime>/ordinary.cpp:5:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:4:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_move_controller.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/sea_ai/include/ai_flow_graph.h:7:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math_inlines.h:14:9: warning: 'SQR' macro redefined [-Wmacro-redefined]
+   14 | #define SQR(a) ((a) * (a))
+      |         ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/types3d.h:10:9: note: previous definition is here
+   10 | #define SQR(x) ((x) * (x))
+      |         ^
+In file included from <isolated-runtime>/ordinary.cpp:5:
+<repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:310:17: warning: enumeration values 'lost_render' and 'restore_render' not handled in switch [-Wswitch]
+  310 |         switch (stage)
+      |                 ^~~~~
+<repo>/experiments/native-metal/engine/src/libs/sea_ai/src/ai_fort.h:310:17: note: add missing switch cases
+  310 |         switch (stage)
+      |                 ^
+  311 |         {
+  312 |         case Stage::execute:
+  313 |             Execute(delta);
+  314 |             break;
+  315 |         case Stage::realize:
+  316 |             Realize(delta);
+  317 |             break;
+  318 |             /*case Stage::lost_render:
+  319 |               LostRender(delta); break;
+  320 |             case Stage::restore_render:
+  321 |               RestoreRender(delta); break;*/
+  322 |         }
+In file included from <isolated-runtime>/ordinary.cpp:6:
+<repo>/experiments/native-metal/engine/src/libs/sailors/src/sailors.h:171:17: warning: enumeration values 'execute', 'lost_render', and 'restore_render' not handled in switch [-Wswitch]
+  171 |         switch (stage)
+      |                 ^~~~~
+<repo>/experiments/native-metal/engine/src/libs/sailors/src/sailors.h:171:17: note: add missing switch cases
+  171 |         switch (stage)
+      |                 ^
+  172 |         {
+  173 |         case Stage::realize:
+  174 |             Realize(delta);
+  175 |             break;
+  176 |         }
+In file included from <isolated-runtime>/ordinary.cpp:7:
+<repo>/experiments/native-metal/engine/src/libs/worldmap/src/world_map.h:64:17: warning: enumeration values 'lost_render' and 'restore_render' not handled in switch [-Wswitch]
+   64 |         switch (stage)
+      |                 ^~~~~
+<repo>/experiments/native-metal/engine/src/libs/worldmap/src/world_map.h:64:17: note: add missing switch cases
+   64 |         switch (stage)
+      |                 ^
+   65 |         {
+   66 |         case Stage::execute:
+   67 |             Execute(delta);
+   68 |             break;
+   69 |         case Stage::realize:
+   70 |             Realize(delta);
+   71 |             break;
+   72 |             /*case Stage::lost_render:
+   73 |               LostRender(delta); break;
+   74 |             case Stage::restore_render:
+   75 |               RestoreRender(delta); break;*/
+   76 |         }
+In file included from <isolated-runtime>/ordinary.cpp:8:
+In file included from <repo>/experiments/native-metal/engine/src/libs/worldmap/src/wdm_objects.h:16:
+<repo>/experiments/native-metal/engine/src/libs/worldmap/src/wdm_objects_wind.h:246:71: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+  246 |                 const auto ang = rand() * (3.14159265358979f * 2.0f / RAND_MAX);
+      |                                                                     ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <isolated-runtime>/ordinary.cpp:8:
+In file included from <repo>/experiments/native-metal/engine/src/libs/worldmap/src/wdm_objects.h:16:
+<repo>/experiments/native-metal/engine/src/libs/worldmap/src/wdm_objects_wind.h:247:51: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+  247 |                 const auto amp = rand() * (4.0f / RAND_MAX);
+      |                                                 ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+23 warnings generated.

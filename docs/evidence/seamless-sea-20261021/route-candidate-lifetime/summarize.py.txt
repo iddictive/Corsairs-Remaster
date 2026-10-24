@@ -1,0 +1,72 @@
+# Retained analysis of this rejected native replay; no game execution.
+import csv,json,re,statistics
+from pathlib import Path
+p=Path('.').resolve()
+rows=list(csv.DictReader((p/'frames.csv').open()))
+manifest=json.loads((p/'manifest.json').read_text())
+baseline=json.loads((p.parent/'route-baseline-complete/summary.json').read_text())
+f=lambda r,k:float(r[k] or 0)
+stats=lambda xs:{'count':len(xs),'median_ms':statistics.median(xs),'p95_ms':sorted(xs)[int((len(xs)-1)*.95)],'max_ms':max(xs)}
+steady={}
+for region in ['PuertoRico','Barbados','Antigua','Tortuga','Cuba1']:
+ selected=[r for r in rows if r['location']==region and int(r['frame'])>2 and r['sea_active']=='1' and r['sea_loaded']=='1' and r['transition_active']=='0' and r['hold_loading']=='0' and r['reload']=='0' and not r['capture_after_frame'] and int(r['phase'])<6]
+ if selected:
+  steady[region]=stats([f(r,'cpu_wall_ms') for r in selected])
+  steady[region]['baseline_median_ms']=baseline['steady_cpu_by_location'][region]['median_ms']
+  steady[region]['median_ratio']=steady[region]['median_ms']/steady[region]['baseline_median_ms']
+snapshots={};current=None
+baseline_initial=(p.parent/'route-baseline-complete/snapshots.txt').read_text().split('snapshot=')[1]
+protected=set(re.findall(r'actor eid=\d+ index=(\d+)',baseline_initial))
+for line in (p/'snapshots.txt').read_text().splitlines():
+ if line.startswith('snapshot='):
+  current=line.split()[0].split('=',1)[1];snapshots[current]={}
+ elif line.startswith('actor '):
+  match=re.fullmatch(r'actor eid=(\d+) index=(\d+) hp=(.*?) sp=(.*?) crew=(.*?) pos=(.*?) yaw=(.*?) velocity=(.*?) cargo=(.*)',line)
+  if match:
+   eid,index,hp,sp,crew,pos,yaw,velocity,cargo=match.groups()
+   snapshots[current][index]={'eid':eid,'hp':hp,'sp':sp,'crew':crew,'cargo':cargo}
+pairs=[]
+for a,b in [('barbados_before_antigua','antigua_after'),('tortuga_50_before_cuba1','cuba1_25_after'),('cuba1_25_after','tortuga_50_after'),('before_save','after_roundtrip_load')]:
+ common=sorted(set(snapshots[a])&set(snapshots[b]),key=int);changes={}
+ for index in common:
+  changed={key:[snapshots[a][index][key],snapshots[b][index][key]] for key in ['hp','sp','crew','cargo'] if snapshots[a][index][key]!=snapshots[b][index][key]}
+  if changed:changes[index]=changed
+ pairs.append({'from':a,'to':b,'common_actor_count':len(common),'persistent_changes':changes,'original_loaded_fleet_persistent_changes':{i:v for i,v in changes.items() if i in protected},'all_common_native_ship_eids_same':all(snapshots[a][i]['eid']==snapshots[b][i]['eid'] for i in common)})
+changes=[];previous=6
+for r in rows[3:]:
+ count=int(r['ships'])
+ if count!=previous:
+  changes.append({k:r[k] for k in ['frame','elapsed_ms','cpu_wall_ms','phase','location','ships']});previous=count
+scene=[r for r in rows if 181<=int(r['frame'])<=481]
+result={
+ 'status':'rejected: native BATTLE_INTERFACE::CheckSeaState crash after returnPuertoRico retirement; remount not reached',
+ 'native_engine_sha256':manifest['candidate_engine_sha256'],
+ 'native_wall_seconds':manifest['wall_seconds'],
+ 'actual_initial_residency':{'regions':27,'primary_terrain_hosts':1,'additional_terrain_regions':26,'script_forts':23,'native_forts':23},
+ 'initial_normal_load_core_wall_ms':f(rows[2],'cpu_wall_ms'),
+ 'baseline_initial_normal_load_core_wall_ms':baseline['startup_frames'][2]['wall_ms'],
+ 'peak_rss_bytes':max(f(r,'peak_rss_bytes') for r in rows),
+ 'sampled_native_peak_rss_bytes':max(r.get('rss_bytes',0) for r in manifest['rss_samples']),
+ 'crossing_sea_and_player_eids_same':len({r['sea_eid'] for r in scene})==1 and len({r['ship_eid'] for r in scene})==1,
+ 'crossing_transition_or_hold_seen':any(r['transition_active']=='1' or r['hold_loading']=='1' for r in scene),
+ 'physical_frame_scales':sorted(set(r['scale'] for r in scene)),
+ 'logical_region_scales':sorted(set((r['location'],r['logical_scale']) for r in scene)),
+ 'steady_cpu_by_location':steady,
+ 'state_pairs':pairs,
+ 'original_loaded_actor_indices_from_ordinary_baseline':sorted(protected,key=int),
+ 'ship_count_changes':changes,
+ 'goods_after_initial_normal_load':{'array_size':53,'name52':'Darts','damage_hull52':2.5,'index2_label':'Knippels','damage_hull2':5.75,'passed':True},
+ 'save_succeeded':True,'save_wall_ms':1198.439292,
+ 'normal_roundtrip_load':'passed60stable frames; active Tortuga scene/new epoch with19ships and no stale crew IDs',
+ 'goods_after_roundtrip_load':{'array_size':53,'name52':'Darts','damage_hull52':2.5,'index2_label':'Knippels','damage_hull2':5.75,'passed':True},
+ 'final_completed_core_frame':int(rows[-1]['frame']),
+ 'fault':'native-fault.json BATTLE_INTERFACE::CheckSeaState+392, bad address0x88',
+ 'gpu':'unavailable: trace0bytes because native crash prevented final flush; no GPU acceptance',
+ 'clock_unique':sorted(set(tuple(r[k] for k in ['clock_year','clock_month','clock_day','clock_hour','clock_min','clock_sec']) for r in rows[2:])),
+ 'remount':'pending: one retired roster and no re-admission before next CORE crash',
+ 'crew_after_roundtrip':{'entries':19,'stale_ship_ids':0},
+ 'source_runtime_and_original_SAVE_invariance':all(manifest[k] for k in ['installed_engine_unchanged','canonical_sources_unchanged_during_run','runtime_program_unchanged','runtime_resource_projection_targets_unchanged','original_save_unchanged']),
+ 'comparison_limit':'same full PROGRAM/settings/routes, but candidate adds full resident terrain and18–22 admitted hulls; CPU rows prove observed regression, not its sole cause. Images remain human acceptance.'
+}
+(p/'summary.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({k:result[k] for k in ['status','steady_cpu_by_location','state_pairs','ship_count_changes']},indent=2))

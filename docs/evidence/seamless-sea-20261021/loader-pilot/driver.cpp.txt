@@ -1,0 +1,54 @@
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "ship_base.h"
+#include <SDL2/SDL.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <spdlog/spdlog.h>
+extern "C" bool StormMetalFlushFrameTrace(void *);
+VDATA *var(const char *n){return static_cast<VDATA *>(core.GetScriptVariable(n));}
+int flag(const char*n){auto*v=var(n);return v?v->GetInt():-1;}
+ATTRIBUTES* attr(const char*n){auto*v=var(n);if(!v)return nullptr;auto*d=static_cast<DATA*>(v);if(d->GetType()==VAR_REFERENCE&&!d->GetReference())return nullptr;return v->GetAClass();}
+std::string value(ATTRIBUTES*a,const char*n){auto*b=a?a->FindAClass(a,n):nullptr;return b&&b->HasValue()?b->GetValue():"";}
+int main(int argc,char**argv){
+ if(argc!=2)return 64;
+ const auto cwd=std::filesystem::canonical(argv[1]);std::filesystem::current_path(cwd);
+ std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1);setenv("STORM_QUIET_CLIENT","1",1);
+ setenv("STORM_METAL_FRAME_TRACE",(cwd/"renderer-frames.csv").c_str(),1);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO))return 65;
+ steamapi::SteamApi::getInstance(true);
+ auto window=storm::OSWindow::Create(960,600,0,false,false);
+ if(!window||!window->OSHandle()||(SDL_GetWindowFlags(static_cast<SDL_Window*>(window->OSHandle()))&SDL_WINDOW_SHOWN))return 66;
+ core_internal.Init();core_internal.SetWindow(window);core_internal.InitBase();core_internal.SetDeltaTime(16);
+ std::ofstream rows(cwd/"frames.csv");rows<<"frame,wall_ms,sea_active,sea_loaded,reload,ships,sea_eid,worldmap_eid,transition_eid,location,save_from,island,zero_x,zero_z,ship_eid,ship_x,ship_z,heading,ship_speed_z\n";
+ bool loadSent=false;int valid=0;const auto start=std::chrono::steady_clock::now();
+ try{
+ for(int frame=0;frame<2000;++frame){
+  if(std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()>115){std::puts("deadline=1");break;}
+  SDL_PumpEvents();
+  const auto begin=std::chrono::steady_clock::now();if(!core_internal.Run())break;
+  const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
+  auto*p=attr("pchar");auto*w=attr("worldMap");auto*a=attr("AISea");
+  SHIP_BASE*player=nullptr;entid_t playerId=0;
+  for(auto id:core.GetEntityIds("Ship"))if(auto*s=dynamic_cast<SHIP_BASE*>(core.GetEntityPointer(id)))
+   if(s->GetACharacter()&&p&&value(s->GetACharacter(),"index")==value(p,"index")){player=s;playerId=id;break;}
+  rows<<frame<<','<<ms<<','<<flag("bSeaActive")<<','<<flag("bSeaLoaded")<<','<<flag("bSeaReloadStarted")<<','<<core.GetEntityIds("Ship").size()<<','<<core.GetEntityId("sea")<<','<<core.GetEntityId("worldmap")<<','<<core.GetEntityId("SeaMapTransition")<<','<<value(p,"location")<<','<<(var("seadogs_saveFrom")?var("seadogs_saveFrom")->GetString():"")<<','<<value(a,"Island")<<','<<value(w,"zeroX")<<','<<value(w,"zeroZ")<<','<<playerId<<','<<(player?player->GetPos().x:0)<<','<<(player?player->GetPos().z:0)<<','<<(player?player->State.vAng.y:0)<<','<<(player?player->State.vSpeed.z:0)<<'\n';
+  rows.flush();
+  if(frame>=1&&!loadSent&&p){core_internal.Compiler->SetEventHandler("evntLoad","LoadGame",0);core.Event("evntLoad","s","SAVE\\Probe\\input");loadSent=true;std::puts("canonical_load_event_sent=1");std::fflush(stdout);}
+  if(loadSent&&flag("bSeaActive")==1&&flag("bSeaLoaded")==1&&player)++valid;
+  if(valid>=120){std::puts("actual_save_sea_frames=120");break;}
+ }
+ }catch(const std::exception&e){std::cerr<<"exception="<<e.what()<<'\n';}
+ auto*renderer=static_cast<VDX9RENDER*>(core.GetService("dx9render"));
+ if(renderer)StormMetalFlushFrameTrace(renderer->GetNativeDevice());
+ std::printf("valid_sea_frames=%d\n",valid);std::fflush(stdout);
+ core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();
+ return valid>=120?0:2;
+}

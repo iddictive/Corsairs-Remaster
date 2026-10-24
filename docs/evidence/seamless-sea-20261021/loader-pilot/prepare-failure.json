@@ -1,0 +1,7 @@
+{
+  "phase": "disposable driver link invocation",
+  "observed": "Ninja emits ': && c++ ... && :'; initial argv parsing attempted ':' as the executable.",
+  "native_runtime_started": false,
+  "correction": "Require and strip exactly the documented shell no-op prefix/suffix before invoking the compiler argv.",
+  "original_save_unchanged": true
+}

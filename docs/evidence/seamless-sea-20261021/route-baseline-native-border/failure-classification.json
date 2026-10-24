@@ -1,0 +1,8 @@
+{
+  "status": "disposable observer defect; ordinary crossings already completed; game Save roundtrip acceptance remains open",
+  "source_fact": "LoadGame synchronously calls DeleteEntities; driver phase5 invoked load before subsequent row/capture used old SHIP_BASE pointer",
+  "observed": "SIGSEGV returncode -11 after successful SaveState and before writing frame1330",
+  "causal_status": "use-after-free exists in driver; crash attribution to be checked by replay after moving load dispatch after all observer reads",
+  "corrected_delta": "defer only canonical roundtrip LoadGame dispatch until end of observed frame",
+  "raw_gpu_trace": "not flushed because driver crashed; do not claim GPU timing from this rejected run"
+}
