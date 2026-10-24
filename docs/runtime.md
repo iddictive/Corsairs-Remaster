@@ -2,16 +2,19 @@
 
 ## October23 — transition and gameplay repair
 
-Current installed signed engine: `fc47c87870fc0bc5791a32bdb3b0a902d9e4431262b89d625eedbb945983eb52`.
-The normal transactional installer delivered the native camera/forest/timing
-batch. Targeted gameplay delivery also matches both consumers for the stale
-storm-contact correction and admission-reason trace. Native/CPU results and
+Current installed signed engine: `6a3e9ff9e346b75fee6a06baccb581cabb7ab1fd1516cca3761be7bda6c161f3`.
+The normal transactional installer delivered retained player-visual reuse and
+restored prewarming in the sea traffic host. Gameplay now admits authored
+encounters and weather into retained sea through the shared cold/resident
+importer, preserving mounted actors and existing tasks. Nation-flag liveness
+checks borrow the map instead of copying its descriptor tree. Native/CPU results and
 the two actual player round trips are retained in the
 [transition evidence](evidence/sea-map-transition-20261023/README.md).
 
 The latest recorded return used cold sea login for1590.759ms. Its particular
-admission rejection was not recorded; the subsequent stale-storm correction
-and reason trace do not establish a stall-free return. Full transition, tree
+admission rejection was not recorded. The implementation removes authored
+selection/weather as cold-reload reasons, but source/component checks do not
+establish a stall-free return. Full transition, tree
 appearance and sustained FPS remain unverified. The player forbids further
 requested game replays; autonomous game control and SAVE inspection are also
 outside authorization. No additional game run is required from the player.

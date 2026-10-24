@@ -180,25 +180,11 @@ bool WdmTryResidentSea()
     if (!Sea_ResidentSuspended()) return WdmRejectResidentSea("scene-not-retained");
     if (!IsEntity(&worldMap)) return WdmRejectResidentSea("map-inactive");
     worldMap.playerShipUpdate = "";
-    // Explicit authored encounters and scripted offshore scenes use their
-    // existing cold admission; no NPC slot may be cleared before this decision.
-    // Native weather retains the last storm id after leaving its contact area.
-    // Only a current authored storm needs cold admission; missing contact data
-    // keeps the existing conservative path for older map state.
-    if (CheckAttribute(&worldMap, "GreatRecipeZoneAttack")) return WdmRejectResidentSea("authored-offshore");
-    if (CheckAttribute(&worldMap, "stormId") && worldMap.stormId != "" &&
-        (!CheckAttribute(&worldMap, "playerInStorm") || sti(worldMap.playerInStorm)))
-        return WdmRejectResidentSea("authored-storm");
-    int count = wdmGetNumberShipEncounters();
-    for (int i = 0; i < count; i++)
-    {
-        if (!wdmSetCurrentShipData(i)) continue;
-        if (sti(worldMap.encounter.select) && WdmEncounterUsesAuthoredAdmission())
-            return WdmRejectResidentSea("authored-encounter");
-    }
+    // Descriptors are admitted into the retained scene by the same importer
+    // as a cold login. Selection/weather alone must not tear that scene down.
     DeleteAttribute(&wdmLoginToSea, "");
-    WdmAddPlayerGroup();
     wdmLoginToSea.residentResume = 1;
+    WdmAddPlayerGroup();
     PGG_DailyUpdate();
     Siege_DailyUpdate();
     SaveCurrentQuestDateParam("WordMapEncounters_DailyUpdate");
@@ -217,6 +203,11 @@ bool WdmTryResidentSea()
         DeleteAttribute(&wdmLoginToSea, "residentResume");
         return WdmRejectResidentSea("transition-create-failed");
     }
+    WdmAddEncountersData();
+    GreatRecipe_MapAdmission(&wdmLoginToSea);
+    WdmStormEncounter();
+    SendMessage(&worldMap, "l", MSG_WORLDMAP_CREATEENC_RELEASE);
+    worldMap.deleteUpdate = "";
     SetEventHandler("Wdm_SeaTransitionCommit", "WdmSeaTransitionCommit", 0);
     SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
     return true;
@@ -303,6 +294,12 @@ void WdmAddPlayerGroup()
 		worldMap.zeroX = worldMap.playerShipX;
 		worldMap.zeroZ = worldMap.playerShipZ;
 	}
+    if (CheckAttribute(&wdmLoginToSea, "residentResume"))
+    {
+        wdmLoginToSea.playerGroup.x = Sea_LocalX(psX, psZ);
+        wdmLoginToSea.playerGroup.z = Sea_LocalZ(psX, psZ);
+        wdmLoginToSea.playerGroup.ay = Sea_LocalHeading(stf(worldMap.playerShipAY));
+    }
 }
 
 bool WdmEncounterUsesAuthoredAdmission()
@@ -480,6 +477,17 @@ bool WdmAddEncountersData()
 			wdmLoginToSea.encounters.(grp).x = wpsX + (encX - mpsX) * encounterScale;
 			wdmLoginToSea.encounters.(grp).z = wpsZ + (encZ - mpsZ) * encounterScale;
 			wdmLoginToSea.encounters.(grp).ay = worldMap.encounter.ay;
+            if (CheckAttribute(&wdmLoginToSea, "residentResume"))
+            {
+                // Preserve authored encounter spacing, rotating its offset
+                // through the existing atlas frame rather than changing origins.
+                aref frame; makearef(frame, AISea.worldFrame.atlas_to_sea);
+                float dx = (encX - mpsX) * encounterScale;
+                float dz = (encZ - mpsZ) * encounterScale;
+                wdmLoginToSea.encounters.(grp).x = wpsX + stf(frame.a)*dx + stf(frame.b)*dz;
+                wdmLoginToSea.encounters.(grp).z = wpsZ + stf(frame.c)*dx + stf(frame.d)*dz;
+                wdmLoginToSea.encounters.(grp).ay = Sea_LocalHeading(stf(worldMap.encounter.ay));
+            }
 			wdmLoginToSea.encounters.(grp).type = mapEncSlot;
 			wdmLoginToSea.encounters.(grp).id = worldMap.encounter.id;
 			//Помечаем энкоунтера на удаление
@@ -510,6 +518,14 @@ void WdmStormEncounter()
             {
                 wdmLoginToSea.TsunamiDirectionX = stf(worldMap.(tsunamiPath).tsunamiImpactDirectionX);
                 wdmLoginToSea.TsunamiDirectionZ = stf(worldMap.(tsunamiPath).tsunamiImpactDirectionZ);
+                if (CheckAttribute(&wdmLoginToSea, "residentResume"))
+                {
+                    aref frame; makearef(frame, AISea.worldFrame.atlas_to_sea);
+                    float dx = stf(wdmLoginToSea.TsunamiDirectionX);
+                    float dz = stf(wdmLoginToSea.TsunamiDirectionZ);
+                    wdmLoginToSea.TsunamiDirectionX = stf(frame.a)*dx + stf(frame.b)*dz;
+                    wdmLoginToSea.TsunamiDirectionZ = stf(frame.c)*dx + stf(frame.d)*dz;
+                }
             }
             // A travelling wave is not hurricane/tornado weather or ongoing damage.
             wdmLoginToSea.storm = 0;

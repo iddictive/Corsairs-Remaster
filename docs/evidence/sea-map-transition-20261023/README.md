@@ -131,3 +131,42 @@ admission/cleanup and missing optional metadata. `Diagnostic=0; script_errors=0`
 baseline/current guard results. Scene/entity construction remains outside that
 fixture. This closes the missing diagnostic field; it does not establish the
 cause of the earlier player's cold branch or accept freeze-free gameplay.
+
+## Retained admission and outbound visual reuse
+
+The later implementation removes encounter/storm/offshore selection as reasons
+to destroy an otherwise retained sea. Cold and retained entry share the existing
+encounter importer; retained entry keeps mounted hulls, damage, task state,
+counters and harbour reservations. Missing members are admitted within existing
+capacity; a stale `AlreadyLoaded` flag cannot suppress a missing member. The
+ordinary cold caller remains in its original order. Descriptor consumption follows
+successful transition creation, preserving recovery if creation fails. Quest
+redirects run before weather movement, layer unfreeze and HUD restoration.
+
+The existing prewarm was disabled by the sea traffic host's `wdmObjects` global.
+It now distinguishes that host from the active map. Warmup, hull-job polling and
+the apex refresh share the host-owned player visual, avoiding a second owning
+copy that resident map activation never consumed. The visual signature follows
+the successful refresh, preventing an immediate first-map rebuild. Current pose,
+cloth, damage, failed-replacement retention and the nonresident pending fallback
+keep their existing owners. The seven nation-flag liveness guards borrow the map
+object instead of deep-copying its whole descriptor tree.
+
+[Raw CPU evidence and exact fixtures](retained-return.json) retain the full-chain
+coordinate/weather checks, actual resume body with scene callbacks stubbed, and
+nine group cases. All report zero script errors. Marked partial group admission
+failed before the two-line guard correction and passes afterward. Coordinates
+cover a rotated/translated retained frame and repeated normalization; tsunami
+direction rotates as a vector. Resume cases include both redirect mechanisms,
+offshore preparation, native weather, explicit tornado, tsunami consumption and
+missing retained state. The full PROGRAM compiles after replacing only its game
+`Main` with an uncalled name; the fixture driver never initializes gameplay.
+
+The same VM's 8000-row/40-check copy-cost component took 0.617/0.644 seconds
+after first startup versus 0.261/0.266 seconds with borrowed guards. These are
+whole-process CPU observations, not frame timings or evidence of game FPS.
+The canonical native build passes. No further player replay, autonomous game
+run, SAVE access or GPU/frame-pacing acceptance was performed. Missing retained
+scenes and failed native relocation still have synchronous cold recovery.
+The historical `resume-admission-replay.py` is pinned to its original repair
+commit; its old authored-rejection policy is superseded by this implementation.

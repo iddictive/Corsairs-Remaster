@@ -53,11 +53,12 @@ bool storm_map_player::seaVisualBounds(CVECTOR &size, CVECTOR &center)
 bool storm_map_player::prepareSeaVisual(const char *modelName)
 {
     auto *ship = mainVisualShip();
-    return ship && preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), modelName);
+    return ship && preparePlayerVisual(seaPlayerVisual(), ship->GetModel(), ship->GetACharacter(), modelName);
 }
 void storm_map_player::pollSeaVisual()
 {
-    if (pendingPlayerVisual) pendingPlayerVisual->pollHullRebuild();
+    auto &visual = seaPlayerVisual();
+    if (visual) visual->pollHullRebuild();
 }
 void storm_map_player::discardSeaVisual()
 {
@@ -80,15 +81,15 @@ bool storm_map_player::warmSeaVisual()
     if (!name) return false;
     const auto source = ship->GetModel()->GetId();
     const int characterIndex = int(descriptor->GetAttributeAsDword("characterIndex", -1));
-    if (warmedVisualSource == source && pendingPlayerVisual && pendingPlayerVisual->alive() && pendingPlayerVisual->modelName == name &&
-        pendingPlayerVisual->characterIndex == characterIndex) return true;
-    if (warmedVisualSource != source) discardPlayerVisual();
+    const auto signature = visualSignature(ship->GetACharacter());
+    auto &visual = seaPlayerVisual();
+    if (warmedVisualSource == source && visual && visual->alive() && visual->modelName == name &&
+        visual->characterIndex == characterIndex && visual->stateSignature == signature) return true;
     // A failed checkpoint/model is not new work on the next Execute. Retry
     // only for changed visual state, a new sea model, or explicit disposal.
-    const auto signature = visualSignature(ship->GetACharacter());
     if (warmVisualFailure.source == source && warmVisualFailure.characterIndex == characterIndex &&
         warmVisualFailure.model == name && warmVisualFailure.signature == signature) return false;
-    if (preparePlayerVisual(ship->GetModel(), ship->GetACharacter(), name))
+    if (preparePlayerVisual(visual, ship->GetModel(), ship->GetACharacter(), name))
     {
         warmVisualFailure = {};
         warmedVisualSource = source;

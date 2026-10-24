@@ -412,7 +412,7 @@ float wdmGetDays(int year, int month, int day, int hour)
 
 void wdmPurgeStaleNationEncounters()
 {
-	if(!IsEntity(worldMap) || !CheckAttribute(&worldMap, "encounters")) return;
+	if(!IsEntity(&worldMap) || !CheckAttribute(&worldMap, "encounters")) return;
 
 	aref encs;
 	makearef(encs, worldMap.encounters);
@@ -439,7 +439,7 @@ void wdmPurgeStaleNationEncounters()
 void wdmSetNationFlag(int iNation)
 {
 	int Nation;
-	if(isEntity(worldMap))
+	if(isEntity(&worldMap))
 	{
 		switch(iNation)
 		{

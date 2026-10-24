@@ -9,6 +9,7 @@
 #include "vma.hpp"
 #include "wdm_objects.h"
 #include "wdm_islands.h"
+#include "world_map.h"
 #include "world_map_player_model.hpp"
 #include "sea_atlas.hpp"
 #include "v_file_service.h"
@@ -367,7 +368,7 @@ class WdmStaticResources final : public Entity
     {
         // Renderer reset owns and restores pooled texture/buffer handles.
         // Do not drop resources while a map still borrows them.
-        if (stage != Stage::execute || wdmObjects || SeaMapTransition::Active() ||
+        if (stage != Stage::execute || (wdmObjects && (!wdmObjects->wm || !wdmObjects->wm->IsSeaTraffic())) || SeaMapTransition::Active() ||
             !core.GetEntityId("SEA_CAMERAS")) return;
         if (!assets->Ready()) assets->WarmNext(geometry);
         else

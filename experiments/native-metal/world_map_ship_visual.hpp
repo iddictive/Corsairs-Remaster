@@ -255,6 +255,7 @@ class ShipVisual
         scale = miniatureScale(size);
         if (!(scale > 0.f)) return false;
         sails = std::move(currentSails);
+        stateSignature = visualSignature(character);
         return true;
     }
 
@@ -289,6 +290,7 @@ class ShipVisual
     float scale = 0.f;
     std::string modelName;
     int characterIndex = -1;
+    uint64_t stateSignature = 0;
 
   private:
     ShipVisual() = default;
@@ -300,15 +302,21 @@ class ShipVisual
 };
 
 inline std::unique_ptr<ShipVisual> pendingPlayerVisual;
+std::unique_ptr<ShipVisual> &seaPlayerVisual();
 inline void discardPlayerVisual() { pendingPlayerVisual.reset(); }
+inline bool preparePlayerVisual(std::unique_ptr<ShipVisual> &target, MODEL *live, ATTRIBUTES *character, const char *actualModel)
+{
+    if (target && character && actualModel && target->modelName == actualModel &&
+        target->characterIndex == int(character->GetAttributeAsDword("index", -1)) &&
+        target->refresh(character, live)) return true;
+    auto visual = ShipVisual::create(actualModel, character, live);
+    if (!visual) return false;
+    target = std::move(visual);
+    return true;
+}
 inline bool preparePlayerVisual(MODEL *live, ATTRIBUTES *character, const char *actualModel)
 {
-    if (pendingPlayerVisual && character && actualModel && pendingPlayerVisual->modelName == actualModel &&
-        pendingPlayerVisual->characterIndex == int(character->GetAttributeAsDword("index", -1)) &&
-        pendingPlayerVisual->refresh(character, live)) return true;
-    auto visual = ShipVisual::create(actualModel, character, live);
-    pendingPlayerVisual = std::move(visual);
-    return bool(pendingPlayerVisual);
+    return preparePlayerVisual(pendingPlayerVisual, live, character, actualModel);
 }
 inline std::unique_ptr<ShipVisual> consumePlayerVisual(ATTRIBUTES *descriptor)
 {

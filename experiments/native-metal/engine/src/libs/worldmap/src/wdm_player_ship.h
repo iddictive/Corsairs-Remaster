@@ -51,8 +51,9 @@ class WdmPlayerShip : public WdmShip
     // Encapsulation
     // --------------------------------------------------------------------------------------------
   private:
+    friend std::unique_ptr<storm_map_player::ShipVisual> &storm_map_player::seaPlayerVisual();
     std::unique_ptr<storm_map_player::ShipVisual> playerVisual;
-    uint64_t playerVisualSignature = 0;
+    uint64_t failedPlayerVisualSignature = 0;
     void RefreshPlayerVisual();
     bool goForward;
     float actionRadius;

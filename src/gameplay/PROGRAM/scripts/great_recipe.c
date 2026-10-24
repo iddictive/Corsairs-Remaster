@@ -1907,6 +1907,15 @@ void GreatRecipe_Boss(ref dream)
 
 void GreatRecipe_Group(ref login, ref captain)
 {
+    if (CheckAttribute(login, "residentResume") && IsEntity(captain) && Group_FindGroup("GreatRecipeSea") >= 0)
+    {
+        ref group = Group_GetGroupByID("GreatRecipeSea");
+        if (Group_GetGroupCommanderIndexR(group) == sti(captain.index))
+        {
+            login.QuestGroups.GreatRecipe = "GreatRecipeSea";
+            return;
+        }
+    }
     Group_DeleteGroup("GreatRecipeSea");
     Group_AddCharacter("GreatRecipeSea", captain.id);
     Group_SetType("GreatRecipeSea", "pirate");

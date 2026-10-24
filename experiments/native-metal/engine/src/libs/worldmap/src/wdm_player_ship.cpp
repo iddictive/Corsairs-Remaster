@@ -24,6 +24,13 @@
 
 namespace storm_map_player
 {
+std::unique_ptr<ShipVisual> &seaPlayerVisual()
+{
+    if (wdmObjects && wdmObjects->wm && wdmObjects->wm->IsSeaTraffic())
+        if (auto *player = dynamic_cast<WdmPlayerShip *>(wdmObjects->playerShip)) return player->playerVisual;
+    return pendingPlayerVisual;
+}
+
 float miniatureScale(const CVECTOR &size)
 {
     // Historical GM supplies the established physical reference footprint;
@@ -108,7 +115,6 @@ bool WdmPlayerShip::Load(const char *modelName)
     if (!WdmShip::Load(modelName)) return false;
     auto *attributes = wdmObjects->wm ? wdmObjects->wm->AttributesPointer : nullptr;
     playerVisual = storm_map_player::consumePlayerVisual(attributes ? attributes->GetAttributeClass("playerShipVisual") : nullptr);
-    if (playerVisual) playerVisualSignature = storm_map_player::visualSignature(storm_map_player::currentCharacter(playerVisual->characterIndex));
     if (!playerVisual) core.Trace("World map: current player hull/cloth visual could not be reconstructed; falling back to base geometry");
     return true;
 }
@@ -118,13 +124,13 @@ void WdmPlayerShip::RefreshPlayerVisual()
     if (!playerVisual) return;
     auto *character = storm_map_player::currentCharacter(playerVisual->characterIndex);
     const uint64_t signature = storm_map_player::visualSignature(character);
-    if (signature == playerVisualSignature) return;
+    if (signature == playerVisual->stateSignature || signature == failedPlayerVisualSignature) return;
     // Existing ship/material/damage attributes own invalidation. Rebuild only
     // after they change; GetSailTextureData still owns material interpretation.
     auto *data = core.Event("WorldMap_PlayerShipVisual");
     auto *attributes = data ? data->GetAClass() : nullptr;
     auto updated = storm_map_player::consumePlayerVisual(attributes ? attributes->GetAttributeClass("playerShipVisual") : nullptr);
-    playerVisualSignature = signature;
+    failedPlayerVisualSignature = updated ? 0 : signature;
     if (updated) playerVisual = std::move(updated);
     else core.Trace("World map: player visual refresh failed; retaining previous owning visual");
 }

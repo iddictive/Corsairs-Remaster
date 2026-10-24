@@ -507,9 +507,9 @@ bool Sea_ResidentResume(ref login)
     if (!Sea_ResidentSuspended()) return false;
     Sea_TransitionTrace("resident-resume:poses");
     SeaTraffic_ResumePoses();
-    float x = Sea_LocalX(stf(worldMap.playerShipX), stf(worldMap.playerShipZ));
-    float z = Sea_LocalZ(stf(worldMap.playerShipX), stf(worldMap.playerShipZ));
-    float ay = Sea_LocalHeading(stf(worldMap.playerShipAY));
+    float x = stf(login.PlayerGroup.x);
+    float z = stf(login.PlayerGroup.z);
+    float ay = stf(login.PlayerGroup.ay);
     if (!SendMessage(&AISea, "lsfff", AI_MESSAGE_RELOCATE_GROUP, PLAYER_GROUP, x, z, ay)) return false;
     bSkipSeaLogin = false;
     bSeaActive = true;
@@ -524,9 +524,23 @@ bool Sea_ResidentResume(ref login)
     bCanEnterToLand = false;
     sIslandLocator = "";
     bIsFortAtIsland = false;
+    DeleteAttribute(&LoginGroupsNow, "");
+    WdmMilitaryParleyClear();
+    bFromCoast = false;
+    NullCharacter.Login.PlayerGroup.x = x;
+    NullCharacter.Login.PlayerGroup.z = z;
+    NullCharacter.Login.PlayerGroup.ay = ay;
+    GreatRecipe_PrepareSea(login);
+    if (CheckAttribute(login, "GreatRecipeOpenSea") && sti(login.GreatRecipeOpenSea))
+    {
+        sIslandID = "";
+        pchar.location = "";
+        AISea.Island = "";
+        DeleteAttribute(login, "GreatRecipeOpenSea");
+    }
     Sea_TransitionTrace("resident-resume:quests");
     QuestsCheck();
-    if (!bSeaActive || !IsEntity(&AISea))
+    if (bSkipSeaLogin || !bSeaActive || !IsEntity(&AISea))
     {
         bSkipSeaLogin = true;
         return true;
@@ -539,14 +553,36 @@ bool Sea_ResidentResume(ref login)
     Weather.Time.time = GetTime();
     Weather.Time.speed = 350.0;
     if (iArcadeSails == 1) Weather.Time.speed = 250.0;
+    bool eventStorm = CheckAttribute(login, "storm") && sti(login.storm);
+    bool eventTornado = CheckAttribute(login, "tornado") && sti(login.tornado);
+    if (!eventTornado && CheckAttribute(&worldMap, "nativeWeatherStorm") && sti(worldMap.nativeWeatherStorm)) eventStorm = false;
+    DeleteAttribute(&worldMap, "nativeWeatherStorm");
+    if (eventStorm || eventTornado) Whr_RequestWeather(1.0, 1.0, 30.0, 300.0, eventTornado, false);
     bStorm = Whr_IsStorm();
     WeatherParams.Storm = bStorm;
-    bTornado = false;
-    WeatherParams.Tornado = false;
+    bTornado = IsEntity(&Tornado);
+    WeatherParams.Tornado = bTornado;
     Seafoam.storm = bStorm;
     iStormLockSeconds = 0;
     if (bStorm) iStormLockSeconds = 60;
     fSeaStormRealSeconds = 0.0;
+    Sea_TransitionTrace("resident-resume:encounters");
+    Sea_LoginEncounterGroups(login, sIslandID, true);
+    GreatRecipe_SeaReady();
+    if (CheckAttribute(login, "TsunamiSeverity"))
+    {
+        float incomingX = 0.0;
+        float incomingZ = 0.0;
+        if (CheckAttribute(login, "TsunamiDirectionX") && CheckAttribute(login, "TsunamiDirectionZ"))
+        {
+            incomingX = stf(login.TsunamiDirectionX);
+            incomingZ = stf(login.TsunamiDirectionZ);
+        }
+        bSeaTsunamiEncounter = SeaTsunami_StartWithDirection(stf(login.TsunamiSeverity), incomingX, incomingZ);
+        DeleteAttribute(login, "TsunamiSeverity");
+        DeleteAttribute(login, "TsunamiDirectionX");
+        DeleteAttribute(login, "TsunamiDirectionZ");
+    }
     Sea_TransitionTrace("resident-resume:sound");
     SetSchemeForSea();
     PauseParticles(false);
@@ -1026,8 +1062,6 @@ void SeaLogin(ref Login)
 	SeaCameras_SetShipForSeaCamera(&pchar);
 
 	// login encounters
-	object oResult;
-	int iFantomIndex;
 
 	if (sIslandID != "")
 	{
@@ -1036,23 +1070,75 @@ void SeaLogin(ref Login)
 
 	ReloadProgressUpdate();
 
+	Sea_LoginEncounterGroups(Login, sIslandID, false);
+
+	//InitBattleInterface();							ReloadProgressUpdate();
+	//StartBattleInterface();							ReloadProgressUpdate();
+	//RefreshBattleInterface();						ReloadProgressUpdate();
+
+	/*CreateEntity(&SeaOperator, "SEA_OPERATOR");
+	LayerAddObject(SEA_EXECUTE, &SeaOperator, -1);
+	LayerAddObject(SEA_REALIZE, &SeaOperator, 3);*/
+
+	SendMessage(&Telescope, "leee", MSG_TELESCOPE_INIT_ARRAYS, &Nations, &RealShips, &Goods);
+
+	PostEvent(SHIP_CHECK_RELOAD_ENABLE, 1);
+
+	SetSchemeForSea();								ReloadProgressUpdate();
+	sSeaStartMusicName = oldMusicName;
+
+	iRDTSC = RDTSC_E(iRDTSC);
+	//Trace("SeaLogin RDTSC = " + iRDTSC);
+	//Trace("iNumFantomShips = " + iNumFantomShips);
+
+	pchar.space_press = "0";
+	DeleteAttribute(pchar, "SkipEshipIndex");// boal
+
+	/*if (checkattribute(pchar, "sneak"))
+	{
+		string sgroup = pchar.sneak.group;
+		LAi_group_NotFightPlayerVSGroup(sgroup);
+		deleteAttribute(pchar, "sneak");
+	}*/
+
+	PostEvent("Sea_FirstInit", 1);
+    if (tsunamiSeverity >= 0.0 && tsunamiSeverity <= 1.0)
+    {
+        Sea.Tsunami.PendingSeverity = tsunamiSeverity;
+        Sea.Tsunami.PendingDirectionX = tsunamiDirectionX;
+        Sea.Tsunami.PendingDirectionZ = tsunamiDirectionZ;
+    }
+}
+
+// Shared cold/resident admission. Retained callers supply coordinates in the
+// current sea frame and keep live ship counters, groups and actor identities.
+void Sea_LoginEncounterGroups(ref Login, string island, bool retained)
+{
+    int i, j, k, iFantomIndex, iNumQCGroups;
+    float x, z, ay;
+    ref rGroup, rEncounter, rFantom;
+    aref rRawGroup, arQCGroups;
+    string sGName;
+    object oResult;
+    int taskStart = 0;
+    if (retained) taskStart = GetArraySize(&sTaskList) - 2;
 	// login quest group if island exist
 	ReloadProgressUpdate();
-	if (sIslandID != "")
+	if (island != "")
 	{
 		for (i=0; i<MAX_SHIP_GROUPS; i++) 
 		{
 			rGroup = Group_GetGroupByIndex(i);
-			if (!CheckAttribute(rGroup,"AlreadyLoaded")) 
+			if (!retained && !CheckAttribute(rGroup,"AlreadyLoaded"))
 			{ 
 				DeleteAttribute(rGroup,"AlreadyLoaded");	
 			}
 
 			if (!CheckAttribute(rGroup, "id"))			continue;
 			if (!CheckAttribute(rGroup, "location"))	continue;
-			if (rGroup.location != sIslandID)			continue;
+			if (rGroup.location != island)			continue;
 
-			Sea_LoginGroup(rGroup.id);
+			Sea_LoginGroupAdmission(rGroup.id, retained);
 		}
 	}
 
@@ -1063,7 +1149,7 @@ void SeaLogin(ref Login)
 		iNumQCGroups = GetAttributesNum(arQCGroups);
 		for (i=0; i<iNumQCGroups; i++)
 		{
-			Sea_LoginGroup(GetAttributeValue(GetAttributeN(arQCGroups, i)));
+			Sea_LoginGroupAdmission(GetAttributeValue(GetAttributeN(arQCGroups, i)), retained);
 		}
 	}
 
@@ -1076,7 +1162,7 @@ void SeaLogin(ref Login)
 		iNumQCGroups = GetAttributesNum(arQCGroups);
 		for (i=0; i<iNumQCGroups; i++)
 		{
-			Sea_LoginGroup(GetAttributeValue(GetAttributeN(arQCGroups, i)));
+			Sea_LoginGroupAdmission(GetAttributeValue(GetAttributeN(arQCGroups, i)), retained);
 		}
 	}
 	
@@ -1088,9 +1174,9 @@ void SeaLogin(ref Login)
 	// login fantom groups		
 	aref arEncounters;
 	makearef(arEncounters,Login.Encounters);
-	WdmFleetSeaAttachMilitary(&Login);
+	if (!retained) WdmFleetSeaAttachMilitary(&Login);
 	int iNumGroups = GetAttributesNum(arEncounters);
-	WdmFleetSeaPrepareAdmission(&Login);
+	if (!retained) WdmFleetSeaPrepareAdmission(&Login);
 
 	for (i=0; i<iNumGroups; i++)
 	{
@@ -1099,6 +1185,7 @@ void SeaLogin(ref Login)
 		rRawGroup = GetAttributeN(arEncounters, i);
 		rEncounter = GetMapEncounterRef(sti(rRawGroup.type));
         if (CheckAttribute(rEncounter, "CharacterID") && (GreatRecipe_Phase() == "whirlpool" || GreatRecipe_Phase() == "assault") && rEncounter.CharacterID == "GreatRecipeDreamBeard") continue;
+		if (retained && WdmFleetSeaTagged(rEncounter)) continue;
 		if (WdmFleetSeaTagged(rEncounter) && !WdmFleetSeaAdmit(rEncounter, &Login)) continue;
 		
 		if (!CheckAttribute(rEncounter, "RealEncounterType")) // boal проверка на лажу
@@ -1107,6 +1194,18 @@ void SeaLogin(ref Login)
 			continue;
 		}		
 		int iEncounterType = sti(rEncounter.RealEncounterType);
+        if (retained)
+        {
+            string residentGroup = "";
+            if (iEncounterType == ENCOUNTER_TYPE_ALONE) residentGroup = "Sea_" + rEncounter.CharacterID;
+            else if (CheckAttribute(rEncounter, "qID")) residentGroup = rEncounter.qID;
+            else if (CheckAttribute(rEncounter, "GroupName")) residentGroup = rEncounter.GroupName;
+            if (residentGroup != "" && Sea_GroupHasMountedShips(residentGroup))
+            {
+                Sea_LoginGroupAdmission(residentGroup, true);
+                continue;
+            }
+        }
 		//trace ("RealEncounterType is " + iEncounterType);
 
 		x = stf(rRawGroup.x);
@@ -1166,11 +1265,25 @@ void SeaLogin(ref Login)
 			Trace("SEA: Login quest encounter " + rEncounter.qID);
 			Group_SetAddressNone(rEncounter.qID);
 			Group_SetXZ_AY(rEncounter.qID, x, z, ay);						
-			Sea_LoginGroup(rEncounter.qID);			
+			Sea_LoginGroupAdmission(rEncounter.qID, retained);
 			continue;
 		}
 
 		//if (bSeaQuestGroupHere) { continue; }
+
+        if (retained)
+        {
+            int required = 0;
+            if (CheckAttribute(rEncounter, "NumWarShips")) required = sti(rEncounter.NumWarShips);
+            if (CheckAttribute(rEncounter, "NumMerchantShips")) required = required + sti(rEncounter.NumMerchantShips);
+            int requiredFantoms = required;
+            if (iEncounterType == ENCOUNTER_TYPE_BARREL || iEncounterType == ENCOUNTER_TYPE_BOAT)
+            {
+                required = 0;
+                requiredFantoms = 1;
+            }
+            if (iNumShips + required > MAX_SHIPS_ON_SEA || FANTOM_CHARACTERS + iNumFantoms + requiredFantoms > TOTAL_CHARACTERS) continue;
+        }
 
 		Sea_AddGroup2TaskList(sGName);
 
@@ -1261,7 +1374,7 @@ void SeaLogin(ref Login)
 			rFantom.reputation = 5 + rand(84);
 			rFantom.EncGroupName = sGName;
 			rFantom.MainCaptanId = Characters[iFantomIndex].id;
-			rFantom.location = sIslandID;
+			rFantom.location = island;
 			rGroup.EmptyFantom = true;
 			rFantom.sex = "man";
 			rFantom.model.animation = "man";			
@@ -1347,7 +1460,7 @@ void SeaLogin(ref Login)
 			for (j=0; j<iNumFantomShips; j++)
 			{
 				iFantomIndex = FANTOM_CHARACTERS + iNumFantoms - iNumFantomShips + j;
-				Sea_MountEncounterCharacter(rEncounter, iFantomIndex, j, iFantomIndex - j, sGName, sIslandID, true);
+				Sea_MountEncounterCharacter(rEncounter, iFantomIndex, j, iFantomIndex - j, sGName, island, true);
 			}
 		}
 	}
@@ -1356,7 +1469,7 @@ void SeaLogin(ref Login)
 	ReloadProgressUpdate();
 
 	// set tasks 2 all groups
-	for (i=0; i<GetArraySize(&sTaskList)-2; i++)
+	for (i=taskStart; i<GetArraySize(&sTaskList)-2; i++)
 	{
 		WdmFleetSeaApplyTask(sTaskList[i]);
 	}	
@@ -1365,46 +1478,29 @@ void SeaLogin(ref Login)
 	AISea.DistanceBetweenGroupShips = 250.0;
 	AISea.isDone = "";
 	WdmFleetSeaSnapshotSides();
-	
-	//InitBattleInterface();							ReloadProgressUpdate();
-	//StartBattleInterface();							ReloadProgressUpdate();
-	//RefreshBattleInterface();						ReloadProgressUpdate();
-	
-	/*CreateEntity(&SeaOperator, "SEA_OPERATOR");
-	LayerAddObject(SEA_EXECUTE, &SeaOperator, -1);
-	LayerAddObject(SEA_REALIZE, &SeaOperator, 3);*/
 
-	SendMessage(&Telescope, "leee", MSG_TELESCOPE_INIT_ARRAYS, &Nations, &RealShips, &Goods);
+}
 
-	PostEvent(SHIP_CHECK_RELOAD_ENABLE, 1);
-	
-	SetSchemeForSea();								ReloadProgressUpdate();
-	sSeaStartMusicName = oldMusicName;
-
-	iRDTSC = RDTSC_E(iRDTSC);
-	//Trace("SeaLogin RDTSC = " + iRDTSC);
-	//Trace("iNumFantomShips = " + iNumFantomShips);
-
-	pchar.space_press = "0";
-	DeleteAttribute(pchar, "SkipEshipIndex");// boal
-	
-	/*if (checkattribute(pchar, "sneak"))
-	{
-		string sgroup = pchar.sneak.group;
-		LAi_group_NotFightPlayerVSGroup(sgroup);
-		deleteAttribute(pchar, "sneak");
-	}*/
-	
-	PostEvent("Sea_FirstInit", 1);
-    if (tsunamiSeverity >= 0.0 && tsunamiSeverity <= 1.0)
+bool Sea_GroupHasMountedShips(string groupID)
+{
+    if (Group_FindGroup(groupID) < 0) return false;
+    ref group = Group_GetGroupByID(groupID);
+    if (!CheckAttribute(group, "Quest")) return false;
+    aref members; makearef(members, group.Quest);
+    for (int member = 0; member < GetAttributesNum(members); member++)
     {
-        Sea.Tsunami.PendingSeverity = tsunamiSeverity;
-        Sea.Tsunami.PendingDirectionX = tsunamiDirectionX;
-        Sea.Tsunami.PendingDirectionZ = tsunamiDirectionZ;
+        int index = GetCharacterIndex(GetAttributeValue(GetAttributeN(members, member)));
+        if (index > 0 && IsEntity(&Characters[index])) return true;
     }
+    return false;
 }
 
 void Sea_LoginGroup(string sGroupID)
+{
+    Sea_LoginGroupAdmission(sGroupID, false);
+}
+
+void Sea_LoginGroupAdmission(string sGroupID, bool retained)
 {
 	if (!isEntity(&Sea)) { Trace("Error: Sea_LoginGroup sGroupID = " + sGroupID + ", but Sea is not active!"); return; }
 
@@ -1416,7 +1512,7 @@ void Sea_LoginGroup(string sGroupID)
 
 	ref rGroup = Group_GetGroupByID(sGroupID); 
 	if (!CheckAttribute(rGroup, "Quest"))			{ Trace("Error: Sea_LoginGroup sGroupID = " + sGroupID + ", but group doesn't contain any quest ships!"); return; }
-	if (CheckAttribute(rGroup, "AlreadyLoaded"))	{ Trace("Error: Group sGroupID = " + sGroupID + ", already loaded... check for duplicate group login"); return; }
+	if (!retained && CheckAttribute(rGroup, "AlreadyLoaded"))	{ Trace("Error: Group sGroupID = " + sGroupID + ", already loaded... check for duplicate group login"); return; }
 	if (Group_GetGroupCommanderIndexR(rGroup) < 0)
 	{
 		Group_DeleteAtEnd(sGroupID);
@@ -1427,6 +1523,24 @@ void Sea_LoginGroup(string sGroupID)
 
 	int iNumQuestShips = GetAttributesNum(arQuestShips);
 	if (iNumQuestShips == 0) { return; }
+
+    bool mounted = retained && Sea_GroupHasMountedShips(sGroupID);
+    if (retained)
+    {
+        int required = 0;
+        for (int member = 0; member < iNumQuestShips; member++)
+        {
+            int index = GetCharacterIndex(GetAttributeValue(GetAttributeN(arQuestShips, member)));
+            if (index <= 0 || index == nMainCharacterIndex) continue;
+            ref candidate = GetCharacter(index);
+            if (!CheckAttribute(candidate, "index") || candidate.index == "none" || sti(candidate.index) <= 0 || LAi_IsDead(candidate) || IsEntity(candidate)) continue;
+            required++;
+        }
+        if (iNumShips + required > MAX_SHIPS_ON_SEA) return;
+        if (mounted && required == 0) return;
+    }
+    if (!mounted)
+    {
 
 	float x, z, ay; x = 0.0; z = 0.0; ay = 0.0;
 
@@ -1508,6 +1622,8 @@ void Sea_LoginGroup(string sGroupID)
 		Group_SetPursuitGroup(sGroupID, rGroup.location.neargroup);
 	} */
 	
+    }
+
 	// load group ships
 	int iNumDeadCharacters = 0;
 	for (int i=0; i<iNumQuestShips; i++) //? homo;
@@ -1539,6 +1655,8 @@ void Sea_LoginGroup(string sGroupID)
     			Trace("Error: You assigned main character to quest group... This is a error!");
     			continue;
     		}
+
+            if (retained && IsEntity(rCharacter)) continue;
 
     		rCharacter.SeaAI.Group.Name = sGroupID;
     		if (CheckAttribute(rGroup, "location"))

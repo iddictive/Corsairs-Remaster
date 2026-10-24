@@ -57,15 +57,17 @@ night encounter admission cannot become a different date during the effect.
 
 Visual bounds are measured once at departure and once when the returning sea
 scene is ready. Cloth bounds read the existing CPU vertex buffer without new
-GPU allocations. At the apex the owning copy obtains its own geometry, buffer
-and texture references; pending ownership transfers to the map player, or is
-discarded when the transition aborts. No sea SHIP, collision, weather or live
+GPU allocations. At the apex the owning visual refreshes its live pose and
+cloth. A retained sea traffic host keeps its player visual; only a missing host
+uses pending ownership that transfers to the map player or is discarded on abort.
+No sea SHIP, collision, weather or live
 node callback is retained. Broken branches and saved cloth holes remain visible
 state inputs. Ship/material/damage changes invalidate only the player's visual;
 ordinary map ships and the physical reference footprint retain their owners.
 
 SEA_CAMERAS Init starts or rearms a resource-only prewarm entity. Each ordinary
-sea Execute performs at most one static GM or texture operation; no second map,
+sea Execute performs at most one static GM or texture operation, including when
+the existing sea traffic host is present; no second map,
 weather, calendar, traffic or encounter owner is initialized. WdmObjects cache
 misses previously inserted index−1, reloading repeated models; insertion is now
 corrected. Immutable islands borrow the retained pool; mutable counter models
@@ -107,11 +109,16 @@ universally stall-free transitions.
 
 Map-to-sea preserves `WdmAddEncountersData` then `GreatRecipe_MapAdmission(&wdmLoginToSea)`
 before releasing the map, and `GreatRecipe_PrepareSea` before the ordinary
-`EVENT_SEA_LOGIN`. The destination's initial rendered frame gates descent.
-An ordinary return to the retained atlas scene uses `Sea_ResidentResume`;
-authored encounters, offshore dispatch and current authored storm contact keep
-their cold admission. A stale storm identity with `playerInStorm=0` does not
-select that fallback. Cold construction still uses synchronous SeaLogin;
+`EVENT_SEA_LOGIN` on cold entry or `QuestsCheck` on retained entry. The
+destination's initial rendered frame gates descent.
+Return to the retained atlas scene uses `Sea_ResidentResume`, including authored
+encounters, offshore dispatch and storm contact. Cold and retained entry share
+`Sea_LoginEncounterGroups`; retained entry keeps native actors, counters, berths
+and existing group tasks, admitting only missing actors within the existing
+capacity. Player/encounter coordinates and wave direction use the retained
+atlas frame. Quest redirects precede layer/HUD restoration; GreatRecipe retains
+its matching live captain. Missing scenes or failed native handoff still recover
+through synchronous SeaLogin;
 resource progress calls present the retained GPU map frame. This is not an
 asynchronous sea loader, and indivisible I/O remains measurable.
 
@@ -128,8 +135,8 @@ settings or asking for another launch does not prove the route works.
 Read phase timestamps, the cold-admission reason and step intervals together.
 The rejection reason is captured before clearing the cold-login object and
 before discarding the resident scene, then emitted when the native transition
-starts. It distinguishes missing scene/map, authored offshore/encounter/storm
-and failed transition creation; successful resident admission clears its
+starts. Current rejection reasons distinguish missing scene/map and failed
+transition creation; successful resident admission clears its
 temporary field. If both native transition creation attempts fail, the legacy
 fader remains the recovery owner and cannot emit this entity's trace.
 CPU durations and eligible inter-execute gaps are different measurements;

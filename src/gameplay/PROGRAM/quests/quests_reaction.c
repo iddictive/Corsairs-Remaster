@@ -8756,7 +8756,7 @@ void Flag_PIRATE()
 	{
 	    RefreshBattleInterface();
 	}
-	if(isEntity(worldMap))
+	if(isEntity(&worldMap))
 	{
 		wdmSetNationFlag(sti(pchar.nation));
 	}
@@ -8785,7 +8785,7 @@ void Flag_FRANCE()
 	{
 	    RefreshBattleInterface();
 	}
-	if(isEntity(worldMap))
+	if(isEntity(&worldMap))
 	{
 		wdmSetNationFlag(sti(pchar.nation));
 	}
@@ -8813,7 +8813,7 @@ void Flag_ENGLAND()
 	{
 	    RefreshBattleInterface();
 	}
-	if(isEntity(worldMap))
+	if(isEntity(&worldMap))
 	{
 		wdmSetNationFlag(sti(pchar.nation));
 	}
@@ -8841,7 +8841,7 @@ void Flag_SPAIN()
 	{
 	    RefreshBattleInterface();
 	}
-	if(isEntity(worldMap))
+	if(isEntity(&worldMap))
 	{
 		wdmSetNationFlag(sti(pchar.nation));
 	}
@@ -8869,7 +8869,7 @@ void Flag_HOLLAND()
 	{
 	    RefreshBattleInterface();
 	}
-	if(isEntity(worldMap))
+	if(isEntity(&worldMap))
 	{
 		wdmSetNationFlag(sti(pchar.nation));
 	}

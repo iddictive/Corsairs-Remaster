@@ -14,7 +14,9 @@ work = Path(os.environ['TASK_SCRATCH_DIR'])
 relative = 'src/gameplay/PROGRAM/worldmap/worldmap_reload.c'
 baseline = subprocess.check_output(
     ['git', 'show', '3e7d19c1140979cc3e4744dbc8a798f2b27fdc6d:' + relative], text=True)
-current = (root / relative).read_text()
+# Historical guard replay: retained authored admission supersedes these guards.
+current = subprocess.check_output(
+    ['git', 'show', 'a9deaca2db69141177c22e2f88c099effd595aa6:' + relative], text=True)
 prelude = '''object worldMap; object wdmLoginToSea;
 string LastTrace;
 void Sea_TransitionTrace(string step){LastTrace=step;}
