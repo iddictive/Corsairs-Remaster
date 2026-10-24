@@ -42,11 +42,30 @@ def smooth(t):
     return t*t*(3-2*t)
 
 
-def curve(keys, t):
-    for a, b in zip(keys, keys[1:]):
+def hermite(a, b, va, vb, s, h):
+    return [(2*s**3-3*s*s+1)*x+(s**3-2*s*s+s)*h*vx
+            +(-2*s**3+3*s*s)*y+(s**3-s*s)*h*vy
+            for x,y,vx,vy in zip(a,b,va,vb)]
+
+
+def curve(keys, t, flowing=False):
+    for i, (a, b) in enumerate(zip(keys, keys[1:])):
         if t <= b[0]:
-            s = smooth((t-a[0])/(b[0]-a[0]))
-            return [x+(y-x)*s for x, y in zip(a[1:], b[1:])]
+            h = b[0]-a[0]
+            s = max(0., min(1., (t-a[0])/h))
+            if not flowing:
+                s = smooth(s)
+                return [x+(y-x)*s for x, y in zip(a[1:], b[1:])]
+            def tangent(k, column):
+                if k in (0, len(keys)-1): return 0.
+                hp = keys[k][0]-keys[k-1][0]; hn = keys[k+1][0]-keys[k][0]
+                dp = (keys[k][column]-keys[k-1][column])/hp
+                dn = (keys[k+1][column]-keys[k][column])/hn
+                if dp*dn <= 0.: return 0.
+                w1, w2 = 2*hn+hp, hn+2*hp
+                return (w1+w2)/(w1/dp+w2/dn)
+            return hermite(a[1:], b[1:], [tangent(i,j) for j in range(1,len(a))],
+                           [tangent(i+1,j) for j in range(1,len(a))], s, h)
     return list(keys[-1][1:])
 
 
@@ -352,6 +371,7 @@ def kick(source, spec):
     # Use that real guard's head, not the inverse-bind head height or a fixed
     # range. Source guard roots differ substantially between protagonist rigs.
     target_heel = (-victim_face[0], victim_face[1], spec["victim_separation_m"]-victim_face[2])
+    near_heel = add(target_heel, (0., 0., spec["near_victim_separation_m"]-spec["victim_separation_m"]))
     parent = r["parents"][striking[0]]
     original_forward = rotate(g0[parent], rotate(qi(bindg[parent]), (0., 0., 1.)))
     guard_yaw = math.atan2(original_forward[0], original_forward[2])
@@ -360,17 +380,19 @@ def kick(source, spec):
     samples = spec["kick_samples"]
     def posture(t):
         lift = smooth(min(t/.18, (1-t)/.20))
-        yaw, shift_x, shift_y, shift_z, lean = curve(spec["body_keys"], t)
+        yaw, shift_x, shift_y, shift_z, lean = curve(spec["body_keys"], t, True)
         # Source fight guards already yaw the pelvis 14--41 degrees. Absolute
         # authored facing removes that inherited yaw during the actual turn.
         yaw = math.radians(yaw)-guard_yaw*lift
         root = add(origin, (shift_x*height, shift_y*height, shift_z*height))
+        _, advance, _ = curve(spec["step_keys"], t, True)
+        root = add(root, (0., 0., advance*spec["step_distance_m"]))
         q = list(initial)
         q[0] = qm(qm(axis((0, 1, 0), yaw), q[0]), axis(roll_axis, math.radians(lean)))
         # The pelvis turns first; the shoulders counter-wind and then release.
-        torso = math.radians(curve(spec["torso_keys"], t)[0])
+        torso = math.radians(curve(spec["torso_keys"], t, True)[0])
         q[body[1]] = qm(q[body[1]], axis((0, 1, 0), torso))
-        authored_leg(r, q, striking, curve(spec["leg_keys"], t), source, bindg)
+        authored_leg(r, q, striking, curve(spec["leg_keys"], t, True), source, bindg)
         for joint in striking:
             q[joint] = blend(initial[joint], q[joint], lift)
         # Shared action choreography replaces the source guards' heterogeneous
@@ -389,33 +411,72 @@ def kick(source, spec):
             limb(r, q, root, ids, target, pole)
             for joint in ids[:2]: q[joint] = blend(before[joint], q[joint], arm_weight)
         return root, q, yaw, lift
-    contact_t = spec["contact_frame"]/(samples-1)
-    contact_root, contact_q, _, _ = posture(contact_t)
-    cp, cg = fk(r, contact_q, contact_root)
-    authored_heel = add(cp[striking[2]], rotate(cg[striking[2]], offset))
-    root_correction = sub(target_heel, authored_heel)
+    correction_keys = [[0., 0., 0., 0.], [.22, 0., 0., 0.]]
+    for frame, target in ((spec["near_contact_frame"], near_heel), (spec["contact_frame"], target_heel)):
+        t = frame/(samples-1)
+        contact_root, contact_q, _, _ = posture(t)
+        cp, cg = fk(r, contact_q, contact_root)
+        correction = sub(target, add(cp[striking[2]], rotate(cg[striking[2]], offset)))
+        correction_keys.append([t, *correction])
+    root_correction = tuple(correction_keys[-1][1:])
+    correction_keys += [[.76, 0., 0., 0.], [1., 0., 0., 0.]]
+    def supported_root(root, q, target):
+        p, _ = fk(r, q, root)
+        v = sub(p[support[0]], target)
+        maximum = sum(math.sqrt(dot(r["rest"][j], r["rest"][j])) for j in support[1:])*.997
+        distance = math.sqrt(dot(v, v))
+        return sub(root, scale(v, (distance-maximum)/distance)) if distance > maximum else root
+    landing_start, landing_end = spec["landing_interval"]
+    def landing_sample(t):
+        root, q, _, _ = posture(t)
+        root = add(root, curve(correction_keys, t, True))
+        advance, _, foot_lift = curve(spec["step_keys"], t, True)
+        root = supported_root(root, q, add(support_point, (0.,foot_lift,advance*spec["step_distance_m"])))
+        p,g = fk(r,q,root)
+        return p[striking[2]],g[striking[2]]
+    landing_position, landing_orientation = landing_sample(landing_start)
+    landing_velocity = scale(sub(landing_sample(landing_start+.001)[0],landing_sample(landing_start-.001)[0]),500.)
+    landing_target = add(p0[striking[2]], (0.,0.,spec["step_distance_m"]))
     heel_path = []
     for frame in range(samples):
         t = frame/(samples-1)
         root, q, yaw, lift = posture(t)
-        root = add(root, scale(root_correction, curve(spec["root_contact_weight_keys"], t)[0]))
+        root = add(root, curve(correction_keys, t, True))
+        advance, _, foot_lift = curve(spec["step_keys"], t, True)
+        support_target = add(support_point, (0., foot_lift, advance*spec["step_distance_m"]))
         # Keep the support leg within its measured reach, rather than permit
         # a hidden sole slide when a source guard starts with a bent knee.
-        p, _ = fk(r, q, root)
-        v = sub(p[support[0]], support_point)
-        maximum = sum(math.sqrt(dot(r["rest"][j], r["rest"][j])) for j in support[1:])*.997
-        distance = math.sqrt(dot(v, v))
-        if distance > maximum:
-            root = sub(root, scale(v, (distance-maximum)/distance))
+        root = supported_root(root,q,support_target)
         _, g = fk(r, q, root)
         forward = rotate(g[parent], rotate(qi(bindg[parent]), (0., 0., 1.)))
-        # The striking leg is FK throughout: its local ankle has one bounded
+        # The active striking leg uses FK: its local ankle has one bounded
         # flex axis and its knee always bends forward in the pelvis frame.
         # Root placement, not an impossible swivel of the boot, closes contact.
         support_q = qm(axis((0, 1, 0), yaw), g0[support[2]])
         support_pole = unit(add(scale(bend_pole(p0, support), 1-lift), scale(forward, lift)))
-        hinge_leg(r, q, root, support, support_point, support_pole, source, bindg)
+        hinge_leg(r, q, root, support, support_target, support_pole, source, bindg)
         global_orientation(r, q, root, support[2], support_q)
+        # The other foot pushes off during the approach, then accepts weight
+        # while the pivot foot steps back. Reuse the same anatomical hinge.
+        planted = 1-smooth((t-.18)/.10)
+        if t >= landing_start:
+            if t < landing_end:
+                progress = (t-landing_start)/(landing_end-landing_start)
+                foot_target = hermite(landing_position, landing_target, landing_velocity, (0.,0.,0.),
+                                      progress, landing_end-landing_start)
+                foot_orientation = blend(landing_orientation,g0[striking[2]],smooth(progress))
+            else:
+                back = smooth((t-spec["return_step_start"])/(1-spec["return_step_start"]))
+                foot_target = add(p0[striking[2]], (0.,.07*math.sin(math.pi*back),(1-back)*spec["step_distance_m"]))
+                foot_orientation = g0[striking[2]]
+            hinge_leg(r,q,root,striking,foot_target,forward,source,bindg)
+            global_orientation(r,q,root,striking[2],foot_orientation)
+        elif planted:
+            before = list(q)
+            foot_target = p0[striking[2]]
+            hinge_leg(r, q, root, striking, foot_target, forward, source, bindg)
+            global_orientation(r, q, root, striking[2], g0[striking[2]])
+            for joint in striking: q[joint] = blend(before[joint], q[joint], planted)
         # The cranium owns the look, rather than a face-detail child. Detailed
         # 123/128-joint rigs put their face fan below that cranium joint.
         head = body[2]
@@ -442,7 +503,7 @@ def kick(source, spec):
         p, g = fk(r, q, root)
         heel = add(p[striking[2]], rotate(g[striking[2]], offset))
         heel_path.append(heel)
-        checks["support_ankle_error_max_m"] = max(checks["support_ankle_error_max_m"], math.dist(p[support[2]], support_point))
+        checks["support_ankle_error_max_m"] = max(checks["support_ankle_error_max_m"], math.dist(p[support[2]], support_target))
         if frame == spec["contact_frame"]:
             checks.update(heel_contact_xyz=heel, heel_target_xyz=target_heel,
                           heel_contact_error_m=math.dist(heel, target_heel),
@@ -460,6 +521,9 @@ def kick(source, spec):
     checks["face_capsule_radius_m"] = spec["face_capsule_radius_m"]
     checks["contact_window_seconds"] = [t*(samples-1)/spec["fps"] for t in spec["contact_window"]]
     checks["heel_to_head_sweep_min_m"] = min(segment_distance(target_heel, heel_path[i], heel_path[i+1]) for i in range(first, last))
+    checks["near_victim_separation_m"] = spec["near_victim_separation_m"]
+    checks["near_head_animation_xyz"] = near_heel
+    checks["near_head_sweep_min_m"] = min(segment_distance(near_heel, heel_path[i], heel_path[i+1]) for i in range(first, last))
     far_head = add(target_heel, (0., 0., spec["far_victim_separation_m"]-spec["victim_separation_m"]))
     checks["far_head_sweep_min_m"] = min(segment_distance(far_head, heel_path[i], heel_path[i+1]) for i in range(first, last))
     checks["root_contact_correction_xyz"] = root_correction
@@ -586,9 +650,12 @@ def prepare(write_manifest=True, expected_manifest=None):
             check["serialized_heel_contact_error_m"] = math.dist(heel, check["heel_target_xyz"])
             start, _ = fk(packed, packed["pose"](first), packed["roots"][first])
             check["serialized_support_ankle_error_max_m"] = max(
-                math.dist(fk(packed, packed["pose"](f), packed["roots"][f])[0][body[11]], start[body[11]])
+                math.dist(fk(packed, packed["pose"](f), packed["roots"][f])[0][body[11]],
+                          add(start[body[11]], (0., curve(spec["step_keys"], (f-first)/(last-first), True)[2],
+                              curve(spec["step_keys"], (f-first)/(last-first), True)[0]*spec["step_distance_m"])))
                 for f in range(first, last+1))
         if check and (check["heel_to_head_sweep_min_m"] > spec["face_capsule_radius_m"]
+                      or check["near_head_sweep_min_m"] > spec["face_capsule_radius_m"]
                       or check["far_head_sweep_min_m"] <= spec["face_capsule_radius_m"]
                       or check["support_ankle_error_max_m"] > .018):
             raise ValueError(f"Unreachable heel/plant for {name}: {check}")
@@ -613,6 +680,8 @@ def prepare(write_manifest=True, expected_manifest=None):
         text += f"bank = {authored['bank'] if authored else ''}\n"
         text += f"kick_supported = {int(name in hero_rigs)}\n"
         text += f"kick_duration = {(spec['kick_samples']-1)/spec['fps']:.9g}\ncontact_time = {spec['contact_frame']/spec['fps']:.9g}\n"
+        text += f"strike_start_time = {spec['contact_window'][0]*(spec['kick_samples']-1)/spec['fps']:.9g}\n"
+        text += f"strike_end_time = {spec['contact_window'][1]*(spec['kick_samples']-1)/spec['fps']:.9g}\n"
         text += f"getup_duration = {(spec['getup_samples']-1)/spec['fps']:.9g}\n"
         heel = authored["heel_offset"] if authored else (0., 0., 0.)
         for axis_name, v in zip("xyz", heel): text += f"heel_offset_{axis_name} = {v:.9g}\n"

@@ -51,8 +51,11 @@ hashes are bound by `src/assets/roundhouse/manifest.json`.
   18 human rigs have the two recovery actions. Hero aliases `man_A` and
   `one_leg_man` resolve to the exact man rig.
 - Every bank preserves its source bind frame zero byte-for-byte as float32.
-  Actions start after frame zero. Kick duration is 1.6 seconds; heel contact is
-  at 0.9 seconds. Recovery takes 2 seconds. Samples are 60 Hz.
+  Actions start after frame zero. Kick duration is 2 seconds; near contact is
+  at 1.0 seconds and fighter contact at 1.133333 seconds. Recovery takes 2 seconds.
+  Samples are 60 Hz. `strike_start_time` and `strike_end_time` are generated from
+  the recipe's sole contact window (0.86–1.52 seconds), rather than a consumer's
+  fixed interval around contact.
 - Metadata body order is pelvis, chest, head, left upper arm/forearm/hand,
   right upper arm/forearm/hand, left thigh/calf/foot, right thigh/calf/foot.
   `bodyN_joint`, `bodyN_end` and `bodyN_parent` are the sole mapping source.
@@ -68,7 +71,7 @@ hashes are bound by `src/assets/roundhouse/manifest.json`.
 [Kick phases](kick-phases.png) and the [short motion](kick-motion.gif) show six real skinned stock meshes through guard,
 wind-up, chamber/turn, heel sweep, face-height contact, follow-through and exact
 guard recovery. Each light attacker faces a darker, stationary same-rig opponent
-at 0.7 m actor separation. The opponent uses its actual source fight-guard pose,
+at 1.5 m actor separation. The opponent uses its actual source fight-guard pose,
 including its rig-specific root/head offset, with native X reflection and yaw pi.
 The orange circle marks that opponent's head contact point.
 [Recovery phases](getup-phases.png) show front/back recovery for the man mesh.
@@ -83,9 +86,34 @@ these images.
 rejection of a changed recipe or output. Its clean-cache probe denied access to
 original runtime/input AN assets and verified that the tracked manifest stayed
 unchanged. The heel sweep is checked against the real opponent head over
-0.688–1.216 s with the native 0.22 m head volume. All six rigs enter that volume
-at 0.7 m separation; the 1.4 m negative stays outside it. No native reach is
+0.86–1.52 s with the native 0.22 m head volume. All six rigs enter that volume
+at both 1.1 m and 1.5 m actor separation; the 2.4 m negative stays outside it. No native reach is
 extended. Detailed values belong to the maintained asset manifest.
+
+The original 0.7 m reach proof used the wrong consumer spacing. Native fight
+cylinders resolve two fighters to 1.5 m and a fighter/neutral pair to 1.1 m;
+the native integration owner's baseline reproduced both old misses. The kick
+now takes one 0.8 m model-space step, plants the pivot foot, sweeps through both
+head distances, lands the striking foot, then steps back on alternate feet.
+Actor collision radii are unchanged. The extra 0.4 seconds make room for those
+support exchanges instead of compressing the return step into 0.144 seconds.
+
+[Motion kinematics](motion-kinematics.json) retain all serialized heel positions,
+speeds and joint rates before/after. Per-key smoothstep previously zeroed every
+channel's derivative, producing repeated stop/start bursts and an early heel
+peak around 19 m/s. Kick channels now use time-aware monotone cubic Hermite
+tangents, with zero velocity only at endpoints or actual reversals. The pelvis
+turns before the thigh opens and the calf extends. The landing reuses that same
+Hermite owner with the entering ankle velocity and the existing anatomical
+hinge solve. Getup interpolation is unchanged. The scalar interpolation follows
+the [documented PCHIP slope rule](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.PchipInterpolator.html);
+the producer adds no SciPy dependency. Velocity measurements do not establish
+natural motion without the complete motion and runtime review.
+The current serialized chain peaks at about 0.758 s (pelvis), 0.892 s (thigh)
+and 0.975 s (calf). Heel speed entering the sweep peaks at 7.17–7.62 m/s around
+0.892–0.908 s; recovery stays below 6.65 m/s. Both measured head volumes are
+entered during the declared strike window. The GIF has 41 samples through
+the final source frame 120 at 2.0 s; its endpoint holds are display pauses.
 
 The rejected authoring kept a world-transported knee pole while the pelvis
 spun, and independently fixed the boot's world orientation. The man2 knee
@@ -101,15 +129,14 @@ target after the back of the turn rather than swapping neck directions there.
 `continuity.json` records every serialized action's adjacent local rotation;
 it is a diagnostic and does not prove anatomical quality.
 
-[Jessika's same-pose views](jessika-sweep-views.png) trace the hip/knee/ankle in
-the queried 0.70 s sweep from the author camera, front and side. The author view
-foreshortens the raised leg over the torso/arm. The serialized
-[joint measurement](jessika-sweep-anatomy.json) has 43.18 degrees of striking
-knee flex and -35.30 degrees of ankle flex, with less than 0.000003 degrees of
-off-axis rotation at either joint. The support knee bends 82.24 degrees while
-its boot pivots on the floor. This query did not establish an anatomical twist,
-so it did not change choreography. The normal renderer command regenerates the
-three views from that exact serialized frame.
+[Jessika's same-pose views](jessika-sweep-views.png) trace the hip/knee/ankle from
+the author camera, front and side. That diagnostic illustrates how a raised
+leg can merge with the torso/arm in one camera; it is regenerated from the
+current serialized strike-start frame. The matching [joint measurement](jessika-sweep-anatomy.json)
+records that frame, generator and input hashes. The earlier questioned sweep
+and its joint-angle
+measurement belong to the prior source checkpoint, before the timing/reach
+correction. They do not certify the new full motion.
 
 `mesh-metrics.json` retains real-mesh floor bounds for kick and both recovery
 clips. The initial torso-only recovery clearance missed boots, knees and arms,
@@ -118,6 +145,11 @@ exact skinned minimum Y for every recovery frame, with 5 mm clearance. Their
 unchanged final guard frame retains its original small sole penetration (up to
 8.7 mm on Jessika). Other human banks use articulated body/toe/finger bounds;
 no rendered claim is made for uncaptured clothing meshes.
+The current `motion-kinematics.json` also retains every one of the 121 kick
+frames' exact skinned floor bounds. Existing small sole intersections remain;
+the deepest current one is 12.33 mm on man1's return step (its source guard is
+3.40 mm below the model floor). This is retained as a limitation, not described
+as exact sole clearance.
 
 [Native pose API evidence](native-pose-api-probe.md) and
 [animation CPU comparison](animation-cpu-probe.md) check separate native contracts;
@@ -128,5 +160,10 @@ audit. Its native-skinning oracle passes all 24 rigs and all 12,873 vertices and
 normals across the six retained GM meshes (maximum error 1.53 micrometers).
 The old unreflected bridge misses rendered joints by up to 1.35 m; its earlier
 self-roundtrip did not expose that error and is superseded by this oracle.
+The [native contact integration replay](native-contact-replay.md) retains the
+failed spacing baseline and corrected representative man-rig contact through
+CORE/VM damage into a Jolt pose at 1.1 m and 1.5 m, plus wall/far/eligibility/once
+negatives. It explicitly separates presentation substitutions and unverified
+rendered/gameplay boundaries.
 Native whole-scene gameplay acceptance, collision and ragdoll/getup blending
 remain the integration owner's responsibility. No game window was opened.

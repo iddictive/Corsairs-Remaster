@@ -107,10 +107,11 @@ bool Character::PrepareRoundhouse()
     const int count = animation->GetNumBones();
     if (state.head < 0 || state.head >= count || state.heel < 0 || state.heel >= count) return false;
     state.kickDuration = ini->GetFloat(alias, "kick_duration", 1.6f);
-    state.contactTime = ini->GetFloat(alias, "contact_time", 0.9f);
+    state.strikeStartTime = ini->GetFloat(alias, "strike_start_time", -1.0f);
+    state.strikeEndTime = ini->GetFloat(alias, "strike_end_time", -1.0f);
     state.getupDuration = ini->GetFloat(alias, "getup_duration", 2.0f);
-    if (state.kickDuration <= 0 || state.getupDuration <= 0 || state.contactTime <= 0 ||
-        state.contactTime >= state.kickDuration) return false;
+    if (state.kickDuration <= 0 || state.getupDuration <= 0 || state.strikeStartTime < 0 ||
+        state.strikeEndTime <= state.strikeStartTime || state.strikeEndTime > state.kickDuration) return false;
     state.heelOffset = CVECTOR(ini->GetFloat(alias,"heel_offset_x",0), ini->GetFloat(alias,"heel_offset_y",0), ini->GetFloat(alias,"heel_offset_z",0));
     state.headOffset = CVECTOR(ini->GetFloat(alias,"head_offset_x",0), ini->GetFloat(alias,"head_offset_y",0), ini->GetFloat(alias,"head_offset_z",0));
     state.rig.headBody = 2;
@@ -184,6 +185,7 @@ bool Character::StartRoundhouse()
     auto *answer = core.Event("Roundhouse_TryStart", "i", GetId());
     if (!answer || !answer->Get(allowed) || !allowed) return false;
     CapturePalette(*Model()->GetAnimation(), state.blendFrom);
+    state.strikeOrigin = JointWorld(*Model()->GetAnimation(),Model()->mtx,state.rig.bodies[1].joint).Pos();
     StopFightAnimation();
     state.phase = RoundhouseState::Phase::Kick;
     state.time = 0;
@@ -197,18 +199,25 @@ bool Character::StartRoundhouse()
 bool Character::BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse)
 {
     if (IsPhysicalRagdoll() || !PrepareRoundhouse()) return false;
+    const auto reject = [&](const char *stage) {
+        core.Trace("Roundhouse: physical fall rejected stage=%s actor=%llu node=%d",stage,
+                   static_cast<unsigned long long>(GetId()),currentNode);
+        return false;
+    };
     auto *location = GetLocation();
-    if (!location) return false;
+    if (!location) return reject("location");
     // Keep a valid navigation anchor before physics can carry the living actor
     // beyond the walkable patch.
-    float recoveryGround;
-    const auto recoveryNode = location->GetPtcData().FindNode(curPos,recoveryGround);
-    if (recoveryNode < 0 || recoveryGround > curPos.y+0.05f || curPos.y-recoveryGround > height ||
-        !HasCollisionSupport(*location,curPos,recoveryGround)) return false;
+    // Ordinary movement already grounded curPos/currentNode through PtcData.
+    // A second GM ray prerequisite can reject a normally standing character.
+    const auto recoveryNode = currentNode;
+    if (recoveryNode < 0 || recoveryNode >= location->GetPtcData().numTriangles)
+        return reject("navigation-anchor");
     auto *world = location->GetRagdollWorld();
     auto *model = Model();
     auto *animation = model ? model->GetAnimation() : nullptr;
-    if (!world || !animation) return false;
+    if (!world) return reject("collision-world");
+    if (!animation) return reject("animation");
     auto &state = *roundhouseState;
     std::vector<CMatrix> pose(animation->GetNumBones());
     auto rig = state.rig;
@@ -218,13 +227,13 @@ bool Character::BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse
         rig.bindWorld[i] = roundhouse::MirrorJoint(rig.bindWorld[i]) * model->mtx;
     }
     const auto handle = world->Create(rig, pose, impulse, point);
-    if (!handle) return false;
+    if (!handle) return reject("create-ragdoll");
     CancelRoundhouse();
     state.handle = handle;
     state.phase = RoundhouseState::Phase::Falling;
     state.time = 0;
     state.origin = curPos;
-    state.recoveryPosition = CVECTOR(curPos.x,recoveryGround,curPos.z);
+    state.recoveryPosition = curPos;
     state.recoveryNode = recoveryNode;
     state.yaw = ay;
     state.pose = std::move(pose);
@@ -328,7 +337,7 @@ bool Character::UpdateRoundhouse(float seconds)
         auto heelMatrix = JointWorld(*animation,model->mtx,state.heel);
         const CVECTOR heel = roundhouse::JointPointWorld(heelMatrix, state.heelOffset);
         if (!state.hasPreviousHeel) { state.previousHeel = heel; state.hasPreviousHeel = true; }
-        if (!state.contacted && state.time >= state.contactTime-0.08f && state.time <= state.contactTime+0.08f)
+        if (!state.contacted && state.time >= state.strikeStartTime && state.time <= state.strikeEndTime)
         {
             Character *victim = nullptr;
             CVECTOR contact;
@@ -346,7 +355,7 @@ bool Character::UpdateRoundhouse(float seconds)
                 const auto head = roundhouse::JointPointWorld(headMatrix, other->roundhouseState->headOffset);
                 const float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
                 if (distance >= nearest || location->Trace(state.previousHeel,head) < 0.995f ||
-                    location->Trace(torso,head) < 0.995f) continue;
+                    location->Trace(torso,head) < 0.995f || location->Trace(state.strikeOrigin,head) < 0.995f) continue;
                 int32_t allowed = 0;
                 auto *answer = core.Event("Roundhouse_CanHit","ii",GetId(),other->GetId());
                 if (!answer || !answer->Get(allowed) || !allowed) continue;
@@ -360,12 +369,12 @@ bool Character::UpdateRoundhouse(float seconds)
                 direction.y = 0;
                 const float length = std::sqrt(~direction);
                 direction = length > 0.001f ? direction/length : CVECTOR(std::sin(ay),0,std::cos(ay));
-                if (victim->BeginRoundhouseFall(contact,direction*85.0f+CVECTOR(0,22.0f,0)))
-                {
-                    state.contacted = true;
-                    core.Event("Event_ChrSnd_Hit","i",victim->GetId());
-                    core.Event("Location_CharacterAttack","iislll",GetId(),victim->GetId(),"roundhouse",0,0,-1);
-                }
+                // Contact owns damage exactly once. Physical admission is a
+                // separate required effect, with its own failure diagnostic.
+                state.contacted = true;
+                victim->BeginRoundhouseFall(contact,direction*85.0f+CVECTOR(0,22.0f,0));
+                core.Event("Event_ChrSnd_Hit","i",victim->GetId());
+                core.Event("Location_CharacterAttack","iislll",GetId(),victim->GetId(),"roundhouse",0,0,-1);
             }
         }
         state.previousHeel = heel;

@@ -3,90 +3,98 @@
   "changed_recipe_rejected": "Roundhouse source changed: recipe.json; regenerate first",
   "deterministic_output_hashes": true,
   "evidence_sha256": {
-    "README.md": "005493c20aa8c5515aeb3cb1226957f6ca68f8ca89890a455b332cb3ae3c78ac",
-    "continuity.json": "4ab945f379e76e06472a480f7e171d1124d2bcb3476a05bbca330120fdd3aae4",
+    "README.md": "3f643e0cbc0c8a08abacb965696a92bd4ee8050088dc6eaf3bcd085bb6cb6368",
+    "continuity.json": "c0b5b94e5f55ca974f38256a83a29fcff5a7a6025222079e4421a75c097e375a",
     "getup-phases.png": "87267ecad47f39e057f6927a60d0466f612d4f560c8252938b865033b670d4eb",
     "inputs/meshes.json": "1c14108992453107f129dd5af9faa37b1263cda5506d305ba333f14dc8990a62",
-    "jessika-sweep-anatomy.json": "0a256a403e50b43aa07325117b5ac9f794c616262fb6b9831b2737d7fcf25414",
-    "jessika-sweep-views.png": "7803c1e32a70eee763bb09cb707f4b5d2ac2eacc152e658a52a9c7d8933a3e61",
-    "kick-motion.gif": "c7354b662c335fa10149124712b073b3ed05f93ab8fdc0b02a107d2d95e1ed77",
-    "kick-phases.png": "6a2cc015babd8968061591db6d826ead5ef4c0dc39952b208c9b8e2548384370",
-    "mesh-metrics.json": "4f61d080c94c23f9daa369e5e01b148cec08a129e0230fb89535c2a17ba4c025",
-    "render.py": "e03e1e3114b2017fc7f802884c22b537d58cb0b9f3786460fdd21df1fcb6f908"
+    "jessika-sweep-anatomy.json": "a476480041c394a333ce33f3884f02154f34f6d386fc66a123c9a51ae74026c6",
+    "jessika-sweep-views.png": "365d6b7546f70e66c90df16316ebff7176825e7c901e47c16952f8739143fe99",
+    "kick-motion.gif": "d588009f9bf7fc18bb2718aa326e629a5a899cb6d1c84e17c837e731183cddec",
+    "kick-phases.png": "8a8d385f116d87d1ad7bcfbae4afdd186e5887562f4889048573e85e72003a14",
+    "mesh-metrics.json": "ea9d9554230108580fced06e4cedd6bd873303e28672462bb0c0ad9d0bfd6639",
+    "motion-kinematics.json": "48468ae54b97729c514ed2a257be887cde23393ec0bb505290869d151e4972d0",
+    "render.py": "4df88cc5d4459e5f905a4b9bab64c5e92ac05a7e14532d50b6fe9ac58ebea5bd"
   },
   "fresh_cache_reconstructed_without_original_assets": true,
+  "manifest_sha256": "60ad42e5916e407f7bf47fe160cb638ed6be78020b3ba88337561da262225ef1",
   "physical_head_sweep": {
     "Danielle": {
       "contact_window_seconds": [
-        0.6880000000000001,
-        1.2160000000000002
+        0.86,
+        1.52
       ],
       "face_capsule_radius_m": 0.22,
-      "far_head_sweep_min_m": 0.7021623357240925,
-      "heel_to_head_sweep_min_m": 0.005273699166151681,
-      "serialized_heel_contact_error_m": 0.0052737573038948386,
-      "serialized_support_ankle_error_max_m": 0.0010309841096361062,
-      "victim_separation_m": 0.7
+      "far_head_sweep_min_m": 0.90196889480241,
+      "heel_to_head_sweep_min_m": 0.004736645254622347,
+      "near_head_sweep_min_m": 8.326672684688674e-17,
+      "near_victim_separation_m": 1.1,
+      "serialized_support_ankle_error_max_m": 0.0010309774990434682,
+      "victim_separation_m": 1.5
     },
     "Jessika": {
       "contact_window_seconds": [
-        0.6880000000000001,
-        1.2160000000000002
+        0.86,
+        1.52
       ],
       "face_capsule_radius_m": 0.22,
-      "far_head_sweep_min_m": 0.695816638382284,
-      "heel_to_head_sweep_min_m": 1.734723475976807e-18,
-      "serialized_heel_contact_error_m": 9.649591545638675e-08,
-      "serialized_support_ankle_error_max_m": 0.0002258474768062445,
-      "victim_separation_m": 0.7
+      "far_head_sweep_min_m": 0.9000000000000004,
+      "heel_to_head_sweep_min_m": 2.2399438456538504e-16,
+      "near_head_sweep_min_m": 3.1574350034780196e-16,
+      "near_victim_separation_m": 1.1,
+      "serialized_support_ankle_error_max_m": 0.00019044740814540723,
+      "victim_separation_m": 1.5
     },
     "YokoDias": {
       "contact_window_seconds": [
-        0.6880000000000001,
-        1.2160000000000002
+        0.86,
+        1.52
       ],
       "face_capsule_radius_m": 0.22,
-      "far_head_sweep_min_m": 0.6981712487577726,
-      "heel_to_head_sweep_min_m": 3.469446951953614e-18,
-      "serialized_heel_contact_error_m": 7.275092742783007e-08,
-      "serialized_support_ankle_error_max_m": 1.9156543608696779e-07,
-      "victim_separation_m": 0.7
+      "far_head_sweep_min_m": 0.8978686522942595,
+      "heel_to_head_sweep_min_m": 0.0,
+      "near_head_sweep_min_m": 1.1150912609939193e-16,
+      "near_victim_separation_m": 1.1,
+      "serialized_support_ankle_error_max_m": 2.5436194876701494e-07,
+      "victim_separation_m": 1.5
     },
     "man": {
       "contact_window_seconds": [
-        0.6880000000000001,
-        1.2160000000000002
+        0.86,
+        1.52
       ],
       "face_capsule_radius_m": 0.22,
-      "far_head_sweep_min_m": 0.7,
-      "heel_to_head_sweep_min_m": 1.113606002252634e-16,
-      "serialized_heel_contact_error_m": 5.274801403665696e-08,
-      "serialized_support_ankle_error_max_m": 0.00010980323351353817,
-      "victim_separation_m": 0.7
+      "far_head_sweep_min_m": 0.8928126515469675,
+      "heel_to_head_sweep_min_m": 1.734723475976807e-18,
+      "near_head_sweep_min_m": 4.0436921438706784e-16,
+      "near_victim_separation_m": 1.1,
+      "serialized_support_ankle_error_max_m": 0.0002854631502122663,
+      "victim_separation_m": 1.5
     },
     "man1": {
       "contact_window_seconds": [
-        0.6880000000000001,
-        1.2160000000000002
+        0.86,
+        1.52
       ],
       "face_capsule_radius_m": 0.22,
-      "far_head_sweep_min_m": 0.7000000000000001,
-      "heel_to_head_sweep_min_m": 2.4835037038225095e-16,
-      "serialized_heel_contact_error_m": 5.231162636125801e-08,
-      "serialized_support_ankle_error_max_m": 0.0001087976713832543,
-      "victim_separation_m": 0.7
+      "far_head_sweep_min_m": 0.8927756202770969,
+      "heel_to_head_sweep_min_m": 0.0,
+      "near_head_sweep_min_m": 9.194034422677078e-17,
+      "near_victim_separation_m": 1.1,
+      "serialized_support_ankle_error_max_m": 0.0002853909519568068,
+      "victim_separation_m": 1.5
     },
     "man2": {
       "contact_window_seconds": [
-        0.6880000000000001,
-        1.2160000000000002
+        0.86,
+        1.52
       ],
       "face_capsule_radius_m": 0.22,
-      "far_head_sweep_min_m": 0.7000000000000001,
-      "heel_to_head_sweep_min_m": 2.4835037038225095e-16,
-      "serialized_heel_contact_error_m": 5.231162636125801e-08,
-      "serialized_support_ankle_error_max_m": 0.0001087976713832543,
-      "victim_separation_m": 0.7
+      "far_head_sweep_min_m": 0.8927756202770969,
+      "heel_to_head_sweep_min_m": 0.0,
+      "near_head_sweep_min_m": 9.194034422677078e-17,
+      "near_victim_separation_m": 1.1,
+      "serialized_support_ankle_error_max_m": 0.0002853909519568068,
+      "victim_separation_m": 1.5
     }
   },
   "pillow": "12.2.0",
@@ -104,8 +112,8 @@
   "python": "3.14.7",
   "source_hashes": {
     "authoring_helpers_sha256": "22b558a0fd28c08050b3214518d278f8f6eb39cfdce89ea93da09e837f0cdf6b",
-    "generator_sha256": "5bf54cc7e7d2f5419f33171af3a67019d34a129886b4449ed824bcc2bea3034f",
-    "recipe_sha256": "8166083f2fcd625ab29b6be24256b7d7e72cbb8e622f1e1158837c1d2eada79d",
+    "generator_sha256": "c9fbbdaaf201f8ba5b2d14e3d4a6d0704a85f0316db7fb2e06cbe75e482f6f23",
+    "recipe_sha256": "b4a2d7473afbe652a7d2a43d971152947ed1afbd3ca82a1a1e8ac4edf602faaf",
     "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"
   },
   "tracked_manifest_unchanged": true,

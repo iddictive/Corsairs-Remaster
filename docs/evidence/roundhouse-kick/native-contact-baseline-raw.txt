@@ -1,0 +1,196 @@
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:3:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:4:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/core/include/core.h:8:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/core/include/controls.h:5:
+${REPO}/experiments/native-metal/engine/src/libs/util/include/utf8.h:117:17: warning: result of comparison of constant 237 with expression of type 'const char' is always false [-Wtautological-constant-out-of-range-compare]
+  117 |     if (utf8[0] == 0xed && (utf8[1] & 0xa0) == 0xa0)
+      |         ~~~~~~~ ^  ~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:16:10: warning: 'Init' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   16 |     void Init();
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:9:18: note: overridden virtual function is here
+    9 |     virtual void Init() = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:18:10: warning: 'InitBase' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   18 |     void InitBase();
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:11:18: note: overridden virtual function is here
+   11 |     virtual void InitBase() = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:19:10: warning: 'ReleaseBase' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   19 |     void ReleaseBase();
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:12:18: note: overridden virtual function is here
+   12 |     virtual void ReleaseBase() = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:21:10: warning: 'CleanUp' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   21 |     void CleanUp();
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:14:18: note: overridden virtual function is here
+   14 |     virtual void CleanUp() = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:26:10: warning: 'Run' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   26 |     bool Run();
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:16:18: note: overridden virtual function is here
+   16 |     virtual bool Run() = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:46:10: warning: 'AppState' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+   46 |     void AppState(bool state);
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:19:18: note: overridden virtual function is here
+   19 |     virtual void AppState(bool state) = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:139:10: warning: 'collectCrashInfo' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+  139 |     void collectCrashInfo() const;
+      |          ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:21:18: note: overridden virtual function is here
+   21 |     virtual void collectCrashInfo() const = 0;
+      |                  ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:3:
+${REPO}/experiments/native-metal/engine/src/libs/core/src/core_impl.h:141:24: warning: 'initialized' overrides a member function but is not marked 'override' [-Winconsistent-missing-override]
+  141 |     [[nodiscard]] bool initialized() const
+      |                        ^
+${REPO}/experiments/native-metal/engine/src/libs/core/include/core_private.h:17:32: note: overridden virtual function is here
+   17 |     [[nodiscard]] virtual bool initialized() const = 0;
+      |                                ^
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+In file included from ${SCRATCH}/fixture_headers/modelr.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/include/animation.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:17:
+${SCRATCH}/fixture_headers/modelr.h:130:17: warning: enumeration value 'execute' not handled in switch [-Wswitch]
+  130 |         switch (stage)
+      |                 ^~~~~
+${SCRATCH}/fixture_headers/modelr.h:130:17: note: add missing switch cases
+  130 |         switch (stage)
+      |                 ^
+  131 |         {
+  132 |             // case Stage::execute:
+  133 |             //    Execute(delta); break;
+  134 |         case Stage::realize:
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:18:
+${SCRATCH}/fixture_headers/location.h:80:17: warning: enumeration values 'lost_render' and 'restore_render' not handled in switch [-Wswitch]
+   80 |         switch (stage)
+      |                 ^~~~~
+${SCRATCH}/fixture_headers/location.h:80:17: note: add missing switch cases
+   80 |         switch (stage)
+      |                 ^
+   81 |         {
+   82 |         case Stage::execute:
+   83 |             Execute(delta);
+   84 |             break;
+   85 |         case Stage::realize:
+   86 |             Realize(delta);
+   87 |             break;
+   88 |             /*case Stage::lost_render:
+   89 |               LostRender(delta); break;
+   90 |             case Stage::restore_render:
+   91 |               RestoreRender(delta); break;*/
+   92 |         }
+In file included from ${REPO}/docs/evidence/roundhouse-kick/native-contact-replay.cpp.txt:23:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/src/animation_imp.h:15:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/src/animation_info.h:13:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/src/action_info.h:14:
+In file included from ${REPO}/experiments/native-metal/engine/src/libs/animation/src/bone.h:15:
+${REPO}/experiments/native-metal/engine/src/libs/math/include/math_inlines.h:14:9: warning: 'SQR' macro redefined [-Wmacro-redefined]
+   14 | #define SQR(a) ((a) * (a))
+      |         ^
+${REPO}/experiments/native-metal/engine/src/libs/math/include/types3d.h:10:9: note: previous definition is here
+   10 | #define SQR(x) ((x) * (x))
+      |         ^
+19 warnings generated.
+
+ld: warning: ignoring duplicate libraries: 'lib/libanimation.a', 'lib/libbattle_interface.a', 'lib/libcollide.a', 'lib/libcore.a', 'lib/libdiagnostics.a', 'lib/libgeometry.a', 'lib/libisland.a', 'lib/liblocation.a', 'lib/libmodel.a', 'lib/libparticles.a', 'lib/libpcs_controls.a', 'lib/librenderer.a', 'lib/libsea.a', 'lib/libsea_ai.a', 'lib/libsentry.a', 'lib/libship.a', 'lib/libsound_service.a', 'lib/libsteam_api.a', 'lib/libutil.a', 'lib/libweather.a', 'lib/libwindow.a'
+
+case=fighter spacing=1.500000 heel_head_min=0.800099 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 no_window=1
+
+case=neutral spacing=1.100000 heel_head_min=0.400099 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 no_window=1

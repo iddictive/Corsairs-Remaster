@@ -41,7 +41,8 @@ def panel(canvas, box, points, faces, label, target=None, azimuth=-55, target_me
     draw.rectangle((x, y, x+width-1, y+height-1), fill=(24,29,37), outline=(57,65,78))
     a = math.radians(azimuth); right = (math.cos(a), 0., -math.sin(a)); forward = (math.sin(a), .15, math.cos(a))
     zoom = min(width/2.4, (height-40)/2.25)
-    def project(p): return (x+width*.5+dot(p,right)*zoom, y+height-26-p[1]*zoom)
+    center = (0., 0., .55) if target_mesh is not None else (0., 0., 0.)
+    def project(p): return (x+width*.5+dot(sub(p,center),right)*zoom, y+height-26-p[1]*zoom)
     ground = [project((-1,0,-.7)),project((1,0,-.7)),project((1,0,1)),project((-1,0,1))]
     draw.polygon(ground, fill=(34,42,52))
     light = unit((.4, .7, .6))
@@ -81,8 +82,12 @@ def main():
     record = json.loads((INPUTS/"meshes.json").read_text())
     sources = json.loads(SOURCES.read_text())["rigs"]
     manifest = json.loads(MANIFEST.read_text())
+    spec = json.loads(RECIPE.read_text())
+    separation = spec["victim_separation_m"]
     from prepare_port_rowboat import rig
-    phases = (0,16,32,42,54,68,96)
+    last_kick = spec["kick_samples"]-1
+    phases = (0,round(.16*last_kick),round(.32*last_kick),round(spec["contact_window"][0]*last_kick),
+              spec["contact_frame"],round(.71*last_kick),last_kick)
     labels = ("guard","wind-up","turn/chamber","heel sweep","face contact","follow-through","recovered")
     sheet = Image.new("RGB",(7*245,6*290))
     recovery = Image.new("RGB",(7*245,2*290))
@@ -94,14 +99,14 @@ def main():
         animation = rig((OUTPUT/f"RESOURCE/animation/Roundhouse_{name}.an").read_bytes())
         guard = dict(animation, pose=lambda frame: sources[name]["guard_pose"], roots=[sources[name]["guard_root"]])
         neutral = deform(vertices, sources[name], guard, 0)
-        target_points = [(-x,y,.7-z) for x,y,z in neutral]
+        target_points = [(-x,y,separation-z) for x,y,z in neutral]
         animated.append((name,vertices,faces,animation,target_points))
         first,last = manifest["banks"][name]["actions"]["roundhouse_kick"]
         target = manifest["checks"][name]["heel_target_xyz"]
         bounds = []
         for col,(phase,label) in enumerate(zip(phases,labels)):
             points = deform(vertices,sources[name],animation,first+phase)
-            panel(sheet,(col*245,row*290,245,290),points,faces,f"{name}: {label}",target if phase==54 else None,target_mesh=target_points)
+            panel(sheet,(col*245,row*290,245,290),points,faces,f"{name}: {label}",target if phase==spec["contact_frame"] else None,target_mesh=target_points)
             bounds.append(min(p[1] for p in points))
         metrics[name] = {"phase_mesh_floor_min_y":bounds,"triangles":len(faces),"vertices":len(vertices)}
         if name=="man":
@@ -115,12 +120,13 @@ def main():
             metrics[name][action+"_mesh_floor_min_y"] = [min(p[1] for p in deform(vertices,sources[name],animation,first+phase)) for phase in (0,20,40,60,80,100,120)]
         if name == "Jessika":
             first,_ = manifest["banks"][name]["actions"]["roundhouse_kick"]
-            points = deform(vertices,sources[name],animation,first+42)
-            joints,_ = fk(animation,animation["pose"](first+42),animation["roots"][first+42])
+            detail_frame = round(spec["contact_window"][0]*last_kick)
+            points = deform(vertices,sources[name],animation,first+detail_frame)
+            joints,_ = fk(animation,animation["pose"](first+detail_frame),animation["roots"][first+detail_frame])
             views = Image.new("RGB",(3*480,540))
             for col,(angle,label) in enumerate(((-55,"author view"),(0,"front"),(-90,"side"))):
                 project = panel(views,(col*480,0,480,540),points,faces,
-                                f"Jessika: same sweep frame 42 / {label}",azimuth=angle,target_mesh=target_points)
+                                f"Jessika: same sweep frame {detail_frame} / {label}",azimuth=angle,target_mesh=target_points)
                 draw = ImageDraw.Draw(views)
                 for ids,color in ((sources[name]["body"]["joints"][9:12],(95,205,245)),
                                   (sources[name]["body"]["joints"][12:15],(255,150,65))):
@@ -134,12 +140,12 @@ def main():
     sheet.save(HERE/"kick-phases.png");recovery.save(HERE/"getup-phases.png")
     if args.motion:
         frames = []
-        for phase in range(0,97,3):
+        for phase in range(0,spec["kick_samples"],3):
             frame = Image.new("RGB",(3*350,2*350))
             for index,(name,vertices,faces,animation,target_points) in enumerate(animated):
                 first,_ = manifest["banks"][name]["actions"]["roundhouse_kick"]
                 points = deform(vertices,sources[name],animation,first+phase)
-                panel(frame,((index%3)*350,(index//3)*350,350,350),points,faces,f"{name}: {phase/60:.2f}s / target 0.7m",target_mesh=target_points)
+                panel(frame,((index%3)*350,(index//3)*350,350,350),points,faces,f"{name}: {phase/60:.2f}s / target {separation}m",target_mesh=target_points)
             frames.append(frame.convert("P",palette=Image.Palette.ADAPTIVE,colors=96))
         frames[0].save(HERE/"kick-motion.gif",save_all=True,append_images=frames[1:],duration=[200]+[50]*(len(frames)-2)+[200],loop=0,optimize=True)
     (HERE/"mesh-metrics.json").write_text(json.dumps(metrics,indent=2,sort_keys=True)+"\n")

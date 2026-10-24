@@ -45,6 +45,12 @@ supports animated-pose initialization and physical pose output. This avoids a
 new project-owned articulated-body solver. Compile statically; the installed
 game has no downloaded or separately running physics prerequisite.
 
+For motion repair, retain the established AN/FK authoring path. Adobe's
+[Mixamo workflow](https://helpx.adobe.com/creative-cloud/help/mixamo-rigging-animation.html)
+provides ready character animations, but this project has no FBX retargeting
+intake. The bounded repair changes timing and foot placement in the existing
+producer; its combat reach and motion still require their own acceptance.
+
 ## Acceptance and nearest negatives
 
 - A supported protagonist has planted pivot, torso turn, leg chamber, heel
@@ -91,11 +97,64 @@ anchor cannot enter this knockdown path. Moving corpses retain inventory lookup
 at their current physical position, while normal fade, lights and deletion
 continue through the character's common update path.
 
-Installed-byte verification on 2026-10-23 passed for the eight selected
+The first candidate's installed-byte verification on 2026-10-23 passed for the eight selected
 gameplay/control resources, 49 generated rig resources and perk icon (58 total).
-The signed installed engine SHA-256 is
+Its signed installed engine SHA-256 was
 `688efcaff59fb0083250542d2f09f8680eacabbc557988f822ea0bb2c1ff8486`.
 The ordinary installer completed signature verification and retained its
 previous-engine backup. The selected delivery preserved unrelated changelog
 and player configuration bytes. These results establish installation and
-offline acceptance; interactive combat and full-scene frame time remain unplayed.
+offline checks; the subsequent gameplay report reopened combat acceptance below.
+
+## Reopened combat acceptance
+
+The first installed candidate plays the kick but has a reported missing damage
+and knockdown reaction. Its authored contact was checked at 0.7 m, while native
+Supervisor collision keeps ordinary fighters about 1.5 m apart and a fighter
+versus neutral about 1.1 m apart. The authored 1.4 m miss therefore did not prove
+usable combat reach. Per-key smoothstep also resets every authored channel's
+velocity at every key, producing repeated braking before impact.
+
+The [native baseline replay](evidence/roundhouse-kick/native-contact-baseline-result.json)
+reproduces both misses after real Supervisor separation: the closest heel/head
+distances are 0.800099 m for fighters and 0.400099 m for an idle target. Both
+retain 500 HP and create no ragdoll. This binds the reported failure to the
+native interaction rather than an isolated animation calculation.
+
+The correction must prove a stepped approach and heel contact at actual 1.1 m
+and 1.5 m spacing, a 2.4 m miss and wall rejection, through native character
+contact, ordinary damage events and physical fall creation. The authored strike
+window is generated metadata consumed by the controller. Damage must not depend
+on successful physics allocation. Motion must carry continuous momentum through
+intermediate keys and sequence pelvis, thigh and calf into impact. Isolated
+palette, mesh and physics checks do not establish this interaction contract.
+
+The corrected clip lasts 2 seconds and steps forward 0.8 m. Its generated
+strike window is 0.86–1.52 seconds. Time-aware monotone Hermite interpolation
+preserves momentum through intermediate keys; the pelvis, thigh and calf peaks
+occur in that order. These measurements describe authored kinematics and do
+not establish natural-looking motion in the played scene.
+
+The [corrected native replay](evidence/roundhouse-kick/native-contact-replay.md)
+passes real Supervisor spacing, animated heel contact, canonical script damage
+and Jolt creation in one CPU-only interaction: fighters at 1.5 m and an idle
+target at 1.1 m each receive one hit, lose 58 HP (500 → 442), and advance their
+physical pose by 1.249 m and 0.838 m respectively. A wall 0.35 m into the
+approach rejects impact even after the animated torso crosses it. Far,
+immortal and same-group targets receive no hit or body. Forced physics
+creation failure still applies damage once and logs the failed stage.
+
+The fixture uses real geometry, navigation, animation, character, VM and
+physics owners; only rendering-dependent presentation is suppressed, including
+blood particles. It creates no game window and does not establish interactive
+player acceptance. Reproduction source, adapter boundaries, commands and raw
+output are retained beside the result.
+
+The corrected candidate was rebuilt through the normal native build and
+installed on 2026-10-23. Installed-byte readback matches all 58 selected
+resources and the signed engine SHA-256
+`7c6106e9755b50e34cee9e0d2e47f30bb69e7f7eb12c4a5e938c4c75649e5ddd`.
+Default K is present; engine configuration, saved control options and unrelated
+changelog bytes retain their pre-install hashes. The installer retains the
+previous signed engine for rollback. Interactive motion acceptance and
+full-scene frame time remain unplayed.

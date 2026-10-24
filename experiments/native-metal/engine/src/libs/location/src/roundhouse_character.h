@@ -17,13 +17,15 @@ struct RoundhouseState
     bool hasPreviousHeel = false;
     float time = 0.0f;
     float kickDuration = 1.6f;
-    float contactTime = 0.9f;
+    float strikeStartTime = 0.0f;
+    float strikeEndTime = 0.0f;
     float getupDuration = 2.0f;
     int head = -1;
     int heel = -1;
     CVECTOR heelOffset = {};
     CVECTOR headOffset = {};
     CVECTOR previousHeel = {};
+    CVECTOR strikeOrigin = {};
     CVECTOR origin = {};
     CVECTOR recoveryPosition = {};
     int recoveryNode = -1;

@@ -1,0 +1,62 @@
+// Frozen native-contact replay consumer. Materialize the ordinary complete
+// PROGRAM beside this file, overlay current gameplay_sources.read() runtime
+// projections, and rename only seadogs.c's void Main() to
+// void GameMainNotExecuted(). Keep matching resource/shared headers beside the
+// isolated replay executable, as required by COMPILER::LoadFile.
+// In that disposable PROGRAM only, rename the single LAi_utils.c definition
+// void LaunchBlood( to void ReplayUncalledLaunchBlood(. Its unchanged call sites
+// resolve to the explicit presentation-only adapter below. HP/damage/guards and
+// death processing are the original production implementation.
+// Compile this file as fixture.c. Its Main never initializes the game.
+// The native replay binds these objects to its real actor entity IDs afterward.
+#include "seadogs.c"
+
+object Attacker;
+object Victim;
+int Hits = 0;
+
+void LaunchBlood(aref chr, float addy, bool isBig)
+{
+    // Presentation-only adapter: no camera, renderer or particle service.
+}
+
+void ReplayAttackObserved()
+{
+    aref attack = GetEventData();
+    aref enemy = GetEventData();
+    string attackType = GetEventData();
+    bool blocked = GetEventData();
+    if (attackType == "roundhouse" && attack.id == "replay-attacker" && enemy.id == "replay-victim") Hits++;
+}
+
+void Main()
+{
+    pchar = &Attacker;
+    nMainCharacterIndex = 0;
+    Attacker.index = 0;
+    Attacker.id = "replay-attacker";
+    Attacker.rank = 1;
+    Attacker.model.animation = "man";
+    Attacker.chr_ai.hp = 500;
+    Attacker.chr_ai.hp_max = 500;
+    Attacker.chr_ai.energy = 100;
+    Attacker.chr_ai.energyMax = 100;
+    Attacker.chr_ai.group = "replay-attacker-group";
+    Attacker.chr_ai.type = "";
+    Attacker.SPECIAL.Strength = 5;
+    Attacker.BakSkill.Fencing = 50;
+    Attacker.BakSkillCount.Fencing = 0;
+    Attacker.perks.list.RoundhouseKick = true;
+    Victim.index = 1;
+    Victim.id = "replay-victim";
+    Victim.rank = 1;
+    Victim.model.animation = "man";
+    Victim.chr_ai.hp = 500;
+    Victim.chr_ai.hp_max = 500;
+    Victim.chr_ai.group = "replay-victim-group";
+    Victim.chr_ai.type = "";
+    Victim.perks.list = true;
+    Hits = 0;
+    SetEventHandler("Location_CharacterAttack", "LAi_CharacterAttack", 0);
+    SetEventHandler("Location_CharacterAttack", "ReplayAttackObserved", 0);
+}
