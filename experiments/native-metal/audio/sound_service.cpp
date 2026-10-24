@@ -129,6 +129,21 @@ void SoundService::PrepareChargeReplacement()
     }
 }
 
+void SoundService::RebalanceImpactVoices()
+{
+    const auto count = std::count_if(slots_.begin(), slots_.end(), [](const Slot &slot) {
+        return slot.initialized && !slot.terminalStopping && !slot.impactAlias.empty() &&
+               !ma_sound_at_end(&slot.sound);
+    });
+    const float gain = storm::metal::audio::ImpactMixGain(count);
+    for (auto &slot : slots_)
+    {
+        if (!slot.initialized || slot.impactAlias.empty()) continue;
+        slot.mixGain = gain;
+        ma_sound_set_volume(&slot.sound, EffectiveVolume(slot));
+    }
+}
+
 void SoundService::ApplyVolumeLifecycle(Slot &slot, bool allowStart)
 {
     const float effective = EffectiveVolume(slot);
@@ -168,35 +183,9 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     const std::string aliasKey = Lower(selected);
     const auto voiceClass = storm::metal::audio::ClassifyAlias(aliasKey);
     const bool spatial = type == PCM_3D || type == MP3_3D;
-    const bool clusteredImpact = spatial && position && !looped && !simpleCache && volumeType == VOLUME_FX &&
-        storm::metal::audio::IsClusteredImpactAlias(aliasKey);
-    const auto impactStarted = clusteredImpact ? std::chrono::steady_clock::now() :
-        std::chrono::steady_clock::time_point{};
-    if (clusteredImpact)
-    {
-        for (const auto &slot : slots_)
-        {
-            if (!slot.initialized || slot.terminalStopping || slot.paused || slot.focusSuspended ||
-                slot.type != type || slot.impactAlias != aliasKey || ma_sound_at_end(&slot.sound))
-                continue;
-            const float dx = slot.impactPosition.x - position->x;
-            const float dy = slot.impactPosition.y - position->y;
-            const float dz = slot.impactPosition.z - position->z;
-            if (dx * dx + dy * dy + dz * dz > storm::metal::audio::kImpactClusterRadiusSquared)
-                continue;
-            if (impactStarted - slot.impactStarted <
-                std::chrono::milliseconds(storm::metal::audio::kImpactClusterIntervalMs))
-                return SOUND_INVALID_ID;
-        }
-    }
-    if (voiceClass == storm::metal::audio::VoiceClass::cannon &&
-        !storm::metal::audio::AdmitCannonVoice(ActiveVoiceCount(voiceClass)))
-        return SOUND_INVALID_ID;
-    if (voiceClass == storm::metal::audio::VoiceClass::chargeSelection)
-        PrepareChargeReplacement();
     if (selected.find('\\') == std::string::npos && selected.find('/') == std::string::npos)
     {
-        const auto found = aliases_.find(Lower(selected));
+        const auto found = aliases_.find(aliasKey);
         if (found != aliases_.end())
         {
             selected = Select(found->second);
@@ -205,6 +194,51 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
             if (found->second.volume >= 0) volume = found->second.volume;
         }
     }
+    // A silent one-shot must not occupy a voice or decode a file. Cached and
+    // looping handles remain valid: their owners can move/resume them later.
+    if (spatial && position && !looped && !simpleCache && minDistance >= 0 &&
+        maxDistance > minDistance && maxDistance < std::numeric_limits<float>::max())
+    {
+        const auto listener = ma_engine_listener_get_position(&engine_, 0);
+        const float dx = position->x - listener.x;
+        const float dy = position->y - listener.y;
+        const float dz = position->z - listener.z;
+        if (dx * dx + dy * dy + dz * dz >= maxDistance * maxDistance)
+            return SOUND_INVALID_ID;
+    }
+    const bool clusteredImpact = spatial && position && !looped && !simpleCache && volumeType == VOLUME_FX &&
+        storm::metal::audio::IsClusteredImpactAlias(aliasKey);
+    const auto impactStarted = clusteredImpact ? std::chrono::steady_clock::now() :
+        std::chrono::steady_clock::time_point{};
+    if (clusteredImpact)
+    {
+        size_t activeImpacts = 0, localImpacts = 0;
+        for (const auto &slot : slots_)
+        {
+            if (!slot.initialized || slot.terminalStopping || slot.paused || slot.focusSuspended ||
+                slot.impactAlias.empty() || ma_sound_at_end(&slot.sound))
+                continue;
+            ++activeImpacts;
+            if (slot.type != type || slot.impactAlias != aliasKey) continue;
+            const float dx = slot.impactPosition.x - position->x;
+            const float dy = slot.impactPosition.y - position->y;
+            const float dz = slot.impactPosition.z - position->z;
+            if (dx * dx + dy * dy + dz * dz > storm::metal::audio::kImpactClusterRadiusSquared)
+                continue;
+            ++localImpacts;
+            if (impactStarted - slot.impactStarted <
+                std::chrono::milliseconds(storm::metal::audio::kImpactClusterIntervalMs))
+                return SOUND_INVALID_ID;
+        }
+        if (activeImpacts >= storm::metal::audio::kMaxImpactVoices ||
+            localImpacts >= storm::metal::audio::kMaxLocalImpactVoices)
+            return SOUND_INVALID_ID;
+    }
+    if (voiceClass == storm::metal::audio::VoiceClass::cannon &&
+        !storm::metal::audio::AdmitCannonVoice(ActiveVoiceCount(voiceClass)))
+        return SOUND_INVALID_ID;
+    if (voiceClass == storm::metal::audio::VoiceClass::chargeSelection)
+        PrepareChargeReplacement();
     const std::string path = ResolvePath(selected.c_str());
     if (path.empty()) return SOUND_INVALID_ID;
     const auto spatialPolicy = storm::metal::audio::SpatialPolicyForAlias(aliasKey);
@@ -251,6 +285,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     it->volumeSuspended = looped && EffectiveVolume(*it) <= 0.001f;
     if (voiceClass == storm::metal::audio::VoiceClass::cannon)
         RebalanceCannonVoices();
+    if (clusteredImpact) RebalanceImpactVoices();
     if (!simpleCache && !it->volumeSuspended && ma_sound_start(&it->sound) != MA_SUCCESS) { Release(*it); return SOUND_INVALID_ID; }
     return id;
 }
@@ -266,11 +301,13 @@ SoundService::Slot *SoundService::Find(TSD_ID id)
 
 void SoundService::Release(Slot &slot)
 {
+    const bool rebalanceImpacts = slot.initialized && !slot.impactAlias.empty();
     const bool rebalanceCannons = slot.initialized &&
         slot.voiceClass == storm::metal::audio::VoiceClass::cannon;
     if (slot.initialized) ma_sound_uninit(&slot.sound);
     slot = {};
     if (rebalanceCannons) RebalanceCannonVoices();
+    if (rebalanceImpacts) RebalanceImpactVoices();
 }
 
 TSD_ID SoundService::SoundDuplicate(TSD_ID source)

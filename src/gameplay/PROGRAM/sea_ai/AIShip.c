@@ -20,6 +20,8 @@ int		iVicSoundTime = 0;
 string	sSeaStartMusicName;
 bool	isEnemyAround = false;
 bool bSeaTravelSuperiority = false;
+int iBortReloadSoundID = -1;
+int iBortReloadGeneration = 0;
 
 int		iNumShips = 0;
 int		Ships[MAX_SHIPS_ON_SEA];
@@ -74,6 +76,9 @@ void DeleteRiggingEnvironment()
 
 void DeleteShipEnvironment()
 {
+	Ship_ClearBortsReloadedEvent(GetMainCharacter());
+	if (iBortReloadSoundID != -1) StopSound(iBortReloadSoundID, 100);
+	iBortReloadSoundID = -1;
 	DeleteRiggingEnvironment();
 
 	DelEventHandler(SHIP_CHANGE_CHARGE, "Ship_ChangeChargeEvent");  // нигде не используется???
@@ -157,6 +162,8 @@ void Sea_ClearCheckFlag()
 
 void CreateShipEnvironment()
 {
+	Ship_ClearBortsReloadedEvent(GetMainCharacter());
+	iBortReloadSoundID = -1;
 	bSeaTravelSuperiority = false;
 	isEnemyAround = false;
 	bUpdatePosMode = false;
@@ -1756,11 +1763,13 @@ void Ship_OnBortReloaded()
 
 	if (!bSeaLoaded || bAbordageStarted) { return; }  // fix
 	if (sti(aCharacter.index) != nMainCharacterIndex) { return; } // fix
+	if (sBort != "cannonl" && sBort != "cannonr") { return; }
 
 	if (!sti(aCharacter.Tmp.BortsReloaded.Event))
 	{
 		aCharacter.Tmp.BortsReloaded.Event = true;
-		PostEvent("Ship_BortReloadEvent", 300, "a", aCharacter);
+		iBortReloadGeneration++;
+		PostEvent("Ship_BortReloadEvent", 300, "al", aCharacter, iBortReloadGeneration);
 	}
 	if (sBort == "cannonl") { aCharacter.Tmp.BortsReloaded.cannonl = true; }
 	if (sBort == "cannonr") { aCharacter.Tmp.BortsReloaded.cannonr = true; }
@@ -1769,21 +1778,45 @@ void Ship_OnBortReloaded()
 void Ship_BortReloadEvent()
 {
 	aref aCharacter = GetEventData();
-	
-	if (sti(aCharacter.Tmp.BortsReloaded.Event))
+	int generation = GetEventData();
+	if (generation != iBortReloadGeneration) return;
+	if (!bSeaLoaded || bAbordageStarted || sti(aCharacter.index) != nMainCharacterIndex)
 	{
-		bool bLeft = sti(aCharacter.Tmp.BortsReloaded.cannonl) == true;
-		bool bRight = sti(aCharacter.Tmp.BortsReloaded.cannonr) == true;
-
-		if (bLeft)  { PlaySound("BortReload_cannonl"); }
-		if (bRight) { PlaySound("BortReload_cannonr"); }
+		Ship_ClearBortsReloadedEvent(aCharacter);
+		return;
 	}
-
-	Ship_ClearBortsReloadedEvent(aCharacter);
+	if (!sti(aCharacter.Tmp.BortsReloaded.Event)) return;
+	// Keep one pending bit per side and wait for the actual utterance to end.
+	// The similarly named bortreloaded_all alias is an anchor sound, not speech.
+	if (iBortReloadSoundID != -1 && SendMessage(Sound, "ll", MSG_SOUND_IS_PLAYING, iBortReloadSoundID))
+	{
+		PostEvent("Ship_BortReloadEvent", 100, "al", aCharacter, generation);
+		return;
+	}
+	if (sti(aCharacter.Tmp.BortsReloaded.cannonl))
+	{
+		aCharacter.Tmp.BortsReloaded.cannonl = false;
+		iBortReloadSoundID = PlaySound("BortReload_cannonl");
+	}
+	else
+	{
+		if (sti(aCharacter.Tmp.BortsReloaded.cannonr))
+		{
+			aCharacter.Tmp.BortsReloaded.cannonr = false;
+			iBortReloadSoundID = PlaySound("BortReload_cannonr");
+		}
+		else
+		{
+			Ship_ClearBortsReloadedEvent(aCharacter);
+			return;
+		}
+	}
+	PostEvent("Ship_BortReloadEvent", 100, "al", aCharacter, generation);
 }
 
 void Ship_ClearBortsReloadedEvent(aref aCharacter)
 {
+	if (sti(aCharacter.index) == nMainCharacterIndex) iBortReloadGeneration++;
 	aCharacter.Tmp.BortsReloaded.Event = false;
 	aCharacter.Tmp.BortsReloaded.cannonl = false; 
 	aCharacter.Tmp.BortsReloaded.cannonr = false; 

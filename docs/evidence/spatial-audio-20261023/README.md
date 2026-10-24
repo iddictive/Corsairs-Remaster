@@ -86,3 +86,66 @@ identity and its signature were verified. The menu script was separately deliver
 through the canonical targeted gameplay command and matched the runtime and app
 projection. The player owns the gameplay replay; the game was not launched or
 controlled for this fix.
+
+## Overlap and voice starvation repair — 2026-10-24
+
+Baseline: `9910d769f1aa00ed62a27c053a42a6a48a7debe6`. The prior range repair
+was already installed; it was not the remaining defect. `AIShip.c` still played
+both readiness phrases in one event. `bortreloaded_all` resolves to the anchor
+sample `ship/jakor_002.wav`, so it cannot replace the two spoken phrases.
+
+Readiness now keeps one pending bit per side, waits for the actual sound to end,
+and rejects obsolete callbacks after ammunition/environment changes. The real
+script VM reproducer returns `Run=10` for the old overlapping behavior and
+`Run=0`, `script_errors=0` for sequential delivery, duplicate coalescing,
+single-side delivery, late arrivals, NPC/bow exclusion, boarding/sea exit and
+stale-generation rejection. Its playback-status bridge is stubbed; see
+[fixture/procedure](reload-replay.py), [baseline](reload-baseline.txt) and
+[candidate](reload-candidate.txt).
+
+The actual native `SoundService` and packaged WAVs were replayed through
+miniaudio 0.11.25 with no output device, stereo 48 kHz, master FX 0.5:
+
+| Scenario | Baseline | Candidate |
+| --- | --- | --- |
+| 96 distributed splashes | 96 voices; peak 21.660; 54,839 clipped samples | 8 voices; zero clipped samples |
+| 64 destruction requests, synthetic 100 ms admission intervals | 64 voices; peak 8.138; 68,288 clipped samples | 2 voices; zero clipped samples |
+| 12 inaudible cannon requests at 5 km, then one near | Near request rejected | Near request admitted; 1 voice |
+
+The destruction replay ages admission timestamps without advancing PCM. It
+isolates repeat admission and worst-case coherent summing, not a recorded battle.
+
+Impact admission now caps the whole group at eight and each nearby repeated
+alias at two, with 120 ms repeat suppression inside 20 m. Shared inverse-count
+gain bounds summed impact amplitude; isolated gain returns to one. The replay
+also exercises mixed-alias capacity, release/replacement and gain recovery.
+Finite-range, uncached one-shots beyond their maximum are rejected before
+decoding/admission. Stereo and movable distant loops retain valid handles.
+
+The canonical alias configuration is now Git-owned and delivered through the
+existing gameplay manifest. The only sound-setting changes are splash radius
+1200 → 180 m, splash gain 1.35 → 0.65, and left/right readiness gain 0.70.
+Other aliases retain their packaged settings. Collision/destruction are silent
+at 5 km; thunder deliberately remains audible there and is silent at 10 km.
+See [raw baseline](service-baseline.json), [raw candidate](service-candidate.json),
+[native harness](service-replay.cpp.txt) and [runner](service-replay.py).
+
+Run the two Python procedures from a managed disposable scratch environment
+providing `CODEX_SCRATCH_DIR`; each accepts `baseline` or `candidate`. The native
+runner reuses the existing `script-vm-probe` compile/link graph. Native baseline
+reproduction requires the baseline engine build and original packaged alias
+SHA-256 listed above; candidate uses current built libraries and canonical
+aliases. Restore only the three documented setting deltas to reconstruct the
+baseline alias semantics. Apple Clang 21, Python 3.14.7, arm64 and deployment
+target macOS 15 were used. No permanent test-suite/CI changes were added.
+
+Incremental native compilation passed all 8243 portable inputs and nine renderer
+coverage classes. These measurements prove mixer/VM behavior; they do not
+establish subjective balance or full-game frame timing in a live battle.
+
+Engine installation and targeted gameplay delivery completed with signature
+verification. Runtime and installed projections both report zero pending files.
+Installed engine SHA-256: `79c0e642f5d16f77c73c3ad3af412237d5f076a46e174f0924c8a37d2ed8ac4c`;
+delivered `AIShip.c`: `8fe449a05daf167c1e41b03b54ff01d695da8d8f97167a89c8b3561b1865b5a9`;
+delivered aliases: `556581433909956846e46cc74e517c7b6b943357293c23566c3d041e2a926dab`.
+The game was not launched and player saves/configuration were not modified.

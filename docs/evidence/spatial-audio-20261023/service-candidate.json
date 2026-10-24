@@ -1,0 +1,164 @@
+[
+  {
+    "case": "distributed_splashes",
+    "admitted": 8,
+    "slots": 8,
+    "play_us": 1389,
+    "peak": 0.0922684222,
+    "rms": 0.011123496,
+    "clipped_samples": 0
+  },
+  {
+    "case": "impact_lifecycle",
+    "mixed_alias_cap": true,
+    "replacement": true,
+    "balanced": true,
+    "single_gain_restored": true
+  },
+  {
+    "case": "local_destruction_100ms",
+    "admitted": 2,
+    "slots": 2,
+    "peak": 0.127693161,
+    "rms": 0.0414782665,
+    "clipped_samples": 0
+  },
+  {
+    "case": "far_cannons_then_near",
+    "near_admitted": true,
+    "slots": 1
+  },
+  {
+    "case": "distance",
+    "alias": "ball_splash",
+    "distance": 10,
+    "peak": 0.153904036,
+    "rms": 0.0243343128,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "ball_splash",
+    "distance": 200,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "ball_splash",
+    "distance": 5000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "ball_splash",
+    "distance": 10000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "coll_ship2rock",
+    "distance": 10,
+    "peak": 0.246420383,
+    "rms": 0.0476329757,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "coll_ship2rock",
+    "distance": 200,
+    "peak": 0.115509555,
+    "rms": 0.0223279574,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "coll_ship2rock",
+    "distance": 5000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "coll_ship2rock",
+    "distance": 10000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "fort_cann_explode",
+    "distance": 10,
+    "peak": 0.25323078,
+    "rms": 0.082397466,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "fort_cann_explode",
+    "distance": 200,
+    "peak": 0.0598561689,
+    "rms": 0.0194429374,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "fort_cann_explode",
+    "distance": 5000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "fort_cann_explode",
+    "distance": 10000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "thunder",
+    "distance": 10,
+    "peak": 0.016050877,
+    "rms": 0.00153593769,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "thunder",
+    "distance": 200,
+    "peak": 0.211905763,
+    "rms": 0.0271420585,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "thunder",
+    "distance": 5000,
+    "peak": 0.0696281195,
+    "rms": 0.00845391463,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distance",
+    "alias": "thunder",
+    "distance": 10000,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "retained_controls",
+    "stereo": true,
+    "distant_loop": true
+  }
+]

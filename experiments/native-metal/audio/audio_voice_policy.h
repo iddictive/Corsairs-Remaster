@@ -16,7 +16,9 @@ enum class VoiceClass
 
 constexpr std::size_t kMaxCannonVoices = 12;
 constexpr unsigned long long kChargeReplacementFadeMs = 90;
-constexpr unsigned long long kImpactClusterIntervalMs = 40;
+constexpr std::size_t kMaxImpactVoices = 8;
+constexpr std::size_t kMaxLocalImpactVoices = 2;
+constexpr unsigned long long kImpactClusterIntervalMs = 120;
 constexpr float kImpactClusterRadiusSquared = 20.0f * 20.0f;
 
 struct SpatialVoicePolicy
@@ -46,7 +48,14 @@ constexpr bool IsClusteredImpactAlias(std::string_view lowerAlias)
            lowerAlias == "ball2bort" || lowerAlias == "bomb2bort" || lowerAlias == "grapes2bort" ||
            lowerAlias == "ball2sail" || lowerAlias == "knippel2sail" || lowerAlias == "grapes2sail" ||
            lowerAlias == "mast_fall" || lowerAlias == "coll_ship2rock" || lowerAlias == "coll_ship2ship" ||
-           lowerAlias == "fort_cann_explode" || lowerAlias == "cannon_explosion" || lowerAlias == "ship_explosion";
+           lowerAlias == "fort_cann_explode" || lowerAlias == "cannon_explosion" || lowerAlias == "ship_explosion" ||
+           lowerAlias == "episode_boom";
+}
+
+constexpr float ImpactMixGain(std::size_t activeVoices)
+{
+    // Bound summed amplitude, including coherent copies of the same sample.
+    return activeVoices > 1 ? 1.0f / static_cast<float>(activeVoices) : 1.0f;
 }
 
 constexpr VoiceClass ClassifyAlias(std::string_view lowerAlias)

@@ -89,6 +89,7 @@ class SoundService final : public VSoundService
     void ApplyVolumeLifecycle(Slot &, bool allowStart = true);
     void PrepareChargeReplacement();
     void RebalanceCannonVoices();
+    void RebalanceImpactVoices();
     size_t ActiveVoiceCount(storm::metal::audio::VoiceClass) const;
     std::string ResolvePath(const char *) const;
     void InitAliases();

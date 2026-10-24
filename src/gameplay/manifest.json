@@ -1221,6 +1221,12 @@
       "legacy": [
         "3b94acf8f54d2157fe193d45351e55a3eff0f301611bc84a887de63ac9f3f7da"
       ]
+    },
+    "RESOURCE/INI/aliases/sound_alias.ini": {
+      "encoding": "utf-8",
+      "legacy": [
+        "8c4aaf4efbc3571b1a78acf99d75e6e66fb662b35c17c9aa1457d6ea89f5426b"
+      ]
     }
   }
 }

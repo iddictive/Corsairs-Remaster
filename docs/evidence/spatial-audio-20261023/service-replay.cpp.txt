@@ -1,0 +1,82 @@
+#include "core_impl.h"
+#include <array>
+#include <chrono>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#define private public
+#include "sound_service.h"
+#undef private
+#include <cstdio>
+#include <filesystem>
+
+int main(int argc, char **argv)
+{
+    if (argc != 2) return 64;
+    std::filesystem::current_path(argv[1]);
+    core_internal.Init();
+    core_internal.InitBase();
+    auto service = std::make_unique<SoundService>();
+    auto config = ma_engine_config_init();
+    config.noDevice = MA_TRUE; config.channels = 2; config.sampleRate = 48000;
+    if (ma_engine_init(&config, &service->engine_) != MA_SUCCESS) return 2;
+    service->initialized_ = true;
+    service->InitAliases();
+    service->SetMasterVolume(.5f, .5f, .5f);
+    service->SetCameraPosition(CVECTOR(0.f, 0.f, 0.f));
+    auto clear = [&] { service->SoundStop(TSD_ID(SOUND_INVALID_ID), 0); };
+    auto play = [&](const char *alias, float x, float z) {
+        CVECTOR p(x, 0, z);
+        return service->SoundPlay(alias, PCM_3D, VOLUME_FX, false, false, false, 0, &p, -1, -1, 0, 1, 128);
+    };
+    auto valid = [](TSD_ID id) { return int32_t(id) != SOUND_INVALID_ID; };
+    auto count = [&] { int n=0; for (auto &s:service->slots_) n+=s.initialized; return n; };
+    auto mix = [&] {
+        std::vector<float> output(48000 * 2);
+        ma_engine_read_pcm_frames(&service->engine_, output.data(), 48000, nullptr);
+        double energy=0, peak=0; int clipped=0;
+        for (float s:output) { energy+=double(s)*s; peak=std::max(peak,double(std::abs(s))); clipped+=std::abs(s)>1; }
+        std::printf("\"peak\":%.9g,\"rms\":%.9g,\"clipped_samples\":%d",peak,std::sqrt(energy/output.size()),clipped);
+    };
+    std::srand(1);
+    int admitted=0;
+    auto started=std::chrono::steady_clock::now();
+    for (int i=0;i<96;++i) admitted+=valid(play("ball_splash", float(i%12)*25, -float(i/12)*25-10));
+    auto us=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-started).count();
+    std::printf("{\"case\":\"distributed_splashes\",\"admitted\":%d,\"slots\":%d,\"play_us\":%lld,",admitted,count(),(long long)us); mix(); std::puts("}");
+    const bool capped = !valid(play("ball2bort", 0, -10));
+    for (auto &slot : service->slots_) if (slot.initialized) { service->Release(slot); break; }
+    const bool replacement = valid(play("ball2bort", 0, -10));
+    bool balanced = count() == 8;
+    for (auto &slot : service->slots_) if (slot.initialized)
+        balanced = balanced && std::abs(slot.mixGain - .125f) < .00001f;
+    clear();
+    const auto single = play("ball_splash", 0, -10);
+    const bool restored = valid(single) && service->Find(single)->mixGain == 1.f;
+    std::printf("{\"case\":\"impact_lifecycle\",\"mixed_alias_cap\":%s,\"replacement\":%s,\"balanced\":%s,\"single_gain_restored\":%s}\n",
+        capped?"true":"false",replacement?"true":"false",balanced?"true":"false",restored?"true":"false");
+    clear(); admitted=0;
+    for (int i=0;i<64;++i) {
+        for (auto &s:service->slots_) if (s.initialized) s.impactStarted-=std::chrono::milliseconds(100);
+        admitted+=valid(play("fort_cann_explode",0,-10));
+    }
+    std::printf("{\"case\":\"local_destruction_100ms\",\"admitted\":%d,\"slots\":%d,",admitted,count()); mix(); std::puts("}");
+    clear();
+    for (int i=0;i<12;++i) play("fort_cannon_fire",float(i),-5000);
+    bool near=valid(play("fort_cannon_fire",0,-20));
+    std::printf("{\"case\":\"far_cannons_then_near\",\"near_admitted\":%s,\"slots\":%d}\n",near?"true":"false",count());
+    clear();
+    for (const char *alias:{"ball_splash","coll_ship2rock","fort_cann_explode","thunder"}) {
+        for (float distance:{10.f,200.f,5000.f,10000.f}) {
+            play(alias,0,-distance);
+            std::printf("{\"case\":\"distance\",\"alias\":\"%s\",\"distance\":%.0f,",alias,distance);mix();std::puts("}");clear();
+        }
+    }
+    // Stereo UI has no distance admission; loop owners must be able to move
+    // an initially distant loop back into range without losing its handle.
+    auto ui=service->SoundPlay("Button",PCM_STEREO,VOLUME_FX,false,false,false,0,nullptr,-1,-1,0,1,128);
+    CVECTOR far(0.f,0.f,-5000.f);
+    auto loop=service->SoundPlay("ship_onfire",PCM_3D,VOLUME_FX,false,true,false,0,&far,-1,-1,0,1,128);
+    std::printf("{\"case\":\"retained_controls\",\"stereo\":%s,\"distant_loop\":%s}\n",valid(ui)?"true":"false",valid(loop)?"true":"false");
+    clear();
+}
