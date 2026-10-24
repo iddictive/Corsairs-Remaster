@@ -19,6 +19,12 @@ struct FrameBody
     // set. Missing/unprepared snapshots keep the conservative hull envelope.
     std::shared_ptr<const MaterialSnapshot> material;
     double materialY{}; // model origin relative to the vertical-band centre
+    // A boosted arcade vessel brakes excess approach at contact instead of
+    // transferring its travel-speed energy into another complete hull.
+    // Zero keeps the ordinary rigid response exactly.
+    double contactSpeedLimit{}; // ordinary authored metres/second; zero disables
+    double contactTurnLimit{}; // native turn admission, used by arcade pairs only
+    double contactCruiseSpeed{}; // native ordinary speed, receiver shove budget
 };
 struct Motion
 {
@@ -388,6 +394,100 @@ inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, 
     }
     return first;
 }
+inline Response arcadeResponse(const FrameBody &fa, const FrameBody &fb,
+                               const Proxy &a, const Proxy &b, const Contact &contact,
+                               const Response &ordinary)
+{
+    const bool arcadeA = std::isfinite(fa.contactSpeedLimit) && fa.contactSpeedLimit > 0;
+    const bool arcadeB = std::isfinite(fb.contactSpeedLimit) && fb.contactSpeedLimit > 0;
+    if ((!arcadeA && !arcadeB) || !(ordinary.normalClosing > 0)) return ordinary;
+    const Vec2 n = contact.normal / length(contact.normal);
+    const auto va = detail::pointVelocity(a.velocity, a.angular, contact.point - a.pose.position);
+    const auto vb = detail::pointVelocity(b.velocity, b.angular, contact.point - b.pose.position);
+    const double approachA = dot(va, n), approachB = -dot(vb, n);
+    const double admitted = admittedClosingSpeed(approachA, approachB,
+                                                 fa.contactSpeedLimit, fb.contactSpeedLimit);
+    const double excess = std::max(0.0, ordinary.normalClosing - admitted);
+    const double weightA = arcadeA ? std::max(0.0, approachA - fa.contactSpeedLimit) : 0;
+    const double weightB = arcadeB ? std::max(0.0, approachB - fb.contactSpeedLimit) : 0;
+    const double weights = weightA + weightB;
+    if (!(weights > 0)) return ordinary;
+    Vec2 brakeA = weights > 0 ? n * (excess * weightA / weights) : Vec2{};
+    Vec2 brakeB = weights > 0 ? n * (excess * weightB / weights) : Vec2{};
+    // Preserve the actual TOI and its lever arms. Only the impulse's virtual
+    // velocity is reduced; CCD still consumed the full boosted trajectory.
+    auto response = ordinary;
+    if (excess > 0)
+    {
+        Body sa{{},a.sweep.mass,a.pose,{a.pose.position+a.velocity-brakeA,a.pose.yaw+a.angular}};
+        Body sb{{},b.sweep.mass,b.pose,{b.pose.position+b.velocity+brakeB,b.pose.yaw+b.angular}};
+        Contact at = contact; at.time = 0;
+        response = resolvePrepared(sa, sb, a.hull, b.hull, at, 1.0);
+    }
+    // Repeated powered pressure cannot wind a receiver beyond the same native
+    // turn envelope used by legacy contact admission. Scale one impulse, so
+    // torque, shove and the paid work still describe the same contact.
+    double scale = 1;
+    const auto admitTurn = [&](double angular, double delta, double limit) {
+        if (!(limit > 0) || !std::isfinite(limit) || delta == 0) return;
+        const double bound = delta > 0 ? std::max(angular, limit) : std::min(angular, -limit);
+        scale = std::min(scale, std::clamp((bound - angular) / delta, 0.0, 1.0));
+    };
+    admitTurn(a.angular, response.deltaWA, fa.contactTurnLimit);
+    admitTurn(b.angular, response.deltaWB, fb.contactTurnLimit);
+    const auto admitPush = [&](Vec2 velocity, Vec2 delta, double limit) {
+        if (!(limit > 0) || !std::isfinite(limit)) return;
+        const double square = dot(delta, delta);
+        if (!(square > 0)) return;
+        const double current = dot(velocity, velocity);
+        const double room = std::max(0.0, limit * limit - current);
+        const double along = dot(velocity, delta);
+        const double root = std::sqrt(along * along + square * room);
+        const double accepted = along >= 0 ?
+            (root + along > 0 ? room / (root + along) : 0) : (root - along) / square;
+        scale = std::min(scale, std::clamp(accepted, 0.0, 1.0));
+    };
+    if (!arcadeA) admitPush(a.velocity, response.deltaVA, fa.contactCruiseSpeed);
+    if (!arcadeB) admitPush(b.velocity, response.deltaVB, fb.contactCruiseSpeed);
+    if (!(excess > 0) && scale == 1) return ordinary;
+    if (scale < 1)
+    {
+        const double loss = std::max(0.0, scale * response.workLinear -
+                                               .5 * scale * scale * response.workQuadratic);
+        const double ratio = response.energyLost > 0 ? loss / response.energyLost : 0;
+        response.deltaVA = response.deltaVA * scale; response.deltaVB = response.deltaVB * scale;
+        response.deltaWA *= scale; response.deltaWB *= scale;
+        response.energyLostA *= ratio; response.energyLostB *= ratio;
+        response.specificEnergyA *= ratio; response.specificEnergyB *= ratio;
+        response.energyLost = loss;
+        response.workLinear *= scale; response.workQuadratic *= scale * scale;
+    }
+    const auto changeA = detail::pointVelocity(response.deltaVA, response.deltaWA, contact.point-a.pose.position);
+    const auto changeB = detail::pointVelocity(response.deltaVB, response.deltaWB, contact.point-b.pose.position);
+    const double residual = std::max(0.0, dot(va-vb+changeA-changeB-brakeA-brakeB, n));
+    if (residual > 0)
+    {
+        const double sources = double(arcadeA) + double(arcadeB);
+        if (arcadeA) brakeA += n * (residual / sources);
+        if (arcadeB) brakeB += n * (residual / sources);
+    }
+    // The mode absorbs this excess approach itself. Keeping it out of the
+    // receiver's impulse also keeps it out of HP and material fracture work.
+    response.deltaVA = response.deltaVA - brakeA;
+    response.deltaVB += brakeB;
+    response.normalClosing = ordinary.normalClosing;
+    // If a faster ordinary vessel is the real aggressor, an arcade brake on
+    // the player could accelerate it backwards and add energy. Preserve the
+    // ordinary conservative response for that opposing-motion case.
+    const auto kinetic = [](const Proxy &body, Vec2 velocity, double angular) {
+        return body.sweep.mass * dot(velocity, velocity) + body.hull.inertia * angular * angular;
+    };
+    const double before = kinetic(a, a.velocity, a.angular) + kinetic(b, b.velocity, b.angular);
+    const double after = kinetic(a, a.velocity+response.deltaVA, a.angular+response.deltaWA) +
+                         kinetic(b, b.velocity+response.deltaVB, b.angular+response.deltaWB);
+    if (after > before + 32 * std::numeric_limits<double>::epsilon() * std::max(1.0, before)) return ordinary;
+    return response;
+}
 inline void project(Proxy &a, Proxy &b, const Contact &c, double extra)
 {
     const double scale = std::max(a.sweep.mass, b.sweep.mass);
@@ -472,7 +572,10 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         }
         ++events;
         auto &a = proxies[event.a]; auto &b = proxies[event.b];
-        auto r = event.response;
+        auto r = frame_detail::arcadeResponse(bodies[event.a], bodies[event.b], a, b,
+                                               event.contact, event.response);
+        const bool arcadeContact = bodies[event.a].contactSpeedLimit > 0 ||
+                                   bodies[event.b].contactSpeedLimit > 0;
         const double massBeforeA=a.sweep.mass,massBeforeB=b.sweep.mass;
         double massAfterA=-1,massAfterB=-1;
         std::function<void(const Response&)> applyTransferredImpulse;
@@ -483,7 +586,9 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         const double height = (std::max(ya - bodyA.height * .5, yb - bodyB.height * .5) +
                                std::min(ya + bodyA.height * .5, yb + bodyB.height * .5)) * .5;
         auto &passes = fracturePasses[event.a * bodies.size() + event.b];
-        if (fracture && r.energyLost > 0 && passes < limits.fracturePasses)
+        // An arcade ram owns a local indentation, not a full-section fracture.
+        // Its admitted residual work is published through ApplyHullImpact.
+        if (!arcadeContact && fracture && r.energyLost > 0 && passes < limits.fracturePasses)
         {
             ++passes;
             const auto commit = fracture({event.a, event.b, a.pose, b.pose, event.contact,

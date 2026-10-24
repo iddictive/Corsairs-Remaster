@@ -201,7 +201,7 @@ class SEA : public SEA_BASE
     float WaveXZ(float x, float z, CVECTOR *pNormal = nullptr) override;
 
     void AddBlock(int32_t iTX, int32_t iTY, int32_t iSize, int32_t iLOD);
-    void BuildTree(int32_t iTX, int32_t iTY, int32_t iLev);
+    void BuildTree(int32_t iTX, int32_t iTY, int32_t iLev, uint32_t viewDimension);
     void SetBlock(uint32_t dwBlockIndex);
 
     bool isVisibleBBox(const CVECTOR &vCenter, const CVECTOR &v1, const CVECTOR &v2);

@@ -31,8 +31,9 @@ static_assert(aim_volume::maxVolumeSections == 1024); // tube geometry bound
 static_assert(sizeof(aim_volume::AimRenderedReceiver)==16);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,color)==8);
 static_assert(offsetof(aim_volume::AimRenderedReceiver,receiverToken)==12);
-static_assert(sizeof(aim_volume::AimContactSection)==48);
-static_assert(aim_volume::maxContactSections==2 && aim_volume::maxContactFields==112);
+static_assert(sizeof(aim_volume::AimContactSection)==64);
+static_assert(offsetof(aim_volume::AimContactSection,normal)==48);
+static_assert(aim_volume::maxContactSections==8 && aim_volume::maxContactFields==112);
 static_assert(offsetof(aim_volume::AimContactSection,covariance)==16);
 static_assert(sizeof(aim_volume::AimContactTriangle)==64);
 static_assert(offsetof(aim_volume::AimContactTriangle,receiverToken)==28);
@@ -85,7 +86,7 @@ using namespace metal;
 struct AimSection { packed_float3 center; float progress; uint firstPlane,planeCount; float halfWidth,halfHeight; };
 struct AimPlane { float x,y,offset0,offset1; };
 struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; float4 surfaceStyle; };
-struct AimContactField {packed_float3 center;float chart;float metric[6];float nearDepth,farDepth;};
+struct AimContactField {packed_float3 center;float chart;float metric[6];float nearDepth,farDepth;packed_float3 normal;float unused;};
 struct AimContactTriangle {packed_float3 a;float thickness;packed_float3 b;uint receiverToken;packed_float3 c;uint padding;packed_float3 normal;float reserved;};
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
   const float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
@@ -196,10 +197,10 @@ float3 aim_water_step(uint2 pixel,int2 direction,float3 receiver,constant AimU&u
 // normal. Receiver holes/depth discontinuities are not contour boundaries.
 float4 aim_contact_metric(float3 world,bool water,const device AimContactField*fields,constant AimU&u){
   float4 result=float4(1.e6f,0.f,0.f,0.f);
-  for(uint i=0;i<min(u.contactCounts.x,2u);++i){
+  for(uint i=0;i<min(u.contactCounts.x,8u);++i){
     const auto field=fields[i];float3 d=world-float3(field.center);
     if((field.chart<.5f)!=water)continue;
-    float depth=field.chart>.5f?dot(d,u.axis.xyz):d.y;
+    float depth=dot(d,float3(field.normal));
     if(depth<field.nearDepth||depth>field.farDepth)continue;
     float3 m=float3(field.metric[0]*d.x+field.metric[1]*d.y+field.metric[2]*d.z,
         field.metric[1]*d.x+field.metric[3]*d.y+field.metric[4]*d.z,
@@ -572,16 +573,22 @@ class SoftAimVolume {
     const auto now=std::chrono::steady_clock::now();
     const float dt=std::chrono::duration<float>(now-contactTime_).count();
     const float blend=dt>0.f&&dt<.25f?1.f-std::exp(-dt/.07f):1.f;
-    for(auto&field:frame.contactSections){
+    for(size_t fieldIndex=0;fieldIndex<frame.contactSections.size();++fieldIndex){
+      auto&field=frame.contactSections[fieldIndex];
       if(field.padding!=0.f&&field.padding!=1.f)return fail(Input,"invalid contact chart");
       for(float v:field.center)if(!std::isfinite(v))return fail(Input,"nonfinite contact center");
       for(float v:field.covariance)if(!std::isfinite(v))return fail(Input,"nonfinite contact covariance");
       if(!std::isfinite(field.reserved[0])||!std::isfinite(field.reserved[1])||field.reserved[1]<=field.reserved[0])return fail(Input,"invalid projector depth");
-      const auto normal=field.padding>.5f?ax:simd_make_float3(0.f,1.f,0.f);
+      const simd_float3 normal={field.normal[0],field.normal[1],field.normal[2]};
+      if(!finite3(normal)||std::abs(simd_length(normal)-1.f)>.001f)return fail(Input,"invalid contact normal");
       const simd_float3 current={field.center[0],field.center[1],field.center[2]};
       const float station=simd_dot(current,normal);
       const float near=station+field.reserved[0],far=station+field.reserved[1];
-      if(smoothContact&&simd_dot(ax,contactAxis_)>.98f)for(const auto&old:smoothedContact_)if(old.padding==field.padding){
+      if(smoothContact&&simd_dot(ax,contactAxis_)>.98f&&smoothedContact_.size()==frame.contactSections.size()){
+        const auto&old=smoothedContact_[fieldIndex];
+        if(old.padding!=field.padding)continue;
+        const simd_float3 oldNormal={old.normal[0],old.normal[1],old.normal[2]};
+        if(simd_dot(normal,oldNormal)<.98f)continue;
         const simd_float3 previous={old.center[0],old.center[1],old.center[2]};
         const float oldStation=simd_dot(previous,normal);
         const auto tangent=current-previous-normal*simd_dot(current-previous,normal);
@@ -590,12 +597,11 @@ class SoftAimVolume {
             std::sqrt(std::max(0.f,field.covariance[5]))+std::sqrt(std::max(0.f,old.covariance[5]))};
         // Inertia belongs to one overlapping footprint. Never interpolate the
         // physical depth interval into a third, unrelated receiver.
-        if(near>oldStation+old.reserved[1]||far<oldStation+old.reserved[0]||simd_any(simd_abs(tangent)>radius))break;
+        if(near>oldStation+old.reserved[1]||far<oldStation+old.reserved[0]||simd_any(simd_abs(tangent)>radius))continue;
         const auto center=current-(1.f-blend)*tangent;
         for(unsigned i=0;i<3;++i)field.center[i]=center[i];
         for(unsigned i=0;i<6;++i)field.covariance[i]=old.covariance[i]+blend*(field.covariance[i]-old.covariance[i]);
         field.reserved[0]=near-simd_dot(center,normal);field.reserved[1]=far-simd_dot(center,normal);
-        break;
       }
     }
     smoothedContact_=frame.contactSections;contactTime_=now;contactAxis_=ax;
@@ -603,9 +609,10 @@ class SoftAimVolume {
     float contactMaxX=viewport.x,contactMaxY=viewport.y;bool contactNear=false;
     for(auto&contact:frame.contactSections){
       simd_float3 center={contact.center[0],contact.center[1],contact.center[2]};
-      const simd_float3 a=contact.padding>.5f?lat:simd_make_float3(1.f,0.f,0.f);
-      const simd_float3 b=contact.padding>.5f?vertical:simd_make_float3(0.f,0.f,1.f);
-      const simd_float3 normal=contact.padding>.5f?ax:simd_make_float3(0.f,1.f,0.f);
+      const simd_float3 normal={contact.normal[0],contact.normal[1],contact.normal[2]};
+      const simd_float3 tangentAxis=std::abs(normal.y)>.99f?simd_make_float3(0.f,0.f,1.f):simd_make_float3(0.f,1.f,0.f);
+      const simd_float3 a=simd_normalize(simd_cross(tangentAxis,normal));
+      const simd_float3 b=simd_cross(normal,a);
       const auto&c=contact.covariance;
       auto cov=[&](simd_float3 v,simd_float3 w){return double(v.x)*(c[0]*w.x+c[1]*w.y+c[2]*w.z)+
           double(v.y)*(c[1]*w.x+c[3]*w.y+c[4]*w.z)+double(v.z)*(c[2]*w.x+c[4]*w.y+c[5]*w.z);};

@@ -1,5 +1,237 @@
 #include "ai_fort.h"
 #include "shared/messages.h"
+#include "shared/sea_ai/manual_aim_geometry.hpp"
+#include <optional>
+
+static AIShip *FindFortTarget(AIFort::AI_FORT &fort, AICannon &cannon, float speed)
+{
+    auto *character = fort.GetACharacter();
+    const CVECTOR muzzle = cannon.GetPos();
+    const bool fixedFrame = AICannon::UsesFixedBallisticFrame(character);
+    const float heightScale = fixedFrame ? AICannon::GetBallisticHeightScale(character) : 1.f;
+    float angle = .35f; // Preserve the ordinary fort battery's existing range.
+    if (fixedFrame)
+    {
+        auto *parameters = character->FindAClass(character, "Ship.Cannons");
+        angle = manual_aim::maximumRangeElevation(muzzle.y / heightScale, speed,
+            parameters->GetAttributeAsFloat("FireAngMin"), parameters->GetAttributeAsFloat("FireAngMax"),
+            AIHelper::fGravity);
+    }
+    const float range = AICannon::CalcMaxFireDistance(muzzle.y / heightScale, speed, angle);
+    AIShip *target = nullptr;
+    float nearest = 1e10f;
+    for (auto *ship : AIShip::AIShips)
+    {
+        if (ship->isDead() || !Helper.isEnemy(character, ship->GetACharacter())) continue;
+        const float distance = ship->GetDistance(muzzle);
+        if (distance > range || !(distance < nearest)) continue;
+        if (fixedFrame)
+        {
+            CVECTOR destination = ship->GetPos();
+            destination.y = muzzle.y + (destination.y - muzzle.y) / heightScale;
+            if (!manual_aim::reachable(muzzle, destination, speed, AIHelper::fGravity)) continue;
+        }
+        nearest = distance;
+        target = ship;
+    }
+    return target;
+}
+
+// This is fort policy, not ammunition balance. Keep a real ordinary share even
+// beyond its reach: those guns reload or wait rather than acquiring dart range.
+static float FortDartProbability(float distance, float ordinaryRange)
+{
+    const float relative = ordinaryRange > 0.f && std::isfinite(distance) ? distance / ordinaryRange : 0.f;
+    const float t = std::clamp((relative - .35f) / 1.f, 0.f, 1.f);
+    return .08f + .52f * t * t * (3.f - 2.f * t);
+}
+
+class FortCannonContext
+{
+    // These are precisely the derived launch fields written by the script
+    // recalculation owner. Cache only this Execute/initialization, never across
+    // frames, skills/perks changes, scene transitions, or restored games.
+    static constexpr const char *fields[] = {"SpeedV0", "FireAngMin", "FireAngMax", "BallHeightMultiply",
+        "BallTimeSpeedMultiply", "FireAngleSineMultiply"};
+    struct Parameters
+    {
+        uint32_t type = 0, charge = 0, fixed = 0;
+        float values[std::size(fields)]{};
+        void Read(ATTRIBUTES *attributes)
+        {
+            type = attributes->GetAttributeAsDword("Type");
+            charge = attributes->GetAttributeClass("Charge")->GetAttributeAsDword("Type");
+            fixed = attributes->GetAttributeAsDword("FixedBallisticFrame");
+            for (size_t n = 0; n < std::size(fields); ++n) values[n] = attributes->GetAttributeAsFloat(fields[n]);
+        }
+        void Apply(ATTRIBUTES *attributes) const
+        {
+            attributes->SetAttributeUseDword("Type", type);
+            attributes->GetAttributeClass("Charge")->SetAttributeUseDword("Type", charge);
+            attributes->SetAttributeUseDword("FixedBallisticFrame", fixed);
+            for (size_t n = 0; n < std::size(fields); ++n) attributes->SetAttributeUseFloat(fields[n], values[n]);
+        }
+    };
+    AIFort::AI_FORT &fort;
+    ATTRIBUTES *character, *parameters, *charge, *fortState, *ammo, *profiles;
+    Parameters original;
+    std::string originalName;
+    std::vector<Parameters> cache;
+    uint32_t ordinal = 0;
+
+  public:
+    explicit FortCannonContext(AIFort::AI_FORT &owner) : fort(owner)
+    {
+        character = fort.GetACharacter();
+        parameters = character->CreateSubAClass(character, "Ship.Cannons");
+        charge = parameters->GetAttributeClass("Charge");
+        fortState = character->CreateSubAClass(character, "Fort.Cannons");
+        ammo = character->CreateSubAClass(character, "Fort.Cannons.Ammo");
+        profiles = character->FindAClass(character, "Fort.Cannons.AmmoTypes");
+        original.Read(parameters);
+        originalName = charge->GetValue();
+    }
+    ~FortCannonContext()
+    {
+        if (auto *active = fortState->GetAttributeClass("ActiveGun")) fortState->DeleteAttributeClassX(active);
+        original.Apply(parameters);
+        charge->SetValue(originalName);
+    }
+    ATTRIBUTES *Profile(uint32_t type) const
+    {
+        for (size_t i = 0; profiles && i < profiles->GetAttributesNum(); ++i)
+        {
+            auto *profile = profiles->GetAttributeClass(static_cast<uint32_t>(i));
+            if (profile->GetAttributeAsDword() == type) return profile;
+        }
+        return nullptr;
+    }
+    ATTRIBUTES *FlaggedProfile(const char *flag) const
+    {
+        for (size_t i = 0; profiles && i < profiles->GetAttributesNum(); ++i)
+        {
+            auto *profile = profiles->GetAttributeClass(static_cast<uint32_t>(i));
+            if (profile->GetAttributeAsDword(flag)) return profile;
+        }
+        return nullptr;
+    }
+    ATTRIBUTES *State(uint32_t index)
+    {
+        const auto key = std::string("gun") + std::to_string(index);
+        auto *state = ammo->CreateSubAClass(ammo, key.c_str());
+        if (!state->GetAttributeClass("Charge"))
+            state->SetAttributeUseDword("Charge", FlaggedProfile("Default")->GetAttributeAsDword());
+        return state;
+    }
+    void Apply(ATTRIBUTES *profile)
+    {
+        const uint32_t type = fort.GetCannonType(ordinal), id = profile->GetAttributeAsDword();
+        charge->SetValue(profile->GetAttributeClass("Name")->GetValue());
+        for (const auto &entry : cache)
+            if (entry.type == type && entry.charge == id) { entry.Apply(parameters); return; }
+        parameters->SetAttributeUseDword("Type", type);
+        charge->SetAttributeUseDword("Type", id);
+        core.Event(CANNON_RECALCULATE_PARAMETERS, "l", GetIndex(character));
+        Parameters entry;
+        entry.Read(parameters);
+        cache.push_back(entry);
+    }
+    void Bind(uint32_t index)
+    {
+        ordinal = index;
+        const auto key = std::string("gun") + std::to_string(index);
+        fortState->SetAttribute("ActiveGun", std::string_view(key));
+        auto *profile = Profile(State(index)->GetAttributeAsDword("Charge"));
+        Apply(profile ? profile : FlaggedProfile("Default"));
+    }
+    float Speed() const { return parameters->GetAttributeAsFloat("SpeedV0"); }
+    bool HasAnyTarget()
+    {
+        auto *current = Profile(State(ordinal)->GetAttributeAsDword("Charge"));
+        bool found = false;
+        for (size_t i = 0; profiles && i < profiles->GetAttributesNum() && !found; ++i)
+        {
+            Apply(profiles->GetAttributeClass(static_cast<uint32_t>(i)));
+            found = FindFortTarget(fort, *fort.GetCannon(ordinal), Speed()) != nullptr;
+        }
+        Apply(current ? current : FlaggedProfile("Default"));
+        return found;
+    }
+    bool PrepareNextCharge(bool refundReserved = false)
+    {
+        auto *state = State(ordinal);
+        if (state->GetAttributeClass("NextCharge")) return true;
+        const auto decline = [&]
+        {
+            // Absence means a legacy/unchanged charge. An explicit declined
+            // draw must not silently reload the old dart on automatic Load.
+            if (!refundReserved) state->SetAttributeUseDword("NextEmpty", true);
+            return false;
+        };
+        auto *cargo = character->FindAClass(character, "Ship.Cargo.Goods");
+        if (!cargo || (!cargo->GetAttributeAsDword("Powder") &&
+            !(refundReserved && state->GetAttributeAsDword("Reserved")))) return decline();
+        auto *baseline = FlaggedProfile("Baseline");
+        auto *darts = FlaggedProfile("LongRange");
+        auto *current = Profile(state->GetAttributeAsDword("Charge"));
+        Apply(baseline);
+        const CVECTOR muzzle = fort.GetCannon(ordinal)->GetPos();
+        const float ordinaryRange = AICannon::CalcMaxFireDistance(muzzle.y, Speed(), .35f);
+        float nearest = std::numeric_limits<float>::infinity();
+        for (auto *ship : AIShip::AIShips)
+            if (!ship->isDead() && Helper.isEnemy(character, ship->GetACharacter()))
+                nearest = std::min(nearest, ship->GetDistance(muzzle));
+        uint32_t intact = 0, plannedDarts = 0;
+        for (uint32_t i = 0; i < fort.GetAllCannonsNum(); ++i)
+        {
+            auto *cannon = fort.GetCannon(i);
+            if (cannon->isDamaged()) continue;
+            ++intact;
+            if (i == ordinal) continue;
+            auto *other = State(i);
+            const uint32_t dartId = darts->GetAttributeAsDword();
+            if ((!cannon->isEmpty() && other->GetAttributeAsDword("Charge") == dartId) ||
+                (other->GetAttributeClass("NextCharge") && other->GetAttributeAsDword("NextCharge") == dartId))
+                ++plannedDarts;
+        }
+        const uint32_t dartLimit = std::max(1u, static_cast<uint32_t>(intact * .65f));
+        const auto available = [&](ATTRIBUTES *profile)
+        {
+            const auto &name = profile->GetAttributeClass("Name")->GetValue();
+            // A deliberate reload returns this gun's reserved round first.
+            return cargo->GetAttributeAsDword(name.c_str()) > 0 ||
+                (refundReserved && state->GetAttributeAsDword("Reserved") &&
+                 state->GetAttributeAsDword("Charge") == profile->GetAttributeAsDword());
+        };
+        ATTRIBUTES *selected = nullptr;
+        if (FRAND(1.f) < FortDartProbability(nearest, ordinaryRange) && plannedDarts < dartLimit && available(darts))
+            selected = darts;
+        else
+        {
+            float total = 0.f;
+            for (size_t i = 0; i < profiles->GetAttributesNum(); ++i)
+            {
+                auto *profile = profiles->GetAttributeClass(static_cast<uint32_t>(i));
+                if (!profile->GetAttributeAsDword("LongRange") && available(profile))
+                    total += profile->GetAttributeAsDword("Rare") ? .35f : 1.f;
+            }
+            float draw = FRAND(total);
+            for (size_t i = 0; total > 0.f && i < profiles->GetAttributesNum(); ++i)
+            {
+                auto *profile = profiles->GetAttributeClass(static_cast<uint32_t>(i));
+                if (profile->GetAttributeAsDword("LongRange") || !available(profile)) continue;
+                draw -= profile->GetAttributeAsDword("Rare") ? .35f : 1.f;
+                if (draw <= 0.f) { selected = profile; break; }
+            }
+        }
+        Apply(current ? current : FlaggedProfile("Default"));
+        if (!selected) return decline();
+        if (auto *empty = state->GetAttributeClass("NextEmpty")) state->DeleteAttributeClassX(empty);
+        state->SetAttributeUseDword("NextCharge", selected->GetAttributeAsDword());
+        return true;
+    }
+};
+
 
 // Character attributes outlive a sea scene. Keep each physical cannon's
 // damage here as well as in the existing native sea-save stream.
@@ -99,50 +331,31 @@ void AIFort::Execute(uint32_t Delta_Time)
         if (!pF->isNormalMode())
             continue;
 
-        auto fSpeedV0 = 0.0f;
-        auto dwCurrentCannonType = 0xFFFFFFFF;
+        std::optional<FortCannonContext> context;
         const auto iMax = pF->GetAllCannonsNum(); // boal fix
         for (uint32_t i = 0; i < iMax; i++)
         {
             auto *pC = pF->GetCannon(i);
-
-            const auto dwNewCurrentCannonType = pF->GetCannonType(i);
-
-            // update cannons parameters
-            if (dwCurrentCannonType != dwNewCurrentCannonType)
+            if (!pC->isDamaged() && (pC->IsFireDue(fDeltaTime) ||
+                (bFiredTimer && (pC->isReady2Fire() || pC->isEmpty()))))
             {
-                dwCurrentCannonType = dwNewCurrentCannonType;
-                auto *pACannons = pF->GetACharacter()->FindAClass(pF->GetACharacter(), "Ship.Cannons");
-                if (!pACannons)
-                    pACannons = pF->GetACharacter()->CreateSubAClass(pF->GetACharacter(), "Ship.Cannons");
-                Assert(pACannons);
-                pACannons->SetAttributeUseDword("type", dwCurrentCannonType);
-                core.Event(CANNON_RECALCULATE_PARAMETERS, "l", GetIndex(pF->GetACharacter()));
-
-                fSpeedV0 = GetSpeedV0(k);
-            }
-
-            if (!pC->isFired() && pC->isReady2Fire() && bFiredTimer)
-            {
-                AIShip *pFireAIShip = nullptr;
-                auto fMinDistance = 1e10f;
-                auto vCPos = pC->GetPos();
-                const auto fMaxFireDistance = AICannon::CalcMaxFireDistance(vCPos.y, fSpeedV0, 0.35f); // FIX-ME
-                for (auto &j : AIShip::AIShips)
-                    if (!j->isDead() &&
-                        Helper.isEnemy(pF->GetACharacter(), j->GetACharacter()))
+                if (!context) context.emplace(*pF);
+                context->Bind(i);
+                if (!pC->isFired() && bFiredTimer)
+                {
+                    auto *target = pC->isReady2Fire() ? FindFortTarget(*pF, *pC, context->Speed()) : nullptr;
+                    if (target)
                     {
-                        const auto fDistance = j->GetDistance(vCPos);
-                        if (fDistance > fMaxFireDistance)
-                            continue;
-                        if (fDistance < fMinDistance)
-                        {
-                            fMinDistance = fDistance;
-                            pFireAIShip = j;
-                        }
+                        if (pC->Fire(context->Speed(), target->GetPos())) context->PrepareNextCharge();
                     }
-                if (pFireAIShip)
-                    pC->Fire(fSpeedV0, pFireAIShip->GetPos());
+                    else if (context->HasAnyTarget() && context->PrepareNextCharge(true))
+                    {
+                        // An unreachable loaded shell is returned, not fired
+                        // with another shell's range. Reroll once per reload,
+                        // never every firing timer while the gun is charging.
+                        pC->Recharge();
+                    }
+                }
             }
             pC->Execute(fDeltaTime);
         }
@@ -249,7 +462,6 @@ bool AIFort::AddFort(ATTRIBUTES *pIslandAP, ATTRIBUTES *pFortLabelAP, ATTRIBUTES
     pFort->mOldMatrix = pFort->GetModel()->mtx;
 
     ScanFortForCannons(pFort, pModelsDir, pLocatorsName);
-    PersistFortCannons(*pFort, true);
 
     auto *pALights = pFortCharacter->FindAClass(GetACharacter(), "ship.lights");
     auto *pAFlares = pFortCharacter->FindAClass(GetACharacter(), "ship.flares");
@@ -428,10 +640,23 @@ bool AIFort::ScanFortForCannons(AI_FORT *pFort, const char *pModelsDir, const ch
             if (pCannon)
             {
                 pCannon->Init(pFort, GetId(), label);
-                pCannon->QuickRecharge(true);
             }
         }
         dwIdx++;
+    }
+
+    PersistFortCannons(*pFort, true);
+    // Locator files can interleave cannon kinds. Only the final grouped order
+    // matches the native Save/Load loops and is a stable per-gun state key.
+    FortCannonContext context(*pFort);
+    auto *character = pFort->GetACharacter();
+    const bool restoring = character->FindAClass(character, "Fort.Cannons")->GetAttributeAsDword("Restoring");
+    for (uint32_t i = 0; i < pFort->GetAllCannonsNum(); ++i)
+    {
+        context.Bind(i);
+        if (restoring || pFort->GetCannon(i)->isDamaged()) continue;
+        context.PrepareNextCharge();
+        pFort->GetCannon(i)->QuickRecharge(true);
     }
 
     core.EraseEntity(model_id);
@@ -604,6 +829,12 @@ void AIFort::AI_FORT::Load(CSaveLoad *pSL, entid_t eid)
             core.Event(FORT_LOADDMGCANNON, "fff", vPos.x, vPos.y, vPos.z);
         }
     }
+    // Legacy saves have no ammo map and therefore retain their original bomb
+    // interpretation. Current saves restore the same map without consuming a
+    // second round during scene reconstruction or changing the native codec.
+    FortCannonContext context(*this);
+    for (i = 0; i < GetAllCannonsNum(); ++i)
+        context.State(i)->SetAttributeUseDword("Reserved", !GetCannon(i)->isEmpty() && !GetCannon(i)->isDamaged());
     PersistFortCannons(*this, false);
 }
 

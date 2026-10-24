@@ -1041,7 +1041,7 @@ uint32_t AIBalls::AttributeChanged(ATTRIBUTES *pAttributeChanged)
         dartTexture = -1;
         if (const char *name = AttributesPointer->GetAttribute("DartTexture"))
             dartTexture = AIHelper::pRS->TextureCreate(name);
-        dartSize = AttributesPointer->GetAttributeAsFloat("DartSize", .8f);
+        dartSize = AttributesPointer->GetAttributeAsFloat("DartSize", DefaultDartSize);
 
         // install balls
         ATTRIBUTES *pAPBalls = AttributesPointer->GetAttributeClass("Balls");

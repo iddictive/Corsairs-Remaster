@@ -141,6 +141,12 @@ class AICannon
         return bFired;
     }
 
+    bool IsFireDue(float deltaTime) const
+    {
+        return isFired() && !isRecharged() && !isDamaged() && !isEmpty() &&
+               (fTime2Action <= 0.f || fTime2Action - deltaTime <= 0.f);
+    }
+
     bool isRecharged() const
     {
         return bRecharged;

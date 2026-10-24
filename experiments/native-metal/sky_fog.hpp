@@ -70,10 +70,10 @@ float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture
     float4 a=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,0,1);
     float4 b=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1,1);
     float3 ray=normalize(b.xyz/b.w-a.xyz/a.w);
-    // Invert the environment's signed elevation lattice in both hemispheres.
-    float theta=asin(clamp(ray.y,-1.f,1.f));
+    // Below sea level, scattering continues from the same horizon direction.
+    float theta=asin(clamp(max(ray.y,0.f),0.f,1.f));
     float2 skyUV=float2(atan2(ray.z,ray.x)/6.28318530718f+.5f,
-                       sign(theta)*sqrt(abs(theta)/1.57079632679f)*.5f+.5f);
+                       sqrt(theta/1.57079632679f)*.5f+.5f);
     constexpr sampler s(coord::normalized,s_address::repeat,t_address::clamp_to_edge,filter::linear);
     float4 sample=environment.sample(s,skyUV,level(0));
     float3 lit=sample.rgb+float3(1.f,.25f,.055f)*sample.a;

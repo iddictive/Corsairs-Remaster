@@ -84,7 +84,7 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
     // plume. Horizontal facing preserves its readable cap around the blast.
     float4 sprite=0;
     float age=u.params.x;
-    float faceAmount=smoothstep(.35f,1.35f,age)*(1.f-smoothstep(5.5f,8.5f,age));
+    float faceAmount=0.f; // Facial smoke variant disabled; keep the procedural mushroom.
     float planeAngle=dot(ray.xz,u.params.yz);
     faceAmount*=smoothstep(.05f,.15f,abs(planeAngle));
     if(abs(planeAngle)>.001f && faceAmount>0.f) {

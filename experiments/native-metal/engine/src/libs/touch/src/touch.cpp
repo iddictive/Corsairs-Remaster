@@ -35,9 +35,9 @@ using MastTriangle=storm_ship_laser::Triangle;
 MastVec mastVector(const CVECTOR &v){return {v.x,v.y,v.z};}
 CVECTOR mastVector(MastVec v){return CVECTOR(v.x,v.y,v.z);}
 struct MastSweep {
-    std::array<MastVec,4> quad;
+    std::array<MastVec,4> quad,worldQuad;
     const SHIP_MAST_CONTACT_FRAME *receiver=nullptr;
-    double seconds=0.,closing=0.;
+    double seconds=0.,closing=0.,approachA=0.;
     MastVec point{};
     float time=1.f;
     bool contact=false,previousOverlap=false;
@@ -91,7 +91,13 @@ bool mastSweepPolygon(const CVECTOR *vertices,int32_t count) {
                 const auto travel=(query.quad[3]-query.quad[0])*(1.f-along)+(query.quad[2]-query.quad[1])*along;
                 const double closing=std::max(0.,-double(dot(travel,normal))/query.seconds);
                 query.contact=true;
-                if(closing>query.closing){query.closing=closing;query.point=point;query.time=time;}
+                if(closing>query.closing){
+                    query.closing=closing;query.point=point;query.time=time;
+                    const auto worldTravel=(query.worldQuad[3]-query.worldQuad[0])*(1.f-along)+
+                        (query.worldQuad[2]-query.worldQuad[1])*along;
+                    CVECTOR localTravel;receiverCurrent.MulToInvNorm(mastVector(worldTravel),localTravel);
+                    query.approachA=-double(dot(mastVector(localTravel),normal))/query.seconds;
+                }
             }
         }
     }
@@ -109,8 +115,11 @@ class TOUCH_MASTS final:public Entity {
     void ProcessStage(Stage stage,uint32_t delta) override {
         if(stage!=Stage::execute||!delta)return;
         std::vector<SHIP_MAST_CONTACT_FRAME>frames;
+        std::vector<HULL_CONTACT_HANDLING>handling;
         for(const auto id:core.GetEntityIds("ship"))if(auto *ship=dynamic_cast<SHIP_BASE *>(core.GetEntityPointer(id))){
-            SHIP_MAST_CONTACT_FRAME frame;if(ship->GetMastContactFrame(frame))frames.push_back(std::move(frame));
+            SHIP_MAST_CONTACT_FRAME frame;if(ship->GetMastContactFrame(frame)){
+                frames.push_back(std::move(frame));handling.push_back(ship->GetHullContactHandling());
+            }
         }
         struct Impact{size_t own,other,mast;CVECTOR point;double work;};
         std::vector<Impact> impacts;std::set<Key>next;
@@ -122,7 +131,7 @@ class TOUCH_MASTS final:public Entity {
             for(size_t index=0;index<a.masts.size();++index){const auto &mast=a.masts[index];
                 MastSweep query;query.receiver=&b;query.seconds=seconds;
                 const CVECTOR endpoints[]={ownPrevious*mast.base,ownPrevious*mast.tip,ownCurrent*mast.tip,ownCurrent*mast.base};
-                for(unsigned c=0;c<4;++c){CVECTOR local;(c<2?receiverPrevious:receiverCurrent).MulToInv(endpoints[c],local);query.quad[c]=mastVector(local);}
+                for(unsigned c=0;c<4;++c){CVECTOR local;(c<2?receiverPrevious:receiverCurrent).MulToInv(endpoints[c],local);query.quad[c]=mastVector(local);query.worldQuad[c]=mastVector(endpoints[c]);}
                 // Linear within-frame relative-axis motion. The native Clip
                 // hierarchy/BVH selects only triangles in this finite patch.
                 CVECTOR lo=receiverCurrent*mastVector(query.quad[0]),hi=lo;
@@ -136,7 +145,12 @@ class TOUCH_MASTS final:public Entity {
                 const Key key{uint64_t(a.ship),uint64_t(a.model),mast.number,uint64_t(b.ship),uint64_t(b.model),mast.generation};next.insert(key);
                 if(query.previousOverlap||contacts.count(key)||!(query.closing>0.))continue;
                 const double share=b.mass/(a.mass+b.mass);
-                const double work=.5*query.closing*query.closing*share*share*(1.-storm::ship::contact::restitution*storm::ship::contact::restitution);
+                // Mast-only contact uses the same admitted speed envelope as
+                // hull contact; boosted travel cannot repay its raw motor energy here.
+                const double closing=storm::ship::contact::admittedClosingSpeed(query.approachA,
+                    query.closing-query.approachA,handling[own].arcade?handling[own].cruiseSpeed:0.,
+                    handling[other].arcade?handling[other].cruiseSpeed:0.);
+                const double work=.5*closing*closing*share*share*(1.-storm::ship::contact::restitution*storm::ship::contact::restitution);
                 const CVECTOR first=receiverPrevious*mastVector(query.point),last=receiverCurrent*mastVector(query.point);
                 impacts.push_back({own,other,index,first+(last-first)*query.time,work});
             }
@@ -701,6 +715,10 @@ void TOUCH::ResolveShips()
         frame.body.start = {{entry->TP[0].vPos.x, entry->TP[0].vPos.z}, entry->TP[0].vAng.y};
         frame.body.end = {{entry->TP[1].vPos.x, entry->TP[1].vPos.z}, entry->TP[1].vAng.y};
         frame.wreck = entry->pShip->isDead();
+        const auto handling = entry->pShip->GetHullContactHandling();
+        frame.contactSpeedLimit = handling.arcade ? handling.cruiseSpeed : 0.;
+        frame.contactTurnLimit = handling.turnLimit;
+        frame.contactCruiseSpeed = handling.cruiseSpeed;
         HULL_CONTACT_MATERIAL material;
         if (structuralContact && entry->pShip->GetHullContactMaterial(material))
             frame.material = material.prepared;

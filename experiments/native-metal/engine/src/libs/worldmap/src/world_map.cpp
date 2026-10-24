@@ -198,6 +198,11 @@ bool WorldMap::LoadNext()
     // create the player's ship
     ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);
     Assert(ro);
+    if (!ro)
+    {
+        core.Trace("World map: failed to create player ship model");
+        return false;
+    }
     AddLObject(ro, wdm::render_levels::Ship);
     auto psX = 50.0f;
     auto psZ = 0.0f;
@@ -234,8 +239,11 @@ bool WorldMap::LoadNext()
         saveData = AttributesPointer->CreateSubAClass(AttributesPointer, "encounters");
         wdmObjects->resizeRatio = AttributesPointer->GetAttributeAsFloat("resizeRatio", wdmObjects->resizeRatio);
     }
-    static_cast<WdmShip *>(ro)->Teleport(psX, psZ, psAy);
-    static_cast<WdmPlayerShip *>(ro)->SetActionRadius(psRad);
+    if (ro)
+    {
+        static_cast<WdmShip *>(ro)->Teleport(psX, psZ, psAy);
+        static_cast<WdmPlayerShip *>(ro)->SetActionRadius(psRad);
+    }
     if (!transitionLoad) rs->ProgressView();
         ++loadPhase;
         return false;
@@ -332,16 +340,19 @@ bool WorldMap::LoadNext()
     {
     // Adjusting the player's ship
     auto *playerShip = static_cast<WdmPlayerShip *>(wdmObjects->playerShip);
-    playerShip->PushOutFromIsland();
-    auto *const atrData = AttributesPointer->FindAClass(AttributesPointer, "island");
-    if (atrData && !transitionLoad)
+    if (playerShip)
     {
-        float x, z, ay;
-        playerShip->GetPosition(x, z, ay);
-        if (!wdmObjects->islands->CheckIslandArea(atrData->GetThisAttr(), x, z))
+        playerShip->PushOutFromIsland();
+        auto *const atrData = AttributesPointer->FindAClass(AttributesPointer, "island");
+        if (atrData && !transitionLoad)
         {
-            wdmObjects->islands->GetNearPointToArea(atrData->GetThisAttr(), x, z);
-            playerShip->Teleport(x, z, ay);
+            float x, z, ay;
+            playerShip->GetPosition(x, z, ay);
+            if (!wdmObjects->islands->CheckIslandArea(atrData->GetThisAttr(), x, z))
+            {
+                wdmObjects->islands->GetNearPointToArea(atrData->GetThisAttr(), x, z);
+                playerShip->Teleport(x, z, ay);
+            }
         }
     }
         loadComplete = true;

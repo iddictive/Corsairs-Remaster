@@ -11,6 +11,8 @@
 #include <set>
 #include <utility>
 #include <tuple>
+#include <cstring>
+#include <stdexcept>
 
 namespace storm_ship_structure { struct State; }
 namespace storm::ship::material::convex {struct State;struct Source;struct ContactSnapshot;struct ContactEdit;struct PhysicalDelta;}
@@ -24,6 +26,12 @@ using storm_ship_hull::Vertex;
 using storm_ship_hull::Triangle;
 using storm_ship_hull::Bounds;
 using Mesh = std::map<int,std::vector<Triangle>>;
+// Model-local projection keeps adjacent cells and later recuts in one phase.
+inline void capUV(Vertex&v,Vec3 normal){
+    if(normal.x<0||(normal.x==0&&(normal.y<0||(normal.y==0&&normal.z<0))))normal=normal*-1.f;
+    const auto basis=storm_ship_hull::frame(normal);
+    for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=storm_ship_hull::dot(v.position,basis.tangent)*.12f;v.uv[uv*2+1]=storm_ship_hull::dot(v.position,basis.bitangent)*.12f;}
+}
 inline std::vector<Mesh> components(const Mesh&);
 using FacePoint=std::array<double,2>;
 using FaceRing=std::vector<FacePoint>;
@@ -239,7 +247,7 @@ inline void capLegacy(std::vector<Segment> segments,const Plane&p,Mesh&kept,Mesh
         if(!closed||loop.size()<3)continue;
         float winding=0;for(size_t n=1;n+1<loop.size();++n)winding+=cross2(loop[0].position,loop[n].position,loop[n+1].position,p.normal);
         if(winding<0)std::reverse(loop.begin(),loop.end());
-        auto basis=storm_ship_hull::frame(p.normal);for(auto&v:loop){v.normal=p.normal;if(p.charred)v.color=(v.color&0xff000000u)|0x00645140u;for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=storm_ship_hull::dot(v.position,basis.tangent)*.12f;v.uv[uv*2+1]=storm_ship_hull::dot(v.position,basis.bitangent)*.12f;}}
+        for(auto&v:loop){v.normal=p.normal;if(p.charred)v.color=(v.color&0xff000000u)|0x00645140u;capUV(v,p.normal);}
         std::vector<Triangle>triangles;auto polygon=loop;
         // Ear selection uses corners. Restore all source-edge subdivisions below
         // so collinear GM triangles cannot stall triangulation or leave T-junctions.
@@ -289,7 +297,7 @@ inline void cap(std::vector<Segment> segments,const Plane&p,Mesh&kept,Mesh&detac
         // Restore collinear source subdivisions omitted by earcut. This keeps
         // the cap conforming to the original surface on the next saved cut.
         for(const auto&point:vertices){const size_t count=triangles.size();for(size_t k=0;k<count;++k)for(unsigned edge=0;edge<3;++edge){storm_geometry_work::checkpoint();auto t=triangles[k];const unsigned b=(edge+1)%3,c=(edge+2)%3;const auto aPos=t[edge].position,bPos=t[b].position;if(near(point.position,aPos)||near(point.position,bPos))continue;const auto line=bPos-aPos,delta=point.position-aPos;const float length2=storm_ship_hull::dot(line,line),along=storm_ship_hull::dot(delta,line);if(along<=0||along>=length2||storm_ship_hull::length(storm_ship_hull::cross(line,delta))>1.e-5f*std::sqrt(length2))continue;triangles[k]={t[edge],point,t[c]};triangles.push_back({point,t[b],t[c]});break;}}
-        for(auto t:triangles){for(auto&v:t){v.normal=p.normal;if(p.charred)v.color=(v.color&0xff000000u)|0x00645140u;for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=storm_ship_hull::dot(v.position,basis.tangent)*.12f;v.uv[uv*2+1]=storm_ship_hull::dot(v.position,basis.bitangent)*.12f;}}kept[rings[n].object].push_back(t);std::swap(t[1],t[2]);for(auto&v:t)v.normal=p.normal*-1.f;detached[rings[n].object].push_back(t);}
+        for(auto t:triangles){for(auto&v:t){v.normal=p.normal;if(p.charred)v.color=(v.color&0xff000000u)|0x00645140u;capUV(v,p.normal);}kept[rings[n].object].push_back(t);std::swap(t[1],t[2]);for(auto&v:t)v.normal=p.normal*-1.f;detached[rings[n].object].push_back(t);}
     }
 }
 
@@ -404,7 +412,7 @@ bool timberSectionCaps(const std::vector<MaterialPrism>&,const std::vector<Plane
 struct Surface {Mesh outer,canonicalCaps,interior,finiteWalls;std::shared_ptr<const std::vector<Mesh>>material;std::shared_ptr<const MaterialCells>cells;std::shared_ptr<const SurfaceRoleIndex>roleIndex;std::shared_ptr<const DecorationList>decorations;std::shared_ptr<const SurfaceBase>original,supportOriginal;std::shared_ptr<const storm_ship_structure::State>structure;std::vector<BeamSample>cutters;std::vector<std::shared_ptr<const Mesh>>released;std::shared_ptr<const std::vector<MaterialPrism>>timber;std::vector<Plane>legacy;bool checkpointed=false;};
 struct SupportSpan {Vec3 base{},tip{};};
 struct Input {std::shared_ptr<const Surface>surface;std::shared_ptr<const storm_ship_structure::State>structure;std::shared_ptr<const storm::ship::contact::MaterialSnapshot>contactPrepared;std::map<int,float>wood;Plane plane;std::array<double,12>contactTransform{1,0,0,0,1,0,0,0,1,0,0,0};unsigned fragmentLimit=0,materialTailCount=0;SupportSpan support{};bool hasSupport=false,enclosedFragments=true,structuralFragmentsOnly=false,physicalContact=true,releaseOnly=false,hasDeferredSections=false,realizeMechanicalCrush=false;double closedVolume=0,structuralArea=0;uint64_t generation=0,revision=0,materialRevision=0,fingerprint=0;};
-struct Projection {std::shared_ptr<const Surface>kept;std::shared_ptr<const storm_ship_structure::State>structure;std::shared_ptr<const storm::ship::contact::MaterialSnapshot>contactPrepared;std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>contactDelta;Mesh canonical,render;std::set<int>changedObjects;std::vector<Mesh>fragmentRender;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates,supportCandidates,supportNearby;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0,materialRevision=0;bool enclosedFragments=true,hasDeferredSections=false;std::string materialPayload;};
+struct Projection {std::shared_ptr<const Surface>kept;std::shared_ptr<const storm_ship_structure::State>structure;std::shared_ptr<const storm::ship::contact::MaterialSnapshot>contactPrepared;std::shared_ptr<const storm::ship::material::convex::PhysicalDelta>contactDelta;Mesh canonical,render;std::set<int>changedObjects;std::vector<Mesh>fragmentRender,fragmentWalls;Result result;FaceIndex collision,materialCollision,retainedSupport;std::vector<uint32_t>materialCandidates,supportCandidates,supportNearby;std::vector<FaceIndex>releasedSupport;Plane plane;double keptVolume=0;uint64_t generation=0,revision=0,materialRevision=0;bool enclosedFragments=true,hasDeferredSections=false;std::string materialPayload;};
 struct FragmentInput {Input input;uint64_t owner=0,generation=0,token=0;unsigned successorLimit=0;};
 struct FragmentPiece {Fragment properties;std::shared_ptr<const Surface>surface;FaceIndex collision;};
 struct FragmentProjection {uint64_t owner=0,generation=0,token=0;bool changed=false;std::vector<FragmentPiece>successors;};
@@ -412,6 +420,31 @@ inline bool prepare(const Input&,Projection&);
 inline void appendMesh(Mesh&destination,const Mesh&source){for(const auto&o:source){auto&out=destination[o.first];out.insert(out.end(),o.second.begin(),o.second.end());}}
 inline Mesh canonicalMesh(const Surface&surface){Mesh result=surface.outer;appendMesh(result,surface.canonicalCaps);appendMesh(result,surface.finiteWalls);return result;}
 inline Mesh renderMesh(const Surface&surface){Mesh result=surface.outer;appendMesh(result,surface.interior);appendMesh(result,surface.finiteWalls);return result;}
+inline bool subtractFaces(const Triangle&,const std::vector<std::vector<Vertex>>&,std::vector<Triangle>&,bool);
+// Planar render caps predate a dedicated render role in saved boundaries.
+// Reconstruct only their producer signature and complete canonical coverage;
+// authored inner skins keep their material even when merely near a cut plane.
+inline bool planarRenderCap(const Triangle&t,int object,const Surface&surface,const FaceIndex&caps){
+    if(caps.references.empty())return false;
+    const auto normal=t[0].normal;const auto legacy=storm_ship_hull::frame(normal),reverseLegacy=storm_ship_hull::frame(normal*-1.f);
+    bool currentUV=true,legacyUV=true,reverseUV=true;
+    for(const auto&v:t){if(storm_ship_hull::length(v.normal-normal)>1.e-5f)return false;auto projected=v;capUV(projected,normal);
+        for(unsigned uv=0;uv<4;++uv){currentUV&=std::abs(v.uv[uv*2]-projected.uv[uv*2])<1.e-4f&&std::abs(v.uv[uv*2+1]-projected.uv[uv*2+1])<1.e-4f;
+            legacyUV&=std::abs(v.uv[uv*2]-storm_ship_hull::dot(v.position,legacy.tangent)*.12f)<1.e-4f&&std::abs(v.uv[uv*2+1]-storm_ship_hull::dot(v.position,legacy.bitangent)*.12f)<1.e-4f;
+            reverseUV&=std::abs(v.uv[uv*2]-storm_ship_hull::dot(v.position,reverseLegacy.tangent)*.12f)<1.e-4f&&std::abs(v.uv[uv*2+1]-storm_ship_hull::dot(v.position,reverseLegacy.bitangent)*.12f)<1.e-4f;}}
+    if(!currentUV&&!legacyUV&&!reverseUV)return false;
+    Bounds box{t[0].position,t[0].position};for(unsigned n=1;n<3;++n)box=storm_ship_hull::merge(box,{t[n].position,t[n].position});const Vec3 pad{1.e-5f,1.e-5f,1.e-5f};box.lo=box.lo-pad;box.hi=box.hi+pad;
+    std::vector<uint32_t>nearby;caps.broadphase.queryBounds(box,nearby);std::vector<std::vector<Vertex>>masks;
+    for(auto id:nearby){const auto ref=caps.references[id];if(ref.first!=object)continue;const auto&candidate=surface.canonicalCaps.at(ref.first)[ref.second];
+        if(storm_ship_hull::length(candidate[0].normal-normal)>1.e-5f)continue;bool coplanar=true;for(const auto&v:candidate)coplanar&=std::abs(storm_ship_hull::dot(normal,v.position-t[0].position))<1.e-5f;
+        if(coplanar)masks.emplace_back(candidate.begin(),candidate.end());}
+    if(masks.empty())return false;std::vector<Triangle>uncovered;if(!subtractFaces(t,masks,uncovered,true))return false;
+    double area=0;for(const auto&piece:uncovered)area+=storm_ship_hull::area(piece);return area<=1.e-10;
+}
+inline Mesh renderWalls(const Surface&surface){
+    Mesh walls=surface.finiteWalls;if(surface.canonicalCaps.empty())return walls;const auto caps=indexFaces(surface.canonicalCaps);
+    for(const auto&o:surface.interior)for(const auto&t:o.second)if(planarRenderCap(t,o.first,surface,caps))walls[o.first].push_back(t);return walls;
+}
 inline Bounds beamBounds(const BeamSample&beam){
     const auto start=beamStart(beam),direction=beamDirection(beam),tangent=beamTangent(beam),bitangent=storm_ship_hull::cross(direction,tangent);
     Bounds result{start,start};const float back=beam.backDepth<0?beam.radius*.15625f:beam.backDepth;
@@ -493,6 +526,8 @@ template<class Planes> inline bool subtractVolume(const Mesh&mesh,const Planes&f
     return true;
 }
 inline bool solidSectionCaps(const Mesh&solid,const storm_ship_hull::Plane&plane,const std::vector<storm_ship_hull::Plane>&limits,Vec3 origin,bool charred,Mesh&inside,Mesh&outside,bool preserveCellBoundary=false){
+    const auto material=std::find_if(solid.begin(),solid.end(),[](const auto&entry){return !entry.second.empty();});
+    if(material==solid.end())return true;
     const auto box=bounds(solid);origin=(box.lo+box.hi)*.5f;
     origin=origin+plane.normal*(plane.distance-storm_ship_hull::dot(plane.normal,origin));
     const auto basis=storm_ship_hull::frame(plane.normal);std::vector<FaceRing>sections;
@@ -505,14 +540,14 @@ inline bool solidSectionCaps(const Mesh&solid,const storm_ship_hull::Plane&plane
             const double along=da==0?0:db==0?1:da/(da-db);Vertex vertex;vertex.position={float(first.x+(double(last.x)-first.x)*along),float(first.y+(double(last.y)-first.y)*along),float(first.z+(double(last.z)-first.z)*along)};bool duplicate=false;for(const auto&point:points)duplicate|=positionKey(point.position)==positionKey(vertex.position);if(!duplicate)points.push_back(vertex);}
         if(points.size()<3)continue;Vec3 center{};for(const auto&point:points)center=center+point.position*(1.f/points.size());std::sort(points.begin(),points.end(),[&](const auto&a,const auto&b){return std::atan2(storm_ship_hull::dot(a.position-center,basis.bitangent),storm_ship_hull::dot(a.position-center,basis.tangent))<std::atan2(storm_ship_hull::dot(b.position-center,basis.bitangent),storm_ship_hull::dot(b.position-center,basis.tangent));});
         for(const auto&limit:limits){std::vector<Vertex>in,out;linearSplit(points,limit,in,out);points=std::move(in);if(points.size()<3)break;}if(points.size()<3)continue;FaceRing ring;for(const auto&point:points){const auto p=point.position-origin;ring.push_back({double(storm_ship_hull::dot(p,basis.tangent)),double(storm_ship_hull::dot(p,basis.bitangent))});}double area=0;for(size_t n=0;n<ring.size();++n)area+=ring[n][0]*ring[(n+1)%ring.size()][1]-ring[(n+1)%ring.size()][0]*ring[n][1];if(std::abs(area)<1.e-12)continue;if((area<0)!=(signedVolume<0))std::reverse(ring.begin(),ring.end());sections.push_back(std::move(ring));}
-    std::vector<FacePolygon>polygons;if(!unionFaces(sections,polygons))return false;const int object=solid.begin()->first;
+    std::vector<FacePolygon>polygons;if(!unionFaces(sections,polygons))return false;const int object=material->first;
     // A section touching an existing boundary is not a newly exposed wall.
     // That face already went through subtractVolume; a second cap would make
     // duplicate/opposing skins when a later beam shares the first beam's side.
     if(!preserveCellBoundary&&!coplanar.empty()){std::vector<FacePolygon>trimmed;for(const auto&polygon:polygons){storm_geometry_work::checkpoint();auto clips=coplanar;clips.insert(clips.end(),polygon.begin()+1,polygon.end());
         for(auto&ring:clips){double area=0;for(size_t n=0;n<ring.size();++n)area+=ring[n][0]*ring[(n+1)%ring.size()][1]-ring[(n+1)%ring.size()][0]*ring[n][1];if(area<0)std::reverse(ring.begin(),ring.end());}
         std::vector<FacePolygon>part;if(!differenceFaces(polygon.front(),clips,part))return false;trimmed.insert(trimmed.end(),std::make_move_iterator(part.begin()),std::make_move_iterator(part.end()));}polygons=std::move(trimmed);}
-    for(const auto&polygon:polygons){storm_geometry_work::checkpoint();std::vector<Vertex>vertices;for(const auto&ring:polygon)for(const auto&p:ring){Vertex v;v.position={float(origin.x+p[0]*basis.tangent.x+p[1]*basis.bitangent.x),float(origin.y+p[0]*basis.tangent.y+p[1]*basis.bitangent.y),float(origin.z+p[0]*basis.tangent.z+p[1]*basis.bitangent.z)};v.normal=plane.normal;v.color=charred?0xff645140u:solid.begin()->second.front()[0].color;for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=float(p[0])*.12f;v.uv[uv*2+1]=float(p[1])*.12f;}vertices.push_back(v);}
+    for(const auto&polygon:polygons){storm_geometry_work::checkpoint();std::vector<Vertex>vertices;for(const auto&ring:polygon)for(const auto&p:ring){Vertex v;v.position={float(origin.x+p[0]*basis.tangent.x+p[1]*basis.bitangent.x),float(origin.y+p[0]*basis.tangent.y+p[1]*basis.bitangent.y),float(origin.z+p[0]*basis.tangent.z+p[1]*basis.bitangent.z)};v.normal=plane.normal;v.color=charred?0xff645140u:material->second.front()[0].color;capUV(v,plane.normal);vertices.push_back(v);}
         storm_geometry_work::checkpoint(true);const auto indices=mapbox::earcut<uint32_t>(polygon);storm_geometry_work::checkpoint(true);for(size_t n=0;n+2<indices.size();n+=3){Triangle t{vertices[indices[n]],vertices[indices[n+1]],vertices[indices[n+2]]};if(storm_ship_hull::dot(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position),plane.normal)<0)std::swap(t[1],t[2]);if(storm_ship_hull::area(t)<=1.e-10f)continue;inside[object].push_back(t);std::swap(t[1],t[2]);for(auto&v:t)v.normal=plane.normal*-1.f;outside[object].push_back(t);}}
     return true;
 }
@@ -524,7 +559,7 @@ inline bool compactFiniteWalls(Mesh&mesh,const std::vector<BeamSample>&cutters){
         for(const auto&other:groups){const auto&candidate=planes[other.first.second];if(other.first.first==group.first.first&&storm_ship_hull::length(candidate.normal+plane.normal)<1.e-6f&&std::abs(candidate.distance+plane.distance)<1.e-6f)for(const auto&t:other.second)opposite.emplace_back(t.begin(),t.end());}
         std::vector<Triangle>faces;if(opposite.empty())faces=group.second;else for(const auto&t:group.second)if(!subtractFaces(t,opposite,faces))return false;
         for(const auto&t:faces){FaceRing ring;for(const auto&v:t){const auto p=v.position-origin;ring.push_back({double(storm_ship_hull::dot(p,basis.tangent)),double(storm_ship_hull::dot(p,basis.bitangent))});}triangles.push_back(std::move(ring));}
-        std::vector<FacePolygon>polygons;if(!unionFaces(triangles,polygons))return false;for(const auto&polygon:polygons){storm_geometry_work::checkpoint();std::vector<Vertex>vertices;for(const auto&ring:polygon)for(const auto&p:ring){auto v=group.second.front()[0];v.position={float(origin.x+p[0]*basis.tangent.x+p[1]*basis.bitangent.x),float(origin.y+p[0]*basis.tangent.y+p[1]*basis.bitangent.y),float(origin.z+p[0]*basis.tangent.z+p[1]*basis.bitangent.z)};for(unsigned uv=0;uv<4;++uv){v.uv[uv*2]=float(p[0])*.12f;v.uv[uv*2+1]=float(p[1])*.12f;}vertices.push_back(v);}storm_geometry_work::checkpoint(true);const auto indices=mapbox::earcut<uint32_t>(polygon);storm_geometry_work::checkpoint(true);for(size_t n=0;n+2<indices.size();n+=3){Triangle t{vertices[indices[n]],vertices[indices[n+1]],vertices[indices[n+2]]};if(storm_ship_hull::dot(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position),plane.normal)<0)std::swap(t[1],t[2]);if(storm_ship_hull::area(t)>1.e-10f)result[group.first.first].push_back(t);}}}
+        std::vector<FacePolygon>polygons;if(!unionFaces(triangles,polygons))return false;for(const auto&polygon:polygons){storm_geometry_work::checkpoint();std::vector<Vertex>vertices;for(const auto&ring:polygon)for(const auto&p:ring){auto v=group.second.front()[0];v.position={float(origin.x+p[0]*basis.tangent.x+p[1]*basis.bitangent.x),float(origin.y+p[0]*basis.tangent.y+p[1]*basis.bitangent.y),float(origin.z+p[0]*basis.tangent.z+p[1]*basis.bitangent.z)};capUV(v,plane.normal);vertices.push_back(v);}storm_geometry_work::checkpoint(true);const auto indices=mapbox::earcut<uint32_t>(polygon);storm_geometry_work::checkpoint(true);for(size_t n=0;n+2<indices.size();n+=3){Triangle t{vertices[indices[n]],vertices[indices[n+1]],vertices[indices[n+2]]};if(storm_ship_hull::dot(storm_ship_hull::cross(t[1].position-t[0].position,t[2].position-t[0].position),plane.normal)<0)std::swap(t[1],t[2]);if(storm_ship_hull::area(t)>1.e-10f)result[group.first.first].push_back(t);}}}
     mesh=std::move(result);return true;
 }
 inline std::vector<Segment> planeSeam(const Mesh&mesh,const storm_ship_hull::Plane&plane){
@@ -755,7 +790,7 @@ inline bool prepare(const Input&input,Projection&output){storm_geometry_work::ch
     float keptArea=0;for(const auto&o:next.canonical)for(const auto&t:o.second)keptArea+=storm_ship_hull::area(t);const float total=keptArea+cut.detachedArea;next.result.removedFraction=std::clamp(cut.detachedArea/std::max(total,1.e-7f),0.f,1.f);
     double detachedVolume=0;if(input.closedVolume>1.e-6)for(double volume:cut.detachedVolumes){if(volume<=0)return false;detachedVolume+=volume;}
     next.result.fragments.reserve(groups.size());next.fragmentRender.reserve(groups.size());size_t groupIndex=0;for(const auto&piece:groups){auto canonical=canonicalMesh(piece);if(input.closedVolume>1.e-6&&(cut.detachedVolumes.empty()||groupIndex>0||input.structuralFragmentsOnly)){const double volume=closedCutVolume(canonical);if(volume<=0)return false;detachedVolume+=volume;}++groupIndex;
-        next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));if(!input.plane.beams.empty())for(const auto&o:piece.outer)for(const auto&t:o.second)next.result.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}
+        next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));next.fragmentWalls.push_back(renderWalls(piece));if(!input.plane.beams.empty())for(const auto&o:piece.outer)for(const auto&t:o.second)next.result.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});}
     if(input.closedVolume>1.e-6){next.keptVolume=closedCutVolume(next.canonical);if((keptArea>1.e-7f&&next.keptVolume<=0)||std::abs(input.closedVolume-next.keptVolume-detachedVolume)>std::max(.001,input.closedVolume*1.e-5))return false;next.result.volumeBased=true;next.result.removedFraction=float(std::clamp(detachedVolume/input.closedVolume,0.,1.));}
     next.collision=indexFaces(next.canonical);next.materialCollision=indexFaces(next.render);next.materialCandidates.reserve(next.materialCollision.references.size());if(!cut.kept.released.empty()){next.retainedSupport=indexFaces(cut.kept.outer);for(const auto&piece:cut.kept.released)next.releasedSupport.push_back(indexFaces(*piece));}next.kept=std::make_shared<const Surface>(std::move(cut.kept));output=std::move(next);return true;
 }
@@ -763,15 +798,23 @@ inline bool prepare(const Input&input,Projection&output){storm_geometry_work::ch
 // A born fragment owns exactly the uploaded boundary, including inner timber
 // skin and finite walls. Rebase its material/original history to that boundary:
 // the ship's authored solid and thickness must never grow back on a later cut.
-inline FragmentPiece standaloneFragment(Mesh physical){
+inline FragmentPiece standaloneFragment(Mesh physical,Mesh walls={}){
     FragmentPiece piece;piece.properties=fragmentProperties(physical);piece.collision=indexFaces(physical);
     Surface surface;surface.material=std::make_shared<const std::vector<Mesh>>(std::vector<Mesh>{physical});surface.outer=std::move(physical);
+    // Preserve exact generated triangles, including reconstructed planar caps,
+    // instead of losing their render role when the physical boundary is rebased.
+    const auto key=[](const Triangle&t){std::array<uint32_t,45>out{};for(unsigned n=0;n<3;++n){std::memcpy(out.data()+n*15,&t[n].position,12);std::memcpy(out.data()+n*15+3,&t[n].normal,12);out[n*15+6]=t[n].color;std::memcpy(out.data()+n*15+7,t[n].uv.data(),32);}return out;};
+    for(const auto&o:walls){auto&triangles=surface.outer.at(o.first);std::map<std::array<uint32_t,45>,size_t>remaining;for(const auto&t:o.second)++remaining[key(t)];
+        std::vector<Triangle>authored;authored.reserve(triangles.size());for(auto&t:triangles){auto found=remaining.find(key(t));if(found!=remaining.end()&&found->second){--found->second;continue;}authored.push_back(std::move(t));}
+        for(const auto&entry:remaining)if(entry.second)throw std::runtime_error("invalid fragment wall boundary");triangles=std::move(authored);}
+    surface.finiteWalls=std::move(walls);
     piece.surface=std::make_shared<const Surface>(std::move(surface));return piece;
 }
 inline bool traceFragment(const FragmentPiece&piece,Vec3 start,Vec3 end,float&fraction,Vec3&normal){
     fraction=2;normal={};if(!piece.surface||!storm_ship_hull::finite(start)||!storm_ship_hull::finite(end))return false;
     try{std::vector<uint32_t>candidates;piece.collision.broadphase.queryRay(start,end,candidates);const auto direction=end-start;double nearest=2;
-        for(uint32_t candidate:candidates){const auto ref=piece.collision.references.at(candidate);const auto&t=piece.surface->outer.at(ref.first).at(ref.second);
+        const auto&physical=piece.surface->material&&!piece.surface->material->empty()?piece.surface->material->front():piece.surface->outer;
+        for(uint32_t candidate:candidates){const auto ref=piece.collision.references.at(candidate);const auto&t=physical.at(ref.first).at(ref.second);
             const auto edge1=t[1].position-t[0].position,edge2=t[2].position-t[0].position;
             const auto p=storm_ship_hull::cross(direction,edge2);const double determinant=storm_ship_hull::dot(edge1,p);if(std::abs(determinant)<1.e-12)continue;
             const auto delta=start-t[0].position;const double u=storm_ship_hull::dot(delta,p)/determinant;if(u<0||u>1)continue;
@@ -785,9 +828,9 @@ inline bool prepareFragment(const FragmentInput&input,FragmentProjection&output)
     if(!input.owner||!input.generation||!input.token||!input.successorLimit||!input.input.surface)return false;
     try{Projection cut;if(!prepare(input.input,cut))return false;FragmentProjection next;next.owner=input.owner;next.generation=input.generation;next.token=input.token;next.changed=cut.result.changed;
         if(next.changed){next.successors.reserve(cut.fragmentRender.size()+1);
-            const auto append=[&](Mesh mesh){bool nonempty=false;for(const auto&o:mesh)nonempty|=!o.second.empty();if(nonempty)next.successors.push_back(standaloneFragment(std::move(mesh)));};
-            append(std::move(cut.render));for(auto&mesh:cut.fragmentRender)append(std::move(mesh));if(next.successors.size()>input.successorLimit)return false;
-            const double volume=closedCutVolume(input.input.surface->outer);if(volume>0){double total=0;for(const auto&piece:next.successors){const double part=closedCutVolume(piece.surface->outer);if(part<=0)return false;total+=part;}if(std::abs(total-volume)>std::max(1.e-6,volume*1.e-5))return false;}}
+            const auto append=[&](Mesh mesh,Mesh walls){bool nonempty=false;for(const auto&o:mesh)nonempty|=!o.second.empty();if(nonempty)next.successors.push_back(standaloneFragment(std::move(mesh),std::move(walls)));};
+            append(std::move(cut.render),renderWalls(*cut.kept));for(size_t n=0;n<cut.fragmentRender.size();++n)append(std::move(cut.fragmentRender[n]),std::move(cut.fragmentWalls.at(n)));if(next.successors.size()>input.successorLimit)return false;
+            const double volume=closedCutVolume(renderMesh(*input.input.surface));if(volume>0){double total=0;for(const auto&piece:next.successors){const double part=closedCutVolume(renderMesh(*piece.surface));if(part<=0)return false;total+=part;}if(std::abs(total-volume)>std::max(1.e-6,volume*1.e-5))return false;}}
         output=std::move(next);return true;
     }catch(...){return false;}
 }

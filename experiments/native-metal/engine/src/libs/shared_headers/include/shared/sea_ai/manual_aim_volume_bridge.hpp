@@ -10,7 +10,7 @@ inline constexpr std::uint32_t maxVolumeRelationVertices=49152;
 inline constexpr std::uint32_t maxWaterContactVertices=49152;
 inline constexpr std::uint32_t contactSectionsPerField=1;
 inline constexpr std::uint32_t maxContactFields=112; // All current GM batteries <=52; no truncation.
-inline constexpr std::uint32_t maxContactSections=2; // Sea impacts and selected-range projection.
+inline constexpr std::uint32_t maxContactSections=8; // Four launch groups per sea/solid chart.
 inline constexpr std::uint32_t maxContactTriangles=8192;
 inline constexpr std::uint32_t maxRenderedReceivers=128;
 inline constexpr std::uint32_t excludedReceiverColor=0x01000000u;
@@ -41,14 +41,15 @@ struct alignas(16) AimVolumeRelationVertex
 // a private chart; they are never drawn as alpha geometry in the scene.
 struct AimWaterContactVertex {float x,z;};
 // Approximate main dispersion density, not an extremal shot boundary.
-// True impact-plane mean and world covariance across all eligible guns.
-// padding selects the chart: 0=sea XZ, 1=selected-range lateral/up.
+// Impact mean and world covariance for one spatial group of eligible guns.
+// padding selects the receiver: 0=sea, 1=solid. normal owns the chart plane.
 // reserved stores center-relative normal-depth bounds, independent of chart variance.
 struct alignas(16) AimContactSection
 {
     float center[3],padding;
     float covariance[6]; // xx,xy,xz,yy,yz,zz
     float reserved[2];
+    float normal[3],unused;
 };
 // A same-first-receiver support prism, used only as a coverage/occlusion gate.
 struct alignas(16) AimContactTriangle
@@ -63,7 +64,7 @@ struct alignas(16) AimRenderedReceiver
     std::uint64_t modelId;
     std::uint32_t color,receiverToken;
 };
-static_assert(sizeof(AimContactSection)==48);
+static_assert(sizeof(AimContactSection)==64);
 static_assert(sizeof(AimContactTriangle)==64);
 static_assert(sizeof(AimRenderedReceiver)==16);
 static_assert(sizeof(AimWaterContactVertex)==8);

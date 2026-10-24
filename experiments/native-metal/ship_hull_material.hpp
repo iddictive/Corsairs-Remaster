@@ -367,7 +367,7 @@ inline bool prepare(const Input&input,Projection&output,bool resolved=false){
     next.canonical=canonicalMesh(geometry.kept);next.render=renderMesh(geometry.kept);next.result.changed=true;next.result.keptBounds=bounds(next.canonical);next.result.seam=std::move(geometry.seam);next.result.openings=std::move(geometry.openings);
     const double keptArea=area(next.canonical),total=keptArea+geometry.removedArea;next.result.removedFraction=float(std::clamp(geometry.removedArea/std::max(total,1.e-7),0.,1.));
     if(input.hasSupport)next.result.supportSevered=beamSeversSupport(*input.surface,geometry.kept,input.support);
-    for(const auto&piece:geometry.pieces){next.result.fragments.push_back(fragmentProperties(canonicalMesh(piece)));next.fragmentRender.push_back(renderMesh(piece));}
+    for(const auto&piece:geometry.pieces){next.result.fragments.push_back(fragmentProperties(canonicalMesh(piece)));next.fragmentRender.push_back(renderMesh(piece));next.fragmentWalls.push_back(renderWalls(piece));}
     // A through-hole opens the outer envelope into the empty hold. Its filled
     // volume is no material invariant: the closed timber cells own the wood.
     // Leave keptVolume/volumeBased unset rather than rejecting a valid breach.
@@ -462,6 +462,17 @@ inline ContactEdit tryContactEdit(const ContactSnapshot&snapshot,const Plane&fie
     damage.spentWork=spentWork;damage.remainingWork=remainingWork;
     return finishContactEdit(snapshot,cells,std::move(damage),delta,limits);
 }
+// Combined frame contacts keep their order. A later crush must remove an
+// earlier new wall before the worker publishes the accumulated render mesh.
+inline bool contactCaps(const PhysicalDelta&delta,Mesh&caps){
+    if(delta.steps.empty()){caps=delta.caps;return true;}
+    Mesh current;
+    for(const auto&step:delta.steps){if(!step)return false;
+        for(const auto&cut:step->ablation){Mesh kept,removed;if(!subtractVolume(current,cut.planes,kept,removed))return false;current=std::move(kept);}
+        Mesh addition;if(!contactCaps(*step,addition))return false;appendMesh(current,addition);
+    }
+    caps=std::move(current);return true;
+}
 inline bool projectContactDelta(const Input&input,const PhysicalDelta&delta,Projection&output){
     if(!input.surface||input.surface->cells!=delta.before.cells||!delta.after.cells||!compatible(*delta.after.cells)||!delta.after.strength)return false;
     Projection next;next.generation=input.generation;next.revision=input.revision;next.materialRevision=input.materialRevision;next.plane=delta.field;next.enclosedFragments=input.enclosedFragments;next.structure=delta.after.strength;next.kept=input.surface;next.result.stateChanged=true;
@@ -469,12 +480,12 @@ inline bool projectContactDelta(const Input&input,const PhysicalDelta&delta,Proj
     Mesh ownershipCaps;auto afterCells=materialize(delta.after,ownershipCaps);if(!afterCells)return false;std::vector<Body>bodies;for(const auto&body:delta.released)bodies.push_back(expandBody(body));
     Surface retained=*input.surface;ablation::LocalResult removed;std::vector<ablation::ConvexField>fields;for(const auto&cut:delta.ablation)fields.push_back({cut.planes,cut.bounds,cut.origin,cut.charred});
     if(!fields.empty())for(unsigned role=0;role<4;++role)if(!ablation::cutRole(surfaceRole(*input.surface,role),fields,input.wood,role,surfaceRole(retained,role),removed))return false;
-    appendMesh(retained.finiteWalls,delta.caps);std::vector<Surface>groups;
+    Mesh caps;if(!contactCaps(delta,caps))return false;appendMesh(retained.finiteWalls,caps);std::vector<Surface>groups;
     if(!bodies.empty()){if(!partitionSurface(retained,*afterCells,bodies,input.wood,groups,&next.changedObjects))return false;for(unsigned role=0;role<4;++role)surfaceRole(retained,role)=std::move(surfaceRole(groups[0],role));retained.decorations=std::move(groups[0].decorations);
         appendMesh(retained.finiteWalls,ownershipCaps);
         for(size_t n=0;n<bodies.size();++n){const auto&body=bodies[n];auto&piece=groups[n+1];const auto bodyIndex=pieceIndex(body.pieces);for(size_t p=0;p<body.pieces.size();++p)for(const auto&face:body.pieces[p].faces)if(face.fresh)for(const auto&polygon:externalFace(body.pieces,p,face,&bodyIndex))storm_ship_hull::fan(polygon,piece.finiteWalls[face.object]);
             const auto canonical=canonicalMesh(piece);removed.removedArea+=area(canonical);for(const auto&o:piece.outer)for(const auto&t:o.second)removed.openings.push_back({(t[0].position+t[1].position+t[2].position)*(1.f/3.f),storm_ship_hull::area(t)});
-            next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));retained.released.push_back(std::make_shared<const Mesh>(renderMesh(piece)));}}
+            next.result.fragments.push_back(fragmentProperties(canonical));next.fragmentRender.push_back(renderMesh(piece));next.fragmentWalls.push_back(renderWalls(piece));retained.released.push_back(std::make_shared<const Mesh>(renderMesh(piece)));}}
     else{next.changedObjects=removed.changedObjects;for(auto id:delta.changedCells)if(id<delta.after.cells->source->prisms.size())next.changedObjects.insert(delta.after.cells->source->prisms[id].object);}
     retained.cells=std::move(afterCells);if(delta.after.retainedSupports){auto measured=input.surface->structure?storm_ship_structure::reconcile(*input.surface->structure,*input.surface,retained,input.wood,&delta.changedCells,true).state:storm_ship_structure::seed(next.structure->layout,retained,input.wood);auto paid=std::make_shared<storm_ship_structure::State>(*next.structure);paid->contact=std::move(measured.contact);paid->physicalCellHealth=std::move(measured.physicalCellHealth);paid->physicalBondHealth=std::move(measured.physicalBondHealth);for(size_t n=0;n<paid->cellHealth.size();++n)paid->cellHealth[n]=std::min(paid->cellHealth[n],paid->physicalCellHealth[n]);for(size_t n=0;n<paid->bondHealth.size();++n)paid->bondHealth[n]=std::min(paid->bondHealth[n],paid->physicalBondHealth[n]);next.structure=std::move(paid);}retained.structure=next.structure;if(!tagOpenings(retained,input.wood,removed.openings))return false;retained=rebase(std::move(retained));
     next.changedObjects.insert(removed.changedObjects.begin(),removed.changedObjects.end());next.canonical=canonicalMesh(retained);next.render=renderMesh(retained);next.result.changed=true;next.result.keptBounds=bounds(next.canonical);next.result.openings=std::move(removed.openings);const double kept=area(next.canonical);next.result.removedFraction=float(std::clamp(removed.removedArea/std::max(1.e-7,kept+removed.removedArea),0.,1.));

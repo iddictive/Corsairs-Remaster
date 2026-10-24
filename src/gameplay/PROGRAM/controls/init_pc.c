@@ -19,20 +19,13 @@
 	MapControlToGroup("MapView", "PrimaryLand");
 	
 	// boal Не подведем :) -->
-	CI_CreateAndSetControls( "", "BOAL_Control", CI_GetKeyCode("VK_F11"), 0, false );
-    CI_CreateAndSetControls( "", "BOAL_Control2", CI_GetKeyCode("VK_F12"), 0, false );
-    CI_CreateAndSetControls( "", "BOAL_SetCamera", CI_GetKeyCode("VK_F10"), 0, false );
-    CI_CreateAndSetControls( "", "BOAL_ControF5", CI_GetKeyCode("VK_F5"), 0, false );
-    CI_CreateAndSetControls( "", "BOAL_ControF7", CI_GetKeyCode("VK_F7"), 0, false );
-    CI_CreateAndSetControls( "", "BOAL_ControlDebug", CI_GetKeyCode("VK_INSERT"), 0, false );
+	ControlsInitFixedShortcuts();
     
     CI_CreateAndSetControls( "", "TimeScaleFaster", CI_GetKeyCode("VK_A_PLUS"), 0, false );
     MapControlToGroup("TimeScaleFaster", "PrimaryLand");
     CI_CreateAndSetControls( "", "TimeScaleSlower", CI_GetKeyCode("VK_A_MINUS"), 0, false );
     MapControlToGroup("TimeScaleSlower", "PrimaryLand");
 	CI_CreateAndSetControls( "", "VK_PAUSETimePause", CI_GetKeyCode("VK_PAUSE"), 0, false );
-
-	CI_CreateAndSetControls( "", "TeleportActive", CI_GetKeyCode("VK_F4"), 0, false );
 
 	if (MOD_BETTATESTMODE == "On")
 	{

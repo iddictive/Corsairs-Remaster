@@ -117,6 +117,17 @@ void RebuildControlsRegistry()
     }
 }
 
+void ControlsInitFixedShortcuts()
+{
+	CI_CreateAndSetControls("", "BOAL_Control", CI_GetKeyCode("VK_F11"), 0, false);
+	CI_CreateAndSetControls("", "BOAL_Control2", CI_GetKeyCode("VK_F12"), 0, false);
+	CI_CreateAndSetControls("", "BOAL_SetCamera", CI_GetKeyCode("VK_F10"), 0, false);
+	CI_CreateAndSetControls("", "BOAL_ControF5", CI_GetKeyCode("VK_F5"), 0, false);
+	CI_CreateAndSetControls("", "BOAL_ControF7", CI_GetKeyCode("VK_F7"), 0, false);
+	CI_CreateAndSetControls("", "BOAL_ControlDebug", CI_GetKeyCode("VK_INSERT"), 0, false);
+	CI_CreateAndSetControls("", "TeleportActive", CI_GetKeyCode("VK_F4"), 0, false);
+}
+
 void RestoreKeysFromOptions(aref arControlsRoot)
 {
 	aref arRootKey,arKey;
@@ -165,6 +176,7 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 	MapControlToGroup("ChrRun", "Sailing1Pers");
 	// Refresh the fixed aim binding even for profiles saved before it existed.
 	CI_CreateAndSetControls("Sailing1Pers", "DeckAimZoom", CI_GetKeyCode("VK_RBUTTON"), 0, false);
+	ControlsInitFixedShortcuts();
 	RunControlsContainers();
 }
 
