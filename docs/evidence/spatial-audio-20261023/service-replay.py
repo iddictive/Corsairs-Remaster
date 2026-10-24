@@ -12,7 +12,16 @@ BUILD = ROOT / 'experiments/native-metal/.cache/build'
 SCRATCH = Path(os.environ['CODEX_SCRATCH_DIR'])
 EVIDENCE = Path(__file__).parent
 mode = sys.argv[1]
-assert mode in ('baseline', 'candidate', 'distinct-before', 'distinct-after', 'density-after')
+assert mode in ('baseline', 'candidate', 'distinct-before', 'distinct-after', 'density-after',
+                'cannon-before', 'cannon-after', 'cannon-effects-control')
+if mode == 'cannon-before':
+    for relative in ('experiments/native-metal/audio/audio_voice_policy.h',
+                     'experiments/native-metal/audio/sound_service.cpp',
+                     'experiments/native-metal/audio/sound_service.h',
+                     'src/gameplay/RESOURCE/INI/aliases/sound_alias.ini'):
+        original = subprocess.check_output(['git', 'show',
+            'e83a955d8fd0581e856e088de445564253ea6ee8:' + relative], cwd=ROOT)
+        assert (ROOT / relative).read_bytes() == original, 'cannon-before requires the e83a955 source/build.'
 if mode == 'distinct-before':
     for relative in ('experiments/native-metal/audio/audio_voice_policy.h',
                      'experiments/native-metal/audio/sound_service.cpp'):
@@ -66,7 +75,12 @@ else:
         else:
             target.symlink_to(path, target_is_directory=path.is_dir())
 arguments = ['distinct'] if mode.startswith('distinct-') else (['density'] if mode == 'density-after' else [])
+if mode in ('cannon-before', 'cannon-after'):
+    arguments = ['cannon']
+elif mode == 'cannon-effects-control':
+    arguments = ['distinct']
 result = run([str(SCRATCH / 'replay'), str(runtime), *arguments])
 rows = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
 (EVIDENCE / f'service-{mode}.json').write_text(json.dumps(rows, indent=2) + '\n')
-print(json.dumps(rows if arguments else rows[:3]))
+print(json.dumps([row for row in rows if row['case'] != 'cannon_distance'] if mode.startswith('cannon-')
+                 else (rows if arguments else rows[:3])))

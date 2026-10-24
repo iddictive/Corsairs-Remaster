@@ -112,6 +112,22 @@ void SoundService::RebalanceCannonVoices()
     }
 }
 
+void SoundService::RetireCannonVoice(Slot &voice)
+{
+    size_t retiring = 0;
+    Slot *oldest = nullptr;
+    for (auto &slot : slots_)
+    {
+        if (!slot.initialized || !slot.terminalStopping ||
+            slot.voiceClass != storm::metal::audio::VoiceClass::cannon) continue;
+        ++retiring;
+        if (!oldest || slot.cannonStarted < oldest->cannonStarted) oldest = &slot;
+    }
+    if (retiring >= storm::metal::audio::kMaxRetiringCannonVoices && oldest) Release(*oldest);
+    ma_sound_stop_with_fade_in_milliseconds(&voice.sound, storm::metal::audio::kCannonReplacementFadeMs);
+    voice.terminalStopping = true;
+}
+
 void SoundService::PrepareChargeReplacement()
 {
     for (auto &slot : slots_)
@@ -150,7 +166,7 @@ void SoundService::RebalanceImpactVoices()
             const float dx = slot.impactPosition.x - other.impactPosition.x;
             const float dy = slot.impactPosition.y - other.impactPosition.y;
             const float dz = slot.impactPosition.z - other.impactPosition.z;
-            if (dx * dx + dy * dy + dz * dz <= storm::metal::audio::kImpactClusterRadiusSquared)
+            if (dx * dx + dy * dy + dz * dz <= storm::metal::audio::kSpatialRepeatRadiusSquared)
                 ++localCopies;
         }
         slot.mixGain = storm::metal::audio::ImpactMixGain(localCopies);
@@ -237,20 +253,39 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
             const float dx = slot.impactPosition.x - position->x;
             const float dy = slot.impactPosition.y - position->y;
             const float dz = slot.impactPosition.z - position->z;
-            if (dx * dx + dy * dy + dz * dz > storm::metal::audio::kImpactClusterRadiusSquared)
+            if (dx * dx + dy * dy + dz * dz > storm::metal::audio::kSpatialRepeatRadiusSquared)
                 continue;
             ++localImpacts;
             if (impactStarted - slot.impactStarted <
-                std::chrono::milliseconds(storm::metal::audio::kImpactClusterIntervalMs))
+                std::chrono::milliseconds(storm::metal::audio::kSpatialRepeatIntervalMs))
                 return SOUND_INVALID_ID;
         }
         if (activeImpacts >= storm::metal::audio::kMaxImpactVoicesPerAlias ||
             localImpacts >= storm::metal::audio::kMaxLocalImpactVoices)
             return SOUND_INVALID_ID;
     }
+    Slot *cannonToReplace = nullptr;
+    const auto cannonStarted = std::chrono::steady_clock::now();
     if (voiceClass == storm::metal::audio::VoiceClass::cannon &&
         !storm::metal::audio::AdmitCannonVoice(ActiveVoiceCount(voiceClass)))
-        return SOUND_INVALID_ID;
+    {
+        if (!spatial || !position || simpleCache || looped) return SOUND_INVALID_ID;
+        for (auto &slot : slots_)
+        {
+            if (!slot.initialized || slot.terminalStopping || slot.paused || slot.focusSuspended || slot.looped ||
+                slot.voiceClass != storm::metal::audio::VoiceClass::cannon) continue;
+            if (slot.type == type && slot.cannonAlias == aliasKey && cannonStarted - slot.cannonStarted <
+                std::chrono::milliseconds(storm::metal::audio::kSpatialRepeatIntervalMs))
+            {
+                const auto p = ma_sound_get_position(&slot.sound);
+                const float dx = p.x - position->x, dy = p.y - position->y, dz = p.z - position->z;
+                if (dx * dx + dy * dy + dz * dz <= storm::metal::audio::kSpatialRepeatRadiusSquared)
+                    return SOUND_INVALID_ID;
+            }
+            if (!cannonToReplace || slot.cannonStarted < cannonToReplace->cannonStarted) cannonToReplace = &slot;
+        }
+        if (!cannonToReplace) return SOUND_INVALID_ID;
+    }
     if (voiceClass == storm::metal::audio::VoiceClass::chargeSelection)
         PrepareChargeReplacement();
     const std::string path = ResolvePath(selected.c_str());
@@ -269,6 +304,9 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     if (ma_sound_init_from_file(&engine_, path.c_str(), flags, nullptr, nullptr, &it->sound) != MA_SUCCESS)
         return SOUND_INVALID_ID;
 
+    // Retire a tail only after the incoming shot has decoded successfully.
+    if (cannonToReplace) RetireCannonVoice(*cannonToReplace);
+
     const size_t index = static_cast<size_t>(it - slots_.begin());
     const TSD_ID id = TSD_ID::createId(static_cast<uint16_t>(index));
     it->path = path;
@@ -282,6 +320,11 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     it->volumeType = volumeType;
     it->volume = volume;
     it->voiceClass = voiceClass;
+    if (voiceClass == storm::metal::audio::VoiceClass::cannon)
+    {
+        it->cannonAlias = aliasKey;
+        it->cannonStarted = cannonStarted;
+    }
     it->stamp = id.stamp();
     it->initialized = true;
     it->looped = looped;

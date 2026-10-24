@@ -15,11 +15,13 @@ enum class VoiceClass
 };
 
 constexpr std::size_t kMaxCannonVoices = 12;
+constexpr std::size_t kMaxRetiringCannonVoices = 2;
+constexpr unsigned long long kCannonReplacementFadeMs = 30;
 constexpr unsigned long long kChargeReplacementFadeMs = 90;
 constexpr std::size_t kMaxImpactVoicesPerAlias = 8;
 constexpr std::size_t kMaxLocalImpactVoices = 2;
-constexpr unsigned long long kImpactClusterIntervalMs = 50;
-constexpr float kImpactClusterRadiusSquared = 20.0f * 20.0f;
+constexpr unsigned long long kSpatialRepeatIntervalMs = 50;
+constexpr float kSpatialRepeatRadiusSquared = 20.0f * 20.0f;
 
 struct SpatialVoicePolicy
 {

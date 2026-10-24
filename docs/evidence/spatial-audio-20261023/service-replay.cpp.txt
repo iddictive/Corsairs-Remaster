@@ -39,6 +39,64 @@ int main(int argc, char **argv)
         std::printf("\"peak\":%.9g,\"rms\":%.9g,\"clipped_samples\":%d",peak,std::sqrt(energy/output.size()),clipped);
     };
     std::srand(1);
+    if (argc == 3 && std::string(argv[2]) == "cannon")
+    {
+        auto active = [&] { return service->ActiveVoiceCount(storm::metal::audio::VoiceClass::cannon); };
+        for (int i=0; i<12; ++i) play("cannon_fire_cannon_16", float(i)*.5f, -10);
+        const auto otherShip = play("cannon_fire_cannon_16", 0, -100);
+        const auto ownNext = play("cannon_fire_cannon_16", 1, -10);
+        std::printf("{\"case\":\"own_salvo_then_other_ship\",\"other_admitted\":%s,\"next_own_admitted\":%s,\"other_still_playing\":%s,\"active\":%zu,\"allocated\":%d}\n",
+            valid(otherShip)?"true":"false",valid(ownNext)?"true":"false",
+            service->SoundIsPlaying(otherShip)?"true":"false",active(),count());
+        const auto beforeFailure = active();
+        const bool failed = !valid(play("cannon_fire_missing", 0, -10));
+        std::printf("{\"case\":\"failed_decode_preserves_voices\",\"failed\":%s,\"before\":%zu,\"after\":%zu}\n",
+            failed?"true":"false",beforeFailure,active());
+        clear();
+        const auto started = std::chrono::steady_clock::now();
+        int admitted = 0, maxAllocated = 0;
+        for (int i=0; i<96; ++i) {
+            admitted += valid(play("cannon_fire_cannon_16", float(i%12), -10));
+            maxAllocated = std::max(maxAllocated, count());
+        }
+        const auto us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-started).count();
+        std::printf("{\"case\":\"cannon_burst\",\"admitted\":%d,\"active\":%zu,\"max_allocated\":%d,\"play_us\":%lld,",
+            admitted,active(),maxAllocated,(long long)us); mix(); std::puts("}");
+        clear();
+        admitted = 0; maxAllocated = 0;
+        for (int i=0; i<32; ++i) {
+            admitted += valid(play("cannon_fire_cannon_48", float(i%8)*35, -float(i/8)*35-10));
+            maxAllocated = std::max(maxAllocated, count());
+        }
+        std::printf("{\"case\":\"distinct_cannon_sources\",\"admitted\":%d,\"active\":%zu,\"max_allocated\":%d,",
+            admitted,active(),maxAllocated); mix(); std::puts("}");
+        clear();
+        CVECTOR cachedPosition(0.f, 0.f, -10.f);
+        for (int i=0; i<12; ++i)
+            service->SoundPlay("cannon_fire_cannon_16", PCM_3D, VOLUME_FX, true, false, false,
+                0, &cachedPosition, -1, -1, 0, 1, 128);
+        const bool cachedProtected = !valid(play("cannon_fire_cannon_16", 0, -100));
+        const auto ui = service->SoundPlay("Button", PCM_STEREO, VOLUME_FX, false, false, false,
+            0, nullptr, -1, -1, 0, 1, 128);
+        std::printf("{\"case\":\"retained_cannon_controls\",\"cached_protected\":%s,\"cannons\":%zu,\"ui_admitted\":%s}\n",
+            cachedProtected?"true":"false",active(),valid(ui)?"true":"false");
+        clear();
+        for (const char *alias : {"cannon_fire", "fort_cannon_fire", "cannon_fire_cannon_3",
+             "cannon_fire_cannon_6", "cannon_fire_cannon_8", "cannon_fire_cannon_12",
+             "cannon_fire_cannon_16", "cannon_fire_cannon_20", "cannon_fire_cannon_24",
+             "cannon_fire_cannon_32", "cannon_fire_cannon_36", "cannon_fire_cannon_42",
+             "cannon_fire_cannon_48", "cannon_fire_culverine_8", "cannon_fire_culverine_12",
+             "cannon_fire_culverine_16", "cannon_fire_culverine_24", "cannon_fire_culverine_32"})
+        {
+            for (float distance : {10.f, 150.f, 250.f, 300.f, 500.f, 1000.f, 5000.f}) {
+                std::srand(1);
+                const auto shot = play(alias, 0, -distance);
+                std::printf("{\"case\":\"cannon_distance\",\"alias\":\"%s\",\"distance\":%.0f,\"admitted\":%s,",
+                    alias,distance,valid(shot)?"true":"false"); mix(); std::puts("}"); clear();
+            }
+        }
+        return 0;
+    }
     if (argc == 3 && std::string(argv[2]) == "distinct")
     {
         auto first = play("ball_splash", 0, -10);

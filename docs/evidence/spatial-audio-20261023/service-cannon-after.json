@@ -1,0 +1,1175 @@
+[
+  {
+    "case": "own_salvo_then_other_ship",
+    "other_admitted": true,
+    "next_own_admitted": false,
+    "other_still_playing": true,
+    "active": 12,
+    "allocated": 13
+  },
+  {
+    "case": "failed_decode_preserves_voices",
+    "failed": true,
+    "before": 12,
+    "after": 12
+  },
+  {
+    "case": "cannon_burst",
+    "admitted": 12,
+    "active": 12,
+    "max_allocated": 12,
+    "play_us": 617,
+    "peak": 0.781148136,
+    "rms": 0.122311253,
+    "clipped_samples": 0
+  },
+  {
+    "case": "distinct_cannon_sources",
+    "admitted": 32,
+    "active": 12,
+    "max_allocated": 14,
+    "peak": 0.625331461,
+    "rms": 0.110652634,
+    "clipped_samples": 0
+  },
+  {
+    "case": "retained_cannon_controls",
+    "cached_protected": true,
+    "cannons": 12,
+    "ui_admitted": true
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.192717388,
+    "rms": 0.0415085047,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.170762241,
+    "rms": 0.0367796887,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.154499173,
+    "rms": 0.0332768608,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.146367639,
+    "rms": 0.0315254457,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.113841496,
+    "rms": 0.0245197925,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0325261466,
+    "rms": 0.0070056557,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.0910174996,
+    "rms": 0.0365472687,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.0910174996,
+    "rms": 0.0365472687,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.0910174996,
+    "rms": 0.0365472687,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.0910174996,
+    "rms": 0.0365472687,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0910174996,
+    "rms": 0.0365472687,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0688781068,
+    "rms": 0.0276573935,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "fort_cannon_fire",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.416702151,
+    "rms": 0.0219188155,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.32054013,
+    "rms": 0.0168606281,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.249308974,
+    "rms": 0.0131138208,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.213693395,
+    "rms": 0.0112404172,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0712311268,
+    "rms": 0.00374680573,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 1000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_3",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.152358323,
+    "rms": 0.0289187415,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.126156569,
+    "rms": 0.0239454542,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.106747881,
+    "rms": 0.0202615407,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.0970435292,
+    "rms": 0.0184195819,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0582261123,
+    "rms": 0.0110517487,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 1000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_6",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.284460455,
+    "rms": 0.0408334016,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.238469854,
+    "rms": 0.0342315949,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.2044027,
+    "rms": 0.0293413639,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.187369168,
+    "rms": 0.0268962525,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.119234927,
+    "rms": 0.0171157974,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 1000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_8",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.126046538,
+    "rms": 0.0454899707,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.108771116,
+    "rms": 0.0392553036,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.0959745198,
+    "rms": 0.0346370342,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.0895762146,
+    "rms": 0.0323278956,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0639830157,
+    "rms": 0.0230913568,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 1000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_12",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.153630391,
+    "rms": 0.0470495573,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.134515077,
+    "rms": 0.0411954636,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.120355599,
+    "rms": 0.0368590992,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.113275871,
+    "rms": 0.0346909206,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0849568993,
+    "rms": 0.0260181888,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.014159481,
+    "rms": 0.00433636437,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_16",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.0729484558,
+    "rms": 0.0208692671,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.0646378696,
+    "rms": 0.0184917564,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.058481887,
+    "rms": 0.0167306372,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.0554038882,
+    "rms": 0.0158500757,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0430919155,
+    "rms": 0.0123278373,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0123119764,
+    "rms": 0.00352223961,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_20",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.12521781,
+    "rms": 0.028840144,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.12521781,
+    "rms": 0.028840144,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.12521781,
+    "rms": 0.028840144,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.12521781,
+    "rms": 0.028840144,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.102450937,
+    "rms": 0.0235964813,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0455337502,
+    "rms": 0.0104873254,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_24",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.120916344,
+    "rms": 0.0551888386,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.120916344,
+    "rms": 0.0551888386,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.120916344,
+    "rms": 0.0551888386,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.120916344,
+    "rms": 0.0551888386,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.102313824,
+    "rms": 0.0466982473,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0558075383,
+    "rms": 0.025471769,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_32",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.103212163,
+    "rms": 0.0462813488,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.103212163,
+    "rms": 0.0462813488,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.103212163,
+    "rms": 0.0462813488,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.103212163,
+    "rms": 0.0462813488,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0894505456,
+    "rms": 0.0401105033,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0550464839,
+    "rms": 0.0246833845,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_36",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.0869216919,
+    "rms": 0.0419959507,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.0869216919,
+    "rms": 0.0419959507,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.0869216919,
+    "rms": 0.0419959507,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.0869216919,
+    "rms": 0.0419959507,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0766956136,
+    "rms": 0.0370552509,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0511304028,
+    "rms": 0.0247034989,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_42",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.0902481079,
+    "rms": 0.0400639634,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.0902481079,
+    "rms": 0.0400639634,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.0902481079,
+    "rms": 0.0400639634,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.0902481079,
+    "rms": 0.0400639634,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.0816530511,
+    "rms": 0.036248348,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0601654015,
+    "rms": 0.0267093073,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_cannon_48",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.332838058,
+    "rms": 0.0508351896,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.282066137,
+    "rms": 0.0430806685,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.244457334,
+    "rms": 0.0373365801,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.225652933,
+    "rms": 0.0344645362,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.150435284,
+    "rms": 0.0229763563,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 1000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_8",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.29887566,
+    "rms": 0.0792053756,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.261688352,
+    "rms": 0.0693503262,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.234142229,
+    "rms": 0.0620502942,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.22036916,
+    "rms": 0.0584002784,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.16527687,
+    "rms": 0.043800207,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0275461413,
+    "rms": 0.00730003398,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_12",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.246884555,
+    "rms": 0.0440065152,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.219897166,
+    "rms": 0.0391960854,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.199906513,
+    "rms": 0.0356328051,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.189911202,
+    "rms": 0.0338511663,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.149929881,
+    "rms": 0.0267246025,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0499766357,
+    "rms": 0.00890820258,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_16",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.148376465,
+    "rms": 0.037585462,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.148376465,
+    "rms": 0.037585462,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.148376465,
+    "rms": 0.037585462,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.148376465,
+    "rms": 0.037585462,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.125549316,
+    "rms": 0.0318030851,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.0684814379,
+    "rms": 0.0173471359,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_24",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 10,
+    "admitted": true,
+    "peak": 0.37690568,
+    "rms": 0.116009005,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 150,
+    "admitted": true,
+    "peak": 0.37690568,
+    "rms": 0.116009005,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 250,
+    "admitted": true,
+    "peak": 0.37690568,
+    "rms": 0.116009005,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 300,
+    "admitted": true,
+    "peak": 0.37690568,
+    "rms": 0.116009005,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 500,
+    "admitted": true,
+    "peak": 0.331065804,
+    "rms": 0.101899803,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 1000,
+    "admitted": true,
+    "peak": 0.203732803,
+    "rms": 0.0627075743,
+    "clipped_samples": 0
+  },
+  {
+    "case": "cannon_distance",
+    "alias": "cannon_fire_culverine_32",
+    "distance": 5000,
+    "admitted": false,
+    "peak": 0,
+    "rms": 0,
+    "clipped_samples": 0
+  }
+]

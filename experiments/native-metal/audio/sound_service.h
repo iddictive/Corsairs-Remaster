@@ -52,8 +52,10 @@ class SoundService final : public VSoundService
         ma_sound sound{};
         std::string path;
         std::string impactAlias;
+        std::string cannonAlias;
         CVECTOR impactPosition{};
         std::chrono::steady_clock::time_point impactStarted{};
+        std::chrono::steady_clock::time_point cannonStarted{};
         eSoundType type{};
         eVolumeType volumeType{};
         float volume{1.0f};
@@ -88,6 +90,7 @@ class SoundService final : public VSoundService
     float EffectiveVolume(const Slot &) const;
     void ApplyVolumeLifecycle(Slot &, bool allowStart = true);
     void PrepareChargeReplacement();
+    void RetireCannonVoice(Slot &);
     void RebalanceCannonVoices();
     void RebalanceImpactVoices();
     size_t ActiveVoiceCount(storm::metal::audio::VoiceClass) const;

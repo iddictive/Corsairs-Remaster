@@ -199,3 +199,62 @@ The native build and signed installation passed. Installed engine SHA-256 is
 Targeted runtime/app delivery reports zero pending files; readiness-script and
 alias-file hashes still match the previous installation. No player save or
 configuration changed, and the game was not launched for this replay.
+
+## Competing ship gunfire — 2026-10-24
+
+The player still reported nearly inaudible nearby ships. The prior independent
+impact fix did not cover cannon admission or cannon alias ranges. Baseline
+`e83a955d8fd0581e856e088de445564253ea6ee8` reproduced both independently:
+
+- Twelve own shots completely rejected another ship's shot at 100 m.
+- Six-pounder fire was silent from 250 m, twelve-pounder from 280 m, and
+  sixteen-pounder from 300 m, despite their gameplay firing ranges reaching
+  300, 400 and 450 m respectively. `Ball_AddBall` uses each firing character's
+  `rCannon.Sound` and world muzzle position without restricting sound to the
+  main character.
+
+The cannon pool retains twelve active voices. Under saturation, a different
+shot now takes the oldest eligible one-shot's slot with a 30 ms tail fade;
+ordinary replacement retains at most two fading tails. A fresh duplicate of
+the same alias/type inside 20 m and 50 ms is still rejected under saturation,
+so a local burst cannot create an unbounded replacement backlog. Paused and
+looping handles cannot be stolen. A failed incoming decode leaves prior
+voices intact. Increasing the global voice limit alone would not address
+first-arrival starvation and would add simultaneous noise; the implementation
+reuses miniaudio's existing fade-stop and the service's release lifecycle.
+
+Only the maximum distances of the eighteen cannon/culverine/fort aliases
+changed: finite endpoints now span 600–2400 m. Minimum distances, sample
+choices and authored volume are preserved. This is game mix tuning; the
+endpoints are not claims about physical gunshot propagation. Splash/debris,
+independent-effect mixing and the broadside readiness queue are unchanged.
+
+[Before](service-cannon-before.json) and [after](service-cannon-after.json)
+use the real native service and packaged samples, stereo 48 kHz, FX master
+0.5. Eighteen aliases at seven distances produce 126 distance rows per run.
+The own-salvo case now admits the other ship at 100 m and retains it when a
+fresh local duplicate follows. All aliases have unchanged PCM peak/RMS at
+10 m and zero output at 5 km. At 300 m, six/twelve/sixteen-pounder RMS rises
+from zero to 0.01842 / 0.03233 / 0.03469. These sources remain audible at 500 m.
+
+The 96-request local burst still admits twelve, with identical peak 0.78115
+and no clipped samples. Admission time was 691 µs before and 617 µs after,
+an event-path observation rather than a full-game performance claim. Thirty-two
+spatially separate shots are admitted while retaining twelve active voices
+and at most fourteen allocated voices in that replacement scenario; peak is
+0.62533 with no clipped samples. Failed decode, cached cannon and stereo UI
+controls pass. The [independent-effect control](service-cannon-effects-control.json)
+retains the previous levels, local duplicate handling and nine-effect mix.
+
+Run `service-replay.py cannon-before`, `cannon-after` or
+`cannon-effects-control` in the managed scratch environment above. The before
+mode requires the baseline native sources/build and canonical aliases. Distance
+rows reset the alias RNG to keep sample choice comparable. These are native PCM
+and admission results, not listening acceptance of the player's live battle.
+
+Native compilation and signed app delivery passed. Installed engine SHA-256:
+`7e611d8b3b92caf08c214912aead5f7bb5ca084bfcf2b67fc53f513a10f34acb`;
+installed/runtime alias SHA-256:
+`97e6db7f5a5018009b1ad44d133f6baf404b7d34461131bbb11466b9fd43b85d`.
+Targeted delivery reports zero pending files; the readiness script retains its
+prior identity. No player save/configuration changed and no game was launched.
