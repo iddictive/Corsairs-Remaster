@@ -158,3 +158,37 @@ Default K is present; engine configuration, saved control options and unrelated
 changelog bytes retain their pre-install hashes. The installer retains the
 previous signed engine for rollback. Interactive motion acceptance and
 full-scene frame time remain unplayed.
+
+## Accuracy while circling
+
+The player reports frequent misses during circular combat movement. Ordinary
+melee selects its enemy through `Player::FindAttackCharacter` and turns in
+`Character::Attack`; the kick instead captures its initial yaw for the entire
+clip. A forward stationary fixture does not cover an offset or moving target.
+
+The bounded correction reuses native enemy selection and turning speed during
+windup, then commits heading at the generated strike start. A deleted, friendly
+or escaping target must not pull the actor around during impact. Actual heel
+contact, reach, walls and one damage event remain authoritative; accuracy must
+not be implemented as wider invisible damage. The existing CPU replay owns
+offset/orbit reproduction and the same forward-hit timing comparison. Ordinary
+death ragdolls are feasibility-only scope for this follow-up.
+
+The pre-change native replay selects the intended target but misses a 25° left
+offset and both 40°/s orbit directions at 1.5 m. The corrected replay reaches
+both 25° offsets and both orbit directions, once each, through the normal
+500 → 442 HP and Jolt fall chain. Heading freezes before 0.86 s; contact volume
+remains 0.22 m. The unchanged forward-hit replay retains identical HP/contact/
+physics outputs. Three-run CPU medians are 63.406 ms before and 61.253 ms after
+for the same 140-frame fixture, with overlapping ranges; this is no FPS claim.
+Deletion, escape beyond 2.2 m and changed group eligibility during windup clear
+the target ID without retargeting. A target moving 45° after strike commitment
+does not pull the actor around and receives no hit. Steering resolves the ID
+through the native safe lookup, which rejects pending-deletion entities.
+
+The accuracy correction is installed with signed engine SHA-256
+`5e05e76adbf339094bec1dc73f4b529ef2a5428c87c9b8ab03406bbce2f27923`.
+Installed readback still matches all 58 existing feature/control resources;
+engine configuration, saved controls and unrelated changelog bytes are
+unchanged. Interactive circling/animation acceptance remains separate from the
+native CPU replay.

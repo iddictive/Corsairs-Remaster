@@ -101,3 +101,68 @@ not rendered Metal motion, every rig/scene, camera housekeeping, lethal corpse
 expiry/loot, complete getup lifecycle, pause/dialog behavior or player acceptance.
 Those boundaries are not inferred from this replay. The shared build, installed
 delivery and human gameplay check remain with the integration owner.
+
+## Circular movement continuation
+
+The first integration replay placed every target directly ahead. It therefore
+missed a separate aiming mismatch: ordinary Player melee calls
+`Attack(FindAttackCharacter())`, and Character attack turns toward that selected
+target. The kick bypassed selection and pinned its starting yaw for two seconds.
+
+`native-contact-aim-baseline-result.json` and its raw companion reproduce this
+using the installed corrected-spacing candidate's cached native archive, the
+same physical assets and the actual Player target selector. At 1.5 m that
+selector chooses the victim in every case. A stationary target 25 degrees left
+still misses (minimum heel/head distance 0.484549 m); both directions of a
+40 degrees/second circular target motion miss (0.500709 and 0.758879 m). A
+25-degree right offset happens to hit the asymmetric heel arc. The exact
+baseline fixture is retained as `native-contact-aim-baseline.cpp.txt`; its hash
+matches the consumed source, rather than a later edited fixture.
+
+The correction retains the native selector's target entity ID and follows it
+at the existing character `turnSpeed` only during windup. Heading freezes before
+the producer's `strike_start_time`, 0.86 seconds. Contact still requires the
+actual swept heel to enter the unchanged 0.22 m head volume; there is no range
+or damage-radius extension and no homing after commitment. Missing, escaped or
+ineligible targets clear the ID without selecting a replacement.
+
+`native-contact-aim-final-result.json` retains fourteen motion/negative cases
+and six separate forward timing runs. Its exact fixture is
+`native-contact-aim-replay.cpp.txt`. Both static offsets now contact at about
+0.176376 m. Clockwise and counterclockwise targets contact at 0.166990 and
+0.198735 m; both freeze the attacker's heading at magnitude 0.593412 radians.
+Each positive delivers one canonical event, HP 500 → 442, creates a Jolt
+ragdoll and advances its physical pose. All previous neutral, crossed-windup
+wall, 2.4 m far, immortal, same-group and backend-failure contracts pass.
+
+New boundary cases change state during windup, rather than only before start:
+the target moves to 3 m, joins the attacker's group, or is erased through CORE.
+Each clears `aimTarget` and holds the last heading without reacquisition.
+After strike starts, another case moves the target 45 degrees to the other
+side; heading remains fixed and the actual heel misses. Every strike-window
+frame asserts that heading stays fixed. The erased-target case uses actual
+CORE invalidation and native Supervisor removal without invoking fixture GPU
+destructors; it does not simulate a whole engine unload.
+
+That boundary initially exposed CORE's deferred deletion contract:
+`GetEntityPointer` can still return an invalidated object until destruction.
+`native-contact-aim-boundary-before-result.json` retains the failing clear-ID
+assertion. The repaired lookup uses existing `GetEntityPointerSafe`, which also
+checks validity. Its native candidate differs only in that lookup from the
+failed boundary candidate; the respective native source hashes are retained.
+
+For the added windup work, one scratch run kept baseline and final executables
+linked to the same fixture object and the same assets. The new state field is
+appended after the old layout; baseline observations read only the unchanged
+prefix. Three forward positives per executable retain exactly the same contact,
+HP, body count and 1.249021 m pose displacement. CPU time for 140 replay frames
+has medians 63.406 ms before and 61.253 ms after (ranges 59.271–64.421 and
+59.282–76.725 ms). These small, overlapping samples show no measured regression;
+they are neither an FPS measurement nor evidence of a speedup. Source/resource
+hashes, compile/link commands and each timing observation remain in the JSON.
+
+Use the same runner with `aim-baseline` or `aim-final` to select this continuation.
+The baseline requires the recorded pre-aim cached archive, not an archive later
+rebuilt with the correction. No motion assets or ordinary death behavior were
+changed by this continuation. Player acceptance of the installed result remains
+separate from the no-window CPU proof.

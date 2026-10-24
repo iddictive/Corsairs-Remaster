@@ -2,6 +2,7 @@
 #include "roundhouse_character.h"
 #include "roundhouse_pose.hpp"
 #include "location.h"
+#include "player.h"
 #include "core.h"
 #include "v_file_service.h"
 #include "math3d/quaternion.h"
@@ -13,6 +14,25 @@
 
 namespace
 {
+constexpr float ContactSearchRadius = 2.2f;
+
+bool CanHitRoundhouse(Character &actor, Character &target)
+{
+    int32_t allowed = 0;
+    auto *answer = core.Event("Roundhouse_CanHit","ii",actor.GetId(),target.GetId());
+    return answer && answer->Get(allowed) && allowed;
+}
+
+bool CanAimRoundhouse(Character &actor, Character *target)
+{
+    if (!target || target == &actor || target->IsDead() || target->IsPhysicalRagdoll()) return false;
+    CVECTOR origin, position;
+    actor.GetPosition(origin);
+    target->GetPosition(position);
+    const float dx = position.x-origin.x, dz = position.z-origin.z;
+    return dx*dx+dz*dz <= ContactSearchRadius*ContactSearchRadius && CanHitRoundhouse(actor,*target);
+}
+
 CMatrix Inverse(CMatrix matrix) { matrix.Transposition(); return matrix; }
 
 CMatrix Interpolate(const CMatrix &a, const CMatrix &b, float blend)
@@ -161,6 +181,7 @@ void Character::CancelRoundhouse()
         if (auto *location = GetLocation())
             if (auto *world = location->ExistingRagdollWorld()) world->Remove(state.handle);
     state.handle = 0;
+    state.aimTarget = invalid_entity;
     const bool controlled = IsRoundhouseControlled();
     state.phase = RoundhouseState::Phase::Idle;
     if (auto *model = Model())
@@ -193,6 +214,11 @@ bool Character::StartRoundhouse()
     state.hasPreviousHeel = false;
     state.origin = curPos;
     state.yaw = ay;
+    // Ordinary melee already owns player target selection. Keep only its ID;
+    // deletion, escape or changed eligibility ends steering without retargeting.
+    auto *target = IsPlayer() ? static_cast<Player *>(this)->FindAttackCharacter() : nullptr;
+    state.aimTarget = target && target->GetLocation() == location && CanAimRoundhouse(*this,target)
+                          ? target->GetId() : invalid_entity;
     return true;
 }
 
@@ -319,10 +345,23 @@ bool Character::UpdateRoundhouse(float seconds)
         return true;
     }
 
+    const bool kick = state.phase == RoundhouseState::Phase::Kick;
+    if (kick && state.aimTarget && state.time < state.strikeStartTime)
+    {
+        auto *target = static_cast<Character *>(core.GetEntityPointerSafe(state.aimTarget));
+        if (target && target->GetLocation() == location && CanAimRoundhouse(*this,target))
+        {
+            const float desired = std::atan2(target->curPos.x-state.origin.x,target->curPos.z-state.origin.z);
+            const float delta = std::atan2(std::sin(desired-state.yaw),std::cos(desired-state.yaw));
+            const float step = std::max(turnSpeed,0.0f)*seconds;
+            state.yaw += std::clamp(delta,-step,step);
+            nay = state.yaw;
+        }
+        else state.aimTarget = invalid_entity;
+    }
     curPos = oldPos = state.origin;
     ay = state.yaw;
     model->mtx.BuildMatrix(CVECTOR(0,ay,0),curPos);
-    const bool kick = state.phase == RoundhouseState::Phase::Kick;
     const float duration = kick ? state.kickDuration : state.getupDuration;
     Sample(*state.bank,state.time/duration);
     CapturePalette(*state.bank,state.pose);
@@ -343,7 +382,7 @@ bool Character::UpdateRoundhouse(float seconds)
             CVECTOR contact;
             float nearest = 0.22f*0.22f;
             const CVECTOR torso = JointWorld(*animation,model->mtx,state.rig.bodies[1].joint).Pos();
-            auto candidates = location->supervisor.FindCharacters(this,2.2f,100.0f,0.0f,0.0f,false,false);
+            auto candidates = location->supervisor.FindCharacters(this,ContactSearchRadius,100.0f,0.0f,0.0f,false,false);
             for (const auto &candidate : candidates)
             {
                 auto *other = candidate.c;
@@ -356,9 +395,7 @@ bool Character::UpdateRoundhouse(float seconds)
                 const float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
                 if (distance >= nearest || location->Trace(state.previousHeel,head) < 0.995f ||
                     location->Trace(torso,head) < 0.995f || location->Trace(state.strikeOrigin,head) < 0.995f) continue;
-                int32_t allowed = 0;
-                auto *answer = core.Event("Roundhouse_CanHit","ii",GetId(),other->GetId());
-                if (!answer || !answer->Get(allowed) || !allowed) continue;
+                if (!CanHitRoundhouse(*this,*other)) continue;
                 nearest = distance;
                 victim = other;
                 contact = head;

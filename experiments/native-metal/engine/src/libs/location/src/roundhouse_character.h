@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation.h"
+#include "entity.h"
 #include "roundhouse_ragdoll.hpp"
 #include <memory>
 #include <vector>
@@ -35,4 +36,5 @@ struct RoundhouseState
     std::unique_ptr<Animation> bank;
     std::vector<CMatrix> blendFrom;
     std::vector<CMatrix> pose;
+    entid_t aimTarget = invalid_entity;
 };

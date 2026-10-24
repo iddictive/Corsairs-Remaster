@@ -21,9 +21,10 @@ BUILD = ROOT / 'experiments/native-metal/.cache/build'
 RUNTIME = Path('/Applications/Corsairs Iddictive Remaster.app/Contents/Resources')
 SCRATCH = Path(os.environ['CODEX_SCRATCH_DIR'])
 PHASE = sys.argv[1]
-assert PHASE in ('baseline', 'final')
+assert PHASE in ('baseline', 'final', 'aim-baseline', 'aim-final')
+CURRENT_CONSUMER=PHASE!='baseline'
 CASE = sys.argv[2] if len(sys.argv)>2 else None
-assert CASE in (None,'far')
+assert CASE in (None,'far','boundaries')
 RESULT_NAME=PHASE+('-'+CASE if CASE else '')
 NINJA = (BUILD / 'build.ninja').read_text()
 
@@ -39,7 +40,8 @@ def sha(path):
 
 
 def portable(text):
-    return text.replace(str(SCRATCH),'${SCRATCH}').replace(str(ROOT),'${REPO}').replace('<scratch>','${SCRATCH}').replace('<repo>','${REPO}')
+    text=text.replace(str(SCRATCH),'${SCRATCH}').replace(str(ROOT),'${REPO}').replace('<scratch>','${SCRATCH}').replace('<repo>','${REPO}')
+    return re.sub(r'(?:/private)?/var/folders/[^\s\'\"<>]+?/codex-scratch\.[^/\s\'\"<>]+','${SCRATCH}',text)
 
 
 source = HERE / ('native-contact-baseline.cpp.txt' if PHASE=='baseline' else 'native-contact-replay.cpp.txt')
@@ -52,6 +54,9 @@ for filename, relative in {
     'location.h': 'location/src/location.h',
     'model_array.h': 'location/src/model_array.h',
     'modelr.h': 'model/src/modelr.h',
+    'ai_character.h': 'location/src/ai_character.h',
+    'np_character.h': 'location/src/np_character.h',
+    'player.h': 'location/src/player.h',
 }.items():
     original = ROOT / 'experiments/native-metal/engine/src/libs' / relative
     text = original.read_text()
@@ -93,7 +98,7 @@ bool CanHit(){aref actor=GetEventData();aref victim=GetEventData();return true;}
 #event_handler("Location_CharacterAttack","Impact");
 void Impact(){aref actor=GetEventData();aref victim=GetEventData();string kind=GetEventData();bool blocked=GetEventData();Hits++;victim.chr_ai.hp=stf(victim.chr_ai.hp)-50.0;}
 '''
-if PHASE == 'final':
+if CURRENT_CONSUMER:
     sys.path.insert(0,str(ROOT/'tools'))
     import gameplay_sources
     stage=ROOT/'experiments/native-metal/.cache/runtime'
@@ -142,7 +147,7 @@ commands = [compile_cmd, link_cmd]
 
 # Recompile only the changed native combat owner into a disposable archive;
 # cached shared archives, objects and all build registration stay untouched.
-if PHASE == 'final':
+if PHASE in ('final','aim-final'):
     overlay = SCRATCH / 'liblocation-contact.a'
     shutil.copyfile(BUILD/'lib/liblocation.a', overlay)
     replacements=[]
@@ -157,17 +162,20 @@ if PHASE == 'final':
         replacements.append(str(replacement))
     commands.insert(len(commands)-1, ['/usr/bin/ar','-r',str(overlay)]+replacements)
     link_cmd[:] = [str(overlay) if x in (str(BUILD/'lib/liblocation.a'),'lib/liblocation.a') else x for x in link_cmd]
+    if PHASE=='aim-final':
+        baseline_link=[str(BUILD/'lib/liblocation.a') if x==str(overlay) else str(SCRATCH/'native-contact-baseline-timing') if x==str(SCRATCH/'native-contact-replay') else x for x in link_cmd]
+        commands.insert(len(commands)-1,baseline_link)
 
 results = {'phase':PHASE,'compiler':subprocess.check_output(['/usr/bin/c++','--version'],text=True).splitlines()[0],
            'runtime':str(RUNTIME),
-           'fixture_substitutions':['CPU memory GEOM_SERVICE; native GEOM collision unchanged','Replay Init bypasses renderer/camera startup; actual Character combat and Supervisor methods retained'] + (['Canonical game Main renamed and never called','LaunchBlood presentation-only no-op; original definition renamed exactly once; actual damage unchanged'] if PHASE=='final' else ['Setup-only permissive script handlers; baseline never reaches them']),
+           'fixture_substitutions':['CPU memory GEOM_SERVICE; native GEOM collision unchanged','Replay Init bypasses renderer/camera startup; actual Character combat and Supervisor methods retained'] + (['Canonical game Main renamed and never called','LaunchBlood presentation-only no-op; original definition renamed exactly once; actual damage unchanged'] if CURRENT_CONSUMER else ['Setup-only permissive script handlers; baseline never reaches them']),
            'source_sha256':sha(source),
            'consumer_sha256':sha(SCRATCH/'fixture.c'),
            'native_source_sha256':{name:sha(ROOT/'experiments/native-metal/engine/src/libs/location/src'/name) for name in ('roundhouse_character.cpp','roundhouse_character.h','character.cpp')},
            'archives_sha256':{p.name:sha(p) for p in [BUILD/'lib/liblocation.a',BUILD/'lib/libgeometry.a',BUILD/'lib/libmodel.a',BUILD/'lib/libanimation.a',BUILD/'lib/libcore.a']},
            'assets_sha256':{str(p.relative_to(RUNTIME)):sha(p) for p in [RUNTIME/'RESOURCE/MODELS/Locations/Outside/TownExitKSM/DuelField.gm',RUNTIME/'RESOURCE/MODELS/Locations/Outside/TownExitKSM/duelfield_patch.ptc',RUNTIME/'RESOURCE/INI/roundhouse-rigs.ini']},
            'commands':[[x.replace(str(SCRATCH),'<scratch>').replace(str(ROOT),'<repo>') for x in c] for c in commands], 'runs':[]}
-if PHASE=='final':
+if CURRENT_CONSUMER:
     results['producer_manifest_sha256']=sha(ROOT/'src/assets/roundhouse/manifest.json')
     results['generated_assets_sha256']={name:row['sha256'] for name,row in manifest['files'].items()}
 else:
@@ -179,10 +187,22 @@ try:
         log.append(done.stdout+done.stderr)
         assert done.returncode == 0, f'compile/link failed: {done.returncode}'
     cases = [('fighter',0),('neutral',0)] if PHASE=='baseline' else [('fighter',1),('neutral',1),('wall',0),('far',0),('immortal',0),('same-group',0),('backend-failure',1)]
-    if CASE: cases=[row for row in cases if row[0]==CASE]
+    if PHASE=='aim-baseline': cases=[('fighter',1),('offset-right',-1),('offset-left',-1),('orbit-right',-1),('orbit-left',-1)]
+    boundaries=[('target-erased',0),('target-escapes',0),('target-ineligible',0),('after-strike',0)]
+    if PHASE=='aim-final': cases += [('offset-right',1),('offset-left',1),('orbit-right',1),('orbit-left',1)]+boundaries
+    if CASE: cases=boundaries if CASE=='boundaries' else [row for row in cases if row[0]==CASE]
+    if PHASE=='aim-final' and not CASE:
+        results['forward_timing_runs']=[]
+        for variant,binary in [('baseline','native-contact-baseline-timing'),('final','native-contact-replay')]:
+            for repeat in range(3):
+                done=subprocess.run([str(SCRATCH/binary),str(RUNTIME),'fighter','1'],cwd=SCRATCH,capture_output=True,text=True,timeout=20)
+                results['forward_timing_runs'].append(dict(variant=variant,repeat=repeat,exit=done.returncode,stdout=done.stdout,stderr=done.stderr))
+                log.append(variant+' timing '+done.stdout+done.stderr)
+                assert done.returncode==0, f'forward {variant} timing failed'
+        cases=[row for row in cases if row[0]!='fighter']
     for case,expected in cases:
         done = subprocess.run([str(SCRATCH/'native-contact-replay'),str(RUNTIME),case,str(expected)],cwd=SCRATCH,capture_output=True,text=True,timeout=20)
-        entry = dict(case=case,expected_contact=bool(expected),exit=done.returncode,stdout=done.stdout,stderr=done.stderr)
+        entry = dict(case=case,expected_contact=None if expected<0 else bool(expected),exit=done.returncode,stdout=done.stdout,stderr=done.stderr)
         results['runs'].append(entry); log.append(done.stdout+done.stderr)
         assert done.returncode == 0, f'replay {case} failed: {done.returncode}'
 finally:
