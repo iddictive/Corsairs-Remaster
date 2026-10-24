@@ -1,0 +1,11 @@
+[
+  {
+    "case": "distributed_splashes",
+    "admitted": 8,
+    "slots": 8,
+    "play_us": 1268,
+    "peak": 0.738147378,
+    "rms": 0.088987968,
+    "clipped_samples": 0
+  }
+]

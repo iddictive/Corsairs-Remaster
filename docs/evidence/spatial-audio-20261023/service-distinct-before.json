@@ -1,0 +1,33 @@
+[
+  {
+    "case": "independent_effects",
+    "other_admitted": 3,
+    "before": 0.324999988,
+    "after": 0.081249997
+  },
+  {
+    "case": "local_repeat",
+    "immediate": false,
+    "after_70ms": false,
+    "third": true,
+    "slots": 2
+  },
+  {
+    "case": "separate_regions",
+    "before": 0.324999988,
+    "after": 0.162499994
+  },
+  {
+    "case": "saturated_splash_group",
+    "different_admitted": false,
+    "ninth_splash": false,
+    "slots": 8
+  },
+  {
+    "case": "mixed_battle_effects",
+    "admitted": 8,
+    "peak": 0.0755912662,
+    "rms": 0.0175316585,
+    "clipped_samples": 0
+  }
+]

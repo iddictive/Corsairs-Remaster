@@ -16,9 +16,9 @@ enum class VoiceClass
 
 constexpr std::size_t kMaxCannonVoices = 12;
 constexpr unsigned long long kChargeReplacementFadeMs = 90;
-constexpr std::size_t kMaxImpactVoices = 8;
+constexpr std::size_t kMaxImpactVoicesPerAlias = 8;
 constexpr std::size_t kMaxLocalImpactVoices = 2;
-constexpr unsigned long long kImpactClusterIntervalMs = 120;
+constexpr unsigned long long kImpactClusterIntervalMs = 50;
 constexpr float kImpactClusterRadiusSquared = 20.0f * 20.0f;
 
 struct SpatialVoicePolicy
@@ -54,7 +54,7 @@ constexpr bool IsClusteredImpactAlias(std::string_view lowerAlias)
 
 constexpr float ImpactMixGain(std::size_t activeVoices)
 {
-    // Bound summed amplitude, including coherent copies of the same sample.
+    // Bound only nearby copies of the same effect, including coherent samples.
     return activeVoices > 1 ? 1.0f / static_cast<float>(activeVoices) : 1.0f;
 }
 

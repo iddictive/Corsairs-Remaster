@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 2) return 64;
+    if (argc < 2 || argc > 3) return 64;
     std::filesystem::current_path(argv[1]);
     core_internal.Init();
     core_internal.InitBase();
@@ -39,17 +39,64 @@ int main(int argc, char **argv)
         std::printf("\"peak\":%.9g,\"rms\":%.9g,\"clipped_samples\":%d",peak,std::sqrt(energy/output.size()),clipped);
     };
     std::srand(1);
+    if (argc == 3 && std::string(argv[2]) == "distinct")
+    {
+        auto first = play("ball_splash", 0, -10);
+        const float before = ma_sound_get_volume(&service->Find(first)->sound);
+        int admitted = 0;
+        for (const char *alias : {"fort_cann_explode", "ball2bort", "mast_fall"})
+            admitted += valid(play(alias, 0, -10));
+        std::printf("{\"case\":\"independent_effects\",\"other_admitted\":%d,\"before\":%.9g,\"after\":%.9g}\n",
+            admitted, before, ma_sound_get_volume(&service->Find(first)->sound));
+        clear();
+        first = play("fort_cann_explode", 0, -10);
+        const bool immediate = valid(play("fort_cann_explode", 0, -10));
+        service->Find(first)->impactStarted -= std::chrono::milliseconds(70);
+        const auto second = play("fort_cann_explode", 0, -10);
+        const bool later = valid(second);
+        for (auto &slot : service->slots_) if (slot.initialized)
+            slot.impactStarted -= std::chrono::milliseconds(200);
+        const bool third = valid(play("fort_cann_explode", 0, -10));
+        const int repeatSlots = count();
+        service->SoundRelease(second);
+        const bool restored = ma_sound_get_volume(&service->Find(first)->sound) ==
+            service->Find(first)->volume * .5f;
+        std::printf("{\"case\":\"local_repeat\",\"immediate\":%s,\"after_70ms\":%s,\"third\":%s,\"slots\":%d,\"gain_restored\":%s}\n",
+            immediate?"true":"false", later?"true":"false", third?"true":"false", repeatSlots, restored?"true":"false");
+        clear();
+        first = play("ball_splash", 0, -10);
+        const float isolated = ma_sound_get_volume(&service->Find(first)->sound);
+        play("ball_splash", 80, -10);
+        std::printf("{\"case\":\"separate_regions\",\"before\":%.9g,\"after\":%.9g}\n",
+            isolated, ma_sound_get_volume(&service->Find(first)->sound));
+        clear();
+        for (int i=0; i<8; ++i) play("ball_splash", float(i)*22, -10);
+        const bool independent = valid(play("fort_cann_explode", 0, -10));
+        const bool ninth = valid(play("ball_splash", 0, -60));
+        std::printf("{\"case\":\"saturated_splash_group\",\"different_admitted\":%s,\"ninth_splash\":%s,\"slots\":%d}\n",
+            independent?"true":"false", ninth?"true":"false", count());
+        clear();
+        admitted = 0;
+        for (const char *alias : {"ball_splash", "fort_cann_explode", "ball2bort", "ball2sail",
+             "mast_fall", "coll_ship2rock", "ship_explosion", "episode_boom", "fly_ball"})
+            admitted += valid(play(alias, 0, -10));
+        std::printf("{\"case\":\"mixed_battle_effects\",\"admitted\":%d,", admitted);
+        mix(); std::puts("}");
+        clear();
+        return 0;
+    }
     int admitted=0;
     auto started=std::chrono::steady_clock::now();
     for (int i=0;i<96;++i) admitted+=valid(play("ball_splash", float(i%12)*25, -float(i/12)*25-10));
     auto us=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-started).count();
     std::printf("{\"case\":\"distributed_splashes\",\"admitted\":%d,\"slots\":%d,\"play_us\":%lld,",admitted,count(),(long long)us); mix(); std::puts("}");
+    if (argc == 3 && std::string(argv[2]) == "density") { clear(); return 0; }
     const bool capped = !valid(play("ball2bort", 0, -10));
     for (auto &slot : service->slots_) if (slot.initialized) { service->Release(slot); break; }
     const bool replacement = valid(play("ball2bort", 0, -10));
     bool balanced = count() == 8;
     for (auto &slot : service->slots_) if (slot.initialized)
-        balanced = balanced && std::abs(slot.mixGain - .125f) < .00001f;
+        balanced = balanced && slot.mixGain > 0.f && slot.mixGain <= 1.f;
     clear();
     const auto single = play("ball_splash", 0, -10);
     const bool restored = valid(single) && service->Find(single)->mixGain == 1.f;

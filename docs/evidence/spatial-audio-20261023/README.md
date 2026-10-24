@@ -149,3 +149,53 @@ Installed engine SHA-256: `79c0e642f5d16f77c73c3ad3af412237d5f076a46e174f0924c8a
 delivered `AIShip.c`: `8fe449a05daf167c1e41b03b54ff01d695da8d8f97167a89c8b3561b1865b5a9`;
 delivered aliases: `556581433909956846e46cc74e517c7b6b943357293c23566c3d041e2a926dab`.
 The game was not launched and player saves/configuration were not modified.
+
+## Distinct effects retain their level — 2026-10-24
+
+Player feedback rejected the sterile mix while retaining the improvement in
+clarity. The required distinction is repeated copies of one nearby effect
+versus independent effects; zero clipped samples alone cannot accept this mix.
+Cannon distances, splash settings and the readiness queue remain unchanged.
+
+The real-service baseline at `3360097b6c4040c6b32dd55b94214eefb98b39b8`
+confirmed two policy errors: adding three different effects reduced the first
+effect's volume from 0.325 to 0.08125, and eight splash voices rejected an
+unrelated destruction sound. Two splashes 80 m apart also halved each other's
+volume. These are group-admission/gain defects, not new attenuation evidence.
+
+Admission is now capped at eight per alias/type rather than across different
+effects. Nearby duplicates retain the two-voice limit within 20 m. The repeat
+window is 50 ms; only the same alias/type inside that radius contributes to
+another voice's gain reduction. Group release restores the remaining copy's
+level. Normalization scans a compact list of active impacts rather than
+repeatedly scanning all 4095 slots for every impact.
+
+The [before](service-distinct-before.json) and
+[after](service-distinct-after.json) native PCM replays prove:
+
+- Different effects and separate regions retain volume 0.325 → 0.325.
+- A full splash group admits a different effect while rejecting a ninth splash.
+- An immediate local duplicate is rejected, a repeat after 70 ms is admitted,
+  and a third overlapping local copy is rejected; releasing a copy restores gain.
+- Nine different battle effects are admitted. RMS rises from 0.01753 to 0.14034;
+  peak is 0.61989 with zero clipped samples at the same FX master volume 0.5.
+
+The [same 96-request splash path](service-density-after.json) still admits
+eight voices with zero clipped samples; peak is 0.73815. Admission took 1268 µs
+versus the retained 1389 µs baseline observation. This is a bounded event-path
+observation, not a full-game frame-time claim. No render/audio callback changed.
+
+Use `service-replay.py distinct-before`, `distinct-after` or `density-after`
+inside the managed scratch environment described above. `distinct-before`
+requires the baseline source/build; its source check prevents overwriting the
+baseline with a candidate run. All modes use the existing packaged WAVs and
+the actual native SoundService/miniaudio engine, with no output device.
+Admission timestamps are aged for repeat-window checks. Live battle balance
+remains a listening check; these PCM results establish the independent-level
+and duplicate-suppression contracts.
+
+The native build and signed installation passed. Installed engine SHA-256 is
+`be8ec5c0a06521fc9c584f788f79ea1f6ce2be4f5ee0856525499bac4083769d`.
+Targeted runtime/app delivery reports zero pending files; readiness-script and
+alias-file hashes still match the previous installation. No player save or
+configuration changed, and the game was not launched for this replay.

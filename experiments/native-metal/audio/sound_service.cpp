@@ -131,15 +131,29 @@ void SoundService::PrepareChargeReplacement()
 
 void SoundService::RebalanceImpactVoices()
 {
-    const auto count = std::count_if(slots_.begin(), slots_.end(), [](const Slot &slot) {
-        return slot.initialized && !slot.terminalStopping && !slot.impactAlias.empty() &&
-               !ma_sound_at_end(&slot.sound);
-    });
-    const float gain = storm::metal::audio::ImpactMixGain(count);
+    std::array<Slot *, kSlots> active;
+    size_t count = 0;
     for (auto &slot : slots_)
     {
-        if (!slot.initialized || slot.impactAlias.empty()) continue;
-        slot.mixGain = gain;
+        if (slot.initialized && !slot.terminalStopping && !slot.impactAlias.empty() &&
+            !ma_sound_at_end(&slot.sound))
+            active[count++] = &slot;
+    }
+    for (size_t i = 0; i < count; ++i)
+    {
+        auto &slot = *active[i];
+        size_t localCopies = 0;
+        for (size_t j = 0; j < count; ++j)
+        {
+            const auto &other = *active[j];
+            if (slot.type != other.type || slot.impactAlias != other.impactAlias) continue;
+            const float dx = slot.impactPosition.x - other.impactPosition.x;
+            const float dy = slot.impactPosition.y - other.impactPosition.y;
+            const float dz = slot.impactPosition.z - other.impactPosition.z;
+            if (dx * dx + dy * dy + dz * dz <= storm::metal::audio::kImpactClusterRadiusSquared)
+                ++localCopies;
+        }
+        slot.mixGain = storm::metal::audio::ImpactMixGain(localCopies);
         ma_sound_set_volume(&slot.sound, EffectiveVolume(slot));
     }
 }
@@ -218,8 +232,8 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
             if (!slot.initialized || slot.terminalStopping || slot.paused || slot.focusSuspended ||
                 slot.impactAlias.empty() || ma_sound_at_end(&slot.sound))
                 continue;
-            ++activeImpacts;
             if (slot.type != type || slot.impactAlias != aliasKey) continue;
+            ++activeImpacts;
             const float dx = slot.impactPosition.x - position->x;
             const float dy = slot.impactPosition.y - position->y;
             const float dz = slot.impactPosition.z - position->z;
@@ -230,7 +244,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
                 std::chrono::milliseconds(storm::metal::audio::kImpactClusterIntervalMs))
                 return SOUND_INVALID_ID;
         }
-        if (activeImpacts >= storm::metal::audio::kMaxImpactVoices ||
+        if (activeImpacts >= storm::metal::audio::kMaxImpactVoicesPerAlias ||
             localImpacts >= storm::metal::audio::kMaxLocalImpactVoices)
             return SOUND_INVALID_ID;
     }

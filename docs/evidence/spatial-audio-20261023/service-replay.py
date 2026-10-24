@@ -12,7 +12,14 @@ BUILD = ROOT / 'experiments/native-metal/.cache/build'
 SCRATCH = Path(os.environ['CODEX_SCRATCH_DIR'])
 EVIDENCE = Path(__file__).parent
 mode = sys.argv[1]
-assert mode in ('baseline', 'candidate')
+assert mode in ('baseline', 'candidate', 'distinct-before', 'distinct-after', 'density-after')
+if mode == 'distinct-before':
+    for relative in ('experiments/native-metal/audio/audio_voice_policy.h',
+                     'experiments/native-metal/audio/sound_service.cpp'):
+        original = subprocess.check_output(['git', 'show',
+            '3360097b6c4040c6b32dd55b94214eefb98b39b8:' + relative], cwd=ROOT)
+        assert (ROOT / relative).read_bytes() == original, \
+            'distinct-before requires native sources and libraries built at 3360097.'
 commands = subprocess.check_output([str(ROOT / 'experiments/native-metal/inputs/toolchain/bin/ninja'),
                                    '-C', str(BUILD), '-t', 'commands', 'script-vm-probe'], text=True).splitlines()
 compile_command = next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/script_vm_probe.cpp'))
@@ -58,7 +65,8 @@ else:
             target.write_bytes((ROOT / 'src/gameplay/RESOURCE/INI/aliases/sound_alias.ini').read_bytes())
         else:
             target.symlink_to(path, target_is_directory=path.is_dir())
-result = run([str(SCRATCH / 'replay'), str(runtime)])
+arguments = ['distinct'] if mode.startswith('distinct-') else (['density'] if mode == 'density-after' else [])
+result = run([str(SCRATCH / 'replay'), str(runtime), *arguments])
 rows = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
 (EVIDENCE / f'service-{mode}.json').write_text(json.dumps(rows, indent=2) + '\n')
-print(json.dumps(rows[:3]))
+print(json.dumps(rows if arguments else rows[:3]))
