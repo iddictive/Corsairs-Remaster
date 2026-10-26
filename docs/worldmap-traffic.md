@@ -1,5 +1,39 @@
 # World-map traffic
 
+## Relation query admission
+
+`WdmMilitaryEffectiveRelation` skips colonies without a participation identity
+before consulting operation validity or safe conduct. Both existing validators
+already reject that state. `WdmMilitaryParleyRelation` rejects pairs without the
+main character before validating a parley that can only affect that character.
+Eligible queries keep their validator/member order, colony precedence and live
+state reads. Relation refresh frequency and relation-write side effects remain
+unchanged; no cross-refresh cache is introduced.
+
+The player's October25,21:22:14 CPU sample from installed image UUID
+`24607DD2-1895-30E8-8977-FA950B9CBE14` contains360 `CalculateRelations`
+observations among1288 main-thread observations. It also records active hull
+destruction workers; their55 distinct lifetimes do not establish55 simultaneous
+workers. This workload is not comparable enough to earlier samples to infer FPS.
+The supplied raw input remains at
+`experiments/native-metal/.cache/diagnostics/game-20261025-212214-34084.sample.txt`
+(SHA-256 `5d6e94f8b3a07f069c1789208f1a0bcf2374a0c93a31a8210cceed287c1cab18`).
+
+The existing `script-vm-probe` compared the actual edited functions against
+`2d217fda` over20 relation and21 parley queries with zero script errors. Cases
+include missing metadata, revoked/departed participation, inactive safe conduct,
+reused identities, conflicting colony precedence and both parley directions.
+An instrumented warm batch of10000 complete queries over four empty colonies
+took67ms before and20ms after; a valid nonparty agreement among four colonies
+took91ms and57ms. Participation/safe-conduct calls fell40000/40000 to0/0 and
+40000/30000 to10000/0, respectively; nonparty membership checks stayed20000.
+These single-pass VM measurements include instrumentation and do not establish
+installed frame pacing. Reproduce by extracting the two functions and their
+unchanged military/parley helpers from that commit and the current source into
+one disposable `cases.c`, using four colonies/eight characters, warming each
+query ten times, then invoking `script-vm-probe <fixture-root> Probe`.
+Player replay still owns sea performance acceptance.
+
 ## Fleet travel and hostile fort approaches
 
 `Ship_TravelThreatBlocks` owns the ship-proximity policy for map exit and

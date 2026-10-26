@@ -10275,6 +10275,7 @@ bool WdmMilitaryParleyVisit(ref captain)
 
 int WdmMilitaryParleyRelation(int firstIndex, int secondIndex)
 {
+	if (firstIndex != nMainCharacterIndex && secondIndex != nMainCharacterIndex) return -1;
 	if (!WdmMilitaryParleyBound()) return -1;
 	int captainIndex = sti(pchar.trafficParley.characterIndex);
 	if (!WdmMilitaryParleyVisit(&Characters[captainIndex])) return -1;
@@ -11156,6 +11157,7 @@ int WdmMilitaryEffectiveRelation(int first, int second)
 	ref one = &Characters[first]; ref two = &Characters[second];
 	for (int colony = 0; colony < MAX_COLONIES; colony++)
 	{
+		if (!CheckAttribute(&Colonies[colony], "trafficSiege.participation.id")) continue;
 		if (!WdmMilitaryParticipationValid(colony) && !WdmMilitarySafeConduct(colony)) continue;
 		aref siege, agreement; makearef(siege, Colonies[colony].trafficSiege); makearef(agreement, siege.participation);
 		bool partyOne = WdmMilitaryPartyMember(agreement, one); bool partyTwo = WdmMilitaryPartyMember(agreement, two);
