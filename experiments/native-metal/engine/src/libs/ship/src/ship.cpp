@@ -2092,7 +2092,8 @@ void SHIP::ExecuteShipFire(uint32_t deltaTime)
     // phase. Fixed thermal steps never quantize/reset flame and ember motion.
     auto *visualState=GetACharacter()->FindAClass(GetACharacter(),"Ship.FireState");
     if (isDead() || (visualState && visualState->GetAttributeAsDword("enabled")))
-        fireVisualSeconds+=frameSeconds;
+        // Fractional simulation time keeps slow-motion flames moving every frame.
+        fireVisualSeconds+=std::min(1.f, core.GetVisualDeltaTime()*.001f);
 }
 
 std::vector<StormMetalShipFirePoint> SHIP::ShipFirePoints(bool hullSurface) const

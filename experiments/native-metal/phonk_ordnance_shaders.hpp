@@ -76,24 +76,42 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
     // sourceRadius is camera-rebased: it must never seed a blast's identity.
     float seed=shipFireHash(u.params.w*float3(.13f,.71f,.37f));
     float4 variation=fract(sin(float4(seed,seed+1.3f,seed+2.7f,seed+4.1f))*43758.5453f);
+    // A bounded density slab follows the visible receiver normal. Its radial/
+    // normal cross-section rolls above terrain and water without an air dome.
     float4 ground=0;
     if(sceneDepth<1.f && u.params.x<u.params.z) {
         float3 at=(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.sourceRadius.xyz)/radius;
-        float front=u.params.y,width=u.eye.w;
-        float radial=length(at.xz),ring=abs(radial-front);
-        float footprint=fwidth(radial),feather=max(width*1.7f,footprint*.75f);
-        float surface=1.f-smoothstep(.015f,.12f,abs(at.y));
-        if(ring<width*.3f+feather && surface>0.f) {
-            float detail=.75f;
-            if(footprint*radius<90.f) {
-                float breakup=phonkNuclearNoise(at*24.f+variation.xyz*37.f-float3(0,u.params.x,0),noise);
-                detail=mix(.35f+.65f*smoothstep(.28f,.68f,breakup),.75f,saturate(footprint*radius/90.f));
+        float width=u.eye.w,front=u.params.y,radial=length(at.xz);
+        float footprint=fwidth(radial),feather=max(width,footprint*.45f);
+        float3 dx=dfdx(at),dy=dfdy(at),normal=cross(dx,dy);
+        normal=length(normal)>1.e-8f?normalize(normal):float3(0,1,0);
+        if(dot(normal,ray)>0.f)normal=-normal;
+        float incidence=max(.035f,-dot(normal,ray));
+        float height=width*3.f,slabLength=min(height/incidence,width*8.f);
+        if(abs(radial-front)<width*10.f+footprint) {
+            float turn=u.params.x*1.3f,cs=cos(turn),sn=sin(turn);
+            float step=slabLength/6.f,transmission=1.f;float3 color=0;
+            for(uint i=0;i<6;i++) {
+                float distance=(float(i)+.5f)*step;
+                float3 p=at-ray*distance;float lift=distance*incidence;
+                float r=length(p.xz)-front;
+                float2 section=float2((r+width*.5f)/(width*1.6f+feather*.5f),(lift-width*.9f)/(width*1.25f));
+                float body=1.f-smoothstep(.65f,1.25f,length(section));
+                if(body>0.f) {
+                    float2 rolled=float2(cs*section.x-sn*section.y,sn*section.x+cs*section.y);
+                    float detail=.65f;
+                    if(footprint<width*3.f)detail=phonkNuclearNoise(p/(width*2.f)+float3(rolled*.8f,0)+variation.xyz*23.f,noise);
+                    float density=body*smoothstep(.18f,.82f,detail)*1.4f;
+                    float alpha=1.f-exp(-density*step/width*.38f);
+                    float lighting=.63f+.30f*lift/height+.20f*detail;
+                    float3 spray=float3(.74f,.79f,.81f)*lighting;
+                    color+=transmission*spray*alpha;transmission*=1.f-alpha;
+                }
             }
-            float alpha=(1.f-smoothstep(width*.3f,width*.3f+feather,ring))
-                *detail*surface*.60f
-                *smoothstep(0.f,.12f,u.params.x)*(1.f-smoothstep(max(0.f,u.params.z-.5f),u.params.z,u.params.x));
-            float3 spray=mix(float3(.78f,.83f,.85f),float3(.80f,.74f,.63f),exp(-u.params.x*4.f));
-            ground=float4(spray*alpha,alpha);
+            float alpha=1.f-transmission;
+            float fade=smoothstep(0.f,.12f,u.params.x)*(1.f-smoothstep(max(0.f,u.params.z-.5f),u.params.z,u.params.x));
+            float limit=alpha>.001f?min(alpha,.65f)/alpha:0.f;
+            ground=float4(color,alpha)*(fade*limit);
         }
     }
     // A vertical world-space smoke card: scene depth occludes it like the

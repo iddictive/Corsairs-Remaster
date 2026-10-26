@@ -1,5 +1,37 @@
 # Native sea workload and profiling
 
+## October26 — crew support, cold textures and flame coherence
+
+The current1280-sample main-thread profile contains99 samples below sailor
+`MoveToPosition` support and34 below `SetPos` support. Crew now follows authored
+links over material holes without those queries; mast-break reconciliation
+remains event-driven. This is a gameplay contract change, not evidence that
+support is unnecessary for cannon, rigging or hull physics.
+
+The remaining predicate reuses its nearest witness instead of finding it again.
+On actual moving sailor-link positions, paired checkpoint medians are
+6.826→5.650ms for Flyingdutchman1/3520points and11.800→5.812ms for
+SoleyRu1/5120points.197670 original/candidate comparisons match; deleted-support
+negative timings stay within observed noise. These are predicate batches, not
+frame times.
+
+First-draw DXT1 coverage counts existing binary alpha without decoding RGB.
+Seven authored textures/46mips, create→upload→cold coverage, improve from58.897
+to43.778ms; GPU bytes, classification and mutation invalidation match. A separate
+constructor-allocation candidate saved only~0.6ms across the full path and was
+omitted.
+
+Normal-speed flame identity jumps came from elapsed advection multiplied by
+changing intensity and integer LOD lattice resets. Six-emitter1280×720 controls
+reduce the thermal-boundary jump ratio7.39×→1.009× and LOD peak MAE
+0.067525→0.000536. Matched GPU near cost3.826→4.332ms and far3.307→3.359ms
+is an explicit quality/cost tradeoff; this is not an unchanged-FPS claim.
+
+[Raw inputs, measurements and limits](evidence/sea-runtime-20261026/observations.json)
+retain the same-consumer procedures, actual asset hashes, source snapshots,
+representative whole frames and complete CSV/hash series. No full-game FPS or
+fleet-load replay is claimed from these component probes.
+
 ## October26 — demand-driven wave normals and sail roll speed
 
 Height-only `SEA::WaveXZ` callers now skip ordinary-wave normal interpolation;

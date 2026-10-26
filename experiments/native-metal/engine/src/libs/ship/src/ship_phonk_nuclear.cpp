@@ -35,7 +35,7 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
     {
         auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
         auto *character = ship ? ship->GetACharacter() : nullptr;
-        if (!ship || !ship->bMounted || ship->isDead() || !ATTRIBUTES::IsLive(character)) continue;
+        if (!ship || !ship->bMounted || !ATTRIBUTES::IsLive(character)) continue;
         const auto characterIndex = character->GetAttributeAsDword("index", uint32_t(-1));
         // Reuse the same policy before geometry/crew damage, including native
         // cuts which cannot rely on the later HP handler to protect immortals.
@@ -44,7 +44,7 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         if (!admitted || admitted->GetInt() == 0) continue;
         ship = static_cast<SHIP *>(core.GetEntityPointer(id));
         character = ship ? ship->GetACharacter() : nullptr;
-        if (!ship || !ship->bMounted || ship->isDead() || !ATTRIBUTES::IsLive(character) ||
+        if (!ship || !ship->bMounted || !ATTRIBUTES::IsLive(character) ||
             character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
         auto *model = ship->GetModel();
         auto *root = model ? model->GetNode(0) : nullptr;
@@ -53,8 +53,10 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         const auto position = ship->GetPos();
         storm::ship::phonk::NuclearPressureContact contact;
         contact.ship = id;
-        contact.Query(std::hypot(position.x - center.x, position.z - center.z), 0.f);
+        contact.Query(std::max(.001f, std::hypot(position.x - center.x, position.z - center.z)), 0.f);
         blast.contacts.push_back(contact);
+        // Wrecks retain heat and momentum, but never settle another hull death.
+        if (ship->isDead()) continue;
         CVECTOR local; root->glob_mtx.MulToInv(center, local);
         const CVECTOR closest(std::clamp(local.x, info.boxcenter.x - info.boxsize.x * .5f, info.boxcenter.x + info.boxsize.x * .5f),
                               std::clamp(local.y, info.boxcenter.y - info.boxsize.y * .5f, info.boxcenter.y + info.boxsize.y * .5f),
@@ -109,7 +111,7 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
     for (const auto id : receivers)
     {
         auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
-        if (!ship || !ship->bMounted || ship->isDead() || !ship->GetACharacter()) continue;
+        if (!ship || !ship->bMounted || !ship->GetACharacter()) continue;
         const auto position = ship->GetPos();
         const float dx = position.x - center.x, dz = position.z - center.z;
         const float distance = std::hypot(dx, dz);
@@ -119,9 +121,8 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
         if (contact == blast.contacts.end()) {
             blast.contacts.push_back({}); contact = blast.contacts.end() - 1; contact->ship = id;
         }
-        if (!contact->Query(distance, front) || distance >= reach || distance <= .001f) continue;
-        const float strength = nuclearPressureStrength(blast.yield, distance);
-        const float damage = contact->directDamage ? 0.f : nuclearPressureDamage(blast.yield, distance);
+        if (!contact->Query(distance, front) || distance >= reach) continue;
+        const float damage = contact->directDamage || ship->isDead() ? 0.f : nuclearPressureDamage(blast.yield, distance);
         // Script owns live/owner/protection admission and the normal HP/death path.
         auto *character = ship->GetACharacter();
         if (!ATTRIBUTES::IsLive(character)) continue;
@@ -134,12 +135,13 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
         if (!accepted || accepted->GetInt() == 0) continue;
         ship = static_cast<SHIP *>(core.GetEntityPointer(id));
         character = ship ? ship->GetACharacter() : nullptr;
-        if (!ship || !ATTRIBUTES::IsLive(character) || !ship->bMounted || ship->isDead() ||
+        if (!ship || !ATTRIBUTES::IsLive(character) || !ship->bMounted ||
             character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
-        // The existing message converts world knots to ship-local impulse once.
-        const float impulse = 3.f * strength / distance;
-        core.Send_Message(id, "llffffff", MSG_SHIP_ADD_MOVE_IMPULSE, int32_t(0),
-            dx * impulse, 0.f, dz * impulse, 0.f, 0.f, 0.f);
+        // Strength slots are skipped by passive wreck Move. The shared physical
+        // owner updates saved momentum for living, Phonk and dead hulls alike.
+        const float impulse = nuclearPressureImpulse(blast.yield, distance) / std::max(.001f, distance);
+        ship->ApplyHullContactMotion(CVECTOR(KNOTS2METERS(dx * impulse), 0.f, KNOTS2METERS(dz * impulse)),
+                                    0.f, position, 0.f, 0);
         const float fire = nuclearFireStrength(blast.yield, distance);
         if (fire > 0.f) ship->IgnitePhonkNuclearFire(center, fire, owner, receivers);
     }
@@ -149,7 +151,7 @@ void SHIP::IgnitePhonkNuclearFire(const CVECTOR &center, float strength, int32_t
                                 const std::vector<entid_t> &receivers)
 {
 #ifdef STORM_METAL_SHIP_FIRE
-    if (!bMounted || isDead() || !GetModel() || !(strength > 0.f)) return;
+    if (!bMounted || !GetModel() || !(strength > 0.f)) return;
     struct Site { std::size_t cell; CVECTOR point; float squared; };
     std::vector<Site> sites;
     sites.reserve(fireHulls.size());

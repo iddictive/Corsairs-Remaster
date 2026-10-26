@@ -265,8 +265,12 @@ ordinary contact/airburst damage is unchanged.
 The pressure front follows actual scene depth, sharing its CPU-computed radius
 with ship contact. Stable detonation seeds vary mushroom proportions, fire
 pockets, drift and cooling. The rejected luminous dome and its elevated flat
-crop are replaced by a thin neutral condensation/foam front. The64 volume steps
-and render-pass count remain unchanged. [Controlled before/after frames and
+crop are replaced by neutral condensation/foam. Six bounded density samples
+above the visible terrain/water normal give the front rolling thickness without
+an absolute-height cutoff; terrain relief uses a conservative viewport. The64
+cloud steps and render-pass count remain unchanged. This represents visible
+first-hit receiver volume, not hidden terrain or full fluid simulation.
+[Controlled before/after frames and
 observations](evidence/nuclear-effects-20261026/observations.json) retain the
 rejection and two distinct seeds; native Metal compilation and depth/age controls
 pass, while player appearance and full-frame cost remain unverified.
@@ -274,7 +278,7 @@ pass, while player appearance and full-frame cost remain unverified.
 An automatic launch samples the existing tsunami `u²` distribution once and snapshots
 an integer yield tier1–10 in the missile and blast. Tier1 occurs about31.62% and
 tier10 about5.13%; no camera or render update can reroll it. Direct/cloud radius
-is220m×tier, damage/fire reach600m×tier, and the visible pressure front reaches
+is220m×tier, damage reach600m×tier, fire reach200m×tier, and the visible pressure front reaches
 2500m×tier in8seconds: tier10 covers6km physically and25km visually. Launch
 range remains6km. The per-detonation variation seed also excludes the rebased
 camera origin, fixing the shape jitter during camera motion.
@@ -291,12 +295,15 @@ unchanged automatic random selection. The complete script corpus compiles;
 installed gameplay input/appearance remain unverified.
 
 An expanding air front pays ship impulse/damage once on arrival. Its maximum
-push is3knots; outer damage is `min(1, .12×tier)` times the spatial falloff.
+push is3knots×tier; outer damage is `min(1, .12×tier)` times the spatial falloff.
 Ships already paid by the direct blast receive no second HP charge. The
 existing HP/death, immunity and Phonk protection owners still admit the target.
 Thermal exposure uses existing fueled, retained, above-water hull cells with
-terrain/hull shielding: tier10 ignites up to6 sites at3km,4 at4.5km,2 near6km,
-and zero at/beyond6km. Lower tiers scale these distances.
+terrain/hull shielding: tier10 ignites up to6 sites at1km,4 at1.5km,2 near2km,
+and zero at/beyond2km. Lower tiers scale these distances. Wrecks and ships killed
+by this blast retain heat and passive momentum through the existing physical
+motion owner; they never settle HP/death twice. Missing/submerged/burned wood
+and protected targets remain excluded.
 The spatial fire owner retains spread, fuel, SAVE and its sole burning damage.
 
 The separate small water crest expands at70m/s×tier for8seconds, up to4m high.
@@ -313,6 +320,22 @@ The final960×540 controlled whole fixture costs1.75ms on GPU for the dark dista
 tier10 case and1.19ms for bright daytime. Earlier near cases took2.40–2.76ms;
 these measurements are not native game FPS. Larger cloud
 coverage adds GPU work despite retaining the same64 steps, pass count and slots.
+Current [runtime measurements and replay inputs](evidence/sea-runtime-20261026/observations.json)
+also retain the wreck/fire-radius controls and terrain-to-water wave sequence.
+The rolling front adds0.016ms near/0.007ms far in its960×540 paired fixture.
+
+Crew follows authored walking links over ablated material without per-frame
+support queries or hole-triggered jumps. Mast break still repairs routes and
+forces the existing fall; ship death, climbing, swimming and fire work remain.
+Other hull, cannon and rigging support predicates retain their geometry contract.
+
+Fire noise advection no longer multiplies elapsed time by instantaneous thermal
+intensity. Fractional ray integration also keeps its lattice continuous across
+camera LOD thresholds. Intensity retains emission/height; fuel, thermal steps,
+damage and SAVE are unchanged. Visual phase uses fractional simulation time.
+The six-emitter1280×720 normal-speed replay at1000s reduces thermal-boundary
+change from7.39× ordinary frames to1.009×. Matched GPU medians rise from3.826 to
+4.332ms near and3.307 to3.359ms far; total gameFPS remains unmeasured.
 The private geometry dependency is unmodified upstream Clipper2 at commit
 `21ebba05db8894f0c7217ad35ea518080f324946`, licensed BSL-1.0; its engine/triangulator,
 transitive headers and license live under `geometry/third_party/clipper2`.

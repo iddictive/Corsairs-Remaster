@@ -1,0 +1,145 @@
+{
+  "runtime": "Apple Metal; Xcode27.1; Apple clang21; arm64; no windows/game startup in controlled probes",
+  "baseline_refs": {
+    "nuclear_texture_support_wave": "8825bb5d3a1ba577e9495a4ad35ee7b565cb0d0a",
+    "fire_shader": "3881965e45701912ebb270b52d6e968da8cf0e16"
+  },
+  "installed_signed_engine_sha256": "6f7d69e8710a63851bde674f3ed181ab1d80a84b6b61542c4319ad85f0d02546",
+  "installed_gameplay": "PROGRAM/scripts/sea_phonk.c byte comparison0pending; compilerreadyTrue",
+  "nuclear": {
+    "old_actual_methods": {
+      "live_x10_fire_cells": 6,
+      "live_x10_impulse_knots": 3,
+      "dead_fire_cells": 0,
+      "dead_impulse_knots": 0
+    },
+    "current": {
+      "damage_reach_x10_m": 6000,
+      "fire_reach_x10_m": 2000,
+      "visible_front_x10_m": 25000,
+      "max_impulse_knots_per_tier": 3,
+      "max_impulse_x10_knots": 30,
+      "fire_cells_x10": {
+        "1000m": 6,
+        "1500m": 4,
+        "1999m": 2,
+        "2000m": 0
+      },
+      "dead_HP_settlements": 0,
+      "newly_killed_HP_settlements": 1
+    },
+    "checks": "Actual pressure/fire methods under ASan/UBSan: pre-existing wreck, target killed by the same blast, once-only contact/HP, source/target/SEA removal/replacement, rejection, hull shielding/submergence. Actual ApplyHullContactMotion and passive Move retain momentum/death anchor and agree for1x1000ms versus100x10ms. Complete candidate PROGRAM include corpus Probe=0/script_errors=0; isolated mock policy fixtures were not acceptance evidence."
+  },
+  "wave": {
+    "representation": "6 bounded density samples in finite local-normal slab over visible first-hit scene-depth receiver; no absolute source-height cutoff; radial front/time/seed retained; pressure-active conservative viewport",
+    "gpu_same_fixture_increment_ms": {
+      "near": 0.0159,
+      "far": 0.0067
+    },
+    "checks": "Production Metal compile; accepted prototype and production frame byte-identical; expired8.1s frame matches baseline;340m terrain-to-water progression;3x120frames with rebase",
+    "limitation": "Visible first-hit local-plane volume; not hidden/full-world fluid simulation."
+  },
+  "crew": {
+    "contract": "Authored walking routes remain valid over ablated material; no material-support query or hole-driven jump/reroute. Mast-break reconciliation stays event-owned; death/climb/swim/jump/fire retained.",
+    "profile_main_samples": {
+      "MoveToPosition": 99,
+      "SetPos": 34,
+      "total_main": 1280
+    },
+    "checks": "Actual4-method source probe: movement over missing support with0queries; mast/death/climb/swim/jump/fire negatives pass.",
+    "other_consumers": "Cannon, rigging, keel and hull material support semantics preserved."
+  },
+  "support_predicate": {
+    "parity_comparisons": 197670,
+    "mismatches": 0,
+    "moving_points": {
+      "Flyingdutchman1": 3520,
+      "SoleyRu1": 5120
+    },
+    "checkpoint_median_ms": {
+      "Flyingdutchman1": [
+        6.82604,
+        5.65004
+      ],
+      "SoleyRu1": [
+        11.79996,
+        5.81179
+      ]
+    },
+    "legacy_median_ms": {
+      "Flyingdutchman1": [
+        7.31633,
+        6.03388
+      ],
+      "SoleyRu1": [
+        12.38567,
+        6.40158
+      ]
+    },
+    "negative": "Nearest-deleted/all-deleted timings within observed noise after eliminating repeated nearest fallback; original released/lost predicates retained."
+  },
+  "texture": {
+    "consumer": "7actualshiptextures/46mips; create+all-mipupload+firstcoldcoverage; warmedOS/inmemorypayloads",
+    "median_ms": [
+      58.8973,
+      43.778
+    ],
+    "gpu_rgba_digest": "3550951545073519955",
+    "checks": "Exact authored GPU bytes/alpha classes,160randomcropped/paddedDXT1cases,cache mutation invalidation,retainedmip,cube andstandalonesurfaces.",
+    "rejected": "Per-mip constructor allocation removal saved~.6ms fullpath, omitted."
+  },
+  "fire": {
+    "causes": [
+      "Instantaneous intensity multiplied elapsed noise advection, causing age-amplified field teleportation.",
+      "Integer camera LOD count reset the ray lattice.",
+      "Integer gameplay milliseconds stalled visual phase in slow time."
+    ],
+    "repair": "Nominal continuous2.0advection; intensity still controls emission/height. Continuous fractional ray spacing and final partial segment; at most1extra sample. Existing fractional visual clock for phase only; fixed thermal/damage/save unchanged.",
+    "normal_speed_6_emitters_1280x720_age1000": {
+      "thermal_boundary_ratio_before": 7.39,
+      "after": 1.009,
+      "far_thermal_MAE": [
+        0.17824,
+        0.00581
+      ],
+      "LOD_peak_MAE": [
+        0.067525,
+        0.000536
+      ]
+    },
+    "matched_intensity_GPU_median_ms": {
+      "near": [
+        3.826,
+        4.332
+      ],
+      "far": [
+        3.307,
+        3.359
+      ]
+    },
+    "slow_scale_002_changed_frames": [
+      38,
+      119
+    ],
+    "rebase_identical_frame_hashes": 120,
+    "production_candidate_identical_frame_hashes": 360,
+    "limits": "GPU cost is not unchanged; near proxy+.506ms/13.2%. Aggressive suppression can still change physical intensity/height at thermal steps; no interpolation state added."
+  },
+  "acceptance_limits": "Controlled source/native/Metal/VM evidence and installed destination verified. Full gameplay appearance, fleet stutters and total gameFPS not replayed. Sample shares/component timings do not establish global FPS.",
+  "archive": "measurement-inputs.tar.gz",
+  "archive_hash_manifest": "measurement-inputs.json",
+  "replay": "Extract preserving group folders. Use each retained manifest/commands.txt and compiler include roots fromrepository; bind normalized input/output placeholders before running. Baseline shader comparison pins3881965; wave baseline pins8825bb5. Actual GM/INI/texture inputs are identified by retainedrelativepathsandSHA256. Archived probes are one-off measurement inputs, not automatic tests.",
+  "source_sha256": {
+    "experiments/native-metal/engine/src/libs/sailors/src/sailors.cpp": "61039c55bcb094ac7d400bc247aae70a88aef64edcd11325427fe6a0951119e7",
+    "experiments/native-metal/engine/src/libs/sailors/src/sailors.h": "2650977c8f026141e36d7010cae66b7b5b17c9dd101a65633ba54c40533c9524",
+    "experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp": "180755ff0c2e9bc6fc0d96d49b0e6797807a08ad7fc188c92f604e64d70e5173",
+    "experiments/native-metal/engine/src/libs/ship/src/ship.cpp": "a62d90b604055da17b9ea5cde99f6bdba3a2041058ec4e2cd1265bcac6ff584e",
+    "experiments/native-metal/engine/src/libs/ship/src/ship_phonk_nuclear.cpp": "301aa8e32bfa64661b2ff61305638163845e0c93a3b2ba2758d0c9e95c98bce1",
+    "experiments/native-metal/phonk_ordnance_render.hpp": "a4e8fd1cd1df5fb4a06a3193517a5d1de146121fdf06ba5af039a231b12f9806",
+    "experiments/native-metal/phonk_ordnance_shaders.hpp": "e758c0a73ba70f87ebfd584d0271e0c32ce79bc8c31f0de710cea38558d1eb0a",
+    "experiments/native-metal/resources.hpp": "e408f84bc6340e6e2b80349df8fe75d058a624f35c23c4720d601ec31a8c8373",
+    "experiments/native-metal/ship_laser_geometry.hpp": "6d577e6f89f510a3e33c3b971d47939babda20e6e681b77ddd7112c8c268eda2",
+    "experiments/native-metal/ship_fire_shaders.hpp": "16d7ceea7d4877993b20f98140175f5a255024bda836ea846de05d3db925a469",
+    "src/gameplay/PROGRAM/scripts/sea_phonk.c": "df21a42d1a87b59a946dc27dd22400b8555ab539d3857f328b7cdce412b37611"
+  }
+}

@@ -106,7 +106,22 @@ struct Texture:storm_render::Texture,ResourceParent{
   meaningfulAlphaCache=transparent&&opaque;return meaningfulAlphaCache;
  }
  bool coverageMask()const{
-  if(coverageMaskCache>=0)return coverageMaskCache;if(levels.empty())return false;const auto*s=levels[0];std::vector<uint8_t>rgba;
+  if(coverageMaskCache>=0)return coverageMaskCache;if(levels.empty())return false;const auto*s=levels[0];
+  if(s->desc.Format==storm_render::AssetFormat::DXT1){
+   const unsigned w=s->desc.Width,h=s->desc.Height,columns=std::max(1u,(w+3)/4),rows=std::max(1u,(h+3)/4);
+   if(s->pitch<columns*8||s->bytes.size()<size_t(s->pitch)*rows)return coverageMaskCache=0;
+   // DXT1 alpha is binary; reuse the decoder's palette rule without decoding RGB.
+   size_t clear=0,pixels=size_t(w)*h;
+   for(unsigned by=0;by<rows;++by)for(unsigned bx=0;bx<columns;++bx){
+    const auto*block=s->bytes.data()+size_t(by)*s->pitch+size_t(bx)*8;
+    if(storm_metal::compat::dxtColors(block,false)[3].a)continue;
+    const uint32_t bits=uint32_t(block[4])|uint32_t(block[5])<<8|uint32_t(block[6])<<16|uint32_t(block[7])<<24;
+    for(unsigned y=0;y<4&&by*4+y<h;++y)for(unsigned x=0;x<4&&bx*4+x<w;++x)clear+=((bits>>(2*(y*4+x)))&3)==3;
+   }
+   const size_t solid=pixels-clear;
+   return coverageMaskCache=pixels&&clear*50>=pixels&&solid*50>=pixels;
+  }
+  std::vector<uint8_t>rgba;
   if(!storm_metal::compat::decodeToRgba(s->desc.Format,s->desc.Width,s->desc.Height,s->bytes.data(),s->bytes.size(),s->pitch,rgba))return coverageMaskCache=0;
   size_t clear=0,solid=0,transition=0,pixels=rgba.size()/4;for(size_t i=3;i<rgba.size();i+=4){const uint8_t a=rgba[i];if(a<=24)++clear;else if(a>=231)++solid;else ++transition;}
   // Coverage textures contain real holes and real surfaces. A broad middle band

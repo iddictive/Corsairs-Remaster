@@ -84,7 +84,9 @@ float2 shipFireDensity(float3 world,thread const ShipFireVolume&v){
  float3 wind=v.windTime.xyz;float y=max(h,0.f);
  float2 bending=wind.xz*(y*y/(4.f+y))*.11f;
  q.xz-=bending;
- float3 flow=q*float3(1.05f,.61f,1.05f)+float3(seed*3.17f,-time*(1.1f+intensity*1.5f),seed*1.71f);
+ // Intensity changes at fixed thermal steps. It must not rescale elapsed
+ // advection and teleport the field farther as the fire ages.
+ float3 flow=q*float3(1.05f,.61f,1.05f)+float3(seed*3.17f,-time*2.f,seed*1.71f);
  float3 warp=float3(shipFireNoise(flow*.59f+3.1f),shipFireNoise(flow*.59f+19.7f),shipFireNoise(flow*.59f+41.3f))-.5f;
  flow+=warp*2.7f;
  float turbulence=shipFireTurbulence(flow);
@@ -115,15 +117,17 @@ fragment ShipFireVolumePixel ship_fire_volume_fs(ShipFireVolumeO o [[stage_in]],
  float depth=sceneDepth.read(uint2(pixel));
  if(depth<1.f){float3 solid=shipFireUnproject(pixel,depth,c);span.y=min(span.y,dot(solid-c.eye.xyz,ray));}
  if(span.y<=span.x)discard_fragment();
- uint steps=uint(v.lod.x);float step=(span.y-span.x)/float(steps),radius=v.sourceRadius.w;
+ // Keep sample spacing continuous across camera LOD boundaries. Only the
+ // final integration segment is partial; crossing an integer adds no reset.
+ uint steps=uint(ceil(v.lod.x));float step=(span.y-span.x)/v.lod.x,radius=v.sourceRadius.w;
  // Enough coherent samples plus filtered backing pixels replace the noisy
  // per-pixel random start that previously turned entire flames into stipple.
- float start=span.x+step*.5f;
  float3 radiance=0;float transmission=1.f,front=1.f;
  for(uint i=0;i<steps&&transmission>.012f;i++){
-  float distance=start+step*float(i);float3 p=c.eye.xyz+ray*distance;
+  float segmentStart=span.x+step*float(i),segmentStep=min(step,span.y-segmentStart);
+  float distance=segmentStart+segmentStep*.5f;float3 p=c.eye.xyz+ray*distance;
   float2 density=shipFireDensity(p,v);float flame=density.x,smoke=density.y;
-  float extinction=(flame*1.65f+smoke*.82f)*step/radius;
+  float extinction=(flame*1.65f+smoke*.82f)*segmentStep/radius;
   float alpha=1.f-exp(-extinction);if(alpha<.0001f)continue;
   if(front==1.f&&alpha>.003f){float4 clip=c.viewProjection*float4(p,1);front=saturate(clip.z/clip.w);}
   float y=max((p.y-v.sourceRadius.y)/radius,0.f);

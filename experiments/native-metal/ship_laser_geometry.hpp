@@ -673,7 +673,7 @@ inline bool supportRetained(const Surface&surface,const FaceIndex&retained,const
     if((!surface.checkpointed&&surface.released.empty())||!authored||!storm_ship_hull::finite(point))return true;const auto&source=*authored;const auto&index=source.index;if(index.references.empty())return true;
     std::vector<uint32_t>localCandidates,localNearby;auto&candidates=candidateScratch?*candidateScratch:localCandidates;auto&nearby=nearbyScratch?*nearbyScratch:localNearby;
     candidates.clear();
-    float best=INFINITY;
+    float best=INFINITY;uint32_t nearestFace=UINT32_MAX;Vec3 nearestWitness{};bool nearestChecked=false;
     const auto lower=[&](storm_ship_hull::Bounds box){
         const float dx=std::max(0.f,std::max(box.lo.x-point.x,point.x-box.hi.x));
         const float dy=std::max(0.f,std::max(box.lo.y-point.y,point.y-box.hi.y));
@@ -683,15 +683,27 @@ inline bool supportRetained(const Surface&surface,const FaceIndex&retained,const
     const auto accept=[&](double entry,uint32_t){
         return entry<=double(best);
     };
-    index.broadphase.queryNearest(lower,accept,[&](uint32_t candidate){
-        const auto ref=index.references[candidate];
-        const auto delta=closestFacePoint(point,source.outer.at(ref.first)[ref.second])-point;
+    if(retained.references.empty())index.broadphase.queryNearest(lower,accept,[&](uint32_t candidate){
+        const auto ref=index.references[candidate];const auto delta=closestFacePoint(point,source.outer.at(ref.first)[ref.second])-point;
         best=std::min(best,storm_ship_hull::dot(delta,delta));
     });
+    else index.broadphase.queryNearest(lower,accept,[&](uint32_t candidate){
+        const auto ref=index.references[candidate];
+        const auto witness=closestFacePoint(point,source.outer.at(ref.first)[ref.second]),delta=witness-point;
+        const float distance=storm_ship_hull::dot(delta,delta);
+        if(distance<best){best=distance;nearestFace=candidate;nearestWitness=witness;}
+    });
     if(!std::isfinite(best))return true;bool lost=false;const float nearest=std::sqrt(best)+.0002f;const Vec3 extent{.0002f,.0002f,.0002f};
-    index.broadphase.queryBounds({point-Vec3{nearest,nearest,nearest},point+Vec3{nearest,nearest,nearest}},candidates);
-    for(uint32_t candidate:candidates){const auto original=index.references[candidate];const auto witness=closestFacePoint(point,source.outer.at(original.first)[original.second]),delta=witness-point;if(storm_ship_hull::dot(delta,delta)>nearest*nearest)continue;
-        retained.broadphase.queryBounds({witness-extent,witness+extent},nearby);for(uint32_t face:nearby){const auto ref=retained.references[face];if(ref.first==original.first&&pointOnFace(witness,surface.outer.at(ref.first)[ref.second]))return true;}
+    const Bounds search{point-Vec3{nearest,nearest,nearest},point+Vec3{nearest,nearest,nearest}};
+    // The nearest witness already belongs to the tolerance search below. A
+    // retained witness proves support without collecting/retesting that sphere.
+    if(nearestFace!=UINT32_MAX&&best<=nearest*nearest){const auto original=index.references[nearestFace];const auto&t=source.outer.at(original.first)[original.second];
+        Bounds box{t[0].position,t[0].position};for(unsigned c=1;c<3;++c)box=storm_ship_hull::merge(box,{t[c].position,t[c].position});
+        if(storm_ship_hull::overlaps(box,search)){nearestChecked=true;retained.broadphase.queryBounds({nearestWitness-extent,nearestWitness+extent},nearby);
+            for(uint32_t face:nearby){const auto ref=retained.references[face];if(ref.first==original.first&&pointOnFace(nearestWitness,surface.outer.at(ref.first)[ref.second]))return true;}}}
+    index.broadphase.queryBounds(search,candidates);
+    for(uint32_t candidate:candidates){const auto original=index.references[candidate];const auto witness=candidate==nearestFace?nearestWitness:closestFacePoint(point,source.outer.at(original.first)[original.second]),delta=witness-point;if(storm_ship_hull::dot(delta,delta)>nearest*nearest)continue;
+        if(candidate!=nearestFace||!nearestChecked){retained.broadphase.queryBounds({witness-extent,witness+extent},nearby);for(uint32_t face:nearby){const auto ref=retained.references[face];if(ref.first==original.first&&pointOnFace(witness,surface.outer.at(ref.first)[ref.second]))return true;}}
         if(surface.checkpointed){lost=true;continue;}
         bool detached=false;for(size_t n=0;n<released.size();++n){released[n].broadphase.queryBounds({witness-extent,witness+extent},nearby);for(uint32_t face:nearby){const auto ref=released[n].references[face];if(ref.first==original.first&&pointOnFace(witness,surface.released[n]->at(ref.first)[ref.second])){detached=true;break;}}if(detached)break;}if(!detached)return true;lost=true;}
     return !lost;

@@ -243,10 +243,6 @@ void ShipMan::SetPos(MODEL *ship, SHIP_BASE *ship_base, uint32_t &dltTime, ShipS
         {
             CMatrix mPos, mRot, m1, m2;
 
-            if (mode != MAN_JUMP && ship_base && (spos.x != 0.f || spos.y != 0.f || spos.z != 0.f) &&
-                !ship_base->IsHullPositionRetained(pos + spos))
-                spos = CVECTOR(0.f, 0.f, 0.f);
-
             mPos.BuildMatrix(CVECTOR(ang.x, ang.y, ang.z),
                              pos + spos /*CVECTOR(pos.x+ spos.x, pos.y+ spos.y, pos.z+ spos.z)*/);
 
@@ -480,7 +476,7 @@ void ShipMan::FindNextPoint(SailorsPoints &sailorsPoints, ShipState &shipState)
     }
 }
 
-void ShipMan::ApplyTargetPoint(CVECTOR pt, bool randomWalk, const SHIP_BASE *hull)
+void ShipMan::ApplyTargetPoint(CVECTOR pt, bool randomWalk, const SHIP_BASE *)
 {
     if (randomWalk)
     {
@@ -494,9 +490,6 @@ void ShipMan::ApplyTargetPoint(CVECTOR pt, bool randomWalk, const SHIP_BASE *hul
     {
         ptTo = pt;
     }
-
-    if (hull && !hull->IsHullPositionRetained(ptTo))
-        ptTo = pt;
 
     dir = !(ptTo - pos);
 
@@ -529,8 +522,7 @@ bool ShipMan::MoveToPosition(uint32_t &dltTime, SailorsPoints &sailorsPoints, Sh
             if (RotateToAngle(dltTime, sailorsPoints) || mode == MAN_RUN ||
                 (mode == MAN_WALK && fabs(angTo.y - ang.y) < PI / 8))
             {
-                const CVECTOR next = pos + dir * (manSpeed * dltTime / 100.0f);
-                pos = shipState.hull && !shipState.hull->IsHullPositionRetained(next) ? ptTo : next;
+                pos += dir * (manSpeed * dltTime / 100.0f);
             }
 
             return false;
@@ -1100,36 +1092,8 @@ void ShipWalk::ReloadCannons(int bort)
 
 }
 
-void ShipWalk::ReconcileHullSupport()
+void ShipWalk::ReconcileMastWaypoints()
 {
-    if (!ship)
-        return;
-    shipState.hull = ship;
-    const unsigned revision = ship->GetHullContourRevision();
-    const bool changed = !hullSupportInitialized || hullRevision != revision;
-    hullSupportQueries.clear();
-    if (changed)
-        for (const auto &point : sailorsPoints.points.point)
-            hullSupportQueries.push_back(CrewPoint(point));
-    for (const auto &man : shipMan)
-    {
-        if (man.inWater || man.mode == MAN_SWIM || man.mode == MAN_JUMP) continue;
-        hullSupportQueries.push_back(man.pos);
-        if (changed) hullSupportQueries.push_back(man.ptTo);
-    }
-    hullSupportResults.resize(hullSupportQueries.size());
-    if (!hullSupportQueries.empty())
-        ship->QueryHullSupport(hullSupportQueries.data(), hullSupportResults.data(), hullSupportQueries.size());
-    size_t supportIndex = 0;
-    if (changed)
-    {
-        hullSupportInitialized = true;
-        hullRevision = revision;
-        for (auto &point : sailorsPoints.points.point)
-            point.hullRetained = hullSupportResults[supportIndex++];
-        sailorsPoints.UpdateLinks();
-        fireModelSeconds = -1.f;
-    }
     const int count = sailorsPoints.points.count;
     const auto available = [&](int i) {
         return i >= 0 && i < count && sailorsPoints.points.point[i].IsAvailable();
@@ -1138,11 +1102,8 @@ void ShipWalk::ReconcileHullSupport()
     {
         if (man.inWater || man.mode == MAN_SWIM || man.mode == MAN_JUMP)
             continue;
-        const bool positionRetained = hullSupportResults[supportIndex++];
-        const bool targetRetained = changed ? hullSupportResults[supportIndex++] != 0 : true;
         const bool onMast = man.mode == MAN_CLIMB_UP || man.mode == MAN_CLIMB_DOWN || man.mode == MAN_OFF;
-        if (!positionRetained ||
-            (onMast && (!available(man.newWayPoint) || !available(man.lastWayPoint))))
+        if (onMast && (!available(man.newWayPoint) || !available(man.lastWayPoint)))
         {
             for (const int i : {man.targetWayPoint, man.lastTargetPoint, man.newWayPoint})
                 if (i >= 0 && i < count)
@@ -1155,9 +1116,7 @@ void ShipWalk::ReconcileHullSupport()
             man.spos = CVECTOR(0.f, 0.f, 0.f);
             continue;
         }
-        if (!changed)
-            continue;
-        bool routeValid = available(man.newWayPoint) && available(man.targetWayPoint) && targetRetained;
+        bool routeValid = available(man.newWayPoint) && available(man.targetWayPoint);
         for (int i = std::max(0, man.path.currentPointPosition); routeValid && i < man.path.length; ++i)
             routeValid = available(man.path.point[i]);
         if (routeValid)
@@ -1272,8 +1231,6 @@ bool ShipWalk::Init(entid_t _shipID, int editorMode, const char *shipType, std::
                 SetMastBroken(((iNumMasts - 1) - i) + 1); // ??? The masts are opposite ???
         }
 
-        ReconcileHullSupport();
-
         if (!shipManModels.empty())
         {
             shipManModels_ = std::move(shipManModels);
@@ -1335,6 +1292,9 @@ void ShipWalk::SetMastBroken(int iMastIndex)
             man.jumpSpeedX = JUMP_SPEED_X_MASTFALL;
         }
     }
+    sailorsPoints.UpdateLinks();
+    fireModelSeconds = -1.f;
+    ReconcileMastWaypoints();
 }
 
 void ShipWalk::ReleaseWork(ShipMan &man)
@@ -1510,7 +1470,7 @@ void ShipWalk::OnHullHit(const CVECTOR &v, float radius, float lethalRadius, flo
         if (!std::isfinite(distance) || distance > radius) continue;
         const CVECTOR outward = distance > .01f ? delta * (1.f / distance) : CVECTOR(1.f, 0.f, 0.f);
         const CVECTOR bodyImpulse = outward * impulse + CVECTOR(0.f, impulse * .55f, 0.f);
-        if (casualtyFraction > 0.f && distance <= woundedDistance && ship->IsHullPositionRetained(man.pos + man.spos))
+        if (casualtyFraction > 0.f && distance <= woundedDistance)
         {
             wounded = &man;
             woundedDistance = distance;
@@ -1707,7 +1667,6 @@ void Sailors::Realize(uint32_t dltTime)
             return;
         }
 
-        walk->ReconcileHullSupport();
         walk->RespondToFire(dltTime);
         walk->casualtyVisualCooldown = std::max(0.f, walk->casualtyVisualCooldown - float(dltTime) * .001f);
 

@@ -18,14 +18,14 @@ inline constexpr float nuclearPressureLife = 8.f;
 struct NuclearYield
 {
     uint32_t tier = 1;
-    float radius = nuclearRadius, effectRadius = 600.f, visibleRadius = 2500.f;
+    float radius = nuclearRadius, effectRadius = 600.f, fireRadius = 200.f, visibleRadius = 2500.f;
 };
 inline NuclearYield nuclearYieldForTier(uint32_t tier)
 {
     tier = std::clamp(tier, 1u, 10u);
     NuclearYield yield;
     yield.tier = tier;
-    yield.radius *= tier; yield.effectRadius *= tier; yield.visibleRadius *= tier;
+    yield.radius *= tier; yield.effectRadius *= tier; yield.fireRadius *= tier; yield.visibleRadius *= tier;
     return yield;
 }
 inline NuclearYield nuclearYield(float severity)
@@ -51,6 +51,10 @@ inline float nuclearPressureDamage(const NuclearYield &yield, float distance)
 {
     return std::min(1.f, .12f * yield.tier) * nuclearPressureStrength(yield, distance);
 }
+inline float nuclearPressureImpulse(const NuclearYield &yield, float distance)
+{
+    return 3.f * yield.tier * nuclearPressureStrength(yield, distance);
+}
 struct NuclearPressureContact
 {
     uint64_t ship = 0;
@@ -72,7 +76,7 @@ struct NuclearPressureContact
 };
 inline float nuclearFireStrength(const NuclearYield &yield, float distance)
 {
-    return std::clamp((yield.effectRadius - distance) / (yield.effectRadius * .5f), 0.f, 1.f);
+    return std::clamp((yield.fireRadius - distance) / (yield.fireRadius * .5f), 0.f, 1.f);
 }
 struct NuclearMissile
 {

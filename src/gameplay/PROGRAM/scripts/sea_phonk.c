@@ -170,14 +170,19 @@ float SeaPhonk_CollisionDamage(ref character, float damage)
     return damage;
 }
 
-bool SeaPhonk_LiveShip(aref target)
+bool SeaPhonk_ValidShip(aref target)
 {
     if (!CheckAttribute(target, "index") || !CheckAttribute(target, "Ship.HP") ||
         !CheckAttribute(target, "Ship.Type")) return false;
     int index = sti(target.index);
     int type = sti(target.Ship.Type);
-    return index >= 0 && index < TOTAL_CHARACTERS && type >= 0 && type < REAL_SHIPS_QUANTITY &&
-        stf(target.Ship.HP) > 0.0 && !LAi_IsDead(target);
+    return index >= 0 && index < TOTAL_CHARACTERS && type >= 0 && type < REAL_SHIPS_QUANTITY;
+}
+
+bool SeaPhonk_LiveShip(aref target)
+{
+    if (!SeaPhonk_ValidShip(target)) return false;
+    return stf(target.Ship.HP) > 0.0 && !LAi_IsDead(target);
 }
 
 int SeaPhonk_HullCut()
@@ -222,8 +227,11 @@ int SeaPhonk_NuclearWave()
     int owner = GetEventData();
     float fraction = GetEventData();
     if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return 0;
-    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return 0;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_ValidShip(target)) return 0;
     if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target)) return 0;
+    // A wreck can still receive physical pressure and heat; it has no HP or
+    // death/reward settlement left to debit.
+    if (!SeaPhonk_LiveShip(target)) return 1;
     if (Ship_HullDamageMultiplier(target, owner) <= 0.0) return 0;
     // The inner blast already paid its HP. The travelling shell only pays
     // outer hull damage; native thermal fire retains the sole burning DOT.
