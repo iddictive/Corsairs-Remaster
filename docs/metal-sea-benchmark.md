@@ -1,5 +1,23 @@
 # Native sea workload and profiling
 
+## October26 — demand-driven wave normals and sail roll speed
+
+Height-only `SEA::WaveXZ` callers now skip ordinary-wave normal interpolation;
+mesh and explicit-normal callers retain the original calculations. The extracted
+scalar caller/sampler preserves height and normal bits across160000 positions,
+profile counts0/1/2/7, distance rejection and a stubbed event-wave call boundary.
+One million height-only calls take12.728→6.874ms with the fallback profile,
+22.498→11.082ms with two profiles and73.512→31.139ms with seven; explicit-normal
+timings remain approximately unchanged. These are CPU component timings, not FPS.
+
+Sail groups query `evntGetSRollSpeed` only while non-free cloth has an active
+roll. Active groups still refresh every frame, preserving live crew/skill changes
+and the missing-handler fallback.512 extracted-block scenarios preserve consumed
+speeds and remove idle calls; no real script-VM timing or player replay is claimed.
+[Inputs, source identities and raw paired measurements](evidence/sea-cpu-demand-20261026.json)
+bind these observations. Task-local probe sources remain in the existing ignored
+`experiments/native-metal/.cache/diagnostics/sea-cpu-demand-20261026/` evidence owner.
+
 `experiments/native-metal/sea_fleet_benchmark.cpp` links the same native engine,
 registered entities and Metal backend as the player executable. Its isolated
 `sea_fleet_fixture.c` constructs eight stock Manowar1 ships, native rigging,

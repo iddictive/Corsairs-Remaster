@@ -1,0 +1,24 @@
+{
+  "baseline_git": "8825bb5d3a1ba577e9495a4ad35ee7b565cb0d0a",
+  "source_sha256": "8415d8dbf6d8e4586d2c404d76e4139f722211b31b384c9e865ee60df3c7199d",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+  "flags": "-std=c++20 -O3 -DNDEBUG; noinline scalar sampler and WaveXZ",
+  "scope": "CPU component, synthetic deterministic 128x128 lattices; not whole-game FPS; event wave is a stub preserving call/null behavior",
+  "raw": "PARITY 160000 positions: height-only + normal, profiles 0/1/2/7, inside/outside, event off/on\nBENCH profiles=0 normal=0 round=0 before_ms=12.808 after_ms=6.874\nBENCH profiles=0 normal=0 round=1 before_ms=12.596 after_ms=6.903\nBENCH profiles=0 normal=0 round=2 before_ms=12.728 after_ms=6.812\nBENCH profiles=0 normal=1 round=0 before_ms=18.546 after_ms=18.096\nBENCH profiles=0 normal=1 round=1 before_ms=17.757 after_ms=17.903\nBENCH profiles=0 normal=1 round=2 before_ms=17.729 after_ms=18.220\nBENCH profiles=1 normal=0 round=0 before_ms=12.312 after_ms=6.877\nBENCH profiles=1 normal=0 round=1 before_ms=12.231 after_ms=6.688\nBENCH profiles=1 normal=0 round=2 before_ms=12.257 after_ms=6.863\nBENCH profiles=1 normal=1 round=0 before_ms=17.875 after_ms=18.118\nBENCH profiles=1 normal=1 round=1 before_ms=17.591 after_ms=17.726\nBENCH profiles=1 normal=1 round=2 before_ms=18.230 after_ms=17.850\nBENCH profiles=2 normal=0 round=0 before_ms=22.428 after_ms=11.082\nBENCH profiles=2 normal=0 round=1 before_ms=22.512 after_ms=11.218\nBENCH profiles=2 normal=0 round=2 before_ms=22.498 after_ms=10.919\nBENCH profiles=2 normal=1 round=0 before_ms=29.884 after_ms=29.899\nBENCH profiles=2 normal=1 round=1 before_ms=29.662 after_ms=29.878\nBENCH profiles=2 normal=1 round=2 before_ms=30.808 after_ms=29.664\nBENCH profiles=7 normal=0 round=0 before_ms=73.241 after_ms=31.492\nBENCH profiles=7 normal=0 round=1 before_ms=73.704 after_ms=31.139\nBENCH profiles=7 normal=0 round=2 before_ms=73.512 after_ms=31.028\nBENCH profiles=7 normal=1 round=0 before_ms=87.399 after_ms=87.754\nBENCH profiles=7 normal=1 round=1 before_ms=86.594 after_ms=87.614\nBENCH profiles=7 normal=1 round=2 before_ms=88.272 after_ms=88.200\n",
+  "production_sources": {
+    "experiments/native-metal/engine/src/libs/sea/src/sea.cpp": "6b99ddb0412c8f5848bcebca80188b8272eed9ae276dae0002096268ba061510",
+    "experiments/native-metal/engine/src/libs/sea/src/sea.h": "baccc64f28feecfc02351a23057eb4108bfb27a58f5d3829792cac8788674c3b",
+    "experiments/native-metal/engine/src/libs/rigging/src/sail.cpp": "4676b0aa48bf9be946cbef2b912b7a48b325b4a256b28fcb8fb17e2fd13422d4"
+  },
+  "inputs": {
+    "lattices": "128x128 heights sin(i*.017), cos(i*.027); packed x/z normals sin(i*.013)*.45, cos(i*.011)*.45",
+    "samples": "profiles i=0..6: scale1=.02+i*.015,scale2=.1+i*.009,amp1=1/(i+1),amp2=.5/(i+1),weight=1/(i+1); fallback scales .06/.15, amplitudes2/.6",
+    "offsets": "vMove1=(1,2,3),vMove2=(4,5,6),camera=(0,0,0),maxDistance10000",
+    "timing": "1M WaveXZ calls; x=(i*17)%8192-4096,z=(i*31)%4096-2048; 1 warmup each,3 alternating timed pairs; checksum consumes height and requested normal",
+    "parity": "160000 positions across counts0/1/2/7 and eventoff/on; x=(i*17)%24000-12000,z=(i*31)%24000-12000; bitwise original height+normal vs candidate height+normal and candidate heightonly; event stub adds.125height/.25normalY, not a physical wave oracle"
+  },
+  "sail_probe": "PASS 512 mixed rolling/free/null-handler cases, live speed changes, idle-to-active; idle events 4 -> 0, active events 4 -> 4 per group",
+  "sail_scope": "Real original/candidate speed-selection blocks extracted into group/event stubs. Exhaustive4cloth rolling/free masks and null-handler fallback,4changing-speedframes, idle-to-active. Not a real VM timing or game motion replay.",
+  "permanent_test_delta": 0,
+  "runtime_acceptance": "Native compile/link/install handled by existing shared delivery owner; player FPS and visual replay not measured by this component probe."
+}

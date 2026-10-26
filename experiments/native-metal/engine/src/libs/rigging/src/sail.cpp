@@ -600,6 +600,18 @@ void SAIL::Execute(uint32_t Delta_Time)
             gdata[i].curHole = 0;
             gdata[i].bFinalSailDoOld = gdata[i].bFinalSailDo;
             gdata[i].bFinalSailDo = false;
+            bool rolling = false;
+            for (int sail = 0; sail < gdata[i].sailQuantity; ++sail)
+            {
+                const auto *cloth = slist[gdata[i].sailIdx[sail]];
+                if (cloth->sroll && !cloth->bFreeSail)
+                {
+                    rolling = true;
+                    break;
+                }
+            }
+            if (!rolling)
+                continue;
             VDATA *pvdat = core.Event("evntGetSRollSpeed", "l", GetCharacterForGroup(i));
             if (pvdat == nullptr)
                 gdata[i].fRollingSpeed = ROLLINGSPEED;

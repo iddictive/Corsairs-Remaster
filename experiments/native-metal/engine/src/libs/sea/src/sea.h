@@ -102,7 +102,7 @@ class SEA : public SEA_BASE
     void ResetWeatherWaveProfiles();
     void UpdateWeatherWaveProfile(float wind, float storm, float seconds);
     void LimitWaveAmplitudes();
-    void SampleOrdinaryWaves(float x, float z, float &height, CVECTOR &normal) const;
+    void SampleOrdinaryWaves(float x, float z, float &height, CVECTOR *normal) const;
     void PublishWeatherWaveLattices();
     SeaWhirlpool whirlpool;
     struct WhirlpoolShipContact { entid_t ship; SeaWhirlpoolContact contact; };

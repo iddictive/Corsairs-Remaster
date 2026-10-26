@@ -763,10 +763,10 @@ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *
 // INTEL COMMENT:
 // This version of the function takes in 4 at a time, to take advantage of SSE.
 // In particular I have converted the normalise and square roots over to SSE.
-void SEA::SampleOrdinaryWaves(float x, float z, float &height, CVECTOR &normal) const
+void SEA::SampleOrdinaryWaves(float x, float z, float &height, CVECTOR *normal) const
 {
     height = 0.f;
-    normal = CVECTOR(0.f);
+    if (normal) *normal = CVECTOR(0.f);
     const auto sample = [this, x, z, &height, &normal](const WeatherWaveSample &profile) {
         for (unsigned layer = 0; layer < 2; ++layer) {
             const float scale = layer == 0 ? profile.scale1 : profile.scale2;
@@ -787,10 +787,12 @@ void SEA::SampleOrdinaryWaves(float x, float z, float &height, CVECTOR &normal) 
                 return h1 + fx * (h2 - h1) + fz * (h3 - h1) + fx * fz * (h4 + h1 - h2 - h3);
             };
             height += amp * interpolate(heights, 1, 0);
-            const float nx = interpolate(normals, 2, 0), nz = interpolate(normals, 2, 1);
-            normal.x += scale * amp * nx;
-            normal.z += scale * amp * nz;
-            normal.y += profile.weight * sqrtf(std::max(0.f, 1.f - nx * nx - nz * nz));
+            if (normal) {
+                const float nx = interpolate(normals, 2, 0), nz = interpolate(normals, 2, 1);
+                normal->x += scale * amp * nx;
+                normal->z += scale * amp * nz;
+                normal->y += profile.weight * sqrtf(std::max(0.f, 1.f - nx * nx - nz * nz));
+            }
         }
     };
     if (weatherWaveSampleCount == 0) {
@@ -812,7 +814,7 @@ void SEA::SSE_WaveXZ(SeaVertex **pArray)
             vertex.vPos.y = 0.f;
             normals[i] = CVECTOR(0.f, 1.f, 0.f);
         } else {
-            SampleOrdinaryWaves(vertex.vPos.x, vertex.vPos.z, vertex.vPos.y, normals[i]);
+            SampleOrdinaryWaves(vertex.vPos.x, vertex.vPos.z, vertex.vPos.y, &normals[i]);
             distancePass = true;
         }
     }
@@ -843,7 +845,7 @@ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
     }
     float height;
     CVECTOR normal;
-    SampleOrdinaryWaves(x, z, height, normal);
+    SampleOrdinaryWaves(x, z, height, pNormal ? &normal : nullptr);
     if (pNormal) *pNormal = !normal;
     if (tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) ApplyTsunami(x, z, height, pNormal);
     return height;
