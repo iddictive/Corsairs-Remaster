@@ -1,5 +1,29 @@
 # Spatial audio range repair — 2026-10-23
 
+## October25 successor: natural distant tails
+
+The player subsequently rejected ordinary effects vanishing too early, including
+salvo splashes beyond180m. Ordinary spatial voices now retain the existing
+exponential0.45 curve without its maximum-distance plateau; `SoundPlay` no longer
+rejects those voices before decoding. This intentionally changes the older
+linear contract below. The separately requested local collision range remains:
+`coll_ship2rock`/`coll_ship2ship` are still silent at350m and5km. Ship fire keeps
+its local linear range and half gain. Near gain, quiet effects, 2D reload and
+voice limits are preserved.
+
+The [raw before/after mixer measurements](natural-tail-20261025.json) use actual
+`SoundPlay`/`SoundSet3DParam`, miniaudio0.11.25, no device,48kHz stereo and a mono
+16-bit440Hz sine at amplitude8000. Each observation renders4096 frames and
+measures samples1024…8191. Splash RMS at181/1200/10000m becomes
+0.007624/0.003255/0.001254, demonstrating a decreasing tail without a floor.
+The32-voice graph measured36–39µs per5.333ms buffer in one noisy pass; newly
+audible distant voices now perform real decode/mix work within unchanged limits.
+Separate actual-method lifecycle checks cover one-shot Resume/Restart/focus,
+completed-sound negatives and master id0: eight baseline failures become sixteen
+passing checks. These CPU observations do not establish perceived game loudness.
+
+## Original October23 contract and evidence
+
 The player reported distant ship/shore collisions audible at approximately 5 km.
 The active native Metal sound service uses vendored miniaudio 0.11.25, not the
 legacy FMOD service. Collision callers already supply world positions. Aliases

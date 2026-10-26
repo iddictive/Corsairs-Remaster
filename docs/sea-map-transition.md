@@ -151,6 +151,17 @@ main-thread samples are in map-ship preparation, including533 in synchronous
 `RebuildLaserSurface`. The [sample and matching signed executable](../.local-archives/metal-renderer-evidence/phonk-current-20261017/player-ram-map-warm-0048/evidence.json)
 retain the exact evidence. Cold material restore now constructs its initial
 boundary inside the existing cooperative worker, including legacy-cut import.
+Ordinary `SHIP::Mount` uses that worker directly too: its discarded dummy
+`CaptureLaserInput` previously rebuilt every node's boundary synchronously before
+admitting the same material work. The October25,22:25:15 player sample contains76
+of1268 main-thread observations in that redundant preparation during ship entry.
+Mount keeps material admission and Execute's readiness gate. The actual value
+worker produces identical geometry, physical cells, support, openings and SAVE
+payloads for pristine wood, first finite damage, restored damage and legacy
+cannon/laser histories with or without that prewarm. Invalid payloads still
+reject; masts/yards remain material consumers and `path` remains excluded.
+Worker cost and installed frame pacing are separate from this removed main-thread
+work; actual sea-entry timing remains unverified.
 These source guards remove the unbounded retry path; sustained FPS and damaged
 sea/map/save-load parity remain for player replay.
 Core reset disposes pending visual references before renderer destruction. Normal

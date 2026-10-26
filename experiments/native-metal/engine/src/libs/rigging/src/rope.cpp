@@ -183,7 +183,7 @@ void ROPE::Realize(uint32_t Delta_Time)
                             RenderService->SetTransform(storm_render::TransformWorld, *gdata[i].pMatWorld);
 
                             RenderService->TextureSet(0, texl);
-                            RenderService->DrawBuffer(vBuf, sizeof(ROPEVERTEX), iBuf, 0, nVert, gdata[i].st,
+                            RenderService->DrawBuffer(vBuf, sizeof(ROPEVERTEX), iBuf, gdata[i].sv, gdata[i].nv, gdata[i].st,
                                                       gdata[i].nt);
                             static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[i].shipEI))
                                 ->RestoreLightAndFog();
@@ -366,7 +366,8 @@ void ROPE::SetIndex() const
         for (int rn = 0; rn < ropeQuantity; rn++)
         {
             ti = rlist[rn]->st;
-            vi = rlist[rn]->sv;
+            // Keep 16-bit indices local to this ship; the fleet buffer can exceed 65536 vertices.
+            vi = rlist[rn]->sv - gdata[rlist[rn]->HostGroup].sv;
 
             // set begin edge point triangles
             for (j = 0; j < ROPE_EDGE; j++)

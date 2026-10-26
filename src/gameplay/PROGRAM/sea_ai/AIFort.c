@@ -12,6 +12,7 @@ int iNumDamagedCannonsQuantity = 0;
 void DeleteFortEnvironment()
 {
     DelEventHandler("SeaPhonk_FortGeometry", "SeaPhonk_FortGeometry");
+    DelEventHandler("SeaPhonk_FortNuclearDamage", "SeaPhonk_FortNuclearDamage");
     // fix boal -->
 	DelEventHandler(FORT_CANNON_DAMAGE, "Fort_CannonDamage");
 	DelEventHandler(FORT_CREATE, "Fort_CreateEvent");
@@ -32,6 +33,7 @@ void DeleteFortEnvironment()
 void CreateFortEnvironment()
 {
     SetEventHandler("SeaPhonk_FortGeometry", "SeaPhonk_FortGeometry", 0);
+    SetEventHandler("SeaPhonk_FortNuclearDamage", "SeaPhonk_FortNuclearDamage", 0);
 	iNumForts = 0;
 	int fortCapacity = MAX_FORTS;
 	int residentForts = 0;
@@ -461,6 +463,16 @@ int Fort_GetCannonsQuantity(ref rFortCharacter)
 
 float Fort_CannonDamage()
 {
+    return Fort_ApplyCannonDamage(false);
+}
+
+float SeaPhonk_FortNuclearDamage()
+{
+    return Fort_ApplyCannonDamage(true);
+}
+
+float Fort_ApplyCannonDamage(bool nuclear)
+{
 	float	x, y, z;
 	aref	aFortLabel;
 	ref		rBallCharacter, rFortCharacter;
@@ -505,6 +517,12 @@ float Fort_CannonDamage()
 	int iFortMode = sti(rFortCharacter.Fort.Mode);
 	if (iFortMode != FORT_NORMAL) { return fDamage; }
 
+	// Nuclear blast retains the former world-cut sphere's cannon destruction,
+	// independent of whichever ordinary cannonball last populated AIBalls.
+	float fHullDamage = 1.0;
+	float fCrewDamage = 0.0;
+	if (!nuclear)
+	{
 	// Бомбы рвутся объемом: близкие разрывы скалывают пушки сплэшем.
 	// Ядра и остальная кинетика бьют слабее — осколки камня/дерева и разбитый
 	// лафет рядом с пушкой, но не объемный взрыв. Прямые бьют в полную у всех.
@@ -524,9 +542,10 @@ float Fort_CannonDamage()
 
 	//CreateParticleSystem("blast",x,y,z,0.0,0.0,0.0,0);
 	
-	float fHullDamage = stf(rBall.DamageHull) * fCannonDamageMultiply * 0.4;
+	fHullDamage = stf(rBall.DamageHull) * fCannonDamageMultiply * 0.4;
 	if (airburst) fHullDamage = stf(rBall.DamageFort) * fCannonDamageMultiply * 0.4;
-	float fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * 0.6;
+	fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * 0.6;
+	}
 	fCrewDamage = Ship_AmmoCrewLoss(rFortCharacter, fCrewDamage);
 
 	rFortCharacter.Ship.HP = (1.0 - MakeFloat(iNumDamagedCannons) / MakeFloat(iNumAllCannons)) * stf(rFortCharacter.Fort.HP);

@@ -12,16 +12,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <limits>
 
 CREATE_SERVICE(SoundService)
 
 static void ApplySpatialRange(ma_sound &sound)
 {
-    const auto policy = storm::metal::audio::SpatialPolicyForAlias(
-        {}, ma_sound_get_min_distance(&sound), ma_sound_get_max_distance(&sound));
-    ma_sound_set_attenuation_model(&sound, policy.linearFalloff ?
-        ma_attenuation_model_linear : ma_attenuation_model_exponential);
-    ma_sound_set_rolloff(&sound, policy.rolloff);
+    if (ma_sound_get_attenuation_model(&sound) != ma_attenuation_model_exponential) return;
+    // Keep the tail decaying beyond authored maxDistance instead of clamping its gain.
+    ma_sound_set_max_distance(&sound, std::numeric_limits<float>::max());
+    // Exponential attenuation needs a positive reference distance; use the engine default.
+    if (ma_sound_get_min_distance(&sound) <= 0.0f) ma_sound_set_min_distance(&sound, 1.0f);
 }
 
 SoundService::SoundService() = default;
@@ -174,15 +175,15 @@ void SoundService::RebalanceImpactVoices()
     }
 }
 
-void SoundService::ApplyVolumeLifecycle(Slot &slot, bool allowStart)
+void SoundService::ApplyVolumeLifecycle(Slot &slot, bool allowOneShotStart)
 {
     const float effective = EffectiveVolume(slot);
     ma_sound_set_volume(&slot.sound, effective);
-    if (!slot.looped || slot.terminalStopping)
+    if (slot.terminalStopping || (!slot.looped && !allowOneShotStart))
         return;
     constexpr float EPSILON = 0.001f;
     constexpr ma_uint64 FADE_MS = 200;
-    if (effective <= EPSILON)
+    if (slot.looped && effective <= EPSILON)
     {
         if (!slot.volumeSuspended)
         {
@@ -191,7 +192,7 @@ void SoundService::ApplyVolumeLifecycle(Slot &slot, bool allowStart)
         }
         return;
     }
-    if (!allowStart || slot.paused || slot.focusSuspended)
+    if (slot.paused || slot.focusSuspended)
         return;
     if (slot.volumeSuspended)
     {
@@ -224,9 +225,9 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
             if (found->second.volume >= 0) volume = found->second.volume;
         }
     }
-    // A silent one-shot must not occupy a voice or decode a file. Cached and
-    // looping handles remain valid: their owners can move/resume them later.
-    if (spatial && position && !looped && !simpleCache && minDistance >= 0 &&
+    const auto spatialPolicy = storm::metal::audio::SpatialPolicyForAlias(aliasKey);
+    // Only local linear effects are silent beyond their authored range.
+    if (spatial && spatialPolicy.linearFalloff && position && !looped && !simpleCache && minDistance >= 0 &&
         maxDistance > minDistance && maxDistance < std::numeric_limits<float>::max())
     {
         const auto listener = ma_engine_listener_get_position(&engine_, 0);
@@ -290,7 +291,6 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
         PrepareChargeReplacement();
     const std::string path = ResolvePath(selected.c_str());
     if (path.empty()) return SOUND_INVALID_ID;
-    const auto spatialPolicy = storm::metal::audio::SpatialPolicyForAlias(aliasKey);
     if (spatial) volume *= spatialPolicy.volumeGain;
     auto it = std::find_if(slots_.begin(), slots_.end(), [](const Slot &slot) { return !slot.initialized; });
     if (it == slots_.end()) return SOUND_INVALID_ID;
@@ -335,7 +335,13 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     if (spatial && position) ma_sound_set_position(&it->sound, position->x, position->y, position->z);
     if (spatial && minDistance >= 0) ma_sound_set_min_distance(&it->sound, minDistance);
     if (spatial && maxDistance >= 0) ma_sound_set_max_distance(&it->sound, maxDistance);
-    if (spatial) ApplySpatialRange(it->sound);
+    if (spatial)
+    {
+        ma_sound_set_attenuation_model(&it->sound, spatialPolicy.linearFalloff ?
+            ma_attenuation_model_linear : ma_attenuation_model_exponential);
+        ma_sound_set_rolloff(&it->sound, spatialPolicy.rolloff);
+        ApplySpatialRange(it->sound);
+    }
     if (fadeMs > 0) ma_sound_set_fade_in_milliseconds(&it->sound, 0, EffectiveVolume(*it), fadeMs);
     // Looped sounds created at effective volume zero are kept stopped until SoundSetVolume raises them.
     // This avoids silent streaming of ambient ship loops at game start.
@@ -386,7 +392,7 @@ void SoundService::SoundSet3DParam(TSD_ID id, eSoundMessage message, const void 
 
 void SoundService::SoundStop(TSD_ID id, int32_t fadeMs)
 {
-    if (static_cast<int32_t>(id) == SOUND_INVALID_ID) { for (auto &s : slots_) if (s.initialized) SoundStop(TSD_ID(static_cast<uint32_t>((static_cast<uint32_t>(s.stamp) << 16) | static_cast<uint32_t>(&s - slots_.data() + 1))), fadeMs); return; }
+    if (id.master() || static_cast<int32_t>(id) == SOUND_INVALID_ID) { for (auto &s : slots_) if (s.initialized) SoundStop(TSD_ID(static_cast<uint32_t>((static_cast<uint32_t>(s.stamp) << 16) | static_cast<uint32_t>(&s - slots_.data() + 1))), fadeMs); return; }
     auto *slot = Find(id); if (!slot) return;
     if (fadeMs > 0) { ma_sound_stop_with_fade_in_milliseconds(&slot->sound, fadeMs); slot->terminalStopping = true; }
     else { ma_sound_stop(&slot->sound); Release(*slot); }
@@ -404,8 +410,25 @@ void SoundService::SoundSetVolume(TSD_ID id, float volume)
 }
 bool SoundService::SoundIsPlaying(TSD_ID id) { auto *s = Find(id); return s && ma_sound_is_playing(&s->sound); }
 int32_t SoundService::SoundGetPosition(TSD_ID id) { float seconds{}; auto *s = Find(id); return s && ma_sound_get_cursor_in_seconds(&s->sound, &seconds) == MA_SUCCESS ? static_cast<int32_t>(seconds * 1000) : 0; }
-void SoundService::SoundRestart(TSD_ID id) { if (auto *s = Find(id)) { s->paused = false; s->terminalStopping = false; ma_sound_reset_stop_time_and_fade(&s->sound); ma_sound_seek_to_pcm_frame(&s->sound, 0); ApplyVolumeLifecycle(*s); } }
-void SoundService::SoundResume(TSD_ID id, int32_t fadeMs) { if (auto *s = Find(id)) { s->paused = false; s->terminalStopping = false; ma_sound_reset_stop_time_and_fade(&s->sound); if (fadeMs > 0) ma_sound_set_fade_in_milliseconds(&s->sound, 0, EffectiveVolume(*s), fadeMs); ApplyVolumeLifecycle(*s); } }
+void SoundService::SoundRestart(TSD_ID id) { if (auto *s = Find(id)) { s->paused = false; s->terminalStopping = false; ma_sound_reset_stop_time_and_fade(&s->sound); ma_sound_seek_to_pcm_frame(&s->sound, 0); ApplyVolumeLifecycle(*s, true); } }
+void SoundService::SoundResume(TSD_ID id, int32_t fadeMs)
+{
+    if (id.master())
+    {
+        for (auto &s : slots_) if (s.initialized && !s.terminalStopping)
+            SoundResume(TSD_ID(static_cast<uint32_t>((static_cast<uint32_t>(s.stamp) << 16) | static_cast<uint32_t>(&s - slots_.data() + 1))), fadeMs);
+        return;
+    }
+    if (auto *s = Find(id))
+    {
+        if (!s->looped && ma_sound_at_end(&s->sound)) return;
+        s->paused = false;
+        s->terminalStopping = false;
+        ma_sound_reset_stop_time_and_fade(&s->sound);
+        if (fadeMs > 0) ma_sound_set_fade_in_milliseconds(&s->sound, 0, EffectiveVolume(*s), fadeMs);
+        ApplyVolumeLifecycle(*s, true);
+    }
+}
 
 void SoundService::SetMasterVolume(float fx, float music, float speech)
 {
@@ -424,8 +447,8 @@ void SoundService::SetActiveWithFade(bool active)
     for (auto &s : slots_)
     {
         if (!s.initialized || s.terminalStopping) continue;
-        if (active && s.focusSuspended) { s.focusSuspended = false; ApplyVolumeLifecycle(s); }
-        else if (!active && ma_sound_is_playing(&s.sound)) { ma_sound_stop(&s.sound); s.focusSuspended = true; }
+        if (active && s.focusSuspended) { s.focusSuspended = false; if (s.looped || !ma_sound_at_end(&s.sound)) ApplyVolumeLifecycle(s, true); }
+        else if (!active && ma_sound_is_playing(&s.sound) && (s.looped || !ma_sound_at_end(&s.sound))) { ma_sound_stop(&s.sound); s.focusSuspended = true; }
     }
 }
 

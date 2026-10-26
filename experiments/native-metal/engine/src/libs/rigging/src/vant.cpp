@@ -144,7 +144,8 @@ void VANT_BASE::Realize(uint32_t Delta_Time)
                 RenderService->TextureSet(0, texl);
 
                 RenderService->SetTransform(storm_render::TransformWorld, *gdata[gn].pMatWorld);
-                RenderService->DrawBuffer(vBuf, sizeof(VANTVERTEX), iBuf, 0, nVert, gdata[gn].sIndx, gdata[gn].nIndx);
+                RenderService->DrawBuffer(vBuf, sizeof(VANTVERTEX), iBuf, gdata[gn].sVert, gdata[gn].nVert,
+                                          gdata[gn].sIndx, gdata[gn].nIndx);
 
                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->UnSetLights();
                 static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->RestoreLightAndFog();
@@ -324,7 +325,8 @@ void VANT_BASE::SetIndex() const
         for (int vn = 0; vn < vantQuantity; vn++)
         {
             ti = vlist[vn]->st;
-            vi = vlist[vn]->sv;
+            // Keep 16-bit indices local to this ship; the fleet buffer can exceed 65536 vertices.
+            vi = vlist[vn]->sv - gdata[vlist[vn]->HostGroup].sVert;
 
             // set center treangle & square
             pt[ti++] = vi;

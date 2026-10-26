@@ -482,7 +482,8 @@ bool AIFort::AddFort(ATTRIBUTES *pIslandAP, ATTRIBUTES *pFortLabelAP, ATTRIBUTES
     return true;
 }
 
-void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius, CANNON_TRACE_BASE *island)
+void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius, CANNON_TRACE_BASE *island,
+                       bool nuclear)
 {
     const bool airburst = radius > 0.0f;
     const float maxDistance = airburst ? radius : fMinCannonDamageDistance;
@@ -508,7 +509,7 @@ void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius,
             if (fDistance > maxDistance)
                 continue;
 
-            if (airburst)
+            if (airburst && !nuclear)
             {
                 // Test the exposed muzzle, not a locator embedded in masonry.
                 const CVECTOR muzzle = vPos + pC->GetDir() * 3.0f;
@@ -519,7 +520,8 @@ void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius,
             // VDATA * pVData = core.Event(FORT_CANNON_DAMAGE, "llallfffff", iCharacterIndex,
             // GetIndex(pF->GetACharacter()), pF->pFortLabelAP, pF->GetAllCannonsNum(), pF->GetDamagedCannonsNum(),
             // vPos.x, vPos.y, vPos.z, fDistance, pC->GetDamage()); Assert(pVData);
-            auto *pVData = core.Event(FORT_CANNON_DAMAGE, "llallfffff", iCharacterIndex, GetIndex(pF->GetACharacter()),
+            auto *pVData = core.Event(nuclear ? "SeaPhonk_FortNuclearDamage" : FORT_CANNON_DAMAGE,
+                                      "llallfffff", iCharacterIndex, GetIndex(pF->GetACharacter()),
                                       pF->pFortLabelAP, iMax, pF->GetDamagedCannonsNum(), vPos.x, vPos.y, vPos.z,
                                       fDistance, pC->GetDamage());
             Assert(pVData);

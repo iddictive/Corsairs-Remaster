@@ -209,6 +209,20 @@ baseline, not the current installed gameplay batch.
 
 ### External sample and capture
 
+On macOS27, `/usr/bin/metalperftrace listen --json --pid <pid> --output <file>`
+reads already-collected Metal performance metrics without launching, capturing
+or controlling a window. Its native help owns the process filter and output
+contract; SIGINT closes the bounded listener and finalizes its JSON array.
+Apple documents this [always-on metrics route](https://developer.apple.com/videos/play/wwdc2026/388/).
+The October25,22:50 installed-engine observation is retained at
+`experiments/native-metal/.cache/diagnostics/game-20261025-225010-89300.metal.ndjson`.
+The raw stdout is a stream of pretty JSON objects despite the CLI's NDJSON
+description: parse successive objects with a JSON decoder. Nine updates cover
+477 presented frames over8.979732 active seconds:53.1196FPS, mean on-GPU5.8875ms,
+mean Metal end-to-end CPU12.8827ms. CPU span is not CPU utilization or the complete
+game tick. No state metadata identifies the scene/fleet; these observations do
+not accept a120FPS target or establish performance of the later repair batch.
+
 `--profile cpu` attaches `/usr/bin/sample` to the owned benchmark PID after cold
 setup, with bounded duration and symbol-processing timeout. `--profile metal`
 uses native xctrace; a trace that never finalizes or lacks its template is

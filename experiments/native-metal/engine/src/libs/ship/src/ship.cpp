@@ -3602,15 +3602,8 @@ bool SHIP::Mount(ATTRIBUTES *_pAShip)
         core.Send_Message(foam, "li", MSG_SHIP_CREATE, GetId());
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     EnsureCutFragments();
-    // Capture immutable CPU input during loading, before a live cut needs it.
-    storm_ship_laser::Plane field; field.normal = {1.f, 0.f, 0.f};
-    if (auto *model = GetModel()) for (int n = 0; auto *node = model->GetNode(n); ++n)
-        if (node->geo) {
-            storm_ship_laser::Input input;
-            if (!node->geo->CaptureLaserInput(uint64_t(blots_id), field, 1, nullptr, input))
-                core.Trace("Ship cut immutable input unavailable for node %s", node->GetName() ? node->GetName() : "");
-        }
     // Start the existing value worker without holding the scene-loading thread.
+    // Do not prewarm CaptureLaserInput: it rebuilds the same boundary synchronously.
     // Execute polls readiness before material-dependent damage is published.
     EnsureHullMaterial();
 #endif

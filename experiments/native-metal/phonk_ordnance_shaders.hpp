@@ -59,6 +59,33 @@ float2 phonkNuclearField(float3 q,float age,texture3d<float> noise) {
     float heat=exp(-age*.53f)*core*(.52f+coarse*.48f);
     return float2(density,heat);
 }
+// Integrate a thin pressure shell analytically: a world-space hemisphere,
+// clipped by both opaque scene depth and the ground, without extra march taps.
+float3 phonkNuclearPressure(float3 origin,float3 ray,float stop,float age,
+                           thread float2 &distances,thread float2 &opacity) {
+    distances=float2(1.e8f);opacity=0.f;
+    float fade=smoothstep(.04f,.14f,age)*(1.f-smoothstep(1.4f,3.f,age));
+    if(fade<=0.f)return 0.f;
+    float front=min(3.f,age*1.1f),width=.025f+age*.012f;
+    float along=dot(origin,ray),across=dot(origin,origin)-along*along;
+    float outer=(front+width)*(front+width)-across;
+    if(outer<=0.f)return 0.f;
+    float inner=sqrt(max(0.f,(front-width)*(front-width)-across));
+    float edge=sqrt(outer),low=0.f,high=stop;
+    if(abs(ray.y)<1.e-7f) { if(origin.y<.025f)return 0.f; }
+    else {
+        float ground=(.025f-origin.y)/ray.y;
+        if(ray.y>0.f)low=max(low,ground);else high=min(high,ground);
+    }
+    float2 first=max(float2(-along-edge,-along+inner),float2(low));
+    float2 last=min(float2(-along-inner,-along+edge),float2(high));
+    float2 thickness=max(0.f,last-first);
+    opacity=(1.f-exp(-min(thickness/width,float2(4.f))*.10f))*fade;
+    distances=(first+last)*.5f;
+    float hot=exp(-age*2.f);
+    float3 tint=mix(float3(.86f,1.05f,1.20f),float3(1.6f,1.15f,.65f),hot);
+    return tint;
+}
 fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclearUniforms &u [[buffer(0)]],
                                 depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],
                                 texture2d<float> smokeSprite [[texture(2)]]) {
@@ -68,6 +95,9 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
     float stop=sceneDepth<1.f?max(0.f,dot(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.eye.xyz,ray)):1.e8f;
     float radius=u.sourceRadius.w;
     float3 origin=(u.eye.xyz-u.sourceRadius.xyz)/radius;
+    float2 pressureDistances,pressureOpacity;
+    float3 pressureColor=phonkNuclearPressure(origin,ray,stop/radius,u.params.x,
+        pressureDistances,pressureOpacity);
     // The thin ground front is analytic, so its wide footprint does not force
     // empty cloud samples along every ray through the shock ring.
     float4 ground=0;
@@ -110,12 +140,25 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
     float3 last=(float3(1.6f,3.0f,1.6f)-origin)*inverse;
     float near=max(0.f,max(max(min(first,last).x,min(first,last).y),min(first,last).z));
     float far=min(stop/radius,min(min(max(first,last).x,max(first,last).y),max(first,last).z));
-    if(far<=near)return mix(ground,sprite+ground*(1.f-sprite.a),faceAmount);
+    if(far<=near) {
+        float alpha=1.f-(1.f-pressureOpacity.x)*(1.f-pressureOpacity.y);
+        float4 pressure=float4(pressureColor*alpha,alpha);
+        return mix(pressure+ground*(1.f-alpha),sprite+ground*(1.f-sprite.a),faceAmount);
+    }
     constexpr uint steps=64;
     float step=(far-near)/float(steps),transmission=1.f;
     float3 color=0;
+    uint pressureLayer=any(pressureOpacity>0.f)?0:2;
     for(uint i=0;i<steps;i++) {
         float distance=near+(float(i)+.5f)*step;
+        if(pressureLayer<2 && pressureDistances[pressureLayer]<=distance) {
+            for(uint layer=0;layer<2;layer++) {
+                if(pressureLayer>=2 || pressureDistances[pressureLayer]>distance)break;
+                float alpha=pressureOpacity[pressureLayer++];
+                color+=transmission*pressureColor*alpha;
+                transmission*=1.f-alpha;
+            }
+        }
         float3 point=origin+ray*distance;
         float2 field=phonkNuclearField(point,u.params.x,noise);
         float opacity=1.f-exp(-field.x*step*6.f);
@@ -132,6 +175,10 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
         }
         transmission*=1.f-opacity;
         if(transmission<.015f)break;
+    }
+    for(uint layer=pressureLayer;layer<2;layer++) {
+        color+=transmission*pressureColor*pressureOpacity[layer];
+        transmission*=1.f-pressureOpacity[layer];
     }
     float4 volume=float4(color+ground.rgb*transmission,1.f-transmission*(1.f-ground.a));
     return mix(volume,sprite+ground*(1.f-sprite.a),faceAmount);

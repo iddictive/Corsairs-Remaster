@@ -88,7 +88,7 @@ class SoundService final : public VSoundService
     Slot *Find(TSD_ID);
     void Release(Slot &);
     float EffectiveVolume(const Slot &) const;
-    void ApplyVolumeLifecycle(Slot &, bool allowStart = true);
+    void ApplyVolumeLifecycle(Slot &, bool allowOneShotStart = false);
     void PrepareChargeReplacement();
     void RetireCannonVoice(Slot &);
     void RebalanceCannonVoices();

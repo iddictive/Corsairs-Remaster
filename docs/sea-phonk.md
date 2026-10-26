@@ -255,6 +255,18 @@ Load/rebind cancels stale work and reconstructs the existing saved schema throug
 the same pure geometry path. Fort cannon reconciliation
 uses the existing cannon damage and assault owners. Nuclear ship impacts reuse
 hull cuts, flooding and script-owned death/HP, avoiding a second partial-HP cost.
+Nuclear fort damage is dispatched directly to `AIFort::AddFortHit` and
+`SeaPhonk_FortNuclearDamage`, independently of disabled island mesh destruction.
+Intact eligible guns inside the existing blast sphere receive full gun damage;
+ordinary cannonball state is not required. Existing immunity, ownership,
+contribution, SAVE and surrender settlement remain in `Fort_ApplyCannonDamage`.
+The native radius/eligibility replay and eight real-VM settlement cases pass;
+ordinary contact/airburst damage is unchanged.
+The same nuclear shader adds an analytic pressure hemisphere along its existing
+expanding ground front. Scene depth and the ground clip both shell faces; it
+fades by3seconds without another pass, texture or volume-march sample. Native
+Metal shader/pipeline compilation and nine GPU intersection/lifecycle cases pass;
+player appearance and full-frame cost remain unverified.
 The private geometry dependency is unmodified upstream Clipper2 at commit
 `21ebba05db8894f0c7217ad35ea518080f324946`, licensed BSL-1.0; its engine/triangulator,
 transitive headers and license live under `geometry/third_party/clipper2`.

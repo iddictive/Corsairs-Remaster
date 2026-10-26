@@ -286,9 +286,9 @@ class AIFort : public VAI_OBJBASE
   public:
     static AIFort *pAIFort;
 
-    // Ordinary contacts keep their original radius; airbursts reuse damage/persistence.
+    // Area weapons reuse cannon eligibility, script settlement and persistence.
     void AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius = 0.0f,
-                    CANNON_TRACE_BASE *island = nullptr);
+                    CANNON_TRACE_BASE *island = nullptr, bool nuclear = false);
 
     AIFort();
     ~AIFort() override;
