@@ -10,4 +10,5 @@ class SEA_BASE : public CANNON_TRACE_BASE
     virtual float WaveXZ(float x, float z, CVECTOR *vNormal = nullptr) = 0;
     virtual SeaTsunamiSample GetTsunamiSample(float x, float z) const { return {}; }
     virtual SeaWhirlpoolSample GetWhirlpoolSample(float x, float z) const { return {}; }
+    virtual void StartNuclearWave(float x, float z, unsigned slot, bool active, float lengthScale) {}
 };

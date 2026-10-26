@@ -92,6 +92,8 @@ void DeleteShipEnvironment()
 	DelEventHandler("Ship_FireStep", "Ship_FireStep");
 	DelEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood");
 	DelEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut");
+	DelEventHandler("SeaPhonk_NuclearWave", "SeaPhonk_NuclearWave");
+	DelEventHandler("SeaPhonk_NuclearPower", "SeaPhonk_NuclearPower");
 	DelEventHandler(SHIP_BORT_RELOADED, "Ship_OnBortReloaded");
 	DelEventHandler(SHIP_ACTIVATE_FIRE_PLACE, "Ship_ActivateFirePlace");
 	DelEventHandler(SHIP_UPDATE_PARAMETERS, "Ship_UpdateParameters");
@@ -194,6 +196,8 @@ void CreateShipEnvironment()
 	SetEventHandler("Ship_FireStep", "Ship_FireStep", 0);
 	SetEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood", 0);
 	SetEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut", 0);
+	SetEventHandler("SeaPhonk_NuclearWave", "SeaPhonk_NuclearWave", 0);
+	SetEventHandler("SeaPhonk_NuclearPower", "SeaPhonk_NuclearPower", 0);
 	SetEventHandler(SHIP_CHECK_SITUATION, "Ship_CheckSituation", 0);
 	SetEventHandler(SHIP_TO_STRAND, "Ship_OnStrand", 0);
 	SetEventHandler(SHIP_DEAD, "Ship_OnDead", 0);

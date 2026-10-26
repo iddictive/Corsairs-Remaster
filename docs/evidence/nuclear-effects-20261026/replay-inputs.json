@@ -1,0 +1,70 @@
+{
+  "physical/actual_yield_probe.cpp": {
+    "bytes": 1938,
+    "sha256": "c9f55b9509604dae9a1da9524741f77faa292b991ca85984026fc3dd1ac7f106"
+  },
+  "physical/native_driver.cpp": {
+    "bytes": 7093,
+    "sha256": "a061f52a5bfb2898c2e75401ddf20940acd00a96d425c27b16e70ea837002d6e"
+  },
+  "physical/native_methods.cpp": {
+    "bytes": 5571,
+    "sha256": "20ac3776d4258aba1dd82885ea7b306a9734d3a20f7a91f062edf10624ae3930"
+  },
+  "physical/cases.c": {
+    "bytes": 784,
+    "sha256": "e38bb427535fbd05bed37db65c5b6a36ec1e5503a17435b04610168269a45d55"
+  },
+  "physical/power.c": {
+    "bytes": 167,
+    "sha256": "e42eaf83bc5272633d5c3017e867f46364a272f61d457591e247765b0cfc25e8"
+  },
+  "physical/sea_driver.cpp": {
+    "bytes": 1778,
+    "sha256": "87bf288e7eb1c95b7e3e95b36fa4d0490845669bd790e83b2b6b6b8e87932a0d"
+  },
+  "physical/sea_methods.cpp": {
+    "bytes": 1433,
+    "sha256": "13f344a11d468b000a10a098cea6236cb5afe89c2b174aac9a0bc54c1f64ad47"
+  },
+  "physical/direct_preflight.cpp": {
+    "bytes": 3486,
+    "sha256": "9adb51f63b94768688e65fee7923b6b760433e4cb2e3165a4cf43c9d2ebd768b"
+  },
+  "physical/launch_snapshot.cpp": {
+    "bytes": 4223,
+    "sha256": "42a3599e06b3bc04ea0fa09a65e8a09e1f6079e670c4deeea0ef66c3e1b893a9"
+  },
+  "render/scale_temporal.mm": {
+    "bytes": 8006,
+    "sha256": "eabc0157707f765477596f901d23fe1fff9b430bfede8e4ee073aabe0d9f7aba"
+  },
+  "render/scale_production.mm": {
+    "bytes": 7266,
+    "sha256": "c70678fc8c23360de6ee2e5b03b93f107c5fd24257809570e2b63a3af86167b6"
+  },
+  "render/final_single_owner.mm": {
+    "bytes": 7397,
+    "sha256": "621691ae54008cb375ff4c8e671d9cb513e43695c2e4b335a938016a111b8dcb"
+  },
+  "render/pixel_parity.mm": {
+    "bytes": 982,
+    "sha256": "b7589fff1513cd2f63493505ce9ca6429a68ba37b4be11db2835caae967e3a08"
+  },
+  "render/temporal.mm": {
+    "bytes": 7948,
+    "sha256": "36b3055157d6fe86997eb9d1d0720c6c89cbc00ec7b21f3e1edeafcd261a15dc"
+  },
+  "render/temporal_stable.mm": {
+    "bytes": 7917,
+    "sha256": "cb23c43e5288af7764cf11d5bc4a3afcf7e106c947ba3da17f9bca403cd5c8c4"
+  },
+  "render/stable_renderer.hpp": {
+    "bytes": 8593,
+    "sha256": "e21452d330062a47f90daad7fef8bceb063a90bb91c2154e528b5867cc01e964"
+  },
+  "render/stable_shader.hpp": {
+    "bytes": 8814,
+    "sha256": "0c71e83c4059706b702d75a756e6392a3342dadd74126589bf05d44e8c18954a"
+  }
+}

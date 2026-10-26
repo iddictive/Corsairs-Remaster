@@ -240,7 +240,12 @@ class SHIP : public SHIP_BASE
     void ExecutePhonkLaser(uint32_t deltaTime);
     void ExecutePhonkOrdnance(uint32_t deltaTime);
     void DrawPhonkOrdnance();
-    void ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t owner);
+    void ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t owner,
+                                storm::ship::phonk::NuclearBlast &blast);
+    void AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
+                                    const std::vector<entid_t> &receivers);
+    void IgnitePhonkNuclearFire(const CVECTOR &center, float strength, int32_t owner,
+                               const std::vector<entid_t> &receivers);
     bool EnsureCutFragments();
     bool OrphanCutFragments();
     CVECTOR PhonkLaserEndpoint();

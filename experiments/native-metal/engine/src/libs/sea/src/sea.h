@@ -8,6 +8,7 @@
 #include "dx9render.h"
 #include "vma.hpp"
 #include "shared/sea_tsunami.hpp"
+#include "shared/sea_nuclear_wave.hpp"
 #include <array>
 
 
@@ -111,6 +112,14 @@ class SEA : public SEA_BASE
     void AdvanceWhirlpool(float seconds);
     void ResetWhirlpool() { whirlpool.Clear(); whirlpoolContacts.clear(); whirlpoolDebris.clear(); PublishWhirlpool(); }
     SeaTsunami tsunami;
+    // MainCharacter is the sole Phonk launcher. Slots mirror its four blast
+    // slots, including explicit oldest-slot retirement under saturation.
+    std::array<SeaNuclearWave, 4> nuclearWaves{};
+    bool nuclearWavesActive = false;
+    SeaNuclearWaveSample NuclearWaveSample(float x, float z) const;
+    float NuclearWaveHeightBound() const;
+    void AdvanceNuclearWaves(float seconds);
+    void ResetNuclearWaves() { nuclearWaves = {}; nuclearWavesActive = false; }
     bool tsunamiPlayerPassed = false;
     struct TsunamiShipContact { entid_t ship; SeaTsunamiContact contact; bool capsizeReported = false; };
     std::vector<TsunamiShipContact> tsunamiContacts;
@@ -256,6 +265,7 @@ class SEA : public SEA_BASE
 
     uint32_t AttributeChanged(ATTRIBUTES *pAttribute) override;
     uint64_t ProcessMessage(MESSAGE &message) override;
+    void StartNuclearWave(float x, float z, unsigned slot, bool active, float lengthScale) override;
     SeaTsunamiSample GetTsunamiSample(float x, float z) const override
     {
         return EvaluateSeaTsunami(tsunami.Frame(), x, z);
@@ -276,6 +286,7 @@ class SEA : public SEA_BASE
             if (!bStop) {
                 tsunami.Advance(static_cast<float>(delta) * 0.001f);
                 AdvanceWhirlpool(static_cast<float>(delta) * 0.001f);
+                AdvanceNuclearWaves(static_cast<float>(delta) * 0.001f);
             }
             PublishWhirlpool();
             if (!tsunami.Frame().active) tsunamiContacts.clear();

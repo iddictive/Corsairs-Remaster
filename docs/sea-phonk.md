@@ -262,11 +262,46 @@ ordinary cannonball state is not required. Existing immunity, ownership,
 contribution, SAVE and surrender settlement remain in `Fort_ApplyCannonDamage`.
 The native radius/eligibility replay and eight real-VM settlement cases pass;
 ordinary contact/airburst damage is unchanged.
-The same nuclear shader adds an analytic pressure hemisphere along its existing
-expanding ground front. Scene depth and the ground clip both shell faces; it
-fades by3seconds without another pass, texture or volume-march sample. Native
-Metal shader/pipeline compilation and nine GPU intersection/lifecycle cases pass;
-player appearance and full-frame cost remain unverified.
+The pressure front follows actual scene depth, sharing its CPU-computed radius
+with ship contact. Stable detonation seeds vary mushroom proportions, fire
+pockets, drift and cooling. The rejected luminous dome and its elevated flat
+crop are replaced by a thin neutral condensation/foam front. The64 volume steps
+and render-pass count remain unchanged. [Controlled before/after frames and
+observations](evidence/nuclear-effects-20261026/observations.json) retain the
+rejection and two distinct seeds; native Metal compilation and depth/age controls
+pass, while player appearance and full-frame cost remain unverified.
+
+One launch samples the existing tsunami `u²` distribution once and snapshots
+an integer yield tier1–10 in the missile and blast. Tier1 occurs about31.62% and
+tier10 about5.13%; no camera or render update can reroll it. Direct/cloud radius
+is220m×tier, damage/fire reach600m×tier, and the visible pressure front reaches
+2500m×tier in8seconds: tier10 covers6km physically and25km visually. Launch
+range remains6km. The per-detonation variation seed also excludes the rebased
+camera origin, fixing the shape jitter during camera motion.
+
+An expanding air front pays ship impulse/damage once on arrival. Its maximum
+push is3knots; outer damage is `min(1, .12×tier)` times the spatial falloff.
+Ships already paid by the direct blast receive no second HP charge. The
+existing HP/death, immunity and Phonk protection owners still admit the target.
+Thermal exposure uses existing fueled, retained, above-water hull cells with
+terrain/hull shielding: tier10 ignites up to6 sites at3km,4 at4.5km,2 near6km,
+and zero at/beyond6km. Lower tiers scale these distances.
+The spatial fire owner retains spread, fuel, SAVE and its sole burning damage.
+
+The separate small water crest expands at70m/s×tier for8seconds, up to4m high.
+`SeaNuclearWave` supplies one height/normal/foam profile to both mesh and buoyancy;
+ordinary tsunami state is untouched. The four water slots follow the existing
+blast slots, including dry-impact replacement, expiry and sea reset. Source/SEA
+identity fences stop callbacks from continuing through removed/replaced objects.
+Disposable native/real-VM controls cover single arrival, direct-hit exclusion,
+late actors, pause, slot reset, fire shielding and callback lifetime. The complete
+candidate script include corpus also compiles without executing game startup.
+One65500-sample active-water-profile probe took0.162ms; this is component cost,
+and active wave/fire work is additional to ordinary gameplay.
+The final960×540 controlled whole fixture costs1.75ms on GPU for the dark distant
+tier10 case and1.19ms for bright daytime. Earlier near cases took2.40–2.76ms;
+these measurements are not native game FPS. Larger cloud
+coverage adds GPU work despite retaining the same64 steps, pass count and slots.
 The private geometry dependency is unmodified upstream Clipper2 at commit
 `21ebba05db8894f0c7217ad35ea518080f324946`, licensed BSL-1.0; its engine/triangulator,
 transitive headers and license live under `geometry/third_party/clipper2`.

@@ -90,11 +90,13 @@ class PhonkNuclearRenderer
   public:
     bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,
                 const simd_float4x4 &view,const simd_float4x4 &projection,simd_float3 worldOrigin,
-                simd_float4 viewport,const float *center,float radius,float age)
+                simd_float4 viewport,const float *center,float radius,float age,float seed,float pressureFront,float pressureLife)
     {
         if (!device || !command || !target || !depth || !center || target.sampleCount != 1 ||
             depth.sampleCount != 1 || target.width != depth.width || target.height != depth.height ||
-            !std::isfinite(radius) || radius <= 0.f || !std::isfinite(age) || age < 0.f || age >= 9.f) return false;
+            !std::isfinite(radius) || radius <= 0.f || !std::isfinite(age) || age < 0.f || age >= std::max(9.f,pressureLife) ||
+            !std::isfinite(seed) || !std::isfinite(pressureFront) || pressureFront < 0.f ||
+            !std::isfinite(pressureLife) || pressureLife <= 0.f) return false;
         for (unsigned n=0;n<3;++n) if (!std::isfinite(center[n])) return false;
         PhonkNuclearUniforms uniform{};
         uniform.viewProjection = simd_mul(projection,view);
@@ -102,16 +104,18 @@ class PhonkNuclearRenderer
         if (!std::isfinite(determinant) || std::abs(determinant)<1.e-12f) return false;
         uniform.inverseViewProjection = simd_inverse(uniform.viewProjection);
         uniform.eye = simd_inverse(view).columns[3];
+        // One metre-based band owner feeds both the material and raster crop.
+        uniform.eye.w = (8.f+std::min(age,8.f)*2.5f)/radius;
         uniform.sourceRadius = simd_make_float4(simd_make_float3(center[0],center[1],center[2])+worldOrigin,radius);
-        auto facing=simd_make_float2(uniform.eye.x-uniform.sourceRadius.x,uniform.eye.z-uniform.sourceRadius.z);
-        const float facingLength=simd_length(facing);
-        facing=facingLength>1.e-5f?facing/facingLength:simd_make_float2(0.f,1.f);
-        uniform.params = {age,facing.x,facing.y,0};
+        // Age, authoritative pressure-front radius/lifetime, stable blast seed.
+        uniform.params = {age,pressureFront/radius,pressureLife,seed};
         uniform.viewport = viewport;
         if (viewport.z<=0.f || viewport.w<=0.f || !prepare(device,target.pixelFormat)) return false;
         float minX=viewport.x+viewport.z,minY=viewport.y+viewport.w,maxX=viewport.x,maxY=viewport.y;
         bool crossesNear=false;
-        for (float x:{-3.2f,3.2f}) for (float y:{-.25f,3.7f}) for (float z:{-3.2f,3.2f})
+        const float band=uniform.eye.w;
+        const float horizontal=age<pressureLife?std::max(1.6f,pressureFront/radius+2.f*band):1.6f;
+        for (float x:{-horizontal,horizontal}) for (float y:{-.25f,3.7f}) for (float z:{-horizontal,horizontal})
         {
             const auto corner=uniform.sourceRadius.xyz+simd_make_float3(x,y,z)*radius;
             const auto clip=simd_mul(uniform.viewProjection,simd_make_float4(corner,1.f));
@@ -121,10 +125,10 @@ class PhonkNuclearRenderer
             minX=std::min(minX,px);minY=std::min(minY,py);maxX=std::max(maxX,px);maxY=std::max(maxY,py);
         }
         if (crossesNear) {minX=viewport.x;minY=viewport.y;maxX=viewport.x+viewport.z;maxY=viewport.y+viewport.w;}
-        const auto left=NSUInteger(std::clamp(std::floor(minX),0.f,float(target.width)));
-        const auto top=NSUInteger(std::clamp(std::floor(minY),0.f,float(target.height)));
-        const auto right=NSUInteger(std::clamp(std::ceil(maxX),0.f,float(target.width)));
-        const auto bottom=NSUInteger(std::clamp(std::ceil(maxY),0.f,float(target.height)));
+        const auto left=NSUInteger(std::clamp(std::floor(minX)-2.f,0.f,float(target.width)));
+        const auto top=NSUInteger(std::clamp(std::floor(minY)-2.f,0.f,float(target.height)));
+        const auto right=NSUInteger(std::clamp(std::ceil(maxX)+2.f,0.f,float(target.width)));
+        const auto bottom=NSUInteger(std::clamp(std::ceil(maxY)+2.f,0.f,float(target.height)));
         if (right<=left || bottom<=top) return true;
         auto pass=[MTLRenderPassDescriptor renderPassDescriptor];
         pass.colorAttachments[0].texture=target;

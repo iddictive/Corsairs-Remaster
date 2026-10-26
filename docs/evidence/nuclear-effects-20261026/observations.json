@@ -1,0 +1,151 @@
+{
+  "runtime": "Apple Metal runtime compiler, Xcode27.1, no window or device input",
+  "images": {
+    "size": [
+      960,
+      540
+    ],
+    "age_seconds": 1,
+    "scene": "controlled water/sky with actual production nuclear renderer and shader",
+    "baseline": "ce47f08 luminous hemisphere rejected by player",
+    "candidate": "stable per-detonation seed1/2; pressure front samples actual scene depth"
+  },
+  "component_gpu_mean_ms": {
+    "baseline_near": 1.898,
+    "candidate_near": 1.524,
+    "baseline_far": 1.103,
+    "candidate_far": 1.09
+  },
+  "quality_controls": [
+    "near/far ages0,.25,1,2,4,8",
+    "age0 clean substrate",
+    "opaque foreground depth occlusion",
+    "stable per-detonation variation"
+  ],
+  "physical_observations": {
+    "water_speed": 70,
+    "water_life": 8,
+    "max_water_height": 4,
+    "max_air_impulse_knots": 3,
+    "pressure_front": "nuclearPressureFront is shared by gameplay and renderer",
+    "inner_blast_no_duplicate_HP": 220,
+    "thermal_sites": {
+      "300m": [
+        6,
+        0.93
+      ],
+      "450m": [
+        3,
+        0.5925
+      ],
+      "499m": [
+        2,
+        0.4822
+      ],
+      "500m": [
+        0,
+        0
+      ]
+    }
+  },
+  "script_compile_stdout": "Probe=0\nscript_errors=0\n",
+  "script_compile_scope": "complete installed seadogs.c include corpus with candidate AIShip.c and sea_phonk.c; entry Main renamed in disposable fixture, no gameplay startup execution",
+  "acceptance_limits": "controlled GPU/CPU/VM evidence; installed gameplay appearance and FPS remain unverified",
+  "source_sha256": {
+    "experiments/native-metal/phonk_ordnance_shaders.hpp": "621c020312d5bd14c4da8c80cf7939341917f6b9180850e40d858d1fa597650a",
+    "experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp": "6b075b337623e4d6649a9cd7cc2c226d3405b72bbff36e2d8ee610e34b498582"
+  },
+  "historical_conditions": "Original fixed-radius candidate before tier scaling; retain prior measurements and hashes as historical, not current settings.",
+  "final_scaled_candidate": {
+    "runtime": "Apple Metal, Xcode 27.1, Apple clang 21.0.0, arm64; pure offscreen textures, no windows or gameplay startup",
+    "installed_engine_sha256": "7ec1310a2914c4cfa975b8bec978ed51101c6aea4bff3b980698c77d71fcd84c",
+    "installed_script_delivery": "0 files pending; compiler ready; complete candidate corpus Probe=0 script_errors=0",
+    "distribution": "tier=min(10,1+floor(10*u*u)); one existing SeaTsunami_SampleSeverity sample per launch; immutable missile/blast snapshot",
+    "tier_probabilities_percent": [
+      31.622776601683793,
+      13.098582948311998,
+      10.050896200520814,
+      8.47329745285098,
+      7.465124915287169,
+      6.748988805493584,
+      6.206335729259216,
+      5.776716446584029,
+      5.425610705059791,
+      5.131670194948623
+    ],
+    "tier10": {
+      "direct_cloud_radius_m": 2200,
+      "damage_fire_reach_m": 6000,
+      "visible_front_reach_m": 25000,
+      "front_life_s": 8,
+      "cloud_life_s": 9,
+      "launch_range_m": 6000,
+      "water_speed_m_s": 700,
+      "water_height_cap_m": 4,
+      "max_impulse_knots": 3,
+      "max_existing_fire_cells": 6
+    },
+    "fire_probe_sites": {
+      "3000m": 6,
+      "4500m": 4,
+      "5999m": 2,
+      "6000m": 0
+    },
+    "native_checks": "yield bounds, immutable snapshot, once-only launch RNG, shared pressure-front arrival, direct damage exclusion, protection before geometry, source/SEA/character/mode callback fences, retained/fueled/above-water/shielded fire, water scale and slot reset all PASS",
+    "camera_rebase_repair": {
+      "cause": "render-relative center changed the variation seed during camera rebasing",
+      "repair": "variation depends only on immutable detonation seed",
+      "historical_camera_only_mean_rgb_delta_before": 5.5831,
+      "after": 0.0755,
+      "frames": 120,
+      "fps": 120,
+      "record": "camera-rebase-before-after.mp4"
+    },
+    "temporal_scale_conditions": "120 consecutive rebased frames at 120fps; near camera 650m ages .8..1.792s; far 6000m ages 6.8..7.792s; source before final width consolidation",
+    "temporal_scale_results": {
+      "tier1_near": {
+        "mean_frame_delta": 0.262591,
+        "max_frame_delta": 0.41064,
+        "pixels_rgb_delta_over60_per_frame": 3.42
+      },
+      "tier1_far": {
+        "mean_frame_delta": 0.060134,
+        "max_frame_delta": 0.887383,
+        "pixels_rgb_delta_over60_per_frame": 0.61
+      },
+      "tier10_near": {
+        "mean_frame_delta": 1.228449,
+        "max_frame_delta": 2.8709,
+        "pixels_rgb_delta_over60_per_frame": 0
+      },
+      "tier10_far": {
+        "mean_frame_delta": 0.090089,
+        "max_frame_delta": 0.895435,
+        "pixels_rgb_delta_over60_per_frame": 0
+      }
+    },
+    "width_consolidation_parity": {
+      "pixels_changed": 62,
+      "total_pixels": 518400,
+      "max_byte_delta": 1,
+      "mean_byte_delta": 3.98663e-05,
+      "before": "tier10-before-width-consolidation.png",
+      "after": "tier10-dark-age6.png"
+    },
+    "final_whole_fixture_gpu_median_ms": {
+      "dark_far_tier10_age6": 1.75325,
+      "bright_far_tier10_age6": 1.1915
+    },
+    "performance_limits": "960x540 synthetic scene including water/sky/depth fixture. Same64 march steps, one pass per blast, four slots; larger cloud covers more pixels. Not whole-game FPS or 120fps acceptance. Near 650m tier10 camera is inside2200m fireball.",
+    "input_archive": "replay-inputs.tar.gz",
+    "input_hash_manifest": "replay-inputs.json",
+    "replay": "Extract archive into task scratch. From repository root compile render/*.mm individually with xcrun clang++ -std=c++20 -O2 -fobjc-arc -I. -Iexperiments/native-metal -framework Cocoa -framework Metal INPUT -o OUTPUT. Run scale_temporal and scale_production as OUTPUT OUTPUT_DIRECTORY PREFIX TIER (tiers1/10); final_single_owner same with tier10. pixel_parity uses clang++ -std=c++17 -fobjc-arc -framework Cocoa and two PNG arguments. Physical C++ inputs use clang++ -std=c++17 -O2 -I. -Iexperiments/native-metal/engine/src/libs/math/include INPUT -o OUTPUT; native/sea drivers include adjacent extracted method snapshots. VM uses .cache/build/bin/script-vm-probe EXTRACTED_PHYSICAL_DIR Probe. These are archived measurement inputs, outside automatic regression checks.",
+    "source_sha256": {
+      "experiments/native-metal/phonk_ordnance_shaders.hpp": "4e8f937d246e0582065b5f0c5b74fac4a72992d6682c799dfa59122f33f437c8",
+      "experiments/native-metal/phonk_ordnance_render.hpp": "692a5eeb55dbc48d256721e02c898e636a3b52bc436b47482f5e5d321ea0a413",
+      "experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp": "024a709f26308b9dad62f95e4bf2fb6fbc2fce2651e6cca39ec259ff8d31568c",
+      "experiments/native-metal/engine/src/libs/ship/src/ship_phonk_nuclear.cpp": "6f79bdbfeb4989fc34f9f833ba514802fe4bb40e18109a3ce98705c5c501e181",
+      "experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp": "e177bc16b0f9886cbc79227fd2098ab7634c846e499bdfc39c9555d17f4fb6f6"
+    }
+  }
+}

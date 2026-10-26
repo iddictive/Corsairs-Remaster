@@ -154,6 +154,13 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     using namespace storm::ship::phonk;
     if (!bMounted || !GetACharacter() || !pSea || !pRS) return;
     auto &state = phonkOrdnance;
+    const auto sourceId = GetId();
+    const auto simulationSeaId = sea_id;
+    auto *const simulationSea = pSea;
+    const auto seaLive = [&] {
+        return pSea == simulationSea && core.GetEntityPointer(simulationSeaId) == simulationSea &&
+               core.GetEntityId("sea") == simulationSeaId;
+    };
     const bool active = PhonkActive();
     if (active)
     {
@@ -174,7 +181,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     // not model pointers: a preceding impact can remove another ship this frame.
     std::vector<entid_t> receivers;
     if ((active && state.weapon == 7) || std::any_of(state.missiles.begin(), state.missiles.end(),
-        [](const auto &missile) { return missile.active; }))
+        [](const auto &missile) { return missile.active; }) ||
+        std::any_of(state.blasts.begin(), state.blasts.end(),
+        [](const auto &blast) { return blast.active && blast.age < nuclearPressureLife; }))
         for (const auto id : core.GetEntityIds("ship"))
         {
             auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
@@ -183,7 +192,16 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     const float seconds = deltaTime * .001f;
     state.reload = std::max(0.f, state.reload - seconds);
     for (auto &blast : state.blasts)
-        if (blast.active) { blast.age += seconds; blast.active = blast.age < nuclearBlastLife; }
+        if (blast.active) {
+            const bool pressure = blast.age < nuclearPressureLife;
+            const float seed = blast.seed;
+            blast.age += seconds;
+            if (pressure) AdvancePhonkNuclearPressure(blast, receivers);
+            if (core.GetEntityPointer(sourceId) != this) return;
+            if (pressure && !seaLive()) return;
+            if (blast.seed != seed) continue;
+            blast.active = blast.age < nuclearBlastLife;
+        }
     for (auto &missile : state.missiles)
     {
         if (!missile.active) continue;
@@ -201,8 +219,20 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 [](const auto &a, const auto &b) { return a.age < b.age; });
             // Inactive slots win; only an explicitly bounded oldest visual retires.
             for (auto &slot : state.blasts) if (!slot.active) { blast = &slot; break; }
-            *blast = {impact, 0.f, true};
-            ApplyPhonkNuclearImpact(impact, nuclearRadius, missile.owner);
+            *blast = {};
+            blast->center = impact; blast->active = true;
+            blast->seed = float(++state.blastSerial); blast->owner = missile.owner;
+            blast->yield = missile.yield;
+            const float seed = blast->seed;
+            ApplyPhonkNuclearImpact(impact, blast->yield.radius, missile.owner, *blast);
+            if (core.GetEntityPointer(sourceId) != this) return;
+            if (!seaLive()) return;
+            if (blast->seed != seed) continue;
+            // Water and the visible detonation retire the same bounded slot.
+            // The validated pointer belongs to this exact sea entity/frame.
+            simulationSea->StartNuclearWave(impact.x, impact.z, unsigned(blast - state.blasts.data()),
+                std::abs(impact.y - simulationSea->WaveXZ(impact.x, impact.z)) <= blast->yield.radius,
+                float(blast->yield.tier));
         }
     }
     if (!active)
@@ -251,7 +281,23 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         for (auto &missile : state.missiles)
         {
             if (missile.active) continue;
-            missile = missileTo(launch, state.target, int32_t(GetACharacter()->GetAttributeAsDword("index")));
+            auto *launchCharacter = GetACharacter();
+            if (!ATTRIBUTES::IsLive(launchCharacter)) return;
+            const auto owner = launchCharacter->GetAttributeAsDword("index", uint32_t(-1));
+            const auto target = state.target;
+            // Reuse the tsunami's weighted severity once, only for an actual
+            // launch. Aim/prediction/rendering never consume random samples.
+            auto *sample = core.Event("SeaPhonk_NuclearPower");
+            if (core.GetEntityPointer(sourceId) != this || !seaLive()) return;
+            launchCharacter = GetACharacter();
+            if (!ATTRIBUTES::IsLive(launchCharacter) ||
+                launchCharacter->GetAttributeAsDword("index", uint32_t(-1)) != owner ||
+                !ATTRIBUTES::IsLive(simulationSea->AttributesPointer) || !PhonkActive()) return;
+            if (missile.active) continue;
+            const auto yield = nuclearYield(sample ? sample->GetFloat() : -1.f);
+            attributes = simulationSea->AttributesPointer->VerifyAttributeClass("Phonk");
+            missile = missileTo(launch, target, int32_t(owner));
+            missile.yield = yield;
             state.reload = nuclearReload;
             break;
         }
@@ -308,5 +354,6 @@ void SHIP::DrawPhonkOrdnance()
     pRS->SetTransform(storm_render::TransformWorld, previous);
     for (const auto &blast : phonkOrdnance.blasts)
         if (blast.active)
-            StormMetalDrawPhonkNuclearBlast(pRS->GetNativeDevice(), &blast.center.x, nuclearRadius, blast.age);
+            StormMetalDrawPhonkNuclearBlast(pRS->GetNativeDevice(), &blast.center.x, blast.yield.radius, blast.age,
+                                           blast.seed, nuclearPressureFront(blast.yield, blast.age), nuclearPressureLife);
 }

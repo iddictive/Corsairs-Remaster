@@ -211,6 +211,29 @@ int SeaPhonk_HullCut()
     return 1;
 }
 
+float SeaPhonk_NuclearPower()
+{
+    return SeaTsunami_SampleSeverity();
+}
+
+int SeaPhonk_NuclearWave()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float fraction = GetEventData();
+    if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return 0;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return 0;
+    if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target)) return 0;
+    if (Ship_HullDamageMultiplier(target, owner) <= 0.0) return 0;
+    // The inner blast already paid its HP. The travelling shell only pays
+    // outer hull damage; native thermal fire retains the sole burning DOT.
+    if (fraction > 0.0)
+        Ship_ApplyHullHitpoints(target, GetCharacterShipHP(target) * Clampf(fraction), KILL_BY_BALL, owner);
+    // Damage can remove the entity/attributes; native reacquires its ID before
+    // applying movement or ignition, so do not read this aref after the callback.
+    return 1;
+}
+
 void SeaPhonk_Flood()
 {
     aref target = GetEventData();
