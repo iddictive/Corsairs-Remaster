@@ -2120,18 +2120,8 @@ void AIShipCannonController::CheckCannonsBoom(float fTmpCannonDamage, const CVEC
 {
     char str[512];
 
-    ATTRIBUTES *pACharacter = GetAIShip()->GetACharacter();
-    ATTRIBUTES *pABorts = pACharacter->FindAClass(pACharacter, "Ship.Cannons.Borts");
-    Assert(pABorts);
-
     for (auto &bort : aShipBorts)
     {
-        sprintf_s(str, "%s.damages", bort.sName.c_str());
-        ATTRIBUTES *pADamages = pABorts->FindAClass(pABorts, str);
-        Assert(pADamages);
-        ATTRIBUTES *pACurBort = pABorts->FindAClass(pABorts, bort.sName.c_str());
-        Assert(pACurBort);
-
         for (uint32_t j = 0; j < bort.aCannons.size(); j++)
         {
             AICannon *pC = &bort.aCannons[j];
@@ -2145,11 +2135,29 @@ void AIShipCannonController::CheckCannonsBoom(float fTmpCannonDamage, const CVEC
             VDATA *pVData = core.Event(CANNON_DAMAGE, "affffff", GetAIShip()->GetACharacter(), fTmpCannonDamage,
                                        pC->GetDamage(), fDistance, vPnt.x, vPnt.y, vPnt.z);
 
-            sprintf_s(str, "c%d", j);
-
             pC->SetDamage(pVData->GetFloat());
-            pADamages->SetAttributeUseFloat(str, pC->GetDamage());
-            if (pC->isDamaged())
+
+            // Script callbacks can replace the tree; legacy fleet snapshots can omit damages.
+            ATTRIBUTES *pACharacter = GetAIShip()->GetACharacter();
+            ATTRIBUTES *pABorts = pACharacter->CreateSubAClass(pACharacter, "Ship.Cannons.Borts");
+            ATTRIBUTES *pACurBort = pABorts->CreateSubAClass(pABorts, bort.sName.c_str());
+            ATTRIBUTES *pADamages = pACurBort->GetAttributeClass("damages");
+            const bool restoredDamages = !pADamages;
+            if (restoredDamages)
+            {
+                pADamages = pACurBort->CreateSubAClass(pACurBort, "damages");
+                for (uint32_t k = 0; k < bort.aCannons.size(); k++)
+                {
+                    sprintf_s(str, "c%d", k);
+                    pADamages->SetAttributeUseFloat(str, bort.aCannons[k].GetDamage());
+                }
+            }
+            else
+            {
+                sprintf_s(str, "c%d", j);
+                pADamages->SetAttributeUseFloat(str, pC->GetDamage());
+            }
+            if (restoredDamages || pC->isDamaged())
             {
                 pACurBort->SetAttributeUseFloat("DamageRatio",
                                                 1.0f - (static_cast<float>(GetBortIntactCannonsNum(bort)) +

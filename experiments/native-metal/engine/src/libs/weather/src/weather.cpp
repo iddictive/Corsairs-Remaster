@@ -634,7 +634,9 @@ uint32_t WEATHER::AttributeChanged(ATTRIBUTES *pAttribute)
     {
 #ifdef STORM_METAL_WEATHER_VISUAL_STATE
         UpdateSunMoonPos();
-        UpdateVisualState(0, true);
+        // The following outside message completes the scene's weather palette.
+        // Keep the bind pending until that final context is available.
+        UpdateVisualState(0);
 #endif
         SetCommonStates();
     }

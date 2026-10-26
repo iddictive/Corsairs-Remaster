@@ -48,6 +48,22 @@ before an850ms lift; matched frames reveal for300ms while the map eases to its
 ordinary1-radian pitch. Saves carrying the former forced1.565 overhead pitch
 normalize to that ordinary angle; existing oblique values remain intact.
 
+### Weather at destination entry
+
+`Whr_CreateWeatherEnvironment` binds the native weather state, publishes
+`Weather.isDone`, then sends the outside flag (`1464336388`). Only that final
+message completes `visualSceneBindPending`: the outside context selects the
+authored storm palette. Consuming the flag at `isDone` seeds the previous map
+palette and makes the four-second color filter catch up after sea entry.
+Ordinary updates without a new bind retain temporal smoothing.
+
+A source-linked native Metal replay of this message order on October25 used a
+fixed saved storm and clear/storm palettes. Before the repair, the target was
+`00d09030` while the first visual fog was `002c2c2c`; after it both were
+`00d09030`. A subsequent outside change without a bind kept the prior visual
+color, preserving smoothing. This verifies the native state transition; the
+complete installed camera reveal and the player's save still need visual replay.
+
 Live ship translation and heading remain followed during ascent/descent; the
 ordinary exit commits its final position, while explicit XZ/AY exits retain their
 authored destination. Raw engine frame time drives flight independently of game

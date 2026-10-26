@@ -103,6 +103,24 @@ Read `src/libs/core/src/attributes.cpp` (move constructor, move assignment, `Cop
 game surface: pay wages or debt, then walk up from the affected class; the nearest negative
 is an ordinary world-map update, which must still refresh the island labels.
 
+## Cannon damage branch recovery
+
+The October25 sea crash has a separate signature:
+`CheckCannonsBoom` → `ATTRIBUTES::SetAttributeUseFloat`, with a null receiver.
+The controller previously assumed every bort had a `damages` class and retained
+its pointer across `CANNON_DAMAGE`. Fleet snapshot restoration can remove that
+class when the snapshot omits it; this is a supported source-level producer,
+not proven provenance for the player's particular crash.
+
+`CheckCannonsBoom` now resolves the hierarchy after the callback and recreates
+an absent damage class from all live cannon values, including untouched sibling
+damage. This preserves subsequent `ResearchCannons` and save/reload behavior.
+An exact-method probe linked to the actual `attributes.cpp` reproduced the null
+write and a callback-deletion use-after-free under ASan/UBSan before repair.
+After repair, existing/missing/deleted branches, repeated partial-to-destroyed
+hits, sibling damage, copied-tree reload and a far-hit negative passed.
+This component evidence does not establish replay of the player's sea battle.
+
 ## Unresolved
 
 - Which specific release destroyed the node in the 2026-09-19 incident is not proven. A
