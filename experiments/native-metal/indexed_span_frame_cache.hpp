@@ -17,11 +17,10 @@ namespace sm {
 // vertex access. Identity/revision keys remain valid across Present, avoiding
 // the same full scan every frame as well as across shadow cube faces.
 //
-// A revision change must drop every span admitted for that buffer. Each identity
-// keeps its own span list, so rebuilding one buffer costs the spans of that
-// buffer instead of a walk over the whole cache plus a rebuild of the revision
-// metadata; a sail or foam scene reaches the 8192-span cap and paid that walk
-// once per rebuilt buffer per frame.
+// Index revisions invalidate addressing/topology; vertex content revisions only
+// invalidate derived bone boxes. Capacity and draw bounds remain part of the
+// address key, so updating a dynamic VB does not rescan its unchanged indices.
+// Each identity keeps its own span list for exact eviction and bounded metadata.
 struct IndexedSpanFrameCache {
     using Key = std::array<std::uint64_t, 10>;
     using IdentitySpans = std::map<std::uint64_t, std::vector<Key>>;
@@ -31,7 +30,7 @@ struct IndexedSpanFrameCache {
         std::list<Key>::iterator recent;
         std::vector<std::uint32_t> topology;
         std::vector<storm_metal::animated_bounds::BoneBox> boneBoxes;
-        std::uint64_t boneVertexOffset = 0;
+        std::uint64_t boneVertexOffset = 0, boneVertexRevision = 0;
         std::uint32_t boneStride = 0, boneCount = 0;
         bool bonePrepared = false;
     };
@@ -48,21 +47,22 @@ struct IndexedSpanFrameCache {
         if (index != indexRevisions.end() && index->second != key[1])
             evict(0, key[0]);
         const auto vertex = vertexRevisions.find(key[2]);
-        if (vertex != vertexRevisions.end() && vertex->second != key[3])
-            evict(2, key[2]);
+        if (vertex != vertexRevisions.end())
+            vertex->second = key[3];
     }
 
     const IndexedSpan *find(const Key &key)
     {
-        const auto entry = entries.find(key);
+        const auto entry = entries.find(addressKey(key));
         if (entry == entries.end())
             return nullptr;
         recency.splice(recency.end(), recency, entry->second.recent);
         return &entry->second.span;
     }
 
-    void insert(const Key &key, IndexedSpan span)
+    void insert(const Key &sourceKey, IndexedSpan span)
     {
+        const Key key = addressKey(sourceKey);
         if (entries.contains(key))
             return;
         // Old locations cannot permanently prevent later spans from caching.
@@ -72,7 +72,7 @@ struct IndexedSpanFrameCache {
         recency.push_back(key);
         entries.emplace(key, Entry{span, std::prev(recency.end()), {}, {}});
         indexRevisions[key[0]] = key[1];
-        vertexRevisions[key[2]] = key[3];
+        vertexRevisions[key[2]] = sourceKey[3];
         indexSpans[key[0]].push_back(key);
         vertexSpans[key[2]].push_back(key);
     }
@@ -83,7 +83,7 @@ struct IndexedSpanFrameCache {
     template<class ReadIndex>
     const std::vector<std::uint32_t> *unique(const Key &key, ReadIndex read)
     {
-        const auto entry = entries.find(key);
+        const auto entry = entries.find(addressKey(key));
         if (entry == entries.end())
             return nullptr;
         const auto span = entry->second.span;
@@ -120,17 +120,18 @@ struct IndexedSpanFrameCache {
         const Key &key, std::uint64_t vertexOffset, std::uint32_t stride,
         std::uint32_t bones, ReadVertex read)
     {
-        const auto entry = entries.find(key);
+        const auto entry = entries.find(addressKey(key));
         if (entry == entries.end() || entry->second.topology.empty())
             return nullptr;
         recency.splice(recency.end(), recency, entry->second.recent);
         auto &value = entry->second;
-        if (value.bonePrepared && value.boneVertexOffset == vertexOffset &&
-            value.boneStride == stride && value.boneCount == bones)
+        if (value.bonePrepared && value.boneVertexRevision == key[3] &&
+            value.boneVertexOffset == vertexOffset && value.boneStride == stride && value.boneCount == bones)
             return value.boneBoxes.empty() ? nullptr : &value.boneBoxes;
         topologyBytes -= value.boneBoxes.capacity() * sizeof(storm_metal::animated_bounds::BoneBox);
         std::vector<storm_metal::animated_bounds::BoneBox>().swap(value.boneBoxes);
         value.boneVertexOffset = vertexOffset;
+        value.boneVertexRevision = key[3];
         value.boneStride = stride;
         value.boneCount = bones;
         value.bonePrepared = true;
@@ -160,6 +161,12 @@ struct IndexedSpanFrameCache {
     }
 
   private:
+    static Key addressKey(Key key)
+    {
+        key[3] = 0;
+        return key;
+    }
+
     void unlink(IdentitySpans &owners,
                 std::map<std::uint64_t, std::uint64_t> &revisions,
                 const Key &key, unsigned slot)

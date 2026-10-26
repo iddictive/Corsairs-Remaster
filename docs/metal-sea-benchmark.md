@@ -268,6 +268,24 @@ Apple contracts: [completed command GPU start](https://developer.apple.com/docum
 
 ## Proven local work and rejection rules
 
+### October25 CPU index-cache invalidation
+
+Dynamic vertex uploads formerly evicted validated index ranges and unique
+topology even when the index buffer, draw bounds and vertex capacity were
+unchanged. `IndexedSpanFrameCache` now omits only vertex content revision from
+its address key; animated bone boxes still compare the actual vertex revision,
+offset, stride and bone count. Index revision, identity, capacity, locked-buffer
+bypass, LRU and topology-budget/reset behavior retain their existing owners.
+
+The [raw same-consumer measurements and exact input recipe](evidence/metal-index-cache-20261025.json)
+cover250 frames ×64 ranges ×4 passes. Dynamic validation scans fall16000→64;
+validation-only time123.225→1.950ms, and validation/topology/bones/pose together
+455.719→245.727ms in the final canonical-header run. Outputs/checksums match;
+bone vertex reads remain65536000, so bounds are not stale. Immutable full-path
+time33.643→34.722ms is within this single-pass cohort's unresolved noise.
+The existing probe and disposable ASan/UBSan mutation/identity/capacity/bone/LRU
+negatives pass. These CPU-component timings do not establish game frame time.
+
 ### Reflection aggregation fit
 
 `sea/src/env_map.cpp::EnvMap_Render` visits five cube directions above water and

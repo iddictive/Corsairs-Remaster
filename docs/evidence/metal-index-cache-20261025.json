@@ -1,0 +1,34 @@
+{
+  "baseline_commit": "ce47f080aec80753f9d27be952f66eb9370ad8ff",
+  "compiler": "Apple clang21.0.0, arm64, -std=c++20 -O2; same probe, CACHE_HEADER chooses source",
+  "sanitizer_flags": "-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer",
+  "source_sha256": "7b6503cc1903706be148919cacb1753f969fb864e1c71a993b88b96d354605ad",
+  "baseline_sha256": "ac7412abeee1653cf83dc5058bca6b8b906a7c9936bbda5f356f03a957a00c4c",
+  "probe_sha256": "1070a08aa0d5d0ff8b5ef1b9cb59bf87f43c94272bb845a1bb26fb07ca6c766e",
+  "inputs": {
+    "indices": "12288 uint16 values i%4096",
+    "vertices": "4096; xyz=(i,i%37,i%11), weight=.5, packedBones=(i%32)|(((i+1)%32)<<8)",
+    "palette": "32 identity4x4 matrices",
+    "key": [
+      1,
+      1,
+      2,
+      "VB revision",
+      0,
+      12288,
+      0,
+      0,
+      4096,
+      4096
+    ],
+    "loops": "250frames x64spans x4passes; key[4]=span*12288*2; dynamic VBrevision=frame+1, vertex0.x=frame; immutable revision1",
+    "consumer": "observe/find; indexedSpan+insert on miss; unique+animatedBoxes(offset0,stride44,bones32)+pose+checksum per animated draw"
+  },
+  "limits": "sequential component benchmark; no full game FPS claim",
+  "raw": {
+    "baseline": "PASS: revision reuse, fresh/invalid/recovered bones, offset/stride/bone-count, IB revision, identity, capacity, ranges, locked bypass, LRU, budget, Reset\nBENCH animated=0 dynamic=0 frames=250 spans=64 passes=4 ms=2.094 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=0 dynamic=1 frames=250 spans=64 passes=4 ms=123.225 scans=16000 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=1 dynamic=0 frames=250 spans=64 passes=4 ms=33.643 scans=64 indexReads=786432 vertexReads=262144 checksum=2943984.680175781 entries=64 bytes=1105920\nBENCH animated=1 dynamic=1 frames=250 spans=64 passes=4 ms=455.719 scans=16000 indexReads=196608000 vertexReads=65536000 checksum=2880225.117675781 entries=64 bytes=1105920\n",
+    "prototype": "PASS: revision reuse, fresh/invalid/recovered bones, offset/stride/bone-count, IB revision, identity, capacity, ranges, locked bypass, LRU, budget, Reset\nBENCH animated=0 dynamic=0 frames=250 spans=64 passes=4 ms=1.976 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=0 dynamic=1 frames=250 spans=64 passes=4 ms=1.952 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=1 dynamic=0 frames=250 spans=64 passes=4 ms=33.919 scans=64 indexReads=786432 vertexReads=262144 checksum=2943984.680175781 entries=64 bytes=1105920\nBENCH animated=1 dynamic=1 frames=250 spans=64 passes=4 ms=240.888 scans=64 indexReads=786432 vertexReads=65536000 checksum=2880225.117675781 entries=64 bytes=1105920\n",
+    "canonical": "PASS: revision reuse, fresh/invalid/recovered bones, offset/stride/bone-count, IB revision, identity, capacity, ranges, locked bypass, LRU, budget, Reset\nBENCH animated=0 dynamic=0 frames=250 spans=64 passes=4 ms=1.951 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=0 dynamic=1 frames=250 spans=64 passes=4 ms=1.950 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=1 dynamic=0 frames=250 spans=64 passes=4 ms=34.722 scans=64 indexReads=786432 vertexReads=262144 checksum=2943984.680175781 entries=64 bytes=1105920\nBENCH animated=1 dynamic=1 frames=250 spans=64 passes=4 ms=245.727 scans=64 indexReads=786432 vertexReads=65536000 checksum=2880225.117675781 entries=64 bytes=1105920\n",
+    "sanitizers": "PASS: revision reuse, fresh/invalid/recovered bones, offset/stride/bone-count, IB revision, identity, capacity, ranges, locked bypass, LRU, budget, Reset\nBENCH animated=0 dynamic=0 frames=250 spans=64 passes=4 ms=29.034 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=0 dynamic=1 frames=250 spans=64 passes=4 ms=28.526 scans=64 indexReads=0 vertexReads=0 checksum=262080000.000000000 entries=64 bytes=0\nBENCH animated=1 dynamic=0 frames=250 spans=64 passes=4 ms=143.492 scans=64 indexReads=786432 vertexReads=262144 checksum=2943984.680175781 entries=64 bytes=1105920\nBENCH animated=1 dynamic=1 frames=250 spans=64 passes=4 ms=1601.523 scans=64 indexReads=786432 vertexReads=65536000 checksum=2880225.117675781 entries=64 bytes=1105920\n"
+  }
+}
