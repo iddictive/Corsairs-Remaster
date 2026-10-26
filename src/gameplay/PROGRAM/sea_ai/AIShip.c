@@ -3581,6 +3581,8 @@ void Ship_HullHitEvent()
 	float fCannonDamageMultiply = Ship_ProjectileCannonDamageMultiply();
 	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
 	if (airburst) fCannonDamageMultiply *= Ball_AirburstPower(stf(AIBalls.CurrentAirburstDistance));
+	bool bombBlast = iBallType == GOOD_BOMBS && CheckAttribute(AIBalls, "CurrentBombBlastDistance") && stf(AIBalls.CurrentBombBlastDistance) >= 0.0;
+	if (bombBlast) fCannonDamageMultiply *= Ball_BombBlastPower(stf(AIBalls.CurrentBombBlastDistance));
 
 	ref rBall = GetGoodByType(iBallType);
 	float distanceDamageMin = 0.25;
@@ -3622,11 +3624,12 @@ void Ship_HullHitEvent()
 			if (!airburst) Play3DSound("bomb2bort", x, y, z);
 		break;
 	}
+	// A weak near miss cannot turn into an unscaled magazine explosion.
+	if (bombBlast) bSeriousBoom = false;
 	fTmpCannonDamage = fCannonDamageMultiply * stf(rBall.DamageHull);
 	if (rand(2) == 1)
 	{
 		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
-		Ball_BombImpactFx(x, y, z);
 	}
 
     if (sti(rOurCharacter.TmpPerks.ShipDefenseProfessional) && rand(1000) < 700) { bSeriousBoom = false; }				// no seriouse boom

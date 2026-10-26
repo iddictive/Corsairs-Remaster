@@ -17,6 +17,7 @@ void DeleteBallsEnvironment()
 	DelEventHandler(BALL_FORT_HIT, "Ball_FortHit");
 	DelEventHandler(BALL_FLY_NEAR_CAMERA, "Ball_FlyNearCamera");
 	DelEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion");
+	DelEventHandler("Ball_BombExplosion", "Ball_BombExplosion");
 	DelEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady");
 	DelEventHandler("Ball_AirburstSailDistance", "Ball_AirburstSailDistance");
 }
@@ -35,6 +36,8 @@ void CreateBallsEnvironment()
 	AIBalls.AirburstFxBusy = false;
 	AIBalls.CurrentAirburstDetonated = false;
 	AIBalls.CurrentAirburstDistance = 0.0;
+	AIBalls.BombBlastRadius = 2.5;
+	AIBalls.CurrentBombBlastDistance = -1.0;
 	AIBalls.CurrentBallHeated = false;
 
 	AIBalls.SpeedMultiply = 2.0; // Солидная баллистическая скорость полета
@@ -75,6 +78,7 @@ void CreateBallsEnvironment()
 	SetEventHandler(BALL_FORT_HIT, "Ball_FortHit", 0);
 	SetEventHandler(BALL_FLY_NEAR_CAMERA, "Ball_FlyNearCamera", 0);
 	SetEventHandler("Ball_AirburstExplosion", "Ball_AirburstExplosion", 0);
+	SetEventHandler("Ball_BombExplosion", "Ball_BombExplosion", 0);
 	SetEventHandler("Ball_AirburstFxReady", "Ball_AirburstFxReady", 0);
 	SetEventHandler("Ball_AirburstSailDistance", "Ball_AirburstSailDistance", 0);
 }
@@ -84,6 +88,15 @@ float Ball_AirburstPower(float distance)
 	if (distance <= 2.0) return 1.0;
 	if (distance >= 8.0) return 0.0;
 	float remaining = (8.0 - distance) / 6.0;
+	return remaining * remaining;
+}
+
+float Ball_BombBlastPower(float distance)
+{
+	float radius = stf(AIBalls.BombBlastRadius);
+	if (distance >= radius || radius <= 0.0) return 0.0;
+	if (distance <= 0.0) return 1.0;
+	float remaining = (radius - distance) / radius;
 	return remaining * remaining;
 }
 
@@ -167,6 +180,20 @@ float Ball_GetAccuracy(aref aCharacter)
 	return fAccuracy;
 }
 
+// Full widths of the three independent launch errors, shared with native aim.
+float Ball_GetDispersion(float accuracy, int component)
+{
+	if (component == 0) return Bring2Range(0.5, 1.2, 0.2, 1.2, accuracy) * Degree2Radian(12.0) * 0.5;
+	if (component == 1)
+	{
+		// A fixed 2.5x would halve bomb/knippel broadside hit rates. Keep
+		// their existing vertical scatter; trade more range error at mastery.
+		float mastery = 0.05 / accuracy;
+		return accuracy * Degree2Radian(15.0) * (1.05 + 1.45 * mastery * mastery);
+	}
+	return accuracy * 10.0 * Degree2Radian(12.0);
+}
+
 void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0, float fDirAng, float fHeightAng, float fCannonDirAng, float fMaxFireDistance, float fAngle)
 {
 	int iCannonType = sti(aCharacter.Ship.Cannons.Type);
@@ -191,9 +218,6 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	AIBalls.RawAng = fAngle;
 	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_DARTS) AIBalls.RawAng = 0.0;
 	
-	float fTempDispersionY = Degree2Radian(12.0);
-	float fTempDispersionX = Degree2Radian(15.0);
-
 	//float fDamage2Cannons = 100.0;
 
 	float fAccuracy = Ball_GetAccuracy(aCharacter);
@@ -211,11 +235,9 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 		}
 	}
 
-	float fK = Bring2Range(0.5, 1.2, 0.2, 1.2, fAccuracy);
-	
-	AIBalls.Dir = fDirAng + fK * fTempDispersionY * (frnd() - 0.5);
-	AIBalls.SpdV0 = fSpeedV0 + fAccuracy * (10.0 * fTempDispersionY) * (frnd() - 0.5);
-	AIBalls.Ang = fHeightAng + fAccuracy * (fTempDispersionX) * (frnd() - 0.5);
+	AIBalls.Dir = fDirAng + Ball_GetDispersion(fAccuracy, 0) * (frnd() - 0.5);
+	AIBalls.SpdV0 = fSpeedV0 + Ball_GetDispersion(fAccuracy, 2) * (frnd() - 0.5);
+	AIBalls.Ang = fHeightAng + Ball_GetDispersion(fAccuracy, 1) * (frnd() - 0.5);
 
 	AIBalls.Event = "";
 	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_DARTS)
@@ -248,10 +270,14 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	Play3DSound(rCannon.Sound, fX, fY, fZ);
 }
 
-void Ball_BombImpactFx(float x, float y, float z)
+void Ball_BombExplosion()
 {
-	if (sti(AIBalls.CurrentBallType) != GOOD_BOMBS || sti(AIBalls.CurrentAirburstFragment)) return;
+	float x = GetEventData();
+	float y = GetEventData();
+	float z = GetEventData();
+	bool surface = GetEventData();
 	CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
+	if (surface) Play3DSound("bomb2bort", x, y, z);
 }
 
 void Ball_WaterHitEvent()
@@ -280,10 +306,6 @@ void Ball_WaterHitEvent()
 		CreateParticleSystem("splash", X, Y, Z, 0.0, 0.0, 0.0, 5);
 	}
 
-	if (sti(AIBalls.CurrentBallType) == GOOD_BOMBS && !sti(AIBalls.CurrentAirburstFragment))
-	{
-		if (rand(4) == 1) Ball_BombImpactFx(x, y, z);
-	}
 	Play3DSound("ball_splash", x, y, z);
 }
 
@@ -301,7 +323,6 @@ void Ball_FortHit()
 	if (rand(4) == 1)
 	{
 		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
-		Ball_BombImpactFx(x, y, z);
 	}
 	SendMessage(&AIFort, "llfff", AI_MESSAGE_FORT_HIT, iCharacterIndex, x, y, z);
 }
@@ -320,7 +341,6 @@ void Ball_IslandHit()
 	if (rand(2) == 1)
 	{
 		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
-		Ball_BombImpactFx(x, y, z);
 	}
 
 	//Ship_SetLightsOff(&Characters[1], 15.0, true, true, false);

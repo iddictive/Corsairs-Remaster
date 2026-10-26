@@ -8,6 +8,7 @@ void DeleteCannonsEnvironment()
 	DelEventHandler(CANNON_GET_FIRE_HEIGHT, "Cannon_GetFireHeight");
 	DelEventHandler(CANNON_GET_FIRE_HEIGHT_MULTIPLY, "Cannon_GetFireHeightMultiply");
 	DelEventHandler(CANNON_GET_FIRE_ACCURACY, "Cannon_GetFireAccuracy");
+	DelEventHandler("Cannon_GetFireSpread", "Cannon_GetFireSpread");
 	DelEventHandler(CANNON_GET_RAKE_CREW_FACTOR, "Cannon_GetRakeCrewFactor");
 	DelEventHandler(CANNON_FIRE, "Cannon_FireCannon");
 	DelEventHandler(CANNON_UNLOAD, "Cannon_UnloadBall");
@@ -24,6 +25,7 @@ void CreateCannonsEnvironment()
 	SetEventHandler(CANNON_GET_FIRE_HEIGHT, "Cannon_GetFireHeight", 0);
 	SetEventHandler(CANNON_GET_FIRE_HEIGHT_MULTIPLY, "Cannon_GetFireHeightMultiply", 0);
 	SetEventHandler(CANNON_GET_FIRE_ACCURACY, "Cannon_GetFireAccuracy", 0);
+	SetEventHandler("Cannon_GetFireSpread", "Cannon_GetFireSpread", 0);
 	SetEventHandler(CANNON_GET_RAKE_CREW_FACTOR, "Cannon_GetRakeCrewFactor", 0);
 	SetEventHandler(CANNON_FIRE, "Cannon_FireCannon", 0);
 	SetEventHandler(CANNON_UNLOAD, "Cannon_UnloadBall", 0);
@@ -135,6 +137,13 @@ float Cannon_GetFireAccuracy()
 {
 	aref aCharacter = GetEventData();
 	return Ball_GetAccuracy(aCharacter);
+}
+
+float Cannon_GetFireSpread()
+{
+	aref aCharacter = GetEventData();
+	int component = GetEventData();
+	return Ball_GetDispersion(Ball_GetAccuracy(aCharacter), component);
 }
 
 float Cannon_EffectiveCrew(aref aCharacter)

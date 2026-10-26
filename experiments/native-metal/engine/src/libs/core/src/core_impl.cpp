@@ -120,6 +120,7 @@ void CoreImpl::Init()
     Memory_Leak_flag = false;
     Controls = nullptr;
     fTimeScale = 1.0f;
+    scaledDeltaRemainder = 0.0;
     Compiler = new COMPILER;
 
     /* TODO: place this outside CoreImpl */
@@ -192,7 +193,15 @@ bool CoreImpl::Run()
         Timer.visualDeltaTime *= 0.2f;
     }
 
-    Timer.Delta_Time = static_cast<uint32_t>(Timer.Delta_Time * fTimeScale);
+    if (fTimeScale > 0.f && fTimeScale < 1.f)
+    {
+        // Carry sub-millisecond gameplay time instead of losing it at high FPS.
+        const double scaledDelta = Timer.Delta_Time * static_cast<double>(fTimeScale) + scaledDeltaRemainder;
+        Timer.Delta_Time = static_cast<uint32_t>(scaledDelta);
+        scaledDeltaRemainder = scaledDelta - Timer.Delta_Time;
+    }
+    else
+        Timer.Delta_Time = static_cast<uint32_t>(Timer.Delta_Time * fTimeScale);
     Timer.fDeltaTime *= fTimeScale;
     Timer.visualDeltaTime *= fTimeScale;
 
@@ -401,6 +410,8 @@ HINSTANCE CoreImpl::GetAppInstance()
 
 void CoreImpl::SetTimeScale(float _scale)
 {
+    if (_scale != fTimeScale)
+        scaledDeltaRemainder = 0.0;
     if (_scale <= 0.f && fTimeScale > 0.f)
         ++scenePauseRevision;
     fTimeScale = _scale;

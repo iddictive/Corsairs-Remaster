@@ -1,0 +1,3295 @@
+{
+  "conditions": {
+    "speed": 130,
+    "gravity": 9.81,
+    "height_scale": 0.7,
+    "muzzle_y": 5,
+    "aim": "visible hull-box midpoint",
+    "epsilon": 1e-05,
+    "excluded": [
+      "mesh geometry",
+      "speed jitter",
+      "ship motion",
+      "roll",
+      "battery geometry",
+      "auto gunner offset",
+      "ammo-specific speed/height/range"
+    ]
+  },
+  "inputs": [
+    {
+      "ship": "Sloop1",
+      "sha256": "ca86a01c0d65c95fed537f53d8d1f3491bf4e80f7f40f85340ed1adb9a75f665",
+      "dimensions": [
+        7.87139368057251,
+        7.968053817749023,
+        26.208465576171875
+      ],
+      "center": [
+        0.0,
+        1.0883264541625977,
+        0.17581462860107422
+      ],
+      "visible_top": 5.072353363037109
+    },
+    {
+      "ship": "Brig1",
+      "sha256": "0dec3e566390bd410486861ad58844b7589f34684fe87520f1568b5e9a93eaec",
+      "dimensions": [
+        6.894663333892822,
+        8.397411346435547,
+        28.569087982177734
+      ],
+      "center": [
+        0.0,
+        1.6264570951461792,
+        0.24904108047485352
+      ],
+      "visible_top": 5.825162768363953
+    },
+    {
+      "ship": "Frigate1",
+      "sha256": "3c89f1914b1e5f9ecd348fa0d9c42a1a38c2237cbdd86ccf83fe8b704668d422",
+      "dimensions": [
+        13.282892227172852,
+        17.207082748413086,
+        53.484100341796875
+      ],
+      "center": [
+        0.0,
+        3.9948081970214844,
+        1.3417797088623047
+      ],
+      "visible_top": 12.598349571228027
+    },
+    {
+      "ship": "Manowar1",
+      "sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+      "dimensions": [
+        16.541000366210938,
+        19.09499740600586,
+        69.49000549316406
+      ],
+      "center": [
+        0.0,
+        4.1919941902160645,
+        -1.0459766387939453
+      ],
+      "visible_top": 13.739492893218994
+    }
+  ],
+  "measurements": [
+    {
+      "accuracy": 0.05,
+      "elevation_scale": 2.5,
+      "pooled_percent": [
+        73.26447903465254,
+        71.91740092891169,
+        33.21532667703265,
+        46.46055739087195
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.7512749870209471,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6581312230831474,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.8337113957011375,
+          "candidate": 0.7439141987419774
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.25053987002101025,
+          "candidate": 0.372760333319198
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.9086959965779418,
+          "candidate": 0.854312578372384
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.21945429113109421,
+          "candidate": 0.3749651225821778
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.42273853924272886,
+          "candidate": 0.8454770784854577
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.5263830687445131,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.5004302635310036,
+          "candidate": 0.4528744378094079
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.1503294408996978,
+          "candidate": 0.1361607220673065
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.5454810150356723,
+          "candidate": 0.5200788779797791
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.1316762836202727,
+          "candidate": 0.13696410768355718
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.2536696367300086,
+          "candidate": 0.5073392734600172
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.31588102989362504,
+          "candidate": 0.6317620597872501
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.2960744354456578,
+          "candidate": 0.23685954835652626
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.08893180306222498,
+          "candidate": 0.07114544244977998
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.3706304350459052,
+          "candidate": 0.2965043480367242
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.08945704107639678,
+          "candidate": 0.07156563286111743
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.729267553504033,
+          "candidate": 0.8227233956982837
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.18119781652576147,
+          "candidate": 0.2981513658103781
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.9471950296662263,
+          "candidate": 0.8972256717554248
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.2256393843834989,
+          "candidate": 0.4048988964559306
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.1543080277353378,
+          "candidate": 0.12344642218827022
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.046346951566963356,
+          "candidate": 0.03707756125357068
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.1931739771647292,
+          "candidate": 0.15453918173178335
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.04662223888649303,
+          "candidate": 0.03729779110919442
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.5106138403180992,
+          "candidate": 0.6127379729052227
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.12684041248622113,
+          "candidate": 0.15543987445853888
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.6633138372047628,
+          "candidate": 0.6682635522065543
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.15795131703192475,
+          "candidate": 0.2111062163909153
+        }
+      ]
+    },
+    {
+      "accuracy": 0.075,
+      "elevation_scale": 1.6944444444444446,
+      "pooled_percent": [
+        70.59732142048678,
+        71.39416484810987,
+        32.491054787407926,
+        46.271415336245575
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.7512749870209471,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6581312230831474,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.8337113957011375,
+          "candidate": 0.7317188840085024
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.25053987002101025,
+          "candidate": 0.3666495081828177
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.9086959965779418,
+          "candidate": 0.8403074541367711
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.21945429113109421,
+          "candidate": 0.3688181533595191
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.42273853924272886,
+          "candidate": 0.8454770784854577
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.5263830687445131,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.37772012376569525,
+          "candidate": 0.4454502666977783
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.1134672683894221,
+          "candidate": 0.1339285790825966
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.4728219237650391,
+          "candidate": 0.5115529947342089
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.11413675640296432,
+          "candidate": 0.13471879444284313
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.2536696367300086,
+          "candidate": 0.5073392734600172
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.31588102989362504,
+          "candidate": 0.6317620597872501
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.1973829569637719,
+          "candidate": 0.2329766049408455
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.059287868708149984,
+          "candidate": 0.06997912372109505
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.24708695669727015,
+          "candidate": 0.2916436210197287
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.05963802738426452,
+          "candidate": 0.07039242576503353
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.729267553504033,
+          "candidate": 0.8092361269163446
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.18119781652576147,
+          "candidate": 0.29326363850201126
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.9471950296662263,
+          "candidate": 0.8825170541856638
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.2256393843834989,
+          "candidate": 0.39826120962878425
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.10287201849022519,
+          "candidate": 0.12142271034911824
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.030897967711308903,
+          "candidate": 0.03646973238056132
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.12878265144315282,
+          "candidate": 0.15200575252306558
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.031081492590995356,
+          "candidate": 0.036686351910683035
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.5106138403180992,
+          "candidate": 0.6026930881034978
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.12684041248622113,
+          "candidate": 0.15289167979528415
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.6633138372047628,
+          "candidate": 0.6573084120064469
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.15795131703192475,
+          "candidate": 0.2076454587451626
+        }
+      ]
+    },
+    {
+      "accuracy": 0.1,
+      "elevation_scale": 1.4125,
+      "pooled_percent": [
+        67.252984612005,
+        68.22148539698041,
+        31.614092638755313,
+        45.1210381277905
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.7512749870209471,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6581312230831474,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.7752621811438342,
+          "candidate": 0.6583311493291835
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.23297520832449875,
+          "candidate": 0.32987640116743183
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.9086959965779418,
+          "candidate": 0.7560288304180388
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.21945429113109421,
+          "candidate": 0.3318275421081219
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.42273853924272886,
+          "candidate": 0.8454770784854577
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.5263830687445131,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.2832900928242714,
+          "candidate": 0.4007738387693875
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.08510045129206657,
+          "candidate": 0.1204962142188553
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.3546164428237793,
+          "candidate": 0.46024679467237084
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.08560256730222324,
+          "candidate": 0.12120717494120103
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 0.9951995698541909
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.2536696367300086,
+          "candidate": 0.5049038267175469
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.31588102989362504,
+          "candidate": 0.6317620597872501
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.1480372177228289,
+          "candidate": 0.20961021978453648
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.04446590153111249,
+          "candidate": 0.0629605685396283
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.1853152175229526,
+          "candidate": 0.26239322835108336
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.04472852053819839,
+          "candidate": 0.06333241846116586
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.729267553504033,
+          "candidate": 0.7280738015029059
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.18119781652576147,
+          "candidate": 0.26385076620387443
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.9471950296662263,
+          "candidate": 0.7940050192525884
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.2256393843834989,
+          "candidate": 0.35831760748312447
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.0771540138676689,
+          "candidate": 0.10924462140554886
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.023173475783481678,
+          "candidate": 0.03281200110935459
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0965869885823646,
+          "candidate": 0.1367603378157375
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.023311119443246514,
+          "candidate": 0.033006894786897716
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.39109061181732896,
+          "candidate": 0.542245993721436
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.09714992153658679,
+          "candidate": 0.13755741102525562
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.5540855763477686,
+          "candidate": 0.5913836745190746
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.13194138524432206,
+          "candidate": 0.1868196605229339
+        }
+      ]
+    },
+    {
+      "accuracy": 0.125,
+      "elevation_scale": 1.282,
+      "pooled_percent": [
+        62.59247134341249,
+        64.06568642769562,
+        30.409225089679012,
+        43.47410429192971
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.7512749870209471,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6581312230831474,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.6202097449150675,
+          "candidate": 0.5802762860701854
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.18638016665959906,
+          "candidate": 0.29076469057659765
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.7763104197931645,
+          "candidate": 0.6663904667491295
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.18748256129108892,
+          "candidate": 0.29248449499389845
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.42273853924272886,
+          "candidate": 0.8454770784854577
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.5263830687445131,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.22663207425941717,
+          "candidate": 0.3532561917390078
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.06808036103365328,
+          "candidate": 0.10620961159696297
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.2836931542590235,
+          "candidate": 0.4056777519343051
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.06848205384177859,
+          "candidate": 0.10683627744427238
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 0.8772039890290452
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.2536696367300086,
+          "candidate": 0.44504003447022467
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 0.9566195790511565
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.31588102989362504,
+          "candidate": 0.6043559556941707
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.11842977417826314,
+          "candidate": 0.18475783803161178
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.03557272122489,
+          "candidate": 0.05549566493742589
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.14825217401836213,
+          "candidate": 0.23128264277435584
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.035782816430558716,
+          "candidate": 0.05582342656873434
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.5999854779914179,
+          "candidate": 0.6417499186414071
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.14907568290518908,
+          "candidate": 0.23256736802681607
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.8498476967756795,
+          "candidate": 0.6998640185299726
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.20244944822796532,
+          "candidate": 0.31583377258652934
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.06172321109413511,
+          "candidate": 0.09629206098929036
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.01853878062678534,
+          "candidate": 0.028921654643970895
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.07726959086589169,
+          "candidate": 0.12054538356613367
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.018648895554597214,
+          "candidate": 0.029093440802803763
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.31287248945386326,
+          "candidate": 0.47795473705555597
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.07771993722926945,
+          "candidate": 0.12124795199574016
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.44326846107821494,
+          "candidate": 0.5212664213779676
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.10555310819545767,
+          "candidate": 0.16466943556233649
+        }
+      ]
+    },
+    {
+      "accuracy": 0.15,
+      "elevation_scale": 1.2111111111111112,
+      "pooled_percent": [
+        58.51279076090723,
+        60.04968578002691,
+        29.368032553742513,
+        41.794559907905786
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.7512749870209471,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6581312230831474,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.5168414540958896,
+          "candidate": 0.5118675679417276
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.15531680554966587,
+          "candidate": 0.25648646788018215
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.646925349827637,
+          "candidate": 0.5878297557608145
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.1562354677425741,
+          "candidate": 0.2580035247125076
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.42273853924272886,
+          "candidate": 0.8454770784854577
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.5263830687445131,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.18886006188284762,
+          "candidate": 0.31161085170372105
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.05673363419471105,
+          "candidate": 0.09368857022979805
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.23641096188251956,
+          "candidate": 0.3578524389769122
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.05706837820148216,
+          "candidate": 0.09424135849786044
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.9371462616126964,
+          "candidate": 0.7737904912398411
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.2377255517461783,
+          "candidate": 0.3925743056358908
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 0.8438437846400796
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.31588102989362504,
+          "candidate": 0.5331084875228853
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.09869147848188595,
+          "candidate": 0.1629767534563254
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.029643934354074992,
+          "candidate": 0.048953286089298144
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.12354347834863508,
+          "candidate": 0.2040167532362781
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.02981901369213226,
+          "candidate": 0.049242407931961524
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.49998789832618157,
+          "candidate": 0.5660940796089108
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.12422973575432422,
+          "candidate": 0.20515002234659044
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.7082064139797329,
+          "candidate": 0.6173571135931822
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.16870787352330446,
+          "candidate": 0.2786001581118789
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.051436009245112595,
+          "candidate": 0.08494019875339692
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.015448983855654451,
+          "candidate": 0.025512083431355966
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.06439132572157641,
+          "candidate": 0.10633429935673167
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.015540746295497678,
+          "candidate": 0.025663617735684235
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.260727074544886,
+          "candidate": 0.42160869695313485
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.06476661435772453,
+          "candidate": 0.10695404205862766
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.3693903842318458,
+          "candidate": 0.4598143707843264
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.08796092349621473,
+          "candidate": 0.14525657091118027
+        }
+      ]
+    },
+    {
+      "accuracy": 0.2,
+      "elevation_scale": 1.140625,
+      "pooled_percent": [
+        51.46705025925413,
+        53.92997808235932,
+        27.50023084956984,
+        39.23521751799556
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.7512749870209471,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6581312230831474,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.3876310905719171,
+          "candidate": 0.40762421848875474
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.11648760416224938,
+          "candidate": 0.20425223743517698
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.48519401237072773,
+          "candidate": 0.46811648129993644
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.11717660080693056,
+          "candidate": 0.20546034114091935
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.42273853924272886,
+          "candidate": 0.8454770784854577
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.5263830687445131,
+          "candidate": 1
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.1416450464121357,
+          "candidate": 0.24815037688186736
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.042550225646033286,
+          "candidate": 0.07460861483140083
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.17730822141188965,
+          "candidate": 0.2849747276601529
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.04280128365111162,
+          "candidate": 0.07504882612797653
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.7028596962095224,
+          "candidate": 0.6162057610604033
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.17829416380963373,
+          "candidate": 0.31262538311826193
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.766491437714739,
+          "candidate": 0.6719924933389493
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.2421201047499771,
+          "candidate": 0.4245393617533845
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.07401860886141445,
+          "candidate": 0.12978605389398698
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.022232950765556245,
+          "candidate": 0.03898380408207122
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0926576087614763,
+          "candidate": 0.1624681359105338
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.022364260269099195,
+          "candidate": 0.039214045403352014
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.3749909237446361,
+          "candidate": 0.4508073401086486
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.09317230181574315,
+          "candidate": 0.16337061140294692
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.5311548104847996,
+          "candidate": 0.49163050507146566
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.12653090514247833,
+          "candidate": 0.2218624090169483
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.03857700693383445,
+          "candidate": 0.06764187517165492
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.011586737891740839,
+          "candidate": 0.020316471919764757
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0482934942911823,
+          "candidate": 0.08467900368864843
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.011655559721623257,
+          "candidate": 0.02043714581325722
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.19554530590866448,
+          "candidate": 0.3357468344686152
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.048574960768293395,
+          "candidate": 0.08517253394988432
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.2770427881738843,
+          "candidate": 0.36617180942824895
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.06597069262216103,
+          "candidate": 0.11567463911830976
+        }
+      ]
+    },
+    {
+      "accuracy": 0.256,
+      "elevation_scale": 1.1053131103515625,
+      "pooled_percent": [
+        45.24955316779993,
+        47.44123688738286,
+        24.838015643130372,
+        34.91743698907711
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 0.9786172797187067
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.6966570725342611,
+          "candidate": 0.9786172797187067
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.6102848878738386,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.2808204650494347,
+          "candidate": 0.3286302781109211
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.08438978185437442,
+          "candidate": 0.15269841832878087
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.35150020601319654,
+          "candidate": 0.3773996795584114
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.0848889274670016,
+          "candidate": 0.15360159338018045
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.9019649836778739,
+          "candidate": 0.8160266762700294
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.3535750738576375,
+          "candidate": 0.6397735999805109
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.9836000862103219,
+          "candidate": 0.8898836691600195
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.4801098217699898,
+          "candidate": 0.8687308913169106
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.1026151636771894,
+          "candidate": 0.1856761902417877
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.030825634074521064,
+          "candidate": 0.05577719794659177
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.1284514539855701,
+          "candidate": 0.2297491654267928
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.031007513772654823,
+          "candidate": 0.05610629871709816
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.5196264743683824,
+          "candidate": 0.4967905768249111
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.12916572280811978,
+          "candidate": 0.23371788789700784
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.59882143571464,
+          "candidate": 0.5417663376164743
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.17540461038197297,
+          "candidate": 0.3173844745697131
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.053622995338445896,
+          "candidate": 0.09702770162816624
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.016106725505926206,
+          "candidate": 0.02914418612261498
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.06712607274193563,
+          "candidate": 0.12146073743861611
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.01620185305566928,
+          "candidate": 0.029316313909487638
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.27166325962119536,
+          "candidate": 0.3634448956531684
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.06749894361419638,
+          "candidate": 0.12213542566726139
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.3847966391795714,
+          "candidate": 0.3963568951041252
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.0916656803065293,
+          "candidate": 0.16586373480610136
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.027947224283251266,
+          "candidate": 0.05056888228596547
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.008394045788132912,
+          "candidate": 0.015188539264612631
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.03498636166078095,
+          "candidate": 0.06330579332340133
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.008443903961904833,
+          "candidate": 0.015278754739856678
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.14166336261233697,
+          "candidate": 0.25633164265513625
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.03519027086445588,
+          "candidate": 0.0636747552071703
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.20070444942585974,
+          "candidate": 0.2952109764599386
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.0477926591348881,
+          "candidate": 0.0864780462428187
+        }
+      ]
+    },
+    {
+      "accuracy": 0.4,
+      "elevation_scale": 1.07265625,
+      "pooled_percent": [
+        32.30370059287724,
+        34.58680053934508,
+        18.500382986933246,
+        25.281033178156562
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.6922742459453878,
+          "candidate": 0.6453831280481401
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.4063190040137166,
+          "candidate": 0.6453831280481401
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.7951278992497481,
+          "candidate": 0.7412700007572305
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.40882695065685193,
+          "candidate": 0.7412700007572305
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.9895021408129488,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.15141839475465513,
+          "candidate": 0.21672664202242603
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.04550297037587867,
+          "candidate": 0.08484166362873227
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.18952891108231557,
+          "candidate": 0.2488893163502939
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.04577210969020726,
+          "candidate": 0.0853434820152444
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.5772575895538392,
+          "candidate": 0.5381571118928726
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.1906476798240381,
+          "candidate": 0.3554683615073106
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.629504055174606,
+          "candidate": 0.5868646690629975
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.2588752158983785,
+          "candidate": 0.4826806647486154
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.05533009625474052,
+          "candidate": 0.10316463686244408
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.016621181892981757,
+          "candidate": 0.030990696027700868
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0692610239890194,
+          "candidate": 0.12913927269620512
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.01671925142621548,
+          "candidate": 0.031173549636643566
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.28018259497943176,
+          "candidate": 0.3276257870168203
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.06964615773813819,
+          "candidate": 0.12985736621240623
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.3832457188573695,
+          "candidate": 0.3572866133557414
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.09457816591795984,
+          "candidate": 0.17634384905315162
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.028913519086490026,
+          "candidate": 0.053910130270513085
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.00868474639279541,
+          "candidate": 0.016192972152626543
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.036194378422451684,
+          "candidate": 0.06748551257208764
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.008736039167616875,
+          "candidate": 0.01628860908164545
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.14648082958774852,
+          "candidate": 0.23968634980285028
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.036395430396774675,
+          "candidate": 0.06786038005516619
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.2074823478456249,
+          "candidate": 0.26139131005256366
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.0494261348212806,
+          "candidate": 0.0921565223179012
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.015069143333529083,
+          "candidate": 0.028096873222020716
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.004526069488961266,
+          "candidate": 0.008438993366162299
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.018864646207493087,
+          "candidate": 0.03517370305257269
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.004552953016259085,
+          "candidate": 0.008489118515384747
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.07638488512057208,
+          "candidate": 0.1424219271002655
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.018974594050114608,
+          "candidate": 0.03537870412840014
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.10821983913042356,
+          "candidate": 0.1946871237309699
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.02576980180553166,
+          "candidate": 0.04804857437884999
+        }
+      ]
+    },
+    {
+      "accuracy": 0.61,
+      "elevation_scale": 1.0597420048374093,
+      "pooled_percent": [
+        23.579456233083583,
+        25.81231917825998,
+        13.584255386258695,
+        18.607503971674888
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.45395032521009043,
+          "candidate": 0.42835928286124475
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.2166718708261534,
+          "candidate": 0.408914376965545
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.5213953437703268,
+          "candidate": 0.4920021490044851
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.21800924733508473,
+          "candidate": 0.4114383431815232
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.8046777256928682,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 1,
+          "candidate": 1
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.08074470193345079,
+          "candidate": 0.1438476850710719
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.024264712263263575,
+          "candidate": 0.045793621754167194
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.10106734692247545,
+          "candidate": 0.16519497400881059
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.024408232300899987,
+          "candidate": 0.04606448020269767
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.3785295669205503,
+          "candidate": 0.35719030216097375
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.10166393658206876,
+          "candidate": 0.19186544671816902
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.41278954437679083,
+          "candidate": 0.38951890412244533
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.1380466500093422,
+          "candidate": 0.26052878791101985
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.029505081844759255,
+          "candidate": 0.055683518649024516
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.008863337772831735,
+          "candidate": 0.016727350114222547
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.03693382661109623,
+          "candidate": 0.0697034305378181
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.008915633897371555,
+          "candidate": 0.016826046069089117
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.14940892852028778,
+          "candidate": 0.21745462667705154
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.03713920132681354,
+          "candidate": 0.07009102433853533
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.2115577178077219,
+          "candidate": 0.2371413673856875
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.050434333482612365,
+          "candidate": 0.0951822863534606
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.015418295011438847,
+          "candidate": 0.02909820492357363
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.0046311893610424,
+          "candidate": 0.008740220430826348
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.019300853784130715,
+          "candidate": 0.03642557093335551
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.004658541518757515,
+          "candidate": 0.008791840839548962
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.07811171782128364,
+          "candidate": 0.1474164796048976
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.019408065868673986,
+          "candidate": 0.03662790713226784
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.11064111702143432,
+          "candidate": 0.17349290561547723
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.02635676154362454,
+          "candidate": 0.04974184551204671
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.008035704570965578,
+          "candidate": 0.015165397869075605
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.002413551751148966,
+          "candidate": 0.004554979872708291
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.010059677607678529,
+          "candidate": 0.018985144613989195
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.0024278875417383427,
+          "candidate": 0.004582035119219117
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.04073266521729427,
+          "candidate": 0.07687279551317523
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.010118307906824716,
+          "candidate": 0.019095794751246297
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.05770883166494144,
+          "candidate": 0.10891109609983876
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.01374189027061909,
+          "candidate": 0.025934407068685432
+        }
+      ]
+    },
+    {
+      "accuracy": 0.787,
+      "elevation_scale": 1.0558527307630832,
+      "pooled_percent": [
+        19.060130842334353,
+        20.608498450454782,
+        10.214263355636154,
+        14.437030232661659
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.3518547628693204,
+          "candidate": 0.3332422719738849
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.14509808014486064,
+          "candidate": 0.2748452997606887
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.4041310796695035,
+          "candidate": 0.3827532646313572
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.14599367754353018,
+          "candidate": 0.2765417435403478
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.8740111589368255,
+          "candidate": 0.8277775237699697
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.6076352884311482,
+          "candidate": 0.8277775237699697
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.9529589561576477,
+          "candidate": 0.9025491229907865
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.8243646607168186,
+          "candidate": 0.9025491229907865
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.05407209153519045,
+          "candidate": 0.10242354820849231
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.016249285849808736,
+          "candidate": 0.030779455081894034
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.06768150359283129,
+          "candidate": 0.1282025449589294
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.01634539653479964,
+          "candidate": 0.03096150828342611
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.27345299206887713,
+          "candidate": 0.2778763355473217
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.06808102021633765,
+          "candidate": 0.12895931076890677
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.3199512351586308,
+          "candidate": 0.3030263841126749
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.09244533593775249,
+          "candidate": 0.17511028431198095
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.019758590323090505,
+          "candidate": 0.037426792103498426
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.005935488024401533,
+          "candidate": 0.01124302253802356
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.02473337823336118,
+          "candidate": 0.04685005306655965
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.005970509032162311,
+          "candidate": 0.011309359455550814
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.10005428301391539,
+          "candidate": 0.16916891204285325
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.024870910977446765,
+          "candidate": 0.04711056807983463
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.1416732987844004,
+          "candidate": 0.18448421969227732
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.03377422705499346,
+          "candidate": 0.06397526107752591
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.01032512894607278,
+          "candidate": 0.019557895992958468
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.003101356362098873,
+          "candidate": 0.00587460025766561
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.012925151836996088,
+          "candidate": 0.024482868605463292
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.003119673209399587,
+          "candidate": 0.005909296095005494
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.05230886801073994,
+          "candidate": 0.09908364393381906
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.012996948270821308,
+          "candidate": 0.024618865665911923
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.07409274495891419,
+          "candidate": 0.1349688739146107
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.01765026297245688,
+          "candidate": 0.03343319093317252
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.005381249081445824,
+          "candidate": 0.01019318115994586
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.0016162768341210548,
+          "candidate": 0.0030615573309223593
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0067366377655987495,
+          "candidate": 0.01276056322879435
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.0016258770451865062,
+          "candidate": 0.0030797420848861314
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.02727733646124656,
+          "candidate": 0.05166882779482468
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.0067759005633583,
+          "candidate": 0.012834934960032237
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.0386457210622618,
+          "candidate": 0.07320286236193539
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.009202495405728008,
+          "candidate": 0.01743139954580068
+        }
+      ]
+    },
+    {
+      "accuracy": 1.2,
+      "elevation_scale": 1.0525173611111112,
+      "pooled_percent": [
+        11.695557396540302,
+        12.901649197937678,
+        5.084988715375514,
+        8.581293850592841
+      ],
+      "cases": [
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.23075808198179598,
+          "candidate": 0.21924396737569396
+        },
+        {
+          "distance": 100,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.07223448960243851,
+          "candidate": 0.13726042395382954
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.26504263308324943,
+          "candidate": 0.251817825411879
+        },
+        {
+          "distance": 100,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.07268034678344036,
+          "candidate": 0.13810764452704874
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.5732056517360681,
+          "candidate": 0.544604462515423
+        },
+        {
+          "distance": 100,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.30250038374342453,
+          "candidate": 0.544604462515423
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.6249822487467239,
+          "candidate": 0.5937975674690523
+        },
+        {
+          "distance": 100,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.41039523371857617,
+          "candidate": 0.5937975674690523
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.026918825734160916,
+          "candidate": 0.051151319168252996
+        },
+        {
+          "distance": 300,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.008089416955711765,
+          "candidate": 0.015371560136874152
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0336940286368561,
+          "candidate": 0.06402560163242595
+        },
+        {
+          "distance": 300,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.008137263944925735,
+          "candidate": 0.015462479281739295
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.1361336917251737,
+          "candidate": 0.18281807372261794
+        },
+        {
+          "distance": 300,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.03389292085760677,
+          "candidate": 0.06440353786055752
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.19253420696883863,
+          "candidate": 0.19936458324705048
+        },
+        {
+          "distance": 300,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.046022260604156186,
+          "candidate": 0.0874517842737945
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.009836461556398316,
+          "candidate": 0.01869130509356018
+        },
+        {
+          "distance": 500,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.002954876780974535,
+          "candidate": 0.0056148751367961465
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.01231307093138123,
+          "candidate": 0.02339737354713596
+        },
+        {
+          "distance": 500,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.0029723113646605306,
+          "candidate": 0.005648004440559061
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.049810239107454544,
+          "candidate": 0.09464972445655691
+        },
+        {
+          "distance": 500,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.012381539153446787,
+          "candidate": 0.02352747728621971
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.0705295233249674,
+          "candidate": 0.12137431426080815
+        },
+        {
+          "distance": 500,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.01681389616319286,
+          "candidate": 0.03194986949278049
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.00514018117093156,
+          "candidate": 0.00976740405593923
+        },
+        {
+          "distance": 700,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.0015439549142747394,
+          "candidate": 0.002933832678341443
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.006434556163991412,
+          "candidate": 0.012226983424194815
+        },
+        {
+          "distance": 700,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.0015530736297985556,
+          "candidate": 0.0029511601179842244
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.026041036371155298,
+          "candidate": 0.04948333839104478
+        },
+        {
+          "distance": 700,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.006470298737204388,
+          "candidate": 0.012294901682902194
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.0368857507281111,
+          "candidate": 0.07009053169283956
+        },
+        {
+          "distance": 700,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.008786868412672108,
+          "candidate": 0.016696861709522913
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "broadside",
+          "baseline": 0.0026789588148496144,
+          "candidate": 0.005090574110856504
+        },
+        {
+          "distance": 1000,
+          "ship": "Sloop1",
+          "orientation": "end-on",
+          "baseline": 0.0008046345758153362,
+          "candidate": 0.001528971598085389
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "broadside",
+          "baseline": 0.0033537148813321048,
+          "candidate": 0.006372749762135398
+        },
+        {
+          "distance": 1000,
+          "ship": "Brig1",
+          "orientation": "end-on",
+          "baseline": 0.0008094138695571709,
+          "candidate": 0.0015380532416162654
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "broadside",
+          "baseline": 0.013579535132546148,
+          "candidate": 0.02580391665598872
+        },
+        {
+          "distance": 1000,
+          "ship": "Frigate1",
+          "orientation": "end-on",
+          "baseline": 0.0033732611644648196,
+          "candidate": 0.006409891730249026
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "broadside",
+          "baseline": 0.019239082512075303,
+          "candidate": 0.03655822359407959
+        },
+        {
+          "distance": 1000,
+          "ship": "Manowar1",
+          "orientation": "end-on",
+          "baseline": 0.004581298098761184,
+          "candidate": 0.008705410985192388
+        }
+      ]
+    }
+  ]
+}

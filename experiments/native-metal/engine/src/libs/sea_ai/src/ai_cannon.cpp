@@ -193,7 +193,7 @@ void AICannon::RealFire()
         shot->SetAttributeUseFloat("TargetY", cameraTarget.y);
         shot->SetAttributeUseFloat("TargetZ", cameraTarget.z);
         shot->SetAttributeUseDword("TargetIndex", targetCharacter);
-        shot->SetAttributeUseDword("TargetValid", !fixedFrame || (dartCameraTargetValid && targetCharacter >= 0));
+        shot->SetAttributeUseDword("TargetValid", !fixedFrame || dartCameraTargetValid);
     }
     core.Event(CANNON_FIRE, "afffffffff", pAHolder->GetACharacter(), vPosTemp.x, vPosTemp.y, vPosTemp.z, fSpeedV0,
                fFireDirection, fFireHeightAngle, fDirY, fMaxFireDistance, fAngle);

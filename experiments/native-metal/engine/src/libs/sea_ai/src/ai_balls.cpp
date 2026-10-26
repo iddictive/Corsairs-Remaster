@@ -7,13 +7,39 @@
 #include "ship_airburst_hull_distance.hpp"
 #include "ship_debris_bridge.hpp"
 #include "ship_hull_hit_admission.hpp"
+#include "sea_base.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <limits>
 
 namespace
 {
+bool BombContactDetonates(bool liveShip)
+{
+    return liveShip || (std::rand() & 1) == 0;
+}
+
+// SEA's five-sample broadphase returns a submerged sample. Refine its first
+// bracket so small blasts originate at the wave, not below the visible splash.
+float BombWaterTrace(CANNON_TRACE_BASE *sea, const CVECTOR &src, const CVECTOR &dst)
+{
+    if (!sea) return 2.0f;
+    float hi = sea->Trace(src, dst);
+    if (hi > 1.0f || hi <= 0.0f) return hi;
+    float lo = std::max(0.0f, hi-0.25f);
+    auto *waves = static_cast<SEA_BASE *>(sea);
+    for (int step = 0; step < 12; ++step)
+    {
+        const float middle = (lo+hi)*0.5f;
+        const CVECTOR point = src+(dst-src)*middle;
+        if (waves->WaveXZ(point.x, point.z) > point.y) hi = middle;
+        else lo = middle;
+    }
+    return hi;
+}
+
 float CannonShotMass(uint32_t cannonType)
 {
     // The script event returns this same Cannon[type] object. Its caliber is
@@ -160,8 +186,12 @@ bool AirburstNodeBox(NODE *node, CVECTOR &center, CVECTOR &box)
 bool AirburstModelEntry(MODEL *model, const CVECTOR &src, const CVECTOR &dst, float radius, float &entry)
 {
     float nearest = 2.0f;
+    auto *body = model->GetNode(0);
     for (int index = 0; auto *node = model->GetNode(index); ++index)
     {
+        // Fuze follows the hull, not the high mast/yard boxes. Fragments still
+        // damage rigging throughout the existing eight-metre blast sphere.
+        if (node != body && !storm::iEquals(node->GetName(), "shatter", 7)) continue;
         CVECTOR center, box;
         if (!AirburstNodeBox(node, center, box)) continue;
         CVECTOR localSrc, localDst;
@@ -212,7 +242,7 @@ bool AirburstHullPolygon(const GEOS::VERTEX *vertices, int32_t count)
     return true;
 }
 
-float AirburstHullDistance(MODEL *model, const CVECTOR &burst, CVECTOR &hit)
+float AirburstHullDistance(MODEL *model, const CVECTOR &burst, CVECTOR &hit, float radius = 2.0f)
 {
     auto *body=model->GetNode(0);
     float nearest=-1.0f;
@@ -224,6 +254,7 @@ float AirburstHullDistance(MODEL *model, const CVECTOR &burst, CVECTOR &hit)
         CVECTOR center,box,local;
         if (!AirburstNodeBox(node,center,box)) continue;
         storm_airburst_hull::Query query;
+        query.distance2 = static_cast<double>(radius)*radius;
         query.center={burst.x,burst.y,burst.z};
         const auto &matrix=node->glob_mtx.matrix;
         query.origin={matrix[12],matrix[13],matrix[14]};
@@ -241,13 +272,13 @@ float AirburstHullDistance(MODEL *model, const CVECTOR &burst, CVECTOR &hit)
             // transforms are rigid; traversal-only padding covers float matrix
             // composition/local-center roundoff and Clip's strict plane boundary.
             node->geo->Clip(nullptr,0,{local.x,local.y,local.z},
-                2.001f,AirburstHullPolygon);
+                radius+0.001f,AirburstHullPolygon);
         }
         if (!query.valid) continue;
         const CVECTOR point=CVECTOR(static_cast<float>(query.closest.x),
             static_cast<float>(query.closest.y),static_cast<float>(query.closest.z));
         const float distance=static_cast<float>(std::sqrt(query.distance2));
-        if (distance<=2.0f && (nearest<0.0f || distance<nearest))
+        if (distance<=radius && (nearest<0.0f || distance<nearest))
         { nearest=distance; hit=point; }
     }
     return nearest;
@@ -275,7 +306,7 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
     if (AirburstGood(ball) < 0 || ~(dst-src) < 1e-8f)
         return false;
     float armedStart = 0.0f;
-    if (!AirburstArmedStart(src, dst, ball.vFirstPos, armedStart)) return false;
+    const bool armed = AirburstArmedStart(src, dst, ball.vFirstPos, armedStart);
     const CVECTOR armedSrc = src + (dst-src)*armedStart;
     const float radius = AirburstRadius(ball);
     float nearest = 2.0f;
@@ -287,13 +318,28 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
             static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) == ball.iBallOwner)
             continue;
         float entry = 0.0f;
-        if (AirburstModelEntry(ship->GetModel(), armedSrc, dst, radius, entry))
+        if (armed && AirburstModelEntry(ship->GetModel(), armedSrc, dst, radius, entry))
             nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
     }
-    float fortContact = 2.0f;
+    // Contact fuze works from launch; only the proximity fuze needs arming.
+    // Dead ships and detached wreckage deliberately do not trigger shrapnel.
+    float contact = 2.0f;
+    if (pIsland) contact = std::min(contact, pIsland->Trace(src, dst));
+    const float waterContact = BombWaterTrace(pSea, src, dst);
+    contact = std::min(contact, waterContact);
+    float shipContact = 2.0f;
+    for (const auto id : ships)
+    {
+        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        if (ship && !ship->isDead() && ship->GetACharacter() && ship->GetModel() &&
+            static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) != ball.iBallOwner)
+            shipContact = std::min(shipContact, ship->Trace(src, dst));
+    }
+    contact = std::min(contact, shipContact);
     auto *forts = AIFort::pAIFort;
     if (forts)
     {
+        contact = std::min(contact, forts->Trace(src, dst));
         for (uint32_t f = 0; f < forts->GetNumForts(); ++f)
         {
             auto *fort = forts->GetFort(f);
@@ -302,9 +348,6 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
                 continue;
             // Armed shrapnel also detonates on real masonry contact. A miss of
             // every small gun sphere must not fall into the random stock hit FX.
-            const float contact = fort->GetModel()->Trace(src, dst);
-            if (contact >= armedStart && contact <= 1.0f)
-                fortContact = std::min(fortContact, contact);
             // Fort nodes can bound hundreds of metres of empty battery frontage.
             // Match the fuze to the live guns that receive the bounded blast.
             for (uint32_t gunIndex = 0; gunIndex < fort->GetAllCannonsNum(); ++gunIndex)
@@ -312,34 +355,23 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
                 auto *gun = fort->GetCannon(gunIndex);
                 if (gun->isDamaged()) continue;
                 float entry = 0.0f;
-                if (AirburstEntry(armedSrc, dst, gun->GetPos(), CVECTOR(0.0f), radius, entry))
+                if (armed && AirburstEntry(armedSrc, dst, gun->GetPos(), CVECTOR(0.0f), radius, entry))
                     nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
             }
         }
     }
-    const bool contactBurst = fortContact <= nearest && fortContact <= 1.0f;
-    if (contactBurst) nearest = fortContact;
+    const bool contactBurst = contact <= nearest && contact <= 1.0f;
+    if (contactBurst) nearest = contact;
     if (nearest > 1.0f) return false;
     CVECTOR burst = src + (dst-src) * nearest;
-    // A selected fort contact is the impact, not a blocker of its own burst.
-    // Compare on the original segment to avoid endpoint roundoff/self-contact.
-    if (contactBurst)
+    if (contactBurst && waterContact == nearest)
+        core.Event(BALL_WATER_HIT, "lfff", ball.iBallOwner, burst.x, burst.y, burst.z);
+    // Surface misses have a 50% contact-fuze chance. A dud is consumed at
+    // contact too; it cannot continue into a ship behind the surface.
+    if (contactBurst && !BombContactDetonates(shipContact == nearest))
     {
-        if ((pIsland && pIsland->Trace(src, dst) < nearest) ||
-            (pSea && pSea->Trace(src, dst) <= nearest) ||
-            (forts && forts->Trace(src, dst) < nearest)) return false;
-    }
-    // Contact before proximity (even before arming) keeps the ordinary bomb path.
-    else if ((pIsland && pIsland->Trace(src, burst) <= 1.0f) ||
-        (pSea && pSea->Trace(src, burst) <= 1.0f) ||
-        (forts && forts->Trace(src, burst) <= 1.0f))
-        return false;
-    for (const auto id : ships)
-    {
-        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
-        if (ship && !ship->isDead() && ship->GetACharacter() && ship->GetModel() &&
-            static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) != ball.iBallOwner &&
-            ship->Trace(src, contactBurst ? dst : burst) <= (contactBurst ? nearest : 1.0f)) return false;
+        ball.vPos = burst;
+        return true;
     }
     // Keep the radial origin just outside the wall so exposed guns are visible.
     if (contactBurst) burst -= !(dst-src) * 0.01f;
@@ -453,6 +485,46 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
         AIFort::pAIFort->AddFortHit(ball.iBallOwner, burst, 8.0f, pIsland);
     }
     return true;
+}
+
+void AIBalls::BombBlast(BALL_PARAMS &ball, const CVECTOR &burst, entid_t directShip)
+{
+    const float radius = AttributesPointer->GetAttributeAsFloat("BombBlastRadius");
+    if (!std::isfinite(radius) || radius <= 0.0f) return;
+    const auto ships = core.GetEntityIds(SHIP_CANNON_TRACE);
+    for (const auto id : ships)
+    {
+        // The ordinary trace already charged the directly hit hull once.
+        if (id == directShip) continue;
+        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        if (!ship || ship->isDead() || !ship->GetACharacter() || !ship->GetModel()) continue;
+        const int32_t target = ship->GetACharacter()->GetAttributeAsDword("index");
+        if (target == ball.iBallOwner) continue;
+        CVECTOR hit;
+        if (AirburstModelDistance(ship->GetModel(), burst, hit) > radius+0.14f) continue;
+        const float distance = AirburstHullDistance(ship->GetModel(), burst, hit, radius);
+        if (distance < 0.0f || distance >= radius ||
+            (pIsland && pIsland->Trace(burst, hit) < 1.0f) ||
+            (AIFort::pAIFort && AIFort::pAIFort->Trace(burst, hit) < 1.0f)) continue;
+        AttributesPointer->SetAttributeUseFloat("CurrentBombBlastDistance", distance);
+        auto *character = ship->GetACharacter();
+        auto *before = character->GetAttributeClass("Ship");
+        const bool beforePresent = before && before->GetAttribute("HP");
+        const float beforeHP = beforePresent ? before->GetAttributeAsFloat("HP") : 0.0f;
+        core.Event(SHIP_HULL_HIT, "illffflf", id, ball.iBallOwner, target,
+                   hit.x, hit.y, hit.z, -1, 1e8f);
+        AttributesPointer->SetAttributeUseFloat("CurrentBombBlastDistance", -1.0f);
+        ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        if (!ship || ship->GetACharacter() != character) continue;
+        auto *after = character->GetAttributeClass("Ship");
+        const bool afterPresent = after && after->GetAttribute("HP");
+        const float damage = storm_hull_damage::admittedDamage(beforePresent, beforeHP, afterPresent,
+            afterPresent ? after->GetAttributeAsFloat("HP") : 0.0f);
+        const auto direction = hit-burst;
+        if (damage > 0.0f && (~direction) > 1e-8f)
+            ship->ApplyHullProjectileImpact(hit, -!direction, !direction, damage, ball.iBallOwner,
+                                           HullProjectileProfile::Bomb, 0.0f);
+    }
 }
 
 AIBalls *AIBalls::pAIBalls = nullptr;
@@ -600,7 +672,6 @@ void AIBalls::AddBall(ATTRIBUTES *pABall)
 
     pBall->sBallEvent = to_string(pABall->GetAttribute("Event"));
     pBall->dartGood = TaggedGood(*pBall, "@dart:");
-    if (pBall->dartGood >= 0)
     {
         pBall->dartTarget = CVECTOR(pABall->GetAttributeAsFloat("TargetX"),
             pABall->GetAttributeAsFloat("TargetY"), pABall->GetAttributeAsFloat("TargetZ"));
@@ -673,6 +744,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // including forts and rigging. Only the radial burst changes goods.
             AttributesPointer->SetAttributeUseDword("CurrentBallType", dart ? pBall->dartGood : pBallsType->dwGoodIndex);
             AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", 0.0f);
+            AttributesPointer->SetAttributeUseFloat("CurrentBombBlastDistance", -1.0f);
             ResetAirburstHull(AttributesPointer);
             AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
             AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", fragment ? 1 : 0);
@@ -723,9 +795,46 @@ void AIBalls::Execute(uint32_t Delta_Time)
             if (burst) fRes = 0.0f;
             // Bound every damage-producing ordinary trace before a detached
             // piece. A hit on distant material must never reach its old hull.
-            const auto debrisHit = !burst && !fragment ? storm::ship::debris::Trace(vSrc, vDst)
+            const auto debrisHit = !burst && !fragment && airburstGood < 0 ? storm::ship::debris::Trace(vSrc, vDst)
                                                        : storm::ship::debris::Hit{};
             const CVECTOR traceDst = debrisHit ? vSrc + (vDst - vSrc) * debrisHit.fraction : vDst;
+            const bool ordinaryBomb = !fragment && !heated && !dart && airburstGood < 0 &&
+                                      storm::iEquals(pBallsType->sName, "Bombs");
+            // Resolve the nearest solid before any damage-producing trace.
+            // Other ammo keeps its existing admission and trace behavior.
+            float bombContact = 2.0f;
+            bool bombLiveHit = false;
+            enum { NoSurface, FortSurface, IslandSurface, WaterSurface } bombSurface = NoSurface;
+            if (ordinaryBomb)
+            {
+                for (const auto id : core.GetEntityIds(SHIP_CANNON_TRACE))
+                {
+                    auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+                    if (!ship || !ship->GetModel() || !ship->GetACharacter() ||
+                        static_cast<int32_t>(ship->GetACharacter()->GetAttributeAsDword("index")) == pBall->iBallOwner)
+                        continue;
+                    const float hit = ship->Trace(vSrc, traceDst);
+                    if (hit < bombContact)
+                    {
+                        bombContact = hit;
+                        bombLiveHit = !ship->isDead();
+                    }
+                }
+                const auto surface = [&](float hit, decltype(bombSurface) kind)
+                {
+                    if (hit < bombContact)
+                    {
+                        bombContact = hit;
+                        bombLiveHit = false;
+                        bombSurface = kind;
+                    }
+                };
+                if (AIFort::pAIFort) surface(AIFort::pAIFort->Trace(vSrc, traceDst), FortSurface);
+                if (pIsland) surface(pIsland->Trace(vSrc, traceDst), IslandSurface);
+                surface(BombWaterTrace(pSea, vSrc, traceDst), WaterSurface);
+            }
+            const float bombTraceFraction = ordinaryBomb ? std::min(1.0f, bombContact+0.00001f) : 1.0f;
+            const CVECTOR damageDst = vSrc+(traceDst-vSrc)*bombTraceFraction;
             if (fragment)
             {
                 // Trace-only solid contacts cannot duplicate hull/crew/fort damage.
@@ -780,7 +889,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             if (!burst && !fragment && pSail)
             {
                 pSail->SetCannonTraceRadius(fRigRadius);
-                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+                pSail->Cannon_Trace(pBall->iBallOwner, vSrc, damageDst);
                 pSail->SetCannonTraceRadius(0.0f);
             }
 
@@ -793,35 +902,51 @@ void AIBalls::Execute(uint32_t Delta_Time)
                     std::isfinite(energy)&&energy>0.f?energy:0.f);
             }
             auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
+            entid_t directShip{};
             for (auto ent_id : entities)
             {
                 if (burst || fragment) break;
+                if (airburstGood >= 0)
+                {
+                    auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(ent_id));
+                    if (ship && ship->isDead()) continue;
+                }
                 if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
                 {
                     pShip->SetCannonTraceRadius(fRigRadius);
-                    fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+                    fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, damageDst);
                     pShip->SetCannonTraceRadius(0.0f);
                     if (fRes <= 1.0f)
                     {
-                        if (dart && pBall->iBallOwner == playerIndex && pBall->dartViewLaunch) ++dartHits;
+                        fRes *= bombTraceFraction;
+                        directShip = ent_id;
                         break;
                     }
                 }
             }
 
             // fort trace
-            if (!fragment && fRes > 1.0f && AIFort::pAIFort)
+            if (!fragment && fRes > 1.0f && AIFort::pAIFort &&
+                (!ordinaryBomb || bombSurface == FortSurface))
             {
                 fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
             }
 
             // island trace
-            if (!fragment && fRes > 1.0f && pIsland)
+            if (!fragment && fRes > 1.0f && pIsland && (!ordinaryBomb || bombSurface == IslandSurface))
                 fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
 
             // sea trace
-            if (!fragment && fRes > 1.0f && pSea)
-                fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+            if (!fragment && fRes > 1.0f && pSea && (!ordinaryBomb || bombSurface == WaterSurface))
+            {
+                if (ordinaryBomb && bombContact <= 1.0f)
+                {
+                    fRes = bombContact;
+                    const CVECTOR impact = vSrc+(traceDst-vSrc)*fRes;
+                    core.Event(BALL_WATER_HIT, "lfff", pBall->iBallOwner, impact.x, impact.y, impact.z);
+                }
+                else fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+            }
 
             if (debrisHit)
             {
@@ -840,6 +965,14 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // delete ball
             if (fRes <= 1.0f)
             {
+                if (!fragment && pBall->iBallOwner == playerIndex && pBall->dartViewLaunch) ++dartHits;
+                if (ordinaryBomb && BombContactDetonates(bombLiveHit))
+                {
+                    CVECTOR impact = vSrc + (vDst-vSrc)*fRes;
+                    if (~(vDst-vSrc) > 1e-8f) impact -= !(vDst-vSrc)*0.01f;
+                    core.Event("Ball_BombExplosion", "fffl", impact.x, impact.y, impact.z, bombLiveHit ? 0 : 1);
+                    BombBlast(*pBall, impact, directShip);
+                }
                 if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated && !dart)
                 {
                     core.Event(pBall->sBallEvent.c_str(), "lllffffff", pBall->iBallOwner, static_cast<uint32_t>(0),
@@ -861,13 +994,13 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 continue;
             }
 
+            if (!fragment && pBall->iBallOwner == playerIndex && pBall->dartViewLaunch)
+            {
+                ++playerDarts;
+                if (!viewBall || pBall->fTime > viewBall->fTime) viewBall = pBall;
+            }
             if (dart)
             {
-                if (pBall->iBallOwner == playerIndex && pBall->dartViewLaunch)
-                {
-                    ++playerDarts;
-                    if (!viewBall || pBall->fTime > viewBall->fTime) viewBall = pBall;
-                }
                 if (dartTexture >= 0)
                 {
                     RS_RECT sprite{};

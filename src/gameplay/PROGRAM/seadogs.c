@@ -1159,7 +1159,7 @@ void ProcessControls()
   	if (ControlName=="TimeScaleFaster" || ControlName == "TimeScaleSlower")
   	{
 		if (CheckAttribute(&TEV, "StopTimeScale")) return; //квестовые моменты
-        if (loadedLocation.type == "underwater") return; //запрет ускорения под водой
+		if (loadedLocation.type == "underwater" && ControlName == "TimeScaleFaster" && TimeScaleCounter >= 0) return; //запрет ускорения под водой
 		DeleteAttribute(pchar, "pause");
 		if (ControlName == "TimeScaleFaster")
      	{
@@ -1197,10 +1197,7 @@ void ProcessControls()
 				}
 			}
 		}
-		if (true) // MOD_SKILL_ENEMY_RATE > 1) // запрет 0.25 скорости
-        {
-		   if (!bBettaTestMode && TimeScaleCounter < -2) TimeScaleCounter = -2;
-		} 
+		if (TimeScaleCounter < -4) TimeScaleCounter = -4;
         if (bDisableMapEnter)
         {
             if (TimeScaleCounter > 20) TimeScaleCounter = 20;
@@ -1217,11 +1214,7 @@ void ProcessControls()
             }
         }
      	float newTimeScale = 1 + (TimeScaleCounter)*0.25; // GetSeaTimeScale()
-     	if (newTimeScale < 0) //don't wanna crash the game
-     	{
-        		TimeScaleCounter = -4;
-        		newTimeScale = 0;
-     	}
+		if (TimeScaleCounter == -4) newTimeScale = 0.1;
 
      	Log_SetStringToLog("x" + newTimeScale);
      	if (TimeScaleCounter == 0) //back to normal

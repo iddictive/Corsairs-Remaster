@@ -179,6 +179,7 @@ private:
     char *State_file_name;
 
     float fTimeScale;
+    double scaledDeltaRemainder = 0.0;
     uint64_t scenePauseRevision = 0;
 };
 

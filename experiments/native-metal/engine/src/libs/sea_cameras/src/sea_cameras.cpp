@@ -229,16 +229,21 @@ void SEA_CAMERAS::RealizeDartView()
             }
         }
         auto *targetHP = targetShip ? targetShip->GetACharacter()->FindAClass(targetShip->GetACharacter(), "Ship.HP") : nullptr;
-        if (!targetShip || targetShip == player || !targetHP || targetHP->GetAttributeAsFloat() <= 0.f)
+        if (targetShip == player)
         {
             CancelDartView();
             return;
         }
-        const auto box = targetShip->GetRealBoxsize();
-        target = targetShip->GetPos();
-        target.y += std::min(12.f, box.y * .2f);
-        distance = std::max(65.f, std::max(box.x, box.z) * 1.25f);
-        height = std::max(14.f, box.y * .45f);
+        // Keep watching the impact after a lethal hit. A removed receiver
+        // leaves the serialized launch aim point; it does not cancel the shot.
+        if (targetShip && targetHP)
+        {
+            const auto box = targetShip->GetRealBoxsize();
+            target = targetShip->GetPos();
+            target.y += std::min(12.f, box.y * .2f);
+            distance = std::max(65.f, std::max(box.x, box.z) * 1.25f);
+            height = std::max(14.f, box.y * .45f);
+        }
     }
     const CVECTOR projectile(view->GetAttributeAsFloat("x"), view->GetAttributeAsFloat("y"), view->GetAttributeAsFloat("z"));
     CVECTOR incoming(view->GetAttributeAsFloat("dx"), 0.f, view->GetAttributeAsFloat("dz"));
@@ -248,7 +253,8 @@ void SEA_CAMERAS::RealizeDartView()
         return;
     }
     const auto now = std::chrono::steady_clock::now();
-    const auto seconds = [now](auto time) { return std::chrono::duration<float>(now - time).count(); };
+    const float slowMotion = std::min(1.f, core.GetTimeScale());
+    const auto seconds = [now, slowMotion](auto time) { return std::chrono::duration<float>(now - time).count()*slowMotion; };
     if (seconds(dartStarted) >= 10.f) { CancelDartView(); return; }
     if (dartViewPending)
     {

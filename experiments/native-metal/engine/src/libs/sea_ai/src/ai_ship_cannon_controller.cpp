@@ -59,7 +59,15 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
                               vTempFirePos.y, vTempFirePos.z);
     const auto fRadius = pVData->GetFloat();
     const auto fAng = FRAND(PIm2);
-    vTempFirePos += CVECTOR(fRadius * sinf(fAng), 0.0f, fRadius * cosf(fAng));
+    auto forward = vTempFirePos-GetAIShip()->GetPos();
+    forward.y = 0.0f;
+    if ((~forward) > 1e-8f)
+    {
+        forward = !forward;
+        const CVECTOR lateral(-forward.z, 0.0f, forward.x);
+        // Preserve the error ellipse's area; orient its long axis downrange.
+        vTempFirePos += lateral*(0.5f*fRadius*sinf(fAng)) + forward*(2.0f*fRadius*cosf(fAng));
+    }
     }
 
     MANUAL_AIM_SOLUTION autoSolution;
@@ -1059,18 +1067,17 @@ float AimHeightScale(ATTRIBUTES *character)
 struct AimSpread {float azimuth,elevation,speed;};
 AimSpread AimLiveSpread(ATTRIBUTES *character)
 {
-    if(auto *vd=core.Event(CANNON_GET_FIRE_ACCURACY,"a",character))
+    AimSpread spread{};
+    float *components[] = {&spread.azimuth, &spread.elevation, &spread.speed};
+    for (int component = 0; component < 3; ++component)
     {
-        const float accuracy=vd->GetFloat();
-        if(accuracy>0.f)
-        {
-            const float k=Bring2Range(.5f,1.2f,.2f,1.2f,accuracy);
-            return {.5f*k*12.f*kAimPi/180.f,.5f*accuracy*15.f*kAimPi/180.f,
-                    .5f*accuracy*10.f*12.f*kAimPi/180.f};
-        }
+        auto *vd = core.Event("Cannon_GetFireSpread", "al", character, component);
+        if (!vd || !std::isfinite(vd->GetFloat()) || vd->GetFloat() <= 0.0f) break;
+        *components[component] = vd->GetFloat()*0.5f;
+        if (component == 2) return spread;
     }
     static bool logged=false;
-    if(!logged){core.Trace("Manual aim: CANNON_GET_FIRE_ACCURACY unavailable; no guessed dispersion");logged=true;}
+    if(!logged){core.Trace("Manual aim: Cannon_GetFireSpread unavailable; no guessed dispersion");logged=true;}
     return {0.f,0.f,0.f};
 }
 float AimRakeFactor(ATTRIBUTES *character)

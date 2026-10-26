@@ -38,13 +38,59 @@ existing disabled/depleted stores and prior cargo quantities survive upgrade.
 Darts use a hull-damage distance coefficient from1.2 nearby to0.65 at maximum
 range; ordinary ammunition retains its0.25 minimum. Normal catalogue load
 reconciliation removes saved custom scatter fields without touching cargo.
-All airburst catalogue, fuze, blast, availability and quest behavior is retained.
+Airburst catalogue, availability and quest behavior remain unchanged; the
+contact-fuze and shared dispersion contracts below supersede the earlier profile.
 
 Slots are1–4 ordinary ammunition,5darts,6airburst,7laser,8nuclear;
-9toggles the optional dart impact camera, initially off. LongRangeShoot
+9toggles the optional impact camera for all six cannon ammunition types, initially off. LongRangeShoot
 («Увеличенное расстояние выстрела») raises manual-aim zoom from5x to10x.
 The impact camera borrows the existing render view near the accepted target,
 returns after impact/miss, and yields to pause, death and scene/camera changes.
+Water aim points are valid receivers. Target destruction leaves the camera at
+the last target point; player death still cancels it. Camera flight/impact
+timeouts stretch with slow motion. Laser/nuclear weapons have separate native
+firing paths and do not use this cannon-projectile camera feed.
+
+## Contact explosions and dispersion
+
+Ordinary bombs retain their direct hit and add one nearby-hull hit per other
+living ship within2.5m of the explosion. Damage scales by `(1-distance/2.5)^2`:
+36% at1m,4% at2m and zero at2.5m. Distance is to hull triangles, with existing
+island/fort occlusion; a weak splash cannot become a magazine critical hit.
+The firing ship retains its existing self-immunity.
+
+Both bomb families have a50% contact-fuze chance on surface misses. A dud stops
+at the surface without radial damage. A direct living-ship hit always detonates;
+armed shrapnel proximity also always detonates. Ordinary bombs can burst on
+wrecks/debris; shrapnel ignores dead ships and detached wreckage. The nearest
+solid wins before damage traces, and water contact is refined to the wave.
+Shrapnel proximity arms35m after launch, varies1–7m from hull-node bounds, and
+does not use mast/yard bounds. Its existing8m multi-ship blast, quadratic falloff
+outside2m, sail traces and cosmetic fragments remain. Contact works before arming.
+
+`Ball_GetDispersion` owns launch-error widths for firing and native aim preview.
+Horizontal width is halved; speed jitter and the three independent RNG draws
+are retained. Elevation multiplies by `1.05+1.45*(0.05/accuracy)^2`, using the
+existing clamped accuracy scalar. This gives2.5x at the mastery floor while
+keeping the already-wide bomb/knippel vertical scatter close to its old value.
+The automatic gunner-offset ellipse has0.5x lateral and2x downrange axes,
+oriented to the shot rather than world coordinates; manual fire still omits it.
+
+[Replayable balance approximation](evidence/cannon-spread-20261026/balance.py)
+and its [raw inputs/results](evidence/cannon-spread-20261026/balance.json) cover
+four installed hull boxes, five distances and eleven accuracy scalars. Pooled
+broadside coverage changes−1.34 to+2.23percentage points at mastery ammunition
+scalars; end-on coverage improves. This is a fixed-speed, hull-box approximation,
+not gameplay hit-rate/FPS acceptance; movement, actual mesh contacts, ammo speed
+and height profiles, speed jitter and the auto offset remain outside that model.
+
+## Slow motion
+
+The existing `-`/`+` time controls now reach0.75,0.5,0.25 and0.1x and recover to1x
+in sea, land, map and underwater modes. Quest time locks, pause, reset and
+existing acceleration limits remain. Core retains fractional milliseconds below1x
+so0.1x does not freeze integer-time gameplay at high FPS; changing scale clears
+that remainder. There are no new controls or saved projectile fields.
 
 Maximum dart range remains about2.1km for42lb and4.2km for quest48lb guns
 with the range perk. The earlier70% hit-rate target used the removed custom
