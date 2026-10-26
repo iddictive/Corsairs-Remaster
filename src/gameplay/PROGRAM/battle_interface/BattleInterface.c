@@ -1437,7 +1437,9 @@ ref GetCurrentCharge()
 		{
 			BI_intNRetValue[0] = -7;
 			BattleInterface.textinfo.Ammo.text = "8: Ядерная ракета";
-			if (CheckAttribute(&Sea, "Phonk.NuclearReload"))
+			if (CheckAttribute(&Sea, "Phonk.NuclearChargeTier") && sti(Sea.Phonk.NuclearChargeTier) > 0)
+				BattleInterface.textinfo.Powder.text = "Мощность: x" + sti(Sea.Phonk.NuclearChargeTier);
+			else if (CheckAttribute(&Sea, "Phonk.NuclearReload"))
 				BattleInterface.textinfo.Powder.text = "Перезарядка: " + FloatToString(stf(Sea.Phonk.NuclearReload), 1) + " с";
 		}
 		else if (CheckAttribute(&Sea, "Phonk.Weapon") && sti(Sea.Phonk.Weapon) == 6)

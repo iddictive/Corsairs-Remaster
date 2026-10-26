@@ -11,7 +11,8 @@ namespace storm::ship::phonk
 {
 inline constexpr float nuclearRange = 6000.f;
 inline constexpr float nuclearRadius = 220.f;
-inline constexpr float nuclearReload = 4.f;
+inline constexpr float nuclearReload = 1.f;
+inline constexpr float nuclearChargeTime = 3.f;
 inline constexpr float nuclearBlastLife = 9.f;
 inline constexpr float nuclearPressureLife = 8.f;
 struct NuclearYield
@@ -19,14 +20,24 @@ struct NuclearYield
     uint32_t tier = 1;
     float radius = nuclearRadius, effectRadius = 600.f, visibleRadius = 2500.f;
 };
-inline NuclearYield nuclearYield(float severity)
+inline NuclearYield nuclearYieldForTier(uint32_t tier)
 {
-    if (!std::isfinite(severity) || severity < 0.f || severity > 1.f) return {};
-    const auto tier = std::min(10u, 1u + uint32_t(severity * 10.f));
+    tier = std::clamp(tier, 1u, 10u);
     NuclearYield yield;
     yield.tier = tier;
     yield.radius *= tier; yield.effectRadius *= tier; yield.visibleRadius *= tier;
     return yield;
+}
+inline NuclearYield nuclearYield(float severity)
+{
+    if (!std::isfinite(severity) || severity < 0.f || severity > 1.f) return {};
+    return nuclearYieldForTier(std::min(10u, 1u + uint32_t(severity * 10.f)));
+}
+inline NuclearYield nuclearChargedYield(float seconds)
+{
+    if (!std::isfinite(seconds)) return {};
+    // Frame-sized float additions must not leave an exact three-second hold at x9.
+    return nuclearYieldForTier(1u + uint32_t(9.f * std::clamp(seconds / nuclearChargeTime, 0.f, 1.f) + .0001f));
 }
 inline float nuclearPressureFront(const NuclearYield &yield, float age)
 {
@@ -84,11 +95,12 @@ struct NuclearBlast
 struct OrdnanceState
 {
     unsigned weapon = 6;
-    bool triggerHeld = false, targetValid = false, targetOutside = false;
-    float reload = 0.f, targetClock = 0.f;
+    bool triggerHeld = false, targetValid = false, targetOutside = false, charging = false;
+    float reload = 0.f, targetClock = 0.f, charge = 0.f;
     uint32_t blastSerial = 0;
     CVECTOR target = CVECTOR(0.f);
-    std::array<NuclearMissile, 4> missiles{};
+    // A six-kilometre flight takes over six seconds at the one-second cadence.
+    std::array<NuclearMissile, 8> missiles{};
     std::array<NuclearBlast, 4> blasts{};
 };
 inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)

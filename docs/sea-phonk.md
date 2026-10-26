@@ -189,7 +189,7 @@ While Phonk is active, native `SHIP::ExecutePhonkOrdnance` reads the mapped
 controls for the three sea groups. Ordinary load restores settings first, then
 reconciles these names; battle-interface initialization repeats the idempotent
 reconciliation, preserving user remaps. The existing Ammo/Powder rows show the
-selected6/7 weapon and native `LaserCharge`/`NuclearReload`; their -6/-7 icon
+selected6/7 weapon and native `LaserCharge`/`NuclearReload`/`NuclearChargeTier`; their -6/-7 icon
 sentinels select laser/nuclear cells41/42 in `LIST_ICON2` while suppressing powder;
 ordinary negative icons, sails and wind retain their behavior. The generated
 RGBA source `src/assets/ui/phonk-weapons.png` and prepared atlas are hash-bound
@@ -271,13 +271,24 @@ observations](evidence/nuclear-effects-20261026/observations.json) retain the
 rejection and two distinct seeds; native Metal compilation and depth/age controls
 pass, while player appearance and full-frame cost remain unverified.
 
-One launch samples the existing tsunami `u²` distribution once and snapshots
+An automatic launch samples the existing tsunami `u²` distribution once and snapshots
 an integer yield tier1–10 in the missile and blast. Tier1 occurs about31.62% and
 tier10 about5.13%; no camera or render update can reroll it. Direct/cloud radius
 is220m×tier, damage/fire reach600m×tier, and the visible pressure front reaches
 2500m×tier in8seconds: tier10 covers6km physically and25km visually. Launch
 range remains6km. The per-detonation variation seed also excludes the rebased
 camera origin, fixing the shape jitter during camera motion.
+
+Manual nuclear fire charges while the fire control is held and launches once on
+release: a tap gives tier1, a three-second hold reaches tier10. The existing
+weapon status shows the current tier. Both modes have a one-second cooldown;
+holding during cooldown does not queue a later shot. Pause, weapon/camera-mode
+changes and leaving Phonk cancel the held charge. Eight missile slots support
+the cadence across a six-kilometre flight; four blast/water slots remain bounded.
+The actual native Execute method passes disposable ASan/UBSan controls for
+charge/release, exact timing, cancellation, rejected targets, capacity and the
+unchanged automatic random selection. The complete script corpus compiles;
+installed gameplay input/appearance remain unverified.
 
 An expanding air front pays ship impulse/damage once on arrival. Its maximum
 push is3knots; outer damage is `min(1, .12×tier)` times the spatial falloff.

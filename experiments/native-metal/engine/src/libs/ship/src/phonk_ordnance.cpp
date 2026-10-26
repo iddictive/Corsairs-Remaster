@@ -171,7 +171,13 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         if (state.weapon != 0 && state.weapon != 6 && state.weapon != 7) state.weapon = 6;
     }
     // Delta0 is a paused frame: neither a launch nor flight/damage may advance.
-    if (!deltaTime) return;
+    if (!deltaTime) {
+        state.charging = false; state.charge = 0.f;
+        state.triggerHeld = true; // A paused release must not become a later shot.
+        if (active)
+            pSea->AttributesPointer->VerifyAttributeClass("Phonk")->SetAttributeUseDword("NuclearChargeTier", 0);
+        return;
+    }
     if (active)
     {
         if (activated("Phonk_Laser")) state.weapon = 6;
@@ -238,6 +244,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     if (!active)
     {
         state.triggerHeld = false;
+        state.charging = false; state.charge = 0.f;
         state.targetValid = false;
         state.targetClock = 0.f;
         return;
@@ -250,6 +257,17 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     view.Transposition();
     const bool fire = held("Ship_Fire");
     const bool automatic = outsideCamera();
+    const bool pressed = fire && !state.triggerHeld;
+    if (state.weapon != 7 || automatic || automatic != state.targetOutside) {
+        state.charging = false; state.charge = 0.f;
+    }
+    if (state.weapon == 7 && !automatic && pressed && state.reload <= 0.f) {
+        state.charging = true; state.charge = 0.f;
+    }
+    if (state.charging && fire)
+        state.charge = std::min(nuclearChargeTime, state.charge + seconds);
+    const bool release = !fire && state.triggerHeld && state.charging;
+    const bool launchRequested = automatic ? pressed : release;
     auto *ai = dynamic_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
     const CVECTOR launch = GetModel()->mtx * CVECTOR(0.f, std::max(4.f, State.vBoxSize.y * .35f), 0.f);
     state.targetClock += seconds;
@@ -264,7 +282,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         {
             const auto missile = missileTo(launch, state.target, -1);
             state.targetValid = blastClearOfOwner(*this, ai, state.target, missile.duration);
-            if (state.targetValid && fire && !state.triggerHeld && state.reload <= 0.f)
+            if (state.targetValid && launchRequested && state.reload <= 0.f)
                 state.targetValid = clearTrajectory(pSea, pIsland, receivers, *this, ai, missile);
         }
     }
@@ -277,7 +295,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         attributes->SetAttributeUseFloat("NuclearTargetZ", state.target.z);
         attributes->SetAttributeUseFloat("NuclearRadius", nuclearRadius);
     }
-    if (state.weapon == 7 && fire && !state.triggerHeld && state.reload <= 0.f && state.targetValid)
+    if (state.weapon == 7 && launchRequested && state.reload <= 0.f && state.targetValid)
         for (auto &missile : state.missiles)
         {
             if (missile.active) continue;
@@ -285,24 +303,27 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             if (!ATTRIBUTES::IsLive(launchCharacter)) return;
             const auto owner = launchCharacter->GetAttributeAsDword("index", uint32_t(-1));
             const auto target = state.target;
-            // Reuse the tsunami's weighted severity once, only for an actual
-            // launch. Aim/prediction/rendering never consume random samples.
-            auto *sample = core.Event("SeaPhonk_NuclearPower");
+            // Automatic fire keeps its weighted roll; manual fire owns its
+            // held charge. Neither aim nor rendering rerolls the chosen yield.
+            auto *sample = automatic ? core.Event("SeaPhonk_NuclearPower") : nullptr;
             if (core.GetEntityPointer(sourceId) != this || !seaLive()) return;
             launchCharacter = GetACharacter();
             if (!ATTRIBUTES::IsLive(launchCharacter) ||
                 launchCharacter->GetAttributeAsDword("index", uint32_t(-1)) != owner ||
                 !ATTRIBUTES::IsLive(simulationSea->AttributesPointer) || !PhonkActive()) return;
             if (missile.active) continue;
-            const auto yield = nuclearYield(sample ? sample->GetFloat() : -1.f);
+            const auto yield = automatic ? nuclearYield(sample ? sample->GetFloat() : -1.f) :
+                                          nuclearChargedYield(state.charge);
             attributes = simulationSea->AttributesPointer->VerifyAttributeClass("Phonk");
             missile = missileTo(launch, target, int32_t(owner));
             missile.yield = yield;
             state.reload = nuclearReload;
             break;
         }
+    if (!fire) { state.charging = false; state.charge = 0.f; }
     state.triggerHeld = fire;
     attributes->SetAttributeUseFloat("NuclearReload", state.reload);
+    attributes->SetAttributeUseDword("NuclearChargeTier", state.charging ? nuclearChargedYield(state.charge).tier : 0);
 }
 
 void SHIP::DrawPhonkOrdnance()
@@ -313,7 +334,7 @@ void SHIP::DrawPhonkOrdnance()
     pRS->GetTransform(storm_render::TransformWorld, previous);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     struct Vertex { CVECTOR position; uint32_t color; };
-    std::array<Vertex, 4 * 14 * 12> vertices{};
+    std::array<Vertex, std::tuple_size_v<decltype(phonkOrdnance.missiles)> * 14 * 12> vertices{};
     unsigned at = 0;
     CVECTOR camera, angles; float perspective;
     pRS->GetCamera(camera, angles, perspective);
