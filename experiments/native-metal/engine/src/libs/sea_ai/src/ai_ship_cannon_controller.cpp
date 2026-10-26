@@ -609,17 +609,18 @@ bool AIShipCannonController::isCanFireBort(const AISHIP_BORT &bort, const CVECTO
     const CVECTOR vOurPos = pOurAIShip->GetPos();
     CVECTOR vFireDir = vFirePos - vOurPos;
     const float fFireDist = std::hypot(vFireDir.x, vFireDir.z);
+    vFireDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
+    const float fY0 = vFireDir | bort.vDirection;
+    if (fY0 <= bort.fCosFireZone)
+        return false;
+
     // Reach is horizontal travel to the target's height, including depressed water.
     const float fMaxFireDistance = CalcBortFireDistance(bort, bort.fOurBortFireHeight + vOurPos.y - vFirePos.y);
-    vFireDir = !CVECTOR(vFireDir.x, 0.0f, vFireDir.z);
 
     // check distance limit
     if (!std::isfinite(fFireDist) || !std::isfinite(fMaxFireDistance) || fFireDist > fMaxFireDistance)
         return false;
 
-    const float fY0 = vFireDir | bort.vDirection;
-    if (fY0 <= bort.fCosFireZone)
-        return false;
     /*fY0 = (vFireDir ^ aShipBorts[i].vAngleVectors[0]).y;
     fY1 = (vFireDir ^ aShipBorts[i].vAngleVectors[1]).y;
     if (bTempFlag)

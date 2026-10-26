@@ -4,6 +4,7 @@
 #include "core.h"
 #include "entity.h"
 #include "modelr.h"
+#include "model_distance_blend.h"
 #include "gpu_skinning_bridge.hpp"
 #include "metal_pickup_glow.h"
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
@@ -255,7 +256,15 @@ static bool DrawPickupGlow(VDX9RENDER *rs, const CVECTOR &worldCenter, float sec
 }
 #endif
 
-void MODELR::Realize(uint32_t Delta_Time)
+void storm_model::RealizeWithDistanceBlend(MODEL &model, uint32_t deltaTime, float distanceBlend)
+{
+    if (auto *native = dynamic_cast<MODELR *>(&model))
+        native->Realize(deltaTime, distanceBlend);
+    else
+        model.ProcessStage(Entity::Stage::realize, deltaTime);
+}
+
+void MODELR::Realize(uint32_t Delta_Time, float distanceBlend)
 {
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
     // RAII also restores a surrounding static-location scope on early returns.
@@ -406,7 +415,7 @@ void MODELR::Realize(uint32_t Delta_Time)
         } convertScope{GeometyService};
         GeometyService->SetVBConvertFunc(gpuSkinning ? GPUVBTransform : VBTransform);
 
-        root->Draw();
+        root->Draw(distanceBlend);
         // GPU draws leave the CPU stream stale, including a paused animation.
         if (gpuSkinning || !alreadyTransformed)
         {
@@ -415,7 +424,7 @@ void MODELR::Realize(uint32_t Delta_Time)
         }
     }
     else
-        root->Draw();
+        root->Draw(distanceBlend);
 
 #ifdef STORM_METAL_RENDERER_CONSUMERS
     // Script opt-in excludes mechanism buttons, placed offerings and quest signs.

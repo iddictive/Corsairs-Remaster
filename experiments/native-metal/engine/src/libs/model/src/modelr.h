@@ -48,7 +48,7 @@ class NODER : public NODE
               NODER *par, const char *lmPath) override;
     NODER();
     ~NODER() override;
-    void Draw();
+    void Draw(float inheritedDistanceBlend = -1.f);
     float Trace(const CVECTOR &src, const CVECTOR &dst) override;
     float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) override;
     NODER *GetNode(int32_t n);
@@ -120,7 +120,7 @@ class MODELR : public MODEL
     MODELR();
     ~MODELR() override;
     bool Init() override;
-    void Realize(uint32_t Delta_Time);
+    void Realize(uint32_t Delta_Time, float distanceBlend = -1.f);
     uint64_t ProcessMessage(MESSAGE &message) override;
     void LostRender();
     void RestoreRender();

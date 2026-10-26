@@ -4,6 +4,7 @@
 #include "core.h"
 #include "modelr.h"
 #include "string_compare.hpp"
+#include <algorithm>
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 extern "C" bool StormMetalBeginOffscreenPointCaster(void*, const float*, float);
 extern "C" void StormMetalEndOffscreenPointCaster(void*);
@@ -401,7 +402,7 @@ bool MODELR::HasBakedBaseShadow() const
 extern GEOS::PLANE ViewPlane[4];
 GEOS::PLANE TViewPlane[4];
 
-void NODER::Draw()
+void NODER::Draw(float inheritedDistanceBlend)
 {
     if (isReleased)
         return;
@@ -433,7 +434,9 @@ void NODER::Draw()
         if (!subtreeCaster.begin(cnt, radius))
 #endif
         return;
-    if (max_view_dist > 0.f)
+    if (inheritedDistanceBlend >= 0.f)
+        distance_blend = std::clamp(inheritedDistanceBlend, 0.f, 1.f);
+    else if (max_view_dist > 0.f)
     {
         CVECTOR cpos, cang;
         float cpersp;
@@ -447,15 +450,17 @@ void NODER::Draw()
             distance_blend = 0.f;
         else
             distance_blend = (fdist - fmindist) / (fmaxdist - fmindist);
-        if (distance_blend >= 1.f
+    }
+    else
+        distance_blend = 0.f;
+    if (distance_blend >= 1.f
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
             && !subtreeCaster.active
 #endif
         )
-            return;
-        if (distance_blend < 0.f)
-            distance_blend = 0.f;
-    }
+        return;
+    if (distance_blend < 0.f)
+        distance_blend = 0.f;
 
 #ifdef SHOW_SPHERES
     if (sphere == 0)
@@ -495,7 +500,7 @@ void NODER::Draw()
         {
             rs->SetTransform(storm_render::TransformWorld, (storm_render::Matrix *)&glob_mtx);
             gs->SetTechnique(&technique[0]);
-            if (max_view_dist > 0.f && distance_blend > 0.f)
+            if (distance_blend > 0.f)
             {
                 gs->SetTechnique("geomdistanceblend");
                 uint32_t dwTFColor;
@@ -538,7 +543,11 @@ void NODER::Draw()
     if (flags & VISIBLE_TREE)
         for (int32_t l = 0; l < next.size(); l++)
             if (next[l] != nullptr)
-                static_cast<NODER *>(next[l])->Draw();
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+                static_cast<NODER *>(next[l])->Draw(distance_blend);
+#else
+                static_cast<NODER *>(next[l])->Draw(inheritedDistanceBlend);
+#endif
 }
 
 //----------------------------------------------------------

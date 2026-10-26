@@ -64,6 +64,48 @@ fixed saved storm and clear/storm palettes. Before the repair, the target was
 color, preserving smoothing. This verifies the native state transition; the
 complete installed camera reveal and the player's save still need visual replay.
 
+### Physical body visibility and depth
+
+An atlas body is one visible object: its replacement coast children, seabed and
+live forts must share the body's distance blend. Per-child bounding spheres
+cannot choose independent disappearance: the installed Mainland root radius is
+32855.69m, its Beliz coast child is 7305.96m, and other coast patches are
+190–360m. The original draw method can retain the root while removing its coast
+replacement, even though the replacement seam agrees within 3.32mm.
+
+Native island drawing must retain the scene's projection and depth convention.
+The legacy per-island far slices use different near/far planes against one depth
+buffer. A 40000m surface in a 32000–64000m slice gets depth0.4 and can pass in
+front of a 25000m surface with depth0.999999 in the ordinary0.115–32000m scene.
+The native path draws each body once with the existing scene projection; the
+legacy non-Metal path retains its slices. Visibility blends across the existing
+6000–7800m distance band instead of an outer hard cutoff.
+
+Acceptance uses the actual node draw method with installed bounds: all body
+parts share the supplied blend, no part survives a fully hidden body, and normal
+opaque/frustum behavior remains. Projection monotonicity is an independent
+negative for the far-slice failure. No new mesh, collision, SAVE or shader
+contract is needed. Per-frame work removes child-specific distance queries and
+repeated native far-slice draws, while retaining formerly missing coast work;
+frame-time cost and the reported camera view require a later gameplay replay.
+
+The source-backed draw replay reproduced root alpha 255 with Beliz absent or
+alpha 160 at `1643298`. The corrected native draw kept all ten installed Mainland
+parts, including nested seabed, at one alpha for blends 0/.25/.5/.75 and hid them
+all at 1. The actual model adapter gave a fort without its own distance limit
+alpha 127 at blend .5; its fallback, frustum/released cases, return to opaque and
+legacy behavior passed. The default native tree queries camera distance once.
+
+The October25 `20:49:49` CPU sample matches executable UUID
+`79367F96-1033-342A-9B24-0A1C12361CBC`. Of 1350 main-thread observations, 648 are
+execute and 641 realize; ship AI 264, sailors 208 and fort AI 156 are sampled work,
+not frame times. The cannon controller now rejects an out-of-cone target before
+calculating ballistic reach. A source-backed probe checked 41040 cases:
+888 accepted results and their margins stayed identical, while range calls fell
+from 13680 to 7704 in that fixture. This is avoided-call evidence,
+not an FPS gain; moving sailors' retained-hull queries and fort parameter
+projection remain separate observed costs.
+
 Live ship translation and heading remain followed during ascent/descent; the
 ordinary exit commits its final position, while explicit XZ/AY exits retain their
 authored destination. Raw engine frame time drives flight independently of game

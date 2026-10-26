@@ -86,6 +86,8 @@ class ISLAND : public ISLAND_BASE
     bool LocalDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth);
     bool LocalGroundDepth(float x, float z, float keelY, float &depth);
     bool RegionVisible() const;
+    float RegionDistanceBlend() const;
+    float DistanceToRegionSquared(const CVECTOR &point) const;
     bool RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin = 50.f) const;
     void IncludeFortTraceBounds(entid_t fort);
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE

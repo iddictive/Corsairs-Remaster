@@ -4,12 +4,14 @@
 #include "foam.h"
 #include "weather_base.h"
 #include "math_inlines.h"
+#include "model_distance_blend.h"
 #include "shared/messages.h"
 #include "shared/sea_ai/script_defines.h"
 #include "tga.h"
 #include <cstdio>
 #include <cmath>
 #include <stdexcept>
+#include <algorithm>
 
 CREATE_CLASS(ISLAND)
 class IslandRegion final : public ISLAND {};
@@ -204,9 +206,24 @@ bool ISLAND::RegionVisible() const
 
 bool ISLAND::IsWithinRange(const CVECTOR &point, float range) const
 {
+    return DistanceToRegionSquared(point) <= range * range;
+}
+
+float ISLAND::DistanceToRegionSquared(const CVECTOR &point) const
+{
     const float x = std::max(0.f, std::abs(point.x - vBoxCenter.x) - vRealBoxSize.x);
     const float z = std::max(0.f, std::abs(point.z - vBoxCenter.z) - vRealBoxSize.z);
-    return x * x + z * z <= range * range;
+    return x * x + z * z;
+}
+
+float ISLAND::RegionDistanceBlend() const
+{
+    if (maxViewDistance <= 0.f) return 0.f;
+    CVECTOR camera, angles; float perspective;
+    pRS->GetCamera(camera, angles, perspective);
+    const float start = maxViewDistance * maxViewDistance;
+    const float end = (maxViewDistance * 1.3f) * (maxViewDistance * 1.3f);
+    return std::clamp((DistanceToRegionSquared(camera) - start) / (end - start), 0.f, 1.f);
 }
 
 bool ISLAND::RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin) const
@@ -311,8 +328,14 @@ void ISLAND::Realize(uint32_t Delta_Time)
 #endif
     uint32_t dwAmbient, dwAmbientOld;
 
-    if (bForeignModels || !model_id || !RegionVisible())
+    if (bForeignModels || !model_id)
         return;
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+    const float distanceBlend = RegionDistanceBlend();
+    if (distanceBlend >= 1.f) return;
+#else
+    if (!RegionVisible()) return;
+#endif
 
     auto *pModel = static_cast<MODEL *>(core.GetEntityPointer(model_id));
     Assert(pModel);
@@ -327,13 +350,16 @@ void ISLAND::Realize(uint32_t Delta_Time)
     dwAmbient = dwAmbientOld & 0xFF;
 
     CVECTOR vCamPos, vCamAng;
-    float fOldNear, fOldFar, fPerspective;
+    float fPerspective;
     pRS->GetCamera(vCamPos, vCamAng, fPerspective);
+#ifndef STORM_METAL_RENDERER_CONSUMERS
+    float fOldNear, fOldFar;
     pRS->GetNearFarPlane(fOldNear, fOldFar);
 
     auto fRadius = sqrtf(Sqr(vBoxSize.x / 2.0f) + Sqr(vBoxSize.z / 2.0f));
-    auto fCamDistance = sqrtf(~(vCamPos - vBoxCenter));
-    auto fMaxDistance = fCamDistance + fRadius;
+    const auto fMaxDistance = sqrtf(~(vCamPos - vBoxCenter)) + fRadius;
+#endif
+    const auto fCamDistance = sqrtf(~(vCamPos - vBoxCenter));
 
     fCurrentImmersion = 0.0f;
     if (fCamDistance > fImmersionDistance)
@@ -355,6 +381,7 @@ void ISLAND::Realize(uint32_t Delta_Time)
 
     pRS->GetRenderState(storm_render::RenderFogDensity, (uint32_t *)&fOldFogDensity);
     pRS->SetRenderState(storm_render::RenderFogDensity, F2DW(fIslandFogDensity));
+#ifndef STORM_METAL_RENDERER_CONSUMERS
     int32_t j;
     for (j = static_cast<int32_t>(fMaxDistance / fOldFar); j >= 0; j--)
     {
@@ -363,6 +390,12 @@ void ISLAND::Realize(uint32_t Delta_Time)
         pRS->SetNearFarPlane((j == 0) ? fOldNear : fOldFar * static_cast<float>(j),
                              fOldFar * static_cast<float>(j + 1));
         pModel->ProcessStage(Stage::realize, Delta_Time);
+#else
+    {
+        // All resident bodies use the same depth space. Per-island far slices
+        // let a distant body pass the nearer body's unrelated depth values.
+        storm_model::RealizeWithDistanceBlend(*pModel, Delta_Time, distanceBlend);
+#endif
         pRS->SetRenderState(storm_render::RenderLighting, true);
         storm_render::Light lt, ltold;
         pRS->GetLight(0, &ltold);
@@ -394,7 +427,11 @@ void ISLAND::Realize(uint32_t Delta_Time)
             static_cast<MODEL *>(ent)->mtx = mOld * mTemp;
 
             core.Send_Message(AIFortEID, "li", AI_MESSAGE_FORT_SET_LIGHTS, aForts[k]);
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+            storm_model::RealizeWithDistanceBlend(*static_cast<MODEL *>(ent), Delta_Time, distanceBlend);
+#else
             static_cast<Entity *>(ent)->ProcessStage(Stage::realize, Delta_Time);
+#endif
             core.Send_Message(AIFortEID, "li", AI_MESSAGE_FORT_UNSET_LIGHTS, aForts[k]);
 
             static_cast<MODEL *>(ent)->mtx = mOld;
@@ -405,7 +442,9 @@ void ISLAND::Realize(uint32_t Delta_Time)
     }
     pRS->SetRenderState(storm_render::RenderFogDensity, F2DW(fOldFogDensity));
 
+#ifndef STORM_METAL_RENDERER_CONSUMERS
     pRS->SetNearFarPlane(fOldNear, fOldFar / 2.0f);
+#endif
     if (!bDrawReflections)
     {
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
@@ -418,10 +457,16 @@ void ISLAND::Realize(uint32_t Delta_Time)
 
         auto *pSeaBed = static_cast<MODEL *>(core.GetEntityPointer(seabed_id));
         if (pSeaBed)
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+            storm_model::RealizeWithDistanceBlend(*pSeaBed, Delta_Time, distanceBlend);
+#else
             pSeaBed->ProcessStage(Stage::realize, Delta_Time);
+#endif
     }
 
+#ifndef STORM_METAL_RENDERER_CONSUMERS
     pRS->SetNearFarPlane(fOldNear, fOldFar);
+#endif
 
     pRS->SetRenderState(storm_render::RenderLighting, false);
     pRS->SetRenderState(storm_render::RenderFog, bFogEnable);
