@@ -51,16 +51,22 @@ and sustained pitch/roll differs by9.57cm after3s between30/120Hz frame cadences
 from the2cm collision-cover bound. First hull preparation costs373ms; this remains
 a cold-admission stutter. Whole-game FPS and appearance remain user-owned.
 
-The extra `projection-physics-contract.cpp.txt` stress fixture retains a known
-invalid late momentum assertion: model-origin velocity is not COM velocity for
-an asymmetric rotating body. Its correction is pending the existing tooling
-owner; that exit must not be presented as a full fixture pass. Earlier output
-does establish300m/s translation CCD without crossing (11.07mm overlap) and
-complete elapsed-time gravity. Rotating impacts show temporary vertex overlap
+Earlier stress outputs stop at an invalid late momentum assertion: model-origin
+velocity is not COM velocity for an asymmetric rotating body. The corrected
+`projection-physics-contract.cpp.txt` uses true COM momentum; the existing
+translation-only case now exits0 with `PROJECTION_CONTRACT_PASS` and momentum
+10000 exactly. Its result is
+`solver60-translation-corrected-projection-physics-contract-output.txt`.
+It establishes300m/s translation CCD without crossing (11.07mm worst overlap,
+2.59mm final overlap) and complete elapsed-time gravity. Rotating impacts show temporary vertex overlap
 at both60Hz (0.443m) and240Hz (0.861m), with the body staying on the entry side.
 This is the pinned linear-CCD rotational limitation, not a claimed cure for all
 high-speed rotating contacts. Rejected persistent-body, coarse760-part and
 240Hz-certified candidates remain labelled by their raw evidence filenames.
+The native codec fixture now keeps its model and fake blots owner distinct,
+matching production Mount/Load ownership. The earlier aliased fixture destroyed
+its model and fell back to44k parts; that result is not a production fast-path
+performance observation.
 
 `ship_reactive_jet.cpp` owns native input/state/geometry projection and exhaust
 delivery. `ReactiveWorld` in the existing `roundhouse_ragdoll.cpp` owns Jolt 5.6
@@ -110,9 +116,17 @@ or changes live settings. The native renderer is initialized only in a hidden
 component fixture; no game interaction or visual observation is performed.
 
 ```sh
-python3 docs/evidence/phonk-reactive-flight-20261029/production-component-runner.py.txt "$workdir"
+JET_CADENCE_REPORT=1 python3 docs/evidence/phonk-reactive-flight-20261029/production-component-runner.py.txt "$workdir"
 python3 docs/evidence/phonk-reactive-flight-20261029/native-consumer-runner.py.txt "$workdir"
 ```
+
+`JET_CADENCE_REPORT=1` reports the measured60Hz trajectory difference instead of
+the historical sub-millimetre frame-invariance assertion; all other component
+assertions remain active. Reproduce the corrected independent translation case
+with `JET_COMPONENT_SOURCE=projection-physics-contract.cpp.txt` and
+`JET_TRANSLATION_ONLY=1` on the same production-component runner. Its default
+rotating-wall stress retains the stricter50mm gate and can fail as documented;
+it must not be presented as an accepted rotating-contact guarantee.
 
 Use a separate empty directory for each run. The optional second native-runner
 argument is a scene-layout JSON with `asset_inputs` rows (`path`, `offset:[x,z]`)
