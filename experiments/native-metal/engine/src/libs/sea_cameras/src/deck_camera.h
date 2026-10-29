@@ -83,6 +83,13 @@ class DECK_CAMERA : public COMMON_CAMERA
     DECK_CAMERA();
     ~DECK_CAMERA() override;
 
+    bool GetOrbitInput(CVECTOR &angles, float &distance) const override
+    {
+        angles = camera_ang;
+        distance = 1.f;
+        return true;
+    }
+
     void SetCharacter(ATTRIBUTES *_pACharacter) override;
 
     void SetDevice();

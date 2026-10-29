@@ -21,6 +21,8 @@ class SEA_CAMERAS : public Entity
     uint64_t dartPauseRevision = 0;
     entid_t dartSource = 0, dartPlayer = 0;
     CVECTOR returnPosition, returnAngles, dartDirection, dartPosition;
+    CVECTOR dartInputAngles;
+    float dartInputDistance = 1.f;
     float returnPerspective = 1.f, returnMagnification = 1.f;
     float dartPerspective = 1.f;
     std::chrono::steady_clock::time_point dartStarted{}, dartLastHit{};

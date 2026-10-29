@@ -1,0 +1,147 @@
+"""Frozen disposable source-linked controller observation; no game UI or save.
+
+Run from the repository root with CODEX_SCRATCH_DIR supplied by a bounded
+temporary producer. Optional first argument selects a Git source revision.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path.cwd()
+work = Path(os.environ['CODEX_SCRATCH_DIR'])
+ref = sys.argv[1] if len(sys.argv) > 1 else None
+paths = {
+    'move': 'experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_move_controller.cpp',
+    'touch': 'experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_touch_controller.cpp',
+    'speed': 'experiments/native-metal/engine/src/libs/sea_ai/src/ai_ship_speed_controller.cpp',
+    'island': 'experiments/native-metal/engine/src/libs/island/src/island.cpp',
+}
+sources = {key: (subprocess.check_output(['git', 'show', ref + ':' + path]).decode()
+                 if ref else (root / path).read_text()) for key, path in paths.items()}
+
+def section(key, start, end):
+    text = sources[key]
+    return text[text.index(start):text.index(end, text.index(start))]
+
+move = section('move', 'void AIShipMoveController::Move(', '\nvoid AIShipMoveController::AddRetardForce(')
+touch = section('touch', 'void AIShipTouchController::Execute(', '\nfloat AIShipTouchController::GetBestRotateDirection(')
+speed = section('speed', 'void AIShipSpeedController::Execute(', '\nvoid AIShipSpeedController::Realize(')
+local = section('island', 'bool ISLAND::LocalMovePoint(', '\n    if ((vSrc.x')
+local = local[local.index('    // check for one side'):]
+
+prefix = r'''
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <iostream>
+#include <vector>
+#define Assert(x) do {if(!(x))return;}while(0)
+#define CLAMP(x) std::clamp((x),0.f,1.f)
+constexpr float PIm2=6.28318530718f;
+float KNOTS2METERS(float x){return x*.514444f;}
+struct CVECTOR {
+ float x=0,y=0,z=0;
+ CVECTOR()=default;CVECTOR(float a):x(a),y(a),z(a){} CVECTOR(float a,float b,float c):x(a),y(b),z(c){}
+ CVECTOR operator/(float a)const{return {x/a,y/a,z/a};}
+ CVECTOR operator+(CVECTOR a)const{return {x+a.x,y+a.y,z+a.z};}
+ CVECTOR operator-(CVECTOR a)const{return {x-a.x,y-a.y,z-a.z};}
+};
+CVECTOR operator*(float a,CVECTOR b){return {a*b.x,a*b.y,a*b.z};}
+float operator~(CVECTOR a){return a.x*a.x+a.y*a.y+a.z*a.z;}
+struct CMatrix {};
+struct SHIP_BASE {
+ struct {CVECTOR vSpeed;} State;
+ float committed=-1;void SetSailState(float v){committed=v;}
+};
+struct Rotator {void AddRotate(float){}};
+class AIShipSpeedController;
+class AIShip {
+ public:
+ inline static std::vector<AIShip*> AIShips;
+ SHIP_BASE ship;Rotator rotate;AIShipSpeedController *speed=nullptr;
+ CVECTOR GetPos(){return {};};CVECTOR GetAng(){return {};};CVECTOR GetBoxsize(){return {20,10,40};}
+ bool isMainCharacter(){return false;}
+ SHIP_BASE *GetShipPointer(){return &ship;}SHIP_BASE *GetShipBasePointer(){return &ship;}
+ AIShipSpeedController *GetSpeedController(){return speed;}Rotator *GetRotateController(){return &rotate;}
+};
+struct COLLISION_OBJECT {virtual float Trace(CVECTOR,CVECTOR)=0;};
+struct Island:COLLISION_OBJECT {
+ bool obstruction=true;int mode=0,calls=0;
+ float Trace(CVECTOR,CVECTOR to)override{return obstruction && to.z>0 ? .1f:2.f;}
+ bool GetMovePoint(CVECTOR &vSrc,CVECTOR &vDst,CVECTOR &vRes);
+};
+struct AIHelper {inline static Island *pIsland=nullptr;};
+class AIShipSpeedController {
+ public:
+ AIShip *ai;float fSpeed=0,fSpeedTime=0,fSpeedSmooth=0,fTopSpeed=1,fGlobalMultiply=1;
+ uint32_t dwSpeedNum=0;
+ AIShipSpeedController(AIShip *a):ai(a){ai->speed=this;}
+ AIShip *GetAIShip(){return ai;}
+ void Execute(float);
+ void AddSpeed(float v){fSpeed+=v;}void MulSpeed(float v){fSpeed*=v;}
+};
+float Clamp(float x){return std::clamp(x,0.f,1.f);}
+struct ScanClock {bool scan=true;bool Update(float){return scan;}};
+class AIShipTouchController {
+ public:
+ AIShip *ai;struct ray_t{float fMinDist=10000,fDist=1;};
+ std::vector<ray_t> aTouchRays=std::vector<ray_t>(15);
+ float fRaySize=50,fSpeedFactor=.2f,fRotateFactor=0;
+ ScanClock dtTouchTime;
+ AIShipTouchController(AIShip *a):ai(a){}
+ AIShip *GetAIShip(){return ai;}void TestCollision(AIShip*){}
+ void Execute(float);
+};
+class AIShipMoveController {
+ public:
+ AIShip *ai;float fMoveTime=0;bool bStopped=false;CVECTOR vDestPoint{7,0,9};
+ AIShipMoveController(AIShip *a):ai(a){} AIShip *GetAIShip(){return ai;}
+ void Stop(bool s=true){bStopped=s;}void Move(CVECTOR);
+};
+'''
+island = '\nbool Island::GetMovePoint(CVECTOR &vSrc,CVECTOR &vDst,CVECTOR &vRes){\n++calls;\n' + local + r'''
+ if(mode==0)return true; // blocked, no graph detour
+ if(mode==1){vRes={0,.1f,50};return true;} // visible graph detour
+ return false; // clear direct leg
+}
+'''
+main = r'''
+int main(){
+ AIShip ai;AIShipSpeedController speed(&ai);Island island;AIHelper::pIsland=&island;
+ {CVECTOR from{},to{100,0,0},result;island.GetMovePoint(from,to,result);
+ std::cout<<"fallback_gate="<<(~(result-to)==0.f)<<"\n";}
+ for(int mode=0;mode<4;++mode){
+   AIShipMoveController move(&ai);island.mode=mode;island.calls=0;
+   AIHelper::pIsland=mode==3?nullptr:&island;move.Move({100,0,0});
+   std::cout<<"move mode="<<mode<<" stopped="<<move.bStopped
+      <<" x="<<move.vDestPoint.x<<" z="<<move.vDestPoint.z<<" calls="<<island.calls<<"\n";
+ }
+ AIHelper::pIsland=&island;
+ for(int clear=0;clear<2;++clear)for(int scan=0;scan<2;++scan){
+   island.obstruction=!clear;
+   AIShipTouchController touch(&ai);touch.dtTouchTime.scan=scan;
+   speed.fSpeed=1;speed.fSpeedTime=2;speed.fSpeedSmooth=0;speed.dwSpeedNum=0;
+   touch.Execute(1.f/60.f);speed.Execute(1.f/60.f);
+   std::cout<<"brake clear="<<clear<<" scan="<<scan<<" factor="<<touch.fSpeedFactor
+      <<" committed="<<ai.ship.committed<<"\n";
+ }
+ AIShipMoveController retry(&ai);retry.fMoveTime=1;island.calls=0;
+ retry.Move({100,0,0});std::cout<<"cached_retry calls="<<island.calls<<" x="<<retry.vDestPoint.x<<"\n";
+ AIShipMoveController recovery(&ai);
+ island.mode=1;recovery.Move({100,0,0});
+ recovery.fMoveTime=0;island.mode=0;recovery.Move({100,0,0});
+ std::cout<<"previous_route_invalidated stopped="<<recovery.bStopped<<" x="<<recovery.vDestPoint.x<<"\n";
+ recovery.fMoveTime=0;island.mode=2;recovery.Move({100,0,0});
+ std::cout<<"route_recovered stopped="<<recovery.bStopped<<" x="<<recovery.vDestPoint.x<<"\n";
+}
+'''
+source = prefix + island + move + touch + speed + main
+(work / 'probe.cpp').write_text(source)
+subprocess.run(['c++', '-std=c++20', '-O2', str(work / 'probe.cpp'), '-o', str(work / 'probe')], check=True)
+result = subprocess.run([str(work / 'probe')], capture_output=True, text=True, check=True)
+print(json.dumps({'revision': ref or 'working-tree',
+                  'sources': {paths[k]: hashlib.sha256(v.encode()).hexdigest() for k,v in sources.items()},
+                  'stdout': result.stdout}, indent=2))

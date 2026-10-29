@@ -1,0 +1,8 @@
+{
+  "phase": "candidate",
+  "source_sha256": "b6b220468fc1699b60c987c0b710e61089079391384ea620384a95aa695b17c9",
+  "exit": 0,
+  "stdout": "checks=22 failures=0\n",
+  "stderr": "",
+  "probe_sha256": "1c3fc11509868a06c978be1b57509534af3470bbaae62ef0005119a6e1d8d932"
+}

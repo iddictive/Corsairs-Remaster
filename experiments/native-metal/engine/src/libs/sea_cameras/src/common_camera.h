@@ -20,6 +20,9 @@ class COMMON_CAMERA : public Entity
     ATTRIBUTES *pACharacter;
 
   public:
+    // Input-owned orbit state, before hull motion, camera collision or rocking.
+    virtual bool GetOrbitInput(CVECTOR &, float &) const { return false; }
+
     bool ReferencesCharacter(int index) const
     {
         return pACharacter && static_cast<int32_t>(pACharacter->GetAttributeAsDword("index", uint32_t(-1))) == index;

@@ -1,0 +1,28 @@
+{
+  "base_commit": "e106aac45f510eca8208e61a0fdd12b45a6c02c9",
+  "candidate_sources": {
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/common_camera.h": "0ae1f4626d96bd9d9d86aea39a0d74e49f99fd15b991912df8623b2bfdd06188",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/ship_camera.h": "475f7dc547f57d89039b8f5a87c763013fa87b5f3a1beb0302c4dd1b518df1a4",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/deck_camera.h": "fa533cdf84f1439c59e2952caafa98a0470937c33c2bd90e17ba6d20bf58bb60",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/free_camera.h": "51e06ec351aa0bea505beba3032e1eb3b49ce228f842d1a15fa815742380e215",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.h": "7171f121a8bc2874c114c29785fb784b98300d43ca7b1d24fb36aa7638178fdd",
+    "experiments/native-metal/engine/src/libs/sea_cameras/src/sea_cameras.cpp": "b6b220468fc1699b60c987c0b710e61089079391384ea620384a95aa695b17c9"
+  },
+  "native_math": {
+    "path": "experiments/native-metal/engine/src/libs/math/include/c_vector.h",
+    "sha256": "bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a"
+  },
+  "toolchain": [
+    "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+    "Target: arm64-apple-darwin27.2.0"
+  ],
+  "conditions": {
+    "window": "none",
+    "services": "mocked CORE, entities, controls and render camera; actual source methods and native CVECTOR",
+    "baseline_checks": 21,
+    "candidate_checks": 22,
+    "baseline_failures": 6,
+    "candidate_failures": 0,
+    "performance": "constant source-bounded CPU math only; no full-frame timing claim"
+  }
+}

@@ -224,8 +224,10 @@ void AIShipTouchController::Execute(float fDeltaTime)
     else
     {
         GetAIShip()->GetRotateController()->AddRotate(fRotateFactor);
-        GetAIShip()->GetSpeedController()->MulSpeed(fSpeedFactor);
     }
+    // Braking must also apply on the scan frame: the sail controller can
+    // commit its two-second update on exactly that frame.
+    GetAIShip()->GetSpeedController()->MulSpeed(fSpeedFactor);
 }
 
 float AIShipTouchController::GetBestRotateDirection()

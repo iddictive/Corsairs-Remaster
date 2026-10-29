@@ -1,0 +1,49 @@
+{
+  "base_commit": "e106aac45f510eca8208e61a0fdd12b45a6c02c9",
+  "platform": "Apple M5 Max, macOS27.2 arm64",
+  "projection": {
+    "near": 0.115,
+    "far": 32000
+  },
+  "render_size": [
+    128,
+    128
+  ],
+  "aa_modes": [
+    0,
+    2
+  ],
+  "ground": "ffffffff",
+  "results": [
+    {
+      "z": 1200,
+      "ndc": "0.999907732",
+      "baseline": "00fdfdfd",
+      "candidate": "00fdfdfd"
+    },
+    {
+      "z": 24000,
+      "ndc": "0.999998808",
+      "baseline": "00fdfdfd",
+      "candidate": "00fdfdfd"
+    },
+    {
+      "z": 28000,
+      "ndc": "0.999999464",
+      "baseline": "00000000",
+      "candidate": "00fdfdfd"
+    },
+    {
+      "z": 31000,
+      "ndc": "0.999999881",
+      "baseline": "ffffffff",
+      "candidate": "ffffffff"
+    }
+  ],
+  "both_aa_modes_same_results": true,
+  "source_delta": "modernSeaDepthComposite sky test depth0>=.999999f -> depth0>=1.f",
+  "existing_depth_water_fixture": "PASS, MSAA4",
+  "silhouette_oracle": "all4subpixel phases exact AA0/AA2",
+  "limitation": "Component contact/depth evidence; actual island scene not yet bound"
+}
+

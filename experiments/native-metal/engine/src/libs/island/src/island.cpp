@@ -1354,8 +1354,8 @@ bool ISLAND::LocalMovePoint(CVECTOR &vSrc, CVECTOR &vDst, CVECTOR &vRes)
 {
     // check for one side
     uint32_t i, j;
-    vRes = vDst;
     vSrc.y = vDst.y = 0.1f;
+    vRes = vDst;
 
     if ((vSrc.x <= rIsland.x1 && vDst.x <= rIsland.x1) || (vSrc.x >= rIsland.x2 && vDst.x >= rIsland.x2) ||
         (vSrc.z <= rIsland.y1 && vDst.z <= rIsland.y1) || (vSrc.z >= rIsland.y2 && vDst.z >= rIsland.y2))

@@ -68,6 +68,13 @@ class SHIP_CAMERA : public COMMON_CAMERA
   public:
     SHIP_CAMERA();
 
+    bool GetOrbitInput(CVECTOR &angles, float &distance) const override
+    {
+        angles = CVECTOR(-vAng.x, vAng.y, 0.f);
+        distance = 1.f + fDistance;
+        return true;
+    }
+
     void Save(CSaveLoad *pSL) override;
     void Load(CSaveLoad *pSL) override;
 };

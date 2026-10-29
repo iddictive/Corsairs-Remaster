@@ -1,0 +1,8 @@
+{
+  "phase": "baseline",
+  "source_sha256": "37438babe1878aaff76c079bfffa714b462a41dd0f0f427f3b97bf054c70107d",
+  "exit": 1,
+  "stdout": "FAIL ship horizontal input changes impact orbit\nFAIL ship vertical input changes impact orbit\nFAIL ship zoom changes target distance monotonically\nFAIL deck input changes impact orbit\nFAIL deck native zoom magnification survives impact override\nFAIL free input changes impact orbit\nchecks=21 failures=6\n",
+  "stderr": "",
+  "probe_sha256": "81471c34ee0bc999432ff828f8c9d8fb2006fbeb6b5c35f6fd5311c153ce1d7d"
+}

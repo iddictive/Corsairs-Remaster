@@ -20,6 +20,13 @@ class FREE_CAMERA : public COMMON_CAMERA
     FREE_CAMERA();
     ~FREE_CAMERA() override;
 
+    bool GetOrbitInput(CVECTOR &angles, float &distance) const override
+    {
+        angles = vAng;
+        distance = 1.f;
+        return true;
+    }
+
     void SetDevice();
     bool Init() override;
     void Move(uint32_t DeltaTime);

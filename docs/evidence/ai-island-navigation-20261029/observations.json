@@ -1,0 +1,28 @@
+{
+  "baseline_commit": "e106aac45f510eca8208e61a0fdd12b45a6c02c9",
+  "candidate_changes": [
+    "island.cpp: normalize source/destination sea-plane y before copying destination to the default route result",
+    "ai_ship_move_controller.cpp: hold on a blocked leg whose result retains the requested XZ destination",
+    "ai_ship_touch_controller.cpp: apply the speed multiplier on scan frames as well as cached frames"
+  ],
+  "toolchain": "Apple clang21.0.0, C++20 -O2, arm64 macOS27.2; Python3.12.14",
+  "source_boundary": "Actual Move, Touch Execute and Speed Execute function bodies; actual LocalMovePoint sea-plane setup. Ship/trace/service inputs are deterministic stubs; no game loop or UI.",
+  "baseline_stdout": "fallback_gate=0\nmove mode=0 stopped=0 x=100 z=0 calls=1\nmove mode=1 stopped=0 x=0 z=50 calls=1\nmove mode=2 stopped=0 x=100 z=0 calls=1\nmove mode=3 stopped=0 x=100 z=0 calls=0\nbrake clear=0 scan=0 factor=0.2 committed=0.2\nbrake clear=0 scan=1 factor=0 committed=1\nbrake clear=1 scan=0 factor=0.2 committed=0.2\nbrake clear=1 scan=1 factor=1 committed=1\ncached_retry calls=0 x=7\n",
+  "candidate_stdout": "fallback_gate=1\nmove mode=0 stopped=1 x=0 z=0 calls=1\nmove mode=1 stopped=0 x=0 z=50 calls=1\nmove mode=2 stopped=0 x=100 z=0 calls=1\nmove mode=3 stopped=0 x=100 z=0 calls=0\nbrake clear=0 scan=0 factor=0.2 committed=0.2\nbrake clear=0 scan=1 factor=0 committed=0\nbrake clear=1 scan=0 factor=0.2 committed=0.2\nbrake clear=1 scan=1 factor=1 committed=1\ncached_retry calls=0 x=7\nprevious_route_invalidated stopped=1 x=0\nroute_recovered stopped=0 x=100\n",
+  "baseline_fixture_limit": "Seeded previous-route invalidation/recovery cases were added only for the final candidate observation; baseline stdout predates those two cases.",
+  "candidate_controller_sha256": {
+    "ai_ship_move_controller.cpp": "497603183c9038cac0a9b7644ba4ea6c8bcd742ffa464dc7322b9218e7eeaba7",
+    "ai_ship_touch_controller.cpp": "96eace22044cb67fdf56654a675b2dd7f97afabb6d985e519a8eadc6a13c5a42"
+  },
+  "compiled_targets": ["sea_ai", "island"],
+  "compile_exit": 0,
+  "compile_command": "cmake --build experiments/native-metal/.cache/build --target sea_ai island -j2",
+  "performance": {
+    "planning_cadence_seconds": 2,
+    "added_work": "two XZ equality comparisons per blocked route plan; one scalar speed multiply on each existing touch scan frame",
+    "restored_work": "Existing loaded SeaRoute fallback is now reachable for SeaAtlas bodies with no native detour; its existing bounded route queries may run where the old y mismatch skipped them",
+    "new_graph_builds_or_per_frame_terrain_queries": 0,
+    "whole_scene_timing": "not measured"
+  },
+  "remaining_limit": "Prevents knowingly blocked navigation and scan-frame braking gaps. Does not prove whole-battle avoidance or free a hull already embedded in island geometry. Player gameplay replay remains separate."
+}

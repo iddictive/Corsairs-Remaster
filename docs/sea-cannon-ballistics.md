@@ -51,6 +51,10 @@ Slots are1–4 ordinary ammunition,5darts,6airburst,7laser,8nuclear;
 («Увеличенное расстояние выстрела») raises manual-aim zoom from5x to10x.
 The impact camera borrows the existing render view near the accepted target,
 returns after impact/miss, and yields to pause, death and scene/camera changes.
+Mouse orbit and existing zoom remain usable while the target stays in focus;
+the view reuses processed camera input, without inheriting hull rocking or
+translation. [Input and lifecycle evidence](evidence/impact-camera-input-20261029/README.md)
+records the component checks and their gameplay limits.
 Water aim points are valid receivers. Target destruction leaves the camera at
 the last target point; player death still cancels it. Camera flight/impact
 timeouts stretch with slow motion. Laser/nuclear weapons have separate native

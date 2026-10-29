@@ -1,0 +1,29 @@
+import os,pathlib,subprocess,shlex,json,sys
+root=pathlib.Path(sys.argv[1]).resolve(); build=root/'experiments/native-metal/.cache/build'
+scratch=pathlib.Path(os.environ['CODEX_SCRATCH_DIR'])
+src=(root/'experiments/native-metal/depth_water_probe.cpp').read_text()
+prefix=src[:src.index(' start();geometry(5,0xffffffff)')]
+body=r'''
+ storm_render::Matrix farProjection=projection;farProjection._33=32000.f/(32000.f-.115f);farProjection._43=-.115f*32000.f/(32000.f-.115f);
+ d->SetTransform(storm_render::TransformProjection,&farProjection);set(26,0,0,farProjection._33,farProjection._43);d->SetVertexShaderConstantF(26,c[26],1);
+ for(float z:{1200.f,24000.f,28000.f,31000.f}){
+ float factor=z/sea[0].z;for(auto&v:sea){v.x*=factor;v.y*=factor;v.z*=factor;}
+ start();geometry(z,0xffffffff);uint32_t ground=finish();
+ start();geometry(z,0xffffffff);water();uint32_t contact=finish();
+ printf("z=%.0f ground=%08x water_contact=%08x ndc=%.9f\n",z,ground,contact,farProjection._33+farProjection._43/z);
+ }
+'''
+cleanup=src[src.index(' d->BindVertexProgram(nullptr);d->BindFragmentProgram(nullptr);d->SetTexture(0,nullptr);d->SetTexture(3,nullptr);vs->Release();'):]
+source=scratch/'halo_probe.cpp';source.write_text(prefix+body+cleanup)
+commands=subprocess.check_output([str(root/'experiments/native-metal/inputs/toolchain/bin/ninja'),'-t','commands','depth_water-probe'],cwd=build,text=True).splitlines()
+compile=shlex.split(next(x for x in commands if ' -c ' in x and 'depth_water_probe.cpp' in x))
+compile[compile.index('-o')+1]=str(scratch/'halo.o');compile[compile.index('-c')+1]=str(source)
+subprocess.run(compile,cwd=scratch,check=True)
+link=shlex.split(commands[-1].removeprefix(': && ').removesuffix(' && :'))
+link=[str(scratch/'halo.o') if x=='CMakeFiles/depth_water-probe.dir/depth_water_probe.cpp.o' else x for x in link]
+link[link.index('-o')+1]=str(scratch/'halo')
+subprocess.run(link,cwd=build,check=True)
+for aa in ['0','2']:
+ print('AA_MODE='+aa,flush=True)
+ subprocess.run([str(scratch/'halo'),str(root/'experiments/native-metal/.cache/runtime/RESOURCE/techniques')],env=dict(os.environ,STORM_METAL_AA_MODE=aa),check=True)
+

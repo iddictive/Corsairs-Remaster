@@ -394,7 +394,9 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
     float depth0=depth.sample(depthSampler,uv);
     float3 waterView=modernSeaViewPosition(pixel,o.position.z,u);
     float3 behindView=modernSeaViewPosition(pixel,depth0,u);
-    float thickness=depth0>=.999999f?10000.f:length(behindView-waterView);
+    // Only the exact clear depth is sky. Real far terrain also occupies the
+    // last depth interval and must keep its reconstructed water thickness.
+    float thickness=depth0>=1.f?10000.f:length(behindView-waterView);
     // A single pre-water snapshot has no information for pixels disoccluded by
     // camera motion. Sampling a projected ray therefore switches abruptly at
     // foreground silhouettes. Keep transmission on the observed screen ray;

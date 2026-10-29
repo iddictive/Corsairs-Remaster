@@ -256,6 +256,7 @@ void SEA_CAMERAS::RealizeDartView()
     const float slowMotion = std::min(1.f, core.GetTimeScale());
     const auto seconds = [now, slowMotion](auto time) { return std::chrono::duration<float>(now - time).count()*slowMotion; };
     if (seconds(dartStarted) >= 10.f) { CancelDartView(); return; }
+    const bool dartViewStarting = dartViewPending;
     if (dartViewPending)
     {
         if (!inFlight) { CancelDartView(); return; }
@@ -279,9 +280,28 @@ void SEA_CAMERAS::RealizeDartView()
     render->GetCamera(returnPosition, returnAngles, renderedPerspective);
     returnPerspective = current->GetPerspective();
     returnMagnification = render->GetCameraMagnification();
-    const CVECTOR position = target - dartDirection * distance + CVECTOR(0.f, height, 0.f);
+    CVECTOR inputAngles;
+    float inputDistance;
+    if (!current->GetOrbitInput(inputAngles, inputDistance) || !std::isfinite(~inputAngles) ||
+        !std::isfinite(inputDistance) || inputDistance <= 0.f)
+    {
+        CancelDartView();
+        return;
+    }
+    if (dartViewStarting)
+    {
+        dartInputAngles = inputAngles;
+        dartInputDistance = inputDistance;
+    }
+    // Reuse the normal camera's processed input, including sensitivity,
+    // inversion, inertia and limits, without borrowing its moving hull pose.
+    const float azimuth = atan2f(dartDirection.x, dartDirection.z) + inputAngles.y - dartInputAngles.y;
+    const float elevation = std::clamp(atan2f(height, distance) + inputAngles.x - dartInputAngles.x, .05f, 1.5f);
+    const float radius = hypotf(distance, height) * inputDistance / dartInputDistance;
+    const CVECTOR position = target + radius * CVECTOR(-sinf(azimuth) * cosf(elevation), sinf(elevation),
+                                                      -cosf(azimuth) * cosf(elevation));
     render->SetCamera(position, target, CVECTOR(0.f, 1.f, 0.f));
-    render->SetPerspective(.9f);
+    render->SetPerspective(.9f, -1.f, returnMagnification);
     CVECTOR renderedAngles;
     render->GetCamera(dartPosition, renderedAngles, dartPerspective);
     dartViewApplied = true;

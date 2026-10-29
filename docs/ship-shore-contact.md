@@ -1,5 +1,14 @@
 # Ship contact with islands
 
+## AI approach avoidance
+
+AI route planning now holds position when an island reports a blocked leg
+without a detour, retries through its existing two-second cadence and preserves
+braking on obstacle-scan frames. Sea-plane normalization also restores the
+existing ocean-route fallback. [Controller evidence and limits](evidence/ai-island-navigation-20261029/README.md)
+distinguish these changes from recovery of a hull already grounded or embedded;
+the physical contact solver below is unchanged.
+
 ## Status
 
 The October16,23:13 player report again rejects recovery at rock walls. The

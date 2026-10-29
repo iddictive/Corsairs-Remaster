@@ -236,3 +236,9 @@ The existing rebuilt depth-water GPU fixture also passes with MSAA4, including
 foreground rejection, alpha cutouts, frame invalidation, weather lighting and
 near/far .115/32000 physical10-unit attenuation. These are GPU component
 observations; installed gameplay acceptance remains a separate runtime step.
+
+The subsequent [far-depth contact replay](evidence/far-water-contact-20261029/README.md)
+found that depth>=.999999 also classified real distant terrain as sky. Only the
+exact cleared depth1 is now sky; far contact remains visible while the MSAA
+silhouette correction and real submerged attenuation stay intact. This changes
+one comparison constant and adds no rendering work.

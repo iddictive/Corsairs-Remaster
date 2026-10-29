@@ -207,6 +207,14 @@ void AIShipMoveController::Move(CVECTOR vMovePoint)
         const auto b = AIHelper::pIsland->GetMovePoint(vOurPos, vMovePoint, vRealMovePoint);
         if (b)
         {
+            // A blocked leg without a detour is not permission to sail through land.
+            // Keep the normal planning retry, but hold until a safe route exists.
+            if (vRealMovePoint.x == vMovePoint.x && vRealMovePoint.z == vMovePoint.z)
+            {
+                Stop();
+                vDestPoint = vOurPos;
+                return;
+            }
             vMovePoint = vRealMovePoint;
         }
     }
