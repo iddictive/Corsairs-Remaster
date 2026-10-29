@@ -107,6 +107,32 @@ SHIP::Save` writes the attribute first. The isolated codec replay tests native
 
 ## Reproduction and evidence ceiling
 
+For a new jet/falling performance report, use this diagnosis path before
+changing the collider or solver:
+
+1. Confirm the played executable and sample its live process without game UI
+   automation. Separate render work, `ReactiveWorld::Step`, shape preparation and
+   dry versus contact cost; a fast dry frame does not establish contact cost.
+2. When compound collision/CCD dominates, inspect leaf count and the pinned
+   [compound cast loop](https://github.com/jrouwe/JoltPhysics/blob/v5.6.0/Jolt/Physics/Collision/Shape/CompoundShape.cpp)
+   and [inner-radius calculation](https://github.com/jrouwe/JoltPhysics/blob/v5.6.0/Jolt/Physics/Collision/Shape/CompoundShape.h).
+   The cast visits child shapes, and the smallest child sets the compound inner
+   radius. Fine material partitioning can therefore dominate CCD despite a small
+   body count. Compare the retained persistent-body counterfactual before
+   attributing that cost to body recreation; caching remains valid when its own
+   measured work dominates.
+3. Reuse `ship_reactive_collision.hpp` for both free and constrained ship bodies.
+   Keep original mass/COM/inertia and water integrals independent of the derived
+   collider. Require a bound against the complete retained union, actual Jolt
+   vertices and cut gaps: matching plane supports alone admitted the rejected
+   coarse cover. Treat solver cadence as a separate measured accuracy/cost
+   choice, retaining all elapsed time and reporting trajectory differences.
+4. Replay the same native consumer with intact and damaged material, slow-frame
+   recovery, prediction, codec and original-volume water checks. Compare full
+   step costs and retained output, then deliver through the normal installer.
+   Samples dominated by rendering or ordinary non-jet sailing select their own
+   owners; they do not justify changing this collision representation.
+
 Use the already configured native build, staged assets and matching SDK/compiler;
 build `engine` after header changes so every virtual consumer has the same ABI.
 These archived one-off probes add no permanent test target. Each Python runner
