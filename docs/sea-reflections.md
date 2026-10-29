@@ -208,3 +208,31 @@ engine SHA256 is `cfe07b6eac1216c3c4adea8ee693c65ccc8cc5603921ff09a68e753410a417
 unsigned combined engine is `f4eeaf4cb1e90f22d489ce7df39ea754f425259ce1ab3a14d986b8cb8a064e98`.
 The canonical transaction verified the app signature and preserved 502 protected
 SAVE/archive/settings hashes. Player scene acceptance remains unresolved.
+
+### October29 — MSAA foreground fringe in water transmission
+
+`modernSeaDepthComposite` previously treated a resolved foreground depth as
+zero water thickness. At a partially covered sail/rope pixel, MSAA resolves
+near foreground depth together with a mix of foreground and bright sky color.
+The uncovered water samples then transmitted that sky mix, leaving a pale rim.
+Foreground depth now selects the existing deep-water fallback; equal-depth
+contact and actual submerged depth retain their physical thickness. This adds
+no passes, allocations, samples or per-frame CPU work; it changes the existing
+per-water-fragment comparison and its selected thickness only.
+
+The disposable native replay reused `depth_water_probe.cpp` setup and helpers
+at main `b9bb208`, 128x128, projection near1/far100, water z4 and black opaque
+foreground z2. The right edge swept pixels76.125/76.375/76.625/76.875
+(`right = pixel / 128 * 2 - 1`). Compare sky→water→foreground against
+sky→foreground→water at x74–78,y64 using `STORM_METAL_AA_MODE=0` and `2`.
+The initial white z90 background reproduced x76 `408e8e8e` versus the
+order-reference `40011546` at phase1 with MSAA4; AA-off was identical.
+With a true white sky (white color clear, depth1, no background geometry),
+the corrected render orders match exactly across all four phases in both AA
+modes: x76 is `00000000`, `40000000`, `80000000`, `bf000000` for MSAA4.
+Resolved foreground cannot recover a hidden finite seabed; that missing-data
+case intentionally uses deep water rather than transmitting foreground/sky.
+The existing rebuilt depth-water GPU fixture also passes with MSAA4, including
+foreground rejection, alpha cutouts, frame invalidation, weather lighting and
+near/far .115/32000 physical10-unit attenuation. These are GPU component
+observations; installed gameplay acceptance remains a separate runtime step.

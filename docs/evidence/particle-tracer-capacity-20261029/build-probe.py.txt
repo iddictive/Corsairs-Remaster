@@ -1,0 +1,11 @@
+from pathlib import Path
+import subprocess,shlex
+import sys
+root=Path(sys.argv[1]).resolve()/'experiments/native-metal';work=Path(sys.argv[2]).resolve();build=root/'.cache/build'
+commands=subprocess.check_output([str(root/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','sea-fleet-benchmark'],text=True).splitlines()
+compile=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/sea_fleet_benchmark.cpp'));compile[compile.index('-o')+1]=str(work/'probe.o');compile[compile.index('-c')+1]=str(work/'probe.cpp');compile+=['-I'+str(root/'engine/src/libs/particles/src')]
+if '-MF'in compile:compile[compile.index('-MF')+1]=str(work/'probe.d')
+link=shlex.split(commands[-1])[2:-2];old=next(x for x in link if x.endswith('/sea_fleet_benchmark.cpp.o'));link[link.index(old)]=str(work/'probe.o');link[link.index('-o')+1]=str(work/'probe')
+for command in [compile,link]:
+ p=subprocess.run([x for x in command if x!='-v'],cwd=build,capture_output=True,text=True,timeout=90)
+ if p.returncode:print((p.stdout+p.stderr)[-6000:]);raise SystemExit(p.returncode)

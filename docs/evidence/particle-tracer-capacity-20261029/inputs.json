@@ -1,0 +1,46 @@
+{
+  "base_commit": "b9bb2082bc346fb10c24ec2df0bd52abb4ec8a6e",
+  "candidate_sources": {
+    "experiments/native-metal/engine/src/libs/particles/src/system/particle_processor/bb_processor.cpp": "04baaa812f28461a595b3f8a67a6021a0c6730a40011cbc1cf61bd0224cfdae4",
+    "experiments/native-metal/engine/src/libs/particles/src/system/particle_processor/bb_processor.h": "f4c9f13bad83ed1cae9aa4f431c2d3cd83cb89f448807b6397768fae044a9f6d"
+  },
+  "baseline_sources": {
+    "experiments/native-metal/engine/src/libs/particles/src/system/particle_processor/bb_processor.cpp": "29ab0cf7a9436a1487bb0b4fd952cca0e44e483e584ca4a3b8b013bd69b66b28",
+    "experiments/native-metal/engine/src/libs/particles/src/system/particle_processor/bb_processor.h": "29d5c920773b113c5aa3afdaebb9068373d7120e6a80f15a6dc9462a85ade4f5"
+  },
+  "assets": {
+    "Balls_Tracer.xps": "7af2ad9f1a6b2910eb4e9ccd527a82eed0662cf47b10b5caf8a1c7185767b2b8",
+    "Grapes_Tracer.xps": "a997d06a6eb2519b59556957a0a99b7f1efc410a7c1e69efc4e360fee941f93c",
+    "Knippels_Tracer.xps": "924d96752ad0900384effc1528bac66000f05477419917f702f595c2f5635a34",
+    "Bomb_Smoke.xps": "a115d87af80129b77b7941adfe4556e02eb68c3c91d6e04804080f4f68f12cfa",
+    "AoP.prj": "aaf002f3adab11e921963e902eaac1d71a09645dd0c1a8e9b864fd6ae022bd47"
+  },
+  "conditions": {
+    "platform": "macOS 27.2 arm64, Apple M5 Max",
+    "render_size": [
+      640,
+      480
+    ],
+    "samples": 1,
+    "frames_per_workload": 30,
+    "dt_seconds": 0.016666666666666666,
+    "rng_seed": 1337,
+    "systems": [
+      1,
+      64,
+      256,
+      512
+    ],
+    "device_path": "actual ParticleService default manager -> Execute -> Metal advanced particle bridge -> GPU readback -> Present",
+    "player_game": "concurrently active; no control/termination; timing noise possible"
+  },
+  "limits": {
+    "baseline_optional_mixed_phase": false,
+    "candidate_optional_mixed_phase": true,
+    "present_floor_hz": 120,
+    "timings": "single paired runs plus one lifecycle repeat; no statistical or whole-battle performance acceptance",
+    "native_battle_visual_acceptance": "not established by this component replay"
+  },
+  "payload_size": 352,
+  "maximum_observed_live_particles": 37039
+}

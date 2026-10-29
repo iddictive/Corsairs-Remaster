@@ -1,0 +1,10 @@
+import os,pathlib,subprocess
+r=pathlib.Path.cwd(); d=pathlib.Path(os.environ['CODEX_SCRATCH_DIR']);s=(r/'experiments/native-metal/engine/src/libs/rigging/src/sail.cpp').read_text();a=s.index('                            int iMax = 4;',s.index('void SAIL::DoNoRopeSailToNewHost')); b=s.index('                            slist[sn]->pMatWorld = &nroot->glob_mtx;',a)+len('                            slist[sn]->pMatWorld = &nroot->glob_mtx;')
+prefix='''#include "matrix.h"
+#include <cstdio>
+#include <cmath>
+constexpr int SAIL_TREANGLE=1; struct Node {CMatrix glob_mtx;}; struct Cloth {struct {int eSailType=0; CVECTOR hardPoints[4];}ss; CVECTOR SailPnt[20]; Node*hostNode; CMatrix*pMatWorld;};
+int main(){float worst=0;for(int shape=0;shape<2;++shape)for(int mode=0;mode<3;++mode){Node oldNode,newNode;if(mode){oldNode.glob_mtx.BuildMatrix(.3f,-.4f,.7f,32.f,18.f,-11.f);newNode.glob_mtx.BuildMatrix(-.6f,.8f,-.2f,-15.f,3.f,21.f);}if(mode==2)newNode=oldNode;Cloth cloth{};cloth.ss.eSailType=shape;cloth.hostNode=&oldNode;cloth.pMatWorld=&oldNode.glob_mtx;Cloth*slist[]={&cloth};int sn=0;Node*nroot=&newNode;CVECTOR expected[20];for(int i=0;i<20;++i){cloth.SailPnt[i]=CVECTOR(i*.7f,5.f-i*.4f,i*.2f);expected[i]=oldNode.glob_mtx*cloth.SailPnt[i];}for(int i=0;i<4;++i)cloth.ss.hardPoints[i]=cloth.SailPnt[i];
+'''
+suffix='''float error=0;for(int i=0;i<(shape?15:20);++i){CVECTOR delta=newNode.glob_mtx*cloth.SailPnt[i]-expected[i];error=fmaxf(error,sqrtf(~delta));}worst=fmaxf(worst,error);printf("shape=%s mode=%d world_continuity_error=%.7g\\n",shape?"triangle":"square",mode,error);}return worst>1.e-4f?1:0;}'''
+f=d/'reparent.cpp';f.write_text(prefix+s[a:b]+suffix);subprocess.run(['clang++','-std=c++20','-O2','-Wno-implicit-const-int-float-conversion','-I'+str(r/'experiments/native-metal'),'-I'+str(r/'experiments/native-metal/engine/src/libs/math/include'),str(f),'-o',str(d/'reparent')],check=True);p=subprocess.run([str(d/'reparent')]);print('probe_exit='+str(p.returncode));raise SystemExit(p.returncode)

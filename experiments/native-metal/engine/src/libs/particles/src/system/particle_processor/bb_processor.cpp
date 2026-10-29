@@ -34,12 +34,14 @@ storm_render::VertexLayout *BillBoardProcessor::vertexDecl_ = nullptr;
 BillBoardProcessor::BillBoardProcessor()
 {
     Particles.reserve(MAX_BILLBOARDS);
+#ifndef STORM_METAL_PARTICLE_BRIDGE
     pMemArray = new MemArrayItem[MAX_BILLBOARDS];
 
     for (uint32_t n = 0; n < MAX_BILLBOARDS; n++)
     {
         pMemArray[n].Free = true;
     }
+#endif
 
     pRS = static_cast<VDX9RENDER *>(core.GetService("DX9Render"));
     Assert(pRS);
@@ -70,7 +72,9 @@ BillBoardProcessor::BillBoardProcessor()
 
 BillBoardProcessor::~BillBoardProcessor()
 {
+#ifndef STORM_METAL_PARTICLE_BRIDGE
     delete pMemArray;
+#endif
 
     pRS = static_cast<VDX9RENDER *>(core.GetService("DX9Render"));
     if (pRS != nullptr)
@@ -84,8 +88,18 @@ BillBoardProcessor::~BillBoardProcessor()
 }
 
 // Allocate memory for particle storage
-BB_ParticleData *BillBoardProcessor::AllocParticle() const
+BB_ParticleData *BillBoardProcessor::AllocParticle()
 {
+#ifdef STORM_METAL_PARTICLE_BRIDGE
+    if (freeParticles.empty())
+    {
+        particleStorage.emplace_back();
+        return &particleStorage.back();
+    }
+    auto *particle = freeParticles.back();
+    freeParticles.pop_back();
+    return particle;
+#else
     for (uint32_t n = 0; n < MAX_BILLBOARDS; n++)
     {
         if (pMemArray[n].Free)
@@ -96,11 +110,15 @@ BB_ParticleData *BillBoardProcessor::AllocParticle() const
     }
 
     return nullptr;
+#endif
 }
 
 // "Kill" the particle
-void BillBoardProcessor::FreeParticle(BB_ParticleData *pItem) const
+void BillBoardProcessor::FreeParticle(BB_ParticleData *pItem)
 {
+#ifdef STORM_METAL_PARTICLE_BRIDGE
+    freeParticles.push_back(pItem);
+#else
     for (uint32_t n = 0; n < MAX_BILLBOARDS; n++)
     {
         if (&pMemArray[n].pData == pItem)
@@ -109,6 +127,7 @@ void BillBoardProcessor::FreeParticle(BB_ParticleData *pItem) const
             return;
         }
     }
+#endif
 }
 
 void BillBoardProcessor::AddParticle(ParticleSystem *pSystem, const Vector &velocity_dir, const Vector &pos,

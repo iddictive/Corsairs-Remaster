@@ -1,0 +1,6 @@
+import os,pathlib,re,subprocess
+r=pathlib.Path.cwd();s=(r/'experiments/native-metal/engine/src/libs/rigging/src/sail.cpp').read_text();part=s[s.index('void SAIL::DoNoRopeSailToNewHost'):];header=re.search(r'for \(int si = [^\n]+',part).group();remove=re.search(r'gdata\[oldg\].sailQuantity--;\n\s*gdata\[oldg\].sailIdx\[idx\] = gdata\[oldg\].sailIdx\[gdata\[oldg\].sailQuantity\];',s).group()
+code='''#include <cstdio>
+struct Group{int sailQuantity;int sailIdx[8];};
+int main(){int failures=0,cases=0;for(int count=0;count<=8;++count)for(int mask=0;mask<(1<<count);++mask){++cases;Group gdata[1]{};int ogn=0,oldg=0;gdata[0].sailQuantity=count;for(int i=0;i<count;++i)gdata[0].sailIdx[i]=i;int moved=0;'''+header+'''{int id=gdata[0].sailIdx[si];if(mask&(1<<id)){moved|=1<<id;int idx=si;'''+remove+'''}}int remained=0;for(int i=0;i<gdata[0].sailQuantity;++i)remained|=1<<gdata[0].sailIdx[i];if(moved!=mask||remained!=(((1<<count)-1)^mask))++failures;}printf("membership_cases=%d failed=%d\\n",cases,failures);return failures?1:0;}'''
+d=pathlib.Path(os.environ['CODEX_SCRATCH_DIR']);p=d/'membership.cpp';p.write_text(code);subprocess.run(['clang++','-std=c++20','-O2',str(p),'-o',str(d/'membership')],check=True);p=subprocess.run([str(d/'membership')]);print('probe_exit='+str(p.returncode));raise SystemExit(p.returncode)

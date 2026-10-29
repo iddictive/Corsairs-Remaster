@@ -30,6 +30,11 @@ inside the round-shot lane, including tracer restoration after load.
 [Moving-muzzle and rendering evidence](evidence/dart-salvo-20261023/README.md)
 records source replay results and the remaining native-view limits.
 
+The native particle pool grows and reuses stable storage, so concurrent smoke
+and tracers no longer compete for a global4096-particle ceiling. Individual
+effect limits remain unchanged. [Capacity and lifecycle evidence](evidence/particle-tracer-capacity-20261029/README.md)
+records the actual-service reproduction and the limits of the timing evidence.
+
 Starting catalogue balance: hull damage balls11.5, knippels5.75, darts6,
 grapes1; darts crew0.025% and rigging0.25. Darts cost twice ordinary bombs before
 the existing price modifiers, reload25% slower than balls and spawn400–600 units

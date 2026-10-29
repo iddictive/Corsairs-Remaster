@@ -399,7 +399,10 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
     // camera motion. Sampling a projected ray therefore switches abruptly at
     // foreground silhouettes. Keep transmission on the observed screen ray;
     // depth still supplies physical thickness while reflection carries motion.
-    if(depth0<=o.position.z)thickness=0.f;
+    // A resolved MSAA edge can contain foreground depth and sky color even
+    // though this water sample is uncovered. That foreground is not a bottom;
+    // transmitting it preserves a bright sky fringe around sails and rigging.
+    if(depth0<o.position.z)thickness=10000.f;
     float3 eye=seaNormalize(o.viewToEye);
     // Macro-surface grazing incidence remains reflective despite fine ripples.
     float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));

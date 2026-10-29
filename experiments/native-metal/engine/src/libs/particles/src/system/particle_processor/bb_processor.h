@@ -14,6 +14,9 @@
 
 #include "../../i_common/particle.h"
 #include "../data_source/field_list.h"
+#ifdef STORM_METAL_PARTICLE_BRIDGE
+#include <deque>
+#endif
 
 class ParticleSystem;
 
@@ -51,7 +54,13 @@ class BillBoardProcessor
         }
     };
 
+#ifdef STORM_METAL_PARTICLE_BRIDGE
+    // The native draw bridge has no fixed vertex/index-buffer particle limit.
+    std::deque<BB_ParticleData> particleStorage;
+    std::vector<BB_ParticleData *> freeParticles;
+#else
     MemArrayItem *pMemArray;
+#endif
 
     std::vector<BB_ParticleData *> Particles;
 
@@ -63,8 +72,8 @@ class BillBoardProcessor
     // Compare function when sorting
     static BOOL CompareFunction(BB_ParticleData *e1, BB_ParticleData *e2);
 
-    BB_ParticleData *AllocParticle() const;
-    void FreeParticle(BB_ParticleData *pItem) const;
+    BB_ParticleData *AllocParticle();
+    void FreeParticle(BB_ParticleData *pItem);
 
   public:
     BillBoardProcessor();

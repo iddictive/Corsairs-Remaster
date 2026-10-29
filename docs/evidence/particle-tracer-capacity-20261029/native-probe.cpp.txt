@@ -1,0 +1,95 @@
+// Diagnostic scene driver. It never runs seadogs.c, loads SAVE, shows or focuses
+// a window. The isolated fixture owns scene setup; CORE owns the real frame.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "weather_engine.hpp"
+#include "script_libriary.h"
+#include "s_import_func.h"
+#include "v_s_stack.h"
+#include "ship_base.h"
+#include <SDL2/SDL.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <spdlog/spdlog.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+extern "C" uint64_t StormMetalRawSkinnedDraws(void *);
+extern "C" bool StormMetalFlushFrameTrace(void *);
+extern uint64_t dwRdtsc; // Existing TOUCH::Execute timer, in SDL performance ticks.
+
+#include "service/particle_service.h"
+#include "manager/particle_manager.h"
+#include "system/particle_system/particle_system.h"
+#include "i_common/i_emitter.h"
+#include "i_common/names.h"
+#include "system/data_source/data_graph.h"
+
+int main(int argc,char **argv) {
+ if(argc!=2) return 64;
+ const auto cwd=std::filesystem::canonical(argv[1]); std::filesystem::current_path(cwd);
+ std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1); setenv("STORM_QUIET_CLIENT","1",1);
+ spdlog::set_level(spdlog::level::off);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO)!=0) return 65;
+ steamapi::SteamApi::getInstance(true);
+ auto window=storm::OSWindow::Create(640,480,0,false,false);
+ core_internal.Init(); core_internal.SetWindow(window); core_internal.InitBase(); core_internal.SetDeltaTime(16);
+ if(!core_internal.Run())return 68;
+ auto *rs=static_cast<VDX9RENDER*>(core.GetService("dx9render"));
+ rs->SetCamera(CVECTOR(0.f,0.f,-20.f),CVECTOR(0.f,0.f,100.f),CVECTOR(0.f,1.f,0.f));rs->SetPerspective(1.05f);
+ auto *device=static_cast<storm_render::Device*>(rs->GetNativeDevice());
+ storm_render::Surface *target=nullptr,*readback=nullptr;
+ device->GetRenderTarget(&target);device->CreateOffscreenPlainSurface(640,480,storm_render::AssetFormat::A8R8G8B8,&readback);
+ auto *service=static_cast<ParticleService*>(core.GetService("ParticleService"));
+ auto *manager=static_cast<ParticleManager*>(service->DefManager());
+ for(const char *name:{"balls_tracer","grapes_tracer","knippels_tracer","bomb_smoke"}) {
+  for(int count:{1,64,256,512}) {
+   std::srand(1337);std::vector<IParticleSystem*> systems;
+   for(int i=0;i<count;++i) {auto *s=manager->CreateParticleSystemEx((std::string("resource/particles/")+name).c_str(),__FILE__,__LINE__);if(!s)return 66;s->AutoDelete(false);
+    if(count==1) {auto *p=static_cast<ParticleSystem*>(s);for(unsigned e=0;e<p->GetEmittersCount();++e){auto *em=p->GetEmitterByIndex(e);printf("asset=%s emitter=%u life=%.3f looping=%d",name,e,em->GetData()->GetFloat(EMITTER_LIFETIME),em->GetData()->GetBool(EMITTER_LOOPING));for(unsigned t=0;t<em->GetParticleTypesCount();++t)printf(" max%u=%d",t,em->GetParticleTypeDataByIndex(t)->GetFloatAsInt(MAX_PARTICLES_COUNT));puts("");}}
+    s->SetTransform(Matrix(Vector(0.f),Vector(float(i%32)-16.f,0.f,100.f+float(i/32))));systems.push_back(s);}
+   const auto begin=std::chrono::steady_clock::now();
+   unsigned peak=0; double encodeMs=0;
+   for(int f=0;f<30;++f) {
+    device->Clear(storm_render::clear::color|storm_render::clear::depth,0xff17283a,1.f);device->BeginScene();
+    auto encodeBegin=std::chrono::steady_clock::now();manager->Execute(1.f/60.f);
+    encodeMs+=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-encodeBegin).count();
+    peak=std::max(peak,manager->GetBBProcessor()->GetCount());device->EndScene();
+    if(storm_render::failed(device->GetRenderTargetData(target,readback)))return 69;
+    device->Present();
+   }
+   const auto end=std::chrono::steady_clock::now();
+   unsigned empty=0,first=0,last=0;
+   for(auto *s:systems){unsigned n=0;auto *p=static_cast<ParticleSystem*>(s);for(unsigned e=0;e<p->GetEmittersCount();++e)n+=p->GetEmitterByIndex(e)->GetParticleCount();if(!n)++empty;if(s==systems.front())first=n;if(s==systems.back())last=n;}
+   printf("name=%s systems=%d particles=%u empty=%u first=%u last=%u wall_ms=%.3f encode_ms=%.3f peak=%u sizeof_particle=%zu\n",name,count,manager->GetBBProcessor()->GetCount(),empty,first,last,std::chrono::duration<double,std::milli>(end-begin).count(),encodeMs,peak,sizeof(BB_ParticleData));fflush(stdout);
+   for(auto *s:systems)s->Release();
+   if(manager->GetBBProcessor()->GetCount()!=0)return 67;
+  }
+ }
+
+ for(int repetition=0;repetition<2;++repetition) {
+  std::vector<IParticleSystem*> mixed;
+  for(int i=0;i<256;++i) {
+   auto *s=manager->CreateParticleSystemEx(i<64?"resource/particles/bomb_smoke":"resource/particles/balls_tracer",__FILE__,__LINE__);
+   if(!s)return 70;s->AutoDelete(false);s->SetTransform(Matrix(Vector(0.f),Vector(float(i%32)-16.f,0.f,100.f+float(i/32))));mixed.push_back(s);
+  }
+  for(int f=0;f<30;++f)manager->Execute(1.f/60.f);
+  unsigned empty=0;
+  for(auto *s:mixed){auto *p=static_cast<ParticleSystem*>(s);unsigned n=0;for(unsigned e=0;e<p->GetEmittersCount();++e)n+=p->GetEmitterByIndex(e)->GetParticleCount();if(!n)++empty;s->PauseEmission(true);}
+  printf("mixed_repetition=%d systems=256 particles=%u empty=%u\n",repetition,manager->GetBBProcessor()->GetCount(),empty);
+  if(empty)return 71;
+  for(int f=0;f<120;++f)manager->Execute(1.f/60.f);
+  printf("paused_repetition=%d particles=%u\n",repetition,manager->GetBBProcessor()->GetCount());
+  if(manager->GetBBProcessor()->GetCount()!=0)return 72;
+  for(auto *s:mixed)s->Release();
+ }
+ readback->Release();target->Release();
+ core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}

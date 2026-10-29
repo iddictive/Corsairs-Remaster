@@ -1,0 +1,40 @@
+{
+  "scope": "Source-extracted native component probes; no rendered-game acceptance",
+  "baseline_commit": "b9bb2082bc346fb10c24ec2df0bd52abb4ec8a6e",
+  "source": "experiments/native-metal/engine/src/libs/rigging/src/sail.cpp",
+  "baseline_git_blob": "d7950b1121d865d80db31d4011cb975d08e326b4",
+  "candidate_git_blob": "ab5c237134271687dba493415e9f1b2c03af431d",
+  "toolchain": {
+    "python": "3.12.14",
+    "clang": "Apple clang 21.0.0 (clang-2100.3.34.2)",
+    "target": "arm64-apple-darwin27.2.0"
+  },
+  "reparent": {
+    "threshold_world_units": 0.0001,
+    "baseline_stdout": [
+      "shape=square mode=0 world_continuity_error=0",
+      "shape=square mode=1 world_continuity_error=55.70219",
+      "shape=square mode=2 world_continuity_error=0",
+      "shape=triangle mode=0 world_continuity_error=0",
+      "shape=triangle mode=1 world_continuity_error=55.70219",
+      "shape=triangle mode=2 world_continuity_error=0",
+      "probe_exit=1"
+    ],
+    "candidate_stdout": [
+      "shape=square mode=0 world_continuity_error=0",
+      "shape=square mode=1 world_continuity_error=8.996945e-06",
+      "shape=square mode=2 world_continuity_error=1.96605e-06",
+      "shape=triangle mode=0 world_continuity_error=0",
+      "shape=triangle mode=1 world_continuity_error=8.996945e-06",
+      "shape=triangle mode=2 world_continuity_error=1.907349e-06",
+      "probe_exit=0"
+    ]
+  },
+  "membership": {
+    "group_sizes": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    "eligibility": "Every bit mask for each group size",
+    "baseline_stdout": ["failed_membership_cases=369", "probe_exit=1"],
+    "candidate_stdout": ["membership_cases=511 failed=0", "probe_exit=0"],
+    "oracle_difference": "Candidate also verifies exact noneligible survivors; baseline verifies all eligible identities moved."
+  }
+}

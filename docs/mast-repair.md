@@ -1,5 +1,14 @@
 # Emergency mast repair at sea
 
+## Falling cloth transfer
+
+Detached, rope-released sails now keep their live cloth controls in the new
+mast's coordinate frame. Source-group traversal also accounts for swap-removal,
+so transferring one sail cannot skip another. The repair menu and free-cloth
+animation model are unchanged. [Native component inputs, probe sources and raw
+before/after results](evidence/falling-sail-transfer-20261029/README.md) distinguish
+these checks from rendered falling-scene acceptance.
+
 ## Contract and owners
 
 The flagship's quick menu offers `Ремонт мачт` only in safe, active sea mode,

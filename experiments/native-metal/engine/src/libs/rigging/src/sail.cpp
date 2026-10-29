@@ -2447,8 +2447,8 @@ void SAIL::DoNoRopeSailToNewHost(entid_t newModel, entid_t newHost, entid_t oldH
     if (omdl == nullptr)
         return;
 
-    // go over the sails in the found group
-    for (int si = 0; si < gdata[ogn].sailQuantity; si++)
+    // Transfers swap-remove entries from this group; visit the tail first.
+    for (int si = gdata[ogn].sailQuantity - 1; si >= 0; --si)
     {
         const int sn = gdata[ogn].sailIdx[si];
         NODE *nod = nullptr;
@@ -2498,6 +2498,12 @@ void SAIL::DoNoRopeSailToNewHost(entid_t newModel, entid_t newHost, entid_t oldH
                             for (int j = 0; j < iMax; j++)
                                 nroot->glob_mtx.MulToInv(slist[sn]->hostNode->glob_mtx * slist[sn]->ss.hardPoints[j],
                                                          slist[sn]->ss.hardPoints[j]);
+                            // Keep the live cloth in world space while its host changes.
+                            // Otherwise free-sail relaxation stretches it from the old frame.
+                            const int pointCount = slist[sn]->ss.eSailType == SAIL_TREANGLE ? 15 : 20;
+                            for (int j = 0; j < pointCount; j++)
+                                nroot->glob_mtx.MulToInv(slist[sn]->hostNode->glob_mtx * slist[sn]->SailPnt[j],
+                                                         slist[sn]->SailPnt[j]);
                             slist[sn]->hostNode = nroot;
                             slist[sn]->pMatWorld = &nroot->glob_mtx;
                         }
