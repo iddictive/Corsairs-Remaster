@@ -24,6 +24,11 @@ if len(sys.argv)>2:
  if len(inputs)!=27 or not focus:raise ValueError('expected27 resident scene including Nevis')
  source=source.replace('// SCENE_INPUTS','\n'.join(chunks));(work/'probe.cpp').write_text(source)
 driver=(root/'docs/evidence/particle-tracer-capacity-20261029/build-probe.py.txt').read_text()
+if os.environ.get('JET_ISOLATED_REACTIVE')=='1':
+ subprocess.run([sys.executable,str(evidence/'isolated-reactive-build.py.txt'),str(root),str(work)],check=True,timeout=100)
+ replacement="link=[str(work/'libroundhouse_ragdoll.a') if x.endswith('libroundhouse_ragdoll.a') else str(work/'libship.a') if x.endswith('lib/libship.a') else x for x in link]\nfor command in [compile,link]:"
+ if driver.count('for command in [compile,link]:')!=1:raise ValueError('native link owner changed')
+ driver=driver.replace('for command in [compile,link]:',replacement)
 driver=driver.replace("compile+=['-I'+str(root/'engine/src/libs/particles/src')]","compile+=['-I'+str(root/'engine/src/libs/particles/src'),'-I'+str(root/'engine/src/libs/model/src'),'-I'+str(root/'engine/src/libs/ship/src'),'-DSTORM_METAL_SHIP_FIRE=1']")
 if os.environ.get('JET_HULL_DIAGNOSTIC')=='1':driver=driver.replace("'-DSTORM_METAL_SHIP_FIRE=1'","'-DSTORM_METAL_SHIP_FIRE=1','-DJET_HULL_DIAGNOSTIC=1','-I'+str(build/'_deps/roundhouse_jolt-src')")
 if os.environ.get('JET_HULL_NORMALIZATION')=='1':
@@ -35,10 +40,19 @@ if os.environ.get('JET_REAL_HULL_CONTACT')=='1':
 if os.environ.get('JET_TRUE_HULL_SOURCE')=='1':
  driver=driver.replace("'-DSTORM_METAL_SHIP_FIRE=1'","'-DSTORM_METAL_SHIP_FIRE=1','-DJET_TRUE_HULL_SOURCE=1','-I'+str(build/'_deps/roundhouse_jolt-src')")
  shutil.copy2(evidence/'true-hull-source.cpp.txt',work/'true-hull-source.cpp.txt')
+if os.environ.get('JET_COLLISION_PROJECTION')=='1':
+ driver=driver.replace("'-DSTORM_METAL_SHIP_FIRE=1'","'-DSTORM_METAL_SHIP_FIRE=1','-DJET_COLLISION_PROJECTION=1','-I'+str(build/'_deps/roundhouse_jolt-src')")
+ shutil.copy2(evidence/'collision-projection-probe.cpp.txt',work/'collision-projection-probe.cpp.txt')
 (work/'build.py').write_text(driver)
 r=subprocess.run(['/usr/bin/python3',str(work/'build.py'),str(root),str(work)],capture_output=True,text=True,timeout=100)
 if r.returncode:print((r.stdout+r.stderr)[-7000:]);raise SystemExit(r.returncode)
 r=subprocess.run(['/usr/bin/time','-l',str(work/'probe'),str(work)],capture_output=True,text=True,timeout=60)
 out=(r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n').replace(str(root),'<repo>').replace(str(work),'<scratch>')
-(evidence/('true-hull-source-output.txt' if os.environ.get('JET_TRUE_HULL_SOURCE')=='1' else 'real-hull-contact-output.txt' if os.environ.get('JET_REAL_HULL_CONTACT')=='1' else 'hull-normalization-output.txt' if os.environ.get('JET_HULL_NORMALIZATION')=='1' else 'hull-admission-rejected.txt' if os.environ.get('JET_HULL_DIAGNOSTIC')=='1' else 'native-consumer-27-output.txt' if len(sys.argv)>2 else 'native-consumer-output.txt')).write_text(out);print(out[-6500:]);raise SystemExit(r.returncode)
+filename='true-hull-source-output.txt' if os.environ.get('JET_TRUE_HULL_SOURCE')=='1' else 'real-hull-contact-output.txt' if os.environ.get('JET_REAL_HULL_CONTACT')=='1' else 'hull-normalization-output.txt' if os.environ.get('JET_HULL_NORMALIZATION')=='1' else 'hull-admission-rejected.txt' if os.environ.get('JET_HULL_DIAGNOSTIC')=='1' else 'native-consumer-27-output.txt' if len(sys.argv)>2 else 'native-consumer-output.txt'
+if os.environ.get('JET_COLLISION_PROJECTION')=='1':filename='collision-projection-output.txt'
+if os.environ.get('JET_RESULT_PREFIX'):
+ prefix=os.environ['JET_RESULT_PREFIX']
+ if not re.fullmatch('[a-z0-9-]+',prefix):raise ValueError('result prefix')
+ filename=prefix+'-'+filename
+(evidence/filename).write_text(out);print(out[-6500:]);raise SystemExit(r.returncode)
 

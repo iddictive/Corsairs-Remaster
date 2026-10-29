@@ -1,0 +1,26 @@
+"""Compile the two reactive-flight owners into private archive copies."""
+from pathlib import Path
+import concurrent.futures,shlex,shutil,subprocess,sys
+root=Path(sys.argv[1]).resolve();native=root/'experiments/native-metal';build=native/'.cache/build';work=Path(sys.argv[2]).resolve()
+commands=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','libroundhouse_ragdoll.a','lib/libship.a'],text=True).splitlines()
+owners=[('roundhouse_ragdoll.cpp','libroundhouse_ragdoll.a'),('engine/src/libs/ship/src/ship_reactive_jet.cpp','lib/libship.a')]
+if len(sys.argv)>3:
+ if sys.argv[3]!='roundhouse':raise ValueError('override owner')
+ owners=owners[:1]
+def compile_owner(item):
+ source,archive=item;command=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/'+source));obj=work/(Path(source).name+'.o')
+ if Path(source).name=='roundhouse_ragdoll.cpp' and __import__('os').environ.get('JET_SOLVER_RATE'):
+  rate=__import__('os').environ['JET_SOLVER_RATE']
+  if rate not in ('60','120','240'):raise ValueError('solver rate')
+  body=(native/source).read_text();old='seconds * 60.f'
+  if body.count(old)!=1:raise ValueError('solver source changed')
+  override=work/'roundhouse_ragdoll.cpp';override.write_text(body.replace(old,'seconds * '+rate+'.f'));command[command.index('-c')+1]=str(override)
+ for flag,value in [('-o',obj),('-MF',str(obj)+'.d'),('-MT',obj)]:
+  if flag in command:command[command.index(flag)+1]=str(value)
+ result=subprocess.run([x for x in command if x!='-v'],cwd=build,capture_output=True,text=True,timeout=90)
+ if result.returncode:raise RuntimeError((result.stdout+result.stderr)[-7000:])
+ destination=work/Path(archive).name;shutil.copy2(build/archive,destination)
+ subprocess.run(['/usr/bin/ar','r',str(destination),str(obj)],check=True,capture_output=True)
+ return str(destination)
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+ for result in executor.map(compile_owner,owners):print(Path(result).name+' ready')

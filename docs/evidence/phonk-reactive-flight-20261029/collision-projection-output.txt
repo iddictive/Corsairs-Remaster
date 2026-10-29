@@ -1,0 +1,26 @@
+rss_scene_before_ship_bytes=284295168
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+collision_proxy original_parts=44206 proxy_groups=760 singleton_groups=35 largest_group=2008 grouping_ms=31.99804 shape_failures=0 max_support_error_m=1.9967556e-06 proxy_summed_volume_m3=269.66399864
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        4.76 real         4.31 user         0.13 sys
+           467124224  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               30310  page reclaims
+                  16  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                4278  involuntary context switches
+         86742537608  instructions retired
+         19853450646  cycles elapsed
+           398689672  peak memory footprint
+
+EXIT 0

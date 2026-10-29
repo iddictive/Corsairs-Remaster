@@ -1,5 +1,6 @@
 #include "ship.h"
 #include "ship_contact_material.hpp"
+#include "ship_reactive_collision.hpp"
 #include "collision_triangles.hpp"
 #include "core.h"
 #include "controls.h"
@@ -18,12 +19,7 @@ Parts HullParts(const HULL_CONTACT_MATERIAL &material)
     const auto &snapshot = *material.prepared;
     const auto append = [&](const MaterialPiece &piece) {
         if (!materialSupportRetained(snapshot, piece.supportCell)) return;
-        std::vector<roundhouse::ReactivePoint> vertices;
-        for (const auto &p : piece.hull.points)
-        {
-            vertices.push_back({p.x, piece.lowerY, p.z});
-            vertices.push_back({p.x, piece.upperY, p.z});
-        }
+        auto vertices = roundhouse::ReactivePrismVertices(piece);
         if (vertices.size() >= 6) result.push_back(std::move(vertices));
     };
     std::unordered_set<uint32_t> replacements;
@@ -36,6 +32,19 @@ Parts HullParts(const HULL_CONTACT_MATERIAL &material)
         else append(piece);
     }
     return result;
+}
+
+Parts CollisionParts(MODEL *model, uint64_t owner, const HULL_CONTACT_MATERIAL &material)
+{
+    auto *root = model ? model->GetNode(0) : nullptr;
+    if (!root || !root->geo) return {};
+    storm::ship::material::convex::ContactSnapshot snapshot;
+    std::shared_ptr<const storm::ship::contact::MaterialSnapshot> prepared;
+    if (!root->geo->GetHullContactSnapshot(owner, snapshot, prepared) ||
+        prepared != material.prepared || snapshot.revision != material.revision) return {};
+    const auto &m = root->loc_mtx;
+    return roundhouse::ReactiveCollisionParts(snapshot, {m.Vx().x,m.Vx().y,m.Vx().z,
+        m.Vy().x,m.Vy().y,m.Vy().z,m.Vz().x,m.Vz().y,m.Vz().z,m.Pos().x,m.Pos().y,m.Pos().z});
 }
 
 CVECTOR Angles(const CMatrix &m)
@@ -91,7 +100,7 @@ bool SHIP::PreparePhonkJetWorld()
     }
     if (phonkJet.hull.material != material.prepared || phonkJet.hull.revision != material.revision)
     {
-        if (!phonkJet.world->SetHull(HullParts(material))) return false;
+        if (!phonkJet.world->SetHull(HullParts(material), CollisionParts(GetModel(), uint64_t(blots_id), material))) return false;
         phonkJet.hull = {material.prepared, material.revision};
     }
     // Draft can change after cargo/flood reconciliation without a material
@@ -200,7 +209,8 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
         auto &cached = phonkJet.neighbors[id];
         if (cached.material != material.prepared || cached.revision != material.revision)
         {
-            if (!phonkJet.world->SetNeighborHull(uint64_t(id), HullParts(material))) continue;
+            if (!phonkJet.world->SetNeighborHull(uint64_t(id), HullParts(material),
+                CollisionParts(ship->GetModel(), uint64_t(ship->blots_id), material))) continue;
             cached = {material.prepared, material.revision};
         }
         roundhouse::ReactiveBody other;
@@ -281,7 +291,8 @@ void SHIP::ApplyPhonkJetExhaust(float seconds)
         auto &cached = phonkJet.neighbors[hit->GetId()];
         if (cached.material!=material.prepared || cached.revision!=material.revision)
         {
-            if (!phonkJet.world->SetNeighborHull(uint64_t(hit->GetId()),HullParts(material))) continue;
+            if (!phonkJet.world->SetNeighborHull(uint64_t(hit->GetId()),HullParts(material),
+                CollisionParts(hit->GetModel(), uint64_t(hit->blots_id), material))) continue;
             cached={material.prepared,material.revision};
         }
         roundhouse::ReactiveBody other;

@@ -8,12 +8,14 @@
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Body/BodyLock.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
+#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
 #include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
 #include <Jolt/Physics/Ragdoll/Ragdoll.h>
 
@@ -477,6 +479,7 @@ struct ReactiveWorld::Impl
     JPH::JobSystemSingleThreaded jobs{JPH::cMaxPhysicsJobs};
     JPH::PhysicsSystem physics;
     JPH::RefConst<JPH::Shape> hull;
+    JPH::RefConst<JPH::Shape> collisionHull;
     JPH::MassProperties hullMass;
     std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> neighborShapes;
     std::unordered_map<uint64_t, JPH::MassProperties> neighborMass;
@@ -591,10 +594,29 @@ static JPH::RefConst<JPH::Shape> ReactiveShape(const std::vector<std::vector<Rea
 
 bool ReactiveWorld::SetHull(const std::vector<std::vector<ReactivePoint>> &parts)
 {
+    return SetHull(parts, {});
+}
+
+static JPH::RefConst<JPH::Shape> ReactiveCollider(const JPH::Shape *original,
+    const std::vector<std::vector<ReactivePoint>> &parts)
+{
+    if (parts.empty()) return original;
+    auto collision = ReactiveShape(parts);
+    if (!collision) return nullptr;
+    return new JPH::OffsetCenterOfMassShape(collision,
+        original->GetCenterOfMass() - collision->GetCenterOfMass());
+}
+
+bool ReactiveWorld::SetHull(const std::vector<std::vector<ReactivePoint>> &parts,
+                           const std::vector<std::vector<ReactivePoint>> &collisionParts)
+{
     auto result = ReactiveShape(parts);
     if (!result) return false;
+    auto collision = ReactiveCollider(result, collisionParts);
+    if (!collision) return false;
     impl_->Remove(impl_->moving);
     impl_->hull = result;
+    impl_->collisionHull = collision;
     impl_->hullMass = result->GetMassProperties();
     impl_->submergedHeight = NAN;
     return true;
@@ -602,9 +624,17 @@ bool ReactiveWorld::SetHull(const std::vector<std::vector<ReactivePoint>> &parts
 
 bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts)
 {
+    return SetNeighborHull(key, parts, {});
+}
+
+bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts,
+                                   const std::vector<std::vector<ReactivePoint>> &collisionParts)
+{
     auto result = ReactiveShape(parts);
     if (!result) return false;
-    impl_->neighborShapes[key] = result;
+    auto collision = ReactiveCollider(result, collisionParts);
+    if (!collision) return false;
+    impl_->neighborShapes[key] = collision;
     impl_->neighborMass[key] = result->GetMassProperties();
     return true;
 }
@@ -672,7 +702,7 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
     auto &bodies = w.physics.GetBodyInterface();
     // Rehydration also makes TOUCH prediction read-only for native state.
     w.Remove(w.moving);
-    w.moving = w.Hydrate(w.hull, w.hullMass, state, false);
+    w.moving = w.Hydrate(w.collisionHull, w.hullMass, state, false);
     if (w.moving.IsInvalid()) return false;
     std::vector<std::pair<ReactiveNeighbor *, JPH::BodyID>> others;
     struct ReleaseNeighbors
@@ -691,9 +721,9 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
         if (id.IsInvalid()) continue;
         others.emplace_back(&neighbor, id);
     }
-    // No lost simulation time at low FPS: subdivide the complete frame. A
-    // 240 Hz upper step bounds collision travel and buoyancy/force integration.
-    const unsigned steps = std::max(1u, unsigned(std::ceil(seconds * 240.f)));
+    // Integrate the complete frame in steps no larger than Jolt's ordinary
+    // 60 Hz cadence. LinearCast CCD remains enabled for fast translation.
+    const unsigned steps = std::max(1u, unsigned(std::ceil(seconds * 60.f)));
     const float dt = seconds / steps;
     w.wet = false;
     for (unsigned step = 0; step < steps; ++step)
@@ -715,8 +745,27 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
         const float clearance = normal.Dot(bound.GetCenter() - surface) -
             normal.Abs().Dot(bound.GetExtent());
         if (clearance <= .001f)
-            w.wet |= bodies.ApplyBuoyancyImpulse(w.moving, surface, normal,
-                fluid.buoyancy, .5f, .1f, Vec(fluid.velocity), w.physics.GetGravity(), dt);
+        {
+            bool applied = false;
+            {
+                JPH::BodyLockWrite lock(w.physics.GetBodyLockInterface(), w.moving);
+                if (!lock.Succeeded()) return false;
+                auto &body = lock.GetBody();
+                const auto plane = JPH::Plane::sFromPointAndNormal(surface - body.GetCenterOfMassPosition(), normal);
+                float total = 0.f, submerged = 0.f;
+                JPH::Vec3 center;
+                w.hull->GetSubmergedVolume(JPH::Mat44::sRotation(body.GetRotation()), JPH::Vec3::sOne(),
+                    plane, total, submerged, center
+#ifdef JPH_DEBUG_RENDERER
+                    , body.GetCenterOfMassPosition()
+#endif
+                );
+                applied = body.ApplyBuoyancyImpulse(total, submerged, center, fluid.buoyancy,
+                    .5f, .1f, Vec(fluid.velocity), w.physics.GetGravity(), dt);
+            }
+            if (applied) bodies.ActivateBody(w.moving);
+            w.wet |= applied;
+        }
         w.updateError = w.physics.Update(dt, 1, &w.allocator, &w.jobs);
         if (w.updateError != JPH::EPhysicsUpdateError::None) return false;
     }

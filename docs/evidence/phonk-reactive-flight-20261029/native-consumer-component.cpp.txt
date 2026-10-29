@@ -3,6 +3,7 @@
 #include "compiler.h"
 #include "ship_contact_material.hpp"
 #include "ship_hull_convex_material.hpp"
+#include "ship_reactive_collision.hpp"
 #include "modelr.h"
 #include "shared/messages.h"
 #include <unordered_set>
@@ -52,9 +53,15 @@ void resident(const char *label){mach_task_basic_info_data_t data{};mach_msg_typ
 #ifdef JET_TRUE_HULL_SOURCE
 #include "true-hull-source.cpp.txt"
 #endif
+#ifdef JET_COLLISION_PROJECTION
+#include "collision-projection-probe.cpp.txt"
+#endif
 class JetShip final:public SHIP {
  std::shared_ptr<storm::ship::contact::MaterialSnapshot> material;
  std::shared_ptr<const storm::ship::contact::MaterialSnapshot> authored;
+ uint64_t authoredRevision=0;
+ storm::ship::material::convex::ContactSnapshot physical;
+ storm::ship::material::ContactTransform contactFrame{};
  CVECTOR materialCom=CVECTOR(0.f);
  public:
  JetShip(FlatSea &sea,ATTRIBUTES &character,ATTRIBUTES &ship,entid_t model,VDX9RENDER *renderer){
@@ -72,12 +79,17 @@ class JetShip final:public SHIP {
   pMasts.resize(1);pMasts[0]={};pMasts[0].iMastNum=1;
   iShipPriorityExecute=iShipPriorityRealize=0;ShipPoints={};strcpy(cShipIniName,"jet-fixture");
  }
- bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&out)const override{out.prepared=authored?authored:material;out.revision=1;out.retainedMassFraction=1;return true;}
+ bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&out)const override{out.prepared=authored?authored:material;out.revision=authored?authoredRevision:1;out.retainedMassFraction=authored?storm::ship::contact::retainedMassFraction(*authored):1;return true;}
  void authoredHull(entid_t id){auto*m=static_cast<MODEL*>(core.GetEntityPointer(id));auto*n=m->GetNode(0);auto*g=n->geo;const auto&a=n->loc_mtx;const uint64_t owner=uint64_t(id);
   check(g->SetHullContactTransform(owner,{a.Vx().x,a.Vx().y,a.Vx().z,a.Vy().x,a.Vy().y,a.Vy().z,a.Vz().x,a.Vz().y,a.Vz().z,a.Pos().x,a.Pos().y,a.Pos().z}),"authored_hull_frame");
   const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);while(!g->PrepareHullMaterial(owner)){check(std::chrono::steady_clock::now()<deadline,"authored_material_ready");std::this_thread::sleep_for(std::chrono::milliseconds(1));}
   storm::ship::material::convex::ContactSnapshot snapshot;check(g->GetHullContactSnapshot(owner,snapshot,authored),"authored_contact_snapshot");GEOS::INFO info{};g->GetInfo(info);State.vBoxSize=CVECTOR(info.boxsize.x,info.boxsize.y,info.boxsize.z);State.vRealBoxSize=State.vBoxSize;State.fWeight=SP.fWeight=8000.f;SP.iCapacity=1800;SP.fWaterLine=.1f;
   printf("authored_hull_parts=%zu native_weight_cwt=8000 capacity_cwt=1800\n",storm::ship::contact::materialRoot(*authored).pieces.size());
+  authoredRevision=snapshot.revision;model_id=id;blots_id=id;
+  physical=snapshot;contactFrame={a.Vx().x,a.Vx().y,a.Vx().z,a.Vy().x,a.Vy().y,a.Vy().z,a.Vz().x,a.Vz().y,a.Vz().z,a.Pos().x,a.Pos().y,a.Pos().z};
+#ifdef JET_COLLISION_PROJECTION
+  collisionProjectionProbe(snapshot,a,*authored);std::exit(0);
+#endif
 #ifdef JET_TRUE_HULL_SOURCE
   trueHullSource(snapshot,a);std::exit(0);
 #endif
@@ -95,12 +107,16 @@ class JetShip final:public SHIP {
 #endif
  }
  bool Mount(ATTRIBUTES *s)override{pAShip=s;return true;}
+ // The fixture retains one authored model instead of mounting a new model /
+ // blots entity pair during codec replay; its material owner must stay paired.
+ void SetACharacter(ATTRIBUTES *p)override{VAI_OBJBASE::SetACharacter(p);}
  float comVelocityY()const{auto r=CMatrix(State.vAng)*materialCom;auto value=State.vSpeed.y+State.vRotate.z*r.x-State.vRotate.x*r.z;printf("native_com_local=(%.9g,%.9g,%.9g) rotated=(%.9g,%.9g,%.9g) world_com_vy=%.9g\n",materialCom.x,materialCom.y,materialCom.z,r.x,r.y,r.z,value);return value;}
  void tick(unsigned ms=16){Move(ms,false);}
  void kill(){SetDead();}
  bool admit(unsigned ms=16){return AdvancePhonkJet(ms,false);}
  void presentation(){vPos=State.vPos;vAng=State.vAng;}
  void terrain(ISLAND_BASE*i){pIsland=i;}
+ void preparedDamage(){using namespace storm::ship::material::convex;const Piece*largest=nullptr;for(const auto&cell:physical.cells->convex->cells)if(cell&&cell->pieces)for(const auto&p:*cell->pieces)if(!largest||p.volume>largest->volume)largest=&p;check(largest,"cut_material_input");auto c=center(*largest);const float h=.15f;Cut cut;cut.origin=c;cut.bounds={c-storm_ship_hull::Vec3{h,h,h},c+storm_ship_hull::Vec3{h,h,h}};for(unsigned axis=0;axis<3;axis++)for(float sign:{-1.f,1.f}){auto n=storm_ship_structure::axisVector(axis,sign);cut.planes.push_back({n,storm_ship_hull::dot(n,c)+h});}auto edit=storm::ship::material::convex::edit(physical.cells,{cut});check(edit.complete&&!edit.changed.empty(),"canonical_cut_committed");physical.cells=edit.cells;physical.revision++;authored=storm::ship::material::prepareContactMaterial(physical,contactFrame);authoredRevision=physical.revision;check(bool(authored),"cut_material_projection");roundhouse::ReactiveParts parts;for(const auto&p:authored->pieces)if(storm::ship::contact::materialSupportRetained(*authored,p.supportCell))parts.push_back(roundhouse::ReactivePrismVertices(p));auto collision=roundhouse::ReactiveCollisionParts(physical,contactFrame);check(phonkJet.world&&phonkJet.world->SetHull(parts,collision),"cut_shape_revision");phonkJet.hull={authored,authoredRevision};printf("canonical_cut changed_sources=%zu original_parts=%zu proxy_parts=%zu retained_mass_fraction=%.9g\n",edit.changed.size(),parts.size(),collision.size(),storm::ship::contact::retainedMassFraction(*authored));}
  void place(const CVECTOR&p){State.vPos=p;State.vAng=State.vSpeed=State.vRotate=CVECTOR(0.f);phonkJet.active=true;presentation();}
  void print(const char*n){printf("%s y=%.7f v=(%.7f,%.7f,%.7f) w=(%.7f,%.7f,%.7f) active=%d\n",n,State.vPos.y,State.vSpeed.x,State.vSpeed.y,State.vSpeed.z,State.vRotate.x,State.vRotate.y,State.vRotate.z,int(phonkJet.active));}
  static void clearStatics(){pSea=nullptr;pIsland=nullptr;pRS=nullptr;}

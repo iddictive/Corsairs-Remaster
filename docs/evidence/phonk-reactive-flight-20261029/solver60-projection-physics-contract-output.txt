@@ -1,0 +1,7 @@
+connectivity_negatives disconnected_groups=2 cut_singletons=6 removed_support_empty=1
+original_volume_wet_equivalence_max_error=0 wet=1
+mass_inertia_control_pair_position_error_m=0
+full_CCD_300mps_tilted_wall_min_clearance_m=-0.44308567
+FAIL no_high_speed_thin_wall_tunneling
+
+EXIT 1

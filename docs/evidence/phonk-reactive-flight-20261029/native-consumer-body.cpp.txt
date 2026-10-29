@@ -29,6 +29,7 @@
  const float y=ship.State.vPos.y,vy=ship.comVelocityY();ship.tick(16);ship.print("restored_passive_step");check(ship.State.vPos.y!=0&&ship.HasRigidFlight()&&std::abs(ship.comVelocityY()-(vy-9.81f*.016f))<.002f,"restore_COM_momentum_continuation");
  ship.State.fWeight=0;const auto invalidStep=ship.State;ship.tick(16);check(ship.HasRigidFlight()&&!memcmp(&invalidStep,&ship.State,sizeof(invalidStep)),"active_invalid_step_retains_state");ship.State.fWeight=nativeMass;const float retryVelocity=ship.comVelocityY();ship.tick(16);check(std::abs(ship.comVelocityY()-(retryVelocity-9.81f*.016f))<.002f,"active_invalid_step_recovers");
  ship.kill();const float deathVelocity=ship.comVelocityY();ship.Execute(16);ship.print("dead_flight_continues");check(ship.HasRigidFlight()&&ship.State.vPos.y>50.f&&std::abs(ship.comVelocityY()-(deathVelocity-9.81f*.016f))<.002f,"native_dead_execute_preserves_COM_flight");
+ if(std::getenv("JET_PROXY_DAMAGE"))ship.preparedDamage();
  auto *terrainModel=static_cast<MODEL*>(core.GetEntityPointer(model));terrainModel->mtx.SetIdentity();terrainModel->Update();const auto visualPose=terrainModel->mtx;
  SurfaceIsland island(model,terrainModel);island.surfaces=fixtureSurfaces;float hit=-5000.f;
  for(const auto&s:island.GetWorldSurfaces()){auto*m=static_cast<MODEL*>(core.GetEntityPointer(s.model));auto old=m->mtx;m->mtx=s.authored;m->Update();const float t=m->Trace(fixtureCenter+CVECTOR(0.f,5000.f,0.f),fixtureCenter+CVECTOR(0.f,-5000.f,0.f));if(t<=1.f)hit=std::max(hit,5000.f-10000.f*t);m->mtx=old;m->Update();}check(hit>0.f,"native_floor_oracle");printf("resident_surface_count=%zu native_floor_y=%.5f\n",island.GetWorldSurfaces().size(),hit);
@@ -36,6 +37,7 @@
  auto cold=std::chrono::steady_clock::now();ship.tick(16);printf("native_geometry_cold_ms=%.5f\n",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-cold).count());
  auto warm=std::chrono::steady_clock::now();for(int i=0;i<180;i++)ship.tick(16);printf("native_flight_warm_us=%.5f\n",std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-warm).count()/180);
  ship.print("native_terrain_contact");check(ship.State.vPos.y>hit-3.f,"native_terrain_catches_fall");
+ for(unsigned elapsed:{96u,48u,16u}){auto recovery=std::chrono::steady_clock::now();ship.tick(elapsed);printf("native_recovery elapsed_ms=%u cpu_ms=%.5f\n",elapsed,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-recovery).count());}
  island.pose.Pos().y=100.f;for(auto&s:island.surfaces)s.authored.Pos().y+=100.f;ship.place(fixtureCenter+CVECTOR(0.f,hit+130.f,0.f));for(int i=0;i<180;i++)ship.tick(16);ship.print("authored_pose_invalidated");check(ship.State.vPos.y>hit+97.f,"authored_pose_rebuilds_mesh");
  check(!memcmp(&visualPose,&terrainModel->mtx,sizeof(visualPose)),"visual_pose_restored");
  puts("NATIVE_PASS");

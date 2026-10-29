@@ -1,0 +1,51 @@
+rss_scene_before_ship_bytes=284196864
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+rss_authored_material_bytes=448020480
+ordinary_admission_us=0.041792
+native_hull_cold_ms=166.42462
+native_hull_admission_ms=0.10975
+rss_physical_hull_bytes=503529472
+native_dry_flight_warm_us=30.98305
+ctrl_lift y=104.3584824 v=(0.0112862,9.0422297,-0.0677149) w=(-0.0192972,0.0000589,-0.0032134) active=1
+wasd_torque y=109.8444061 v=(1.0041927,14.0032930,-0.7155244) w=(0.5935662,-0.0092287,1.3685527) active=1
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.369221807,1.08394063,0.0792146102) world_com_vy=13.4509745
+modeoff_fall y=110.0671921 v=(0.9818513,13.8847494,-0.7022138) w=(0.5935662,-0.0092287,1.3685527) active=1
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.392870128,1.07479584,0.0894096941) world_com_vy=13.2940149
+save_restored y=110.0671921 v=(0.9818513,13.8847494,-0.7022138) w=(0.5935662,-0.0092287,1.3685527) active=1
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.392870128,1.07479584,0.0894096941) world_com_vy=13.2940149
+restored_passive_step y=110.2880859 v=(0.9579412,13.7658691,-0.6881698) w=(0.5935662,-0.0092287,1.3685527) active=1
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.416313082,1.06503892,0.099511534) world_com_vy=13.1370564
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.416313082,1.06503892,0.099511534) world_com_vy=13.1370564
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.439537138,1.05467558,0.109514348) world_com_vy=12.9800959
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.439537138,1.05467558,0.109514348) world_com_vy=12.9800959
+dead_flight_continues y=110.7241440 v=(0.9054219,13.5270128,-0.6580302) w=(0.5935662,-0.0092287,1.3685527) active=1
+native_com_local=(0.00124260702,1.14591777,-0.0663175061) rotated=(-0.462529123,1.0437119,0.119412497) world_com_vy=12.8231382
+resident_surface_count=1 native_floor_y=390.40686
+native_geometry_cold_ms=77.50262
+native_flight_warm_us=83622.13518
+native_terrain_contact y=394.4494934 v=(-16.2426815,0.3862808,-4.2668200) w=(-0.3724955,-0.0715319,0.5406562) active=1
+authored_pose_invalidated y=494.4419250 v=(-16.1962795,0.5003584,-4.3321576) w=(-0.3779280,-0.0732931,0.5399377) active=1
+NATIVE_PASS
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+       35.46 real        35.11 user         0.21 sys
+           699416576  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               44772  page reclaims
+                  66  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                2276  voluntary context switches
+                8522  involuntary context switches
+        577149189558  instructions retired
+        151897036574  cycles elapsed
+           646415920  peak memory footprint
+
+EXIT 0

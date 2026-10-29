@@ -1,0 +1,84 @@
+"""Frozen one-off Metal blend readback; no game loop or player state.
+
+Run: python3 <this-file> <repository> <existing-empty-scratch-directory>
+Reuses the configured GPU component target's compiler/linker commands.
+"""
+import json
+import os
+import pathlib
+import shlex
+import subprocess
+import sys
+
+root = pathlib.Path(sys.argv[1]).resolve()
+work = pathlib.Path(sys.argv[2]).resolve()
+build = root / "experiments/native-metal/.cache/build"
+src = r'''
+#include <SDL.h>
+#include "render_device_api.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+extern "C" bool StormMetalDrawCompactPrimitive(void*,uint32_t,uint32_t,uint32_t,const void*,uint32_t);
+static void need(bool ok,const char*m){if(!ok){fprintf(stderr,"FAIL %s\n",m);exit(1);}}
+struct V { float x,y,z; unsigned color; };
+int main(){
+ SDL_Init(SDL_INIT_VIDEO);
+ auto*w=SDL_CreateWindow("exhaust component",0,0,64,64,SDL_WINDOW_HIDDEN|SDL_WINDOW_METAL);
+ storm_render::Presentation p{};p.width=p.height=64;p.colorFormat=storm_render::AssetFormat::A8R8G8B8;
+ storm_render::Device*d=nullptr;need(storm_render::succeeded(storm_render::createMetalDevice(w,&p,&d)),"device");
+ storm_render::Matrix m{};m._11=m._22=m._33=m._44=1;
+ d->SetTransform(storm_render::TransformProjection,&m);d->SetTransform(storm_render::TransformView,&m);d->SetTransform(storm_render::TransformWorld,&m);
+ d->SetRenderState(storm_render::RenderLighting,false);d->SetRenderState(storm_render::RenderFog,false);
+ d->SetRenderState(storm_render::RenderCullMode,storm_render::CullNone);
+ d->SetRenderState(storm_render::RenderAlphaTest,false);d->SetRenderState(storm_render::RenderDepthTest,true);
+ d->SetRenderState(storm_render::RenderDepthCompare,storm_render::CompareLessEqual);d->SetRenderState(storm_render::RenderDepthWrite,false);
+ d->SetRenderState(storm_render::RenderBlend,true);d->SetRenderState(storm_render::RenderSourceBlend,storm_render::BlendSourceAlpha);
+ d->SetRenderState(storm_render::RenderBlendOp,storm_render::BlendOpAdd);d->SetRenderState(storm_render::RenderSeparateAlphaBlend,false);
+ d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpSelectArg1);
+ d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);
+ d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);
+ d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::diffuse);
+ d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);
+ storm_render::Surface*target=nullptr,*read=nullptr;d->GetRenderTarget(&target);d->CreateOffscreenPlainSurface(64,64,storm_render::AssetFormat::A8R8G8B8,&read);
+ const unsigned backgrounds[]={0xffd8efff,0xff173147,0xff8397a0};
+ for(unsigned bg:backgrounds)for(unsigned mode=0;mode<4;++mode){
+  const unsigned color=mode==0?0x90be52ff:mode==1?0xe0be52ff:mode==2?0x00a020ff:0x90be52ff;
+  const bool additive=mode==0||mode==3;
+  d->SetRenderState(storm_render::RenderDestinationBlend,additive?storm_render::BlendOne:storm_render::BlendInverseSourceAlpha);
+  const V v[]={{-.9f,-.9f,.5f,color},{.9f,-.9f,.5f,color},{0,.9f,.5f,color}};
+  for(unsigned blocked=0;blocked<2;++blocked){
+   d->Clear(storm_render::clear::color|storm_render::clear::depth,bg,blocked?.25f:1.f);d->BeginScene();
+   need(StormMetalDrawCompactPrimitive(d,storm_render::PrimitiveTriangleList,storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse,1,v,sizeof(V)),"draw");
+   d->EndScene();need(storm_render::succeeded(d->GetRenderTargetData(target,read)),"readback");
+   storm_render::LockedRect l{};read->LockRect(&l,nullptr,storm_render::lock::readOnly);unsigned pixel=0;memcpy(&pixel,(char*)l.pBits+32*l.Pitch+32*4,4);read->UnlockRect();
+   printf("background=%08x mode=%u blocked=%u pixel=%08x\n",bg,mode,blocked,pixel);
+   if(blocked||mode==2)need((pixel&0xffffff)==(bg&0xffffff),"depth/tail changed background");
+   if(mode==1&&!blocked&&bg==backgrounds[0])need(((pixel>>8)&255)<150,"bright-water exhaust lost chromatic contrast");
+  }
+ }
+ read->Release();target->Release();d->Release();SDL_DestroyWindow(w);SDL_Quit();
+}
+'''
+source = work / "probe.cpp"
+source.write_text(src)
+commands = subprocess.check_output(
+    [str(root / "experiments/native-metal/inputs/toolchain/bin/ninja"), "-t", "commands", "gpu-skinning-offscreen-probe"],
+    cwd=build, text=True).splitlines()
+compile = shlex.split(next(x for x in commands if " -c " in x and x.endswith("/gpu_skinning_offscreen_probe.cpp")))
+compile[compile.index("-o") + 1] = str(work / "probe.o")
+compile[compile.index("-c") + 1] = str(source)
+if "-MF" in compile:
+    compile[compile.index("-MF") + 1] = str(work / "probe.d")
+subprocess.run(compile, cwd=work, check=True)
+link = shlex.split(commands[-1])
+assert link[:2] == [":", "&&"] and link[-2:] == ["&&", ":"]
+link = link[2:-2]
+old = next(x for x in link if x.endswith("/gpu_skinning_offscreen_probe.cpp.o"))
+link[link.index(old)] = str(work / "probe.o")
+link[link.index("-o") + 1] = str(work / "probe")
+subprocess.run(link, cwd=build, check=True)
+r = subprocess.run([str(work / "probe")], capture_output=True, text=True,
+                   env=dict(os.environ, STORM_METAL_DYNAMIC_SKY="0", STORM_METAL_MODERN_LIGHTING="1"))
+print(json.dumps({"exit": r.returncode, "stdout": r.stdout, "stderr": r.stderr}))
+sys.exit(r.returncode)

@@ -1,0 +1,186 @@
+diff --git a/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp b/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp
+index 1f2048b..6c350ee 100644
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp
+@@ -212,7 +212,10 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
+         neighbors.push_back({uint64_t(id), other});
+         ships.push_back(ship); beforeVelocity.push_back(other.velocity); beforeAngular.push_back(other.angularVelocity);
+     }
+-    if (!phonkJet.world->Step(body, phonkJet.forces, fluid, seconds, &neighbors))
++    const bool advanced = prediction ?
++        phonkJet.world->Predict(body, phonkJet.forces, fluid, seconds, &neighbors) :
++        phonkJet.world->Step(body, phonkJet.forces, fluid, seconds, &neighbors);
++    if (!advanced)
+     {
+         if (phonkJet.active && !phonkJet.preparationReported)
+             core.Trace("Phonk jet: ship %llu invalid rigid step (Jolt update bits 0x%x); retaining pose/momentum and retrying",
+diff --git a/experiments/native-metal/reactive_body.hpp b/experiments/native-metal/reactive_body.hpp
+index b3c08bd..3a5931e 100644
+--- a/experiments/native-metal/reactive_body.hpp
++++ b/experiments/native-metal/reactive_body.hpp
+@@ -49,6 +49,9 @@ class ReactiveWorld
+     bool Step(ReactiveBody &body, const std::vector<ReactiveForce> &forces,
+               const ReactiveFluid &fluid, float seconds,
+               std::vector<ReactiveNeighbor> *neighbors = nullptr);
++    bool Predict(ReactiveBody &body, const std::vector<ReactiveForce> &forces,
++                 const ReactiveFluid &fluid, float seconds,
++                 std::vector<ReactiveNeighbor> *neighbors = nullptr);
+     bool Wet() const;
+     uint32_t UpdateError() const; // pinned Jolt capacity bits from the last step
+ 
+diff --git a/experiments/native-metal/roundhouse_ragdoll.cpp b/experiments/native-metal/roundhouse_ragdoll.cpp
+index 118c20f..c44f5e7 100644
+--- a/experiments/native-metal/roundhouse_ragdoll.cpp
++++ b/experiments/native-metal/roundhouse_ragdoll.cpp
+@@ -7,7 +7,9 @@
+ #include <Jolt/Core/JobSystemSingleThreaded.h>
+ #include <Jolt/Core/TempAllocator.h>
+ #include <Jolt/Physics/PhysicsSystem.h>
++#include <Jolt/Physics/StateRecorderImpl.h>
+ #include <Jolt/Physics/Body/BodyCreationSettings.h>
++#include <Jolt/Physics/Body/BodyLock.h>
+ #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+ #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+ #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+@@ -481,7 +483,9 @@ struct ReactiveWorld::Impl
+     std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> neighborShapes;
+     std::unordered_map<uint64_t, JPH::MassProperties> neighborMass;
+     JPH::BodyID terrain, moving;
++    float movingMass = 0.f;
+     bool wet = false;
++    bool predicting = false;
+     JPH::EPhysicsUpdateError updateError = JPH::EPhysicsUpdateError::None;
+     float submergedHeight = NAN, submergedFraction = 0.f;
+ 
+@@ -538,6 +542,36 @@ struct ReactiveWorld::Impl
+         body.velocity = CVECTOR(velocity.GetX(), velocity.GetY(), velocity.GetZ());
+         body.angularVelocity = CVECTOR(angular.GetX(), angular.GetY(), angular.GetZ());
+     }
++    bool Synchronize(const ReactiveBody &body)
++    {
++        if (moving.IsInvalid())
++        {
++            moving = Hydrate(hull, hullMass, body, false);
++            movingMass = body.mass;
++            return !moving.IsInvalid();
++        }
++        auto &bodies = physics.GetBodyInterface();
++        const auto frame = Matrix(body.pose);
++        bodies.SetPositionAndRotationWhenChanged(moving, frame.GetTranslation(),
++            frame.GetQuaternion(), JPH::EActivation::Activate);
++        if (movingMass != body.mass)
++        {
++            auto mass = hullMass;
++            mass.ScaleToMass(body.mass);
++            mass.mInertia(3, 3) = 1.f;
++            {
++                JPH::BodyLockWrite lock(physics.GetBodyLockInterface(), moving);
++                if (!lock.Succeeded()) return false;
++                lock.GetBody().GetMotionProperties()->SetMassProperties(JPH::EAllowedDOFs::All, mass);
++            }
++            movingMass = body.mass;
++            bodies.ActivateBody(moving);
++        }
++        const auto angular = Vec(body.angularVelocity);
++        bodies.SetLinearAndAngularVelocity(moving, Vec(body.velocity) +
++            angular.Cross(frame.GetRotation() * hull->GetCenterOfMass()), angular);
++        return true;
++    }
+ };
+ 
+ ReactiveWorld::ReactiveWorld() : impl_(std::make_unique<Impl>()) {}
+@@ -623,7 +657,12 @@ bool ReactiveWorld::ImpulseNeighbor(uint64_t key, ReactiveBody &body, const CVEC
+ 
+ bool ReactiveWorld::SetStaticTriangles(const std::vector<CVECTOR> &triangles)
+ {
+-    if (triangles.empty()) { impl_->Remove(impl_->terrain); return true; }
++    if (triangles.empty())
++    {
++        impl_->Remove(impl_->terrain);
++        if (!impl_->moving.IsInvalid()) impl_->physics.GetBodyInterface().ActivateBody(impl_->moving);
++        return true;
++    }
+     JPH::TriangleList mesh;
+     for (std::size_t i = 0; i + 2 < triangles.size(); i += 3)
+         mesh.emplace_back(JPH::Float3(triangles[i].x, triangles[i].y, triangles[i].z),
+@@ -638,6 +677,7 @@ bool ReactiveWorld::SetStaticTriangles(const std::vector<CVECTOR> &triangles)
+     if (next.IsInvalid()) return false;
+     impl_->Remove(impl_->terrain);
+     impl_->terrain = next;
++    if (!impl_->moving.IsInvalid()) bodies.ActivateBody(impl_->moving);
+     return true;
+ }
+ 
+@@ -670,10 +710,10 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
+         !std::isfinite(state.mass) || state.mass <= 0.f) return false;
+     auto &w = *impl_;
+     auto &bodies = w.physics.GetBodyInterface();
+-    // Rehydration also makes TOUCH prediction read-only for native state.
+-    w.Remove(w.moving);
+-    w.moving = w.Hydrate(w.hull, w.hullMass, state, false);
+-    if (w.moving.IsInvalid()) return false;
++    // Preserve Jolt contact caches and sleeping across real native frames.
++    // External pose, velocity, mass and retained-shape changes still hydrate
++    // through their owning native values; prediction restores the Jolt state.
++    if (!w.Synchronize(state)) return false;
+     std::vector<std::pair<ReactiveNeighbor *, JPH::BodyID>> others;
+     struct ReleaseNeighbors
+     {
+@@ -706,7 +746,8 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
+             force += f;
+             torque += (q * (Vec(jet.point) - w.hull->GetCenterOfMass())).Cross(f);
+         }
+-        bodies.AddForceAndTorque(w.moving, force, torque, JPH::EActivation::Activate);
++        if (force.LengthSq() > 0.f || torque.LengthSq() > 0.f)
++            bodies.AddForceAndTorque(w.moving, force, torque, JPH::EActivation::Activate);
+         const auto surface = JPH::RVec3(state.pose.v.pos.x, fluid.height, state.pose.v.pos.z);
+         const auto normal = Vec(fluid.normal);
+         // Transform the entire retained bound, including attitude, each step.
+@@ -718,7 +759,11 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
+             w.wet |= bodies.ApplyBuoyancyImpulse(w.moving, surface, normal,
+                 fluid.buoyancy, .5f, .1f, Vec(fluid.velocity), w.physics.GetGravity(), dt);
+         w.updateError = w.physics.Update(dt, 1, &w.allocator, &w.jobs);
+-        if (w.updateError != JPH::EPhysicsUpdateError::None) return false;
++        if (w.updateError != JPH::EPhysicsUpdateError::None)
++        {
++            if (!w.predicting) w.Remove(w.moving);
++            return false;
++        }
+     }
+     auto next = state;
+     w.Read(w.moving, w.hull, next);
+@@ -739,4 +784,34 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
+ 
+ bool ReactiveWorld::Wet() const { return impl_->wet; }
+ uint32_t ReactiveWorld::UpdateError() const { return uint32_t(impl_->updateError); }
++
++bool ReactiveWorld::Predict(ReactiveBody &state, const std::vector<ReactiveForce> &forces,
++                            const ReactiveFluid &fluid, float seconds,
++                            std::vector<ReactiveNeighbor> *neighbors)
++{
++    if (!impl_->hull || !Finite(state.pose) || !Finite(state.velocity) ||
++        !Finite(state.angularVelocity) || !(state.mass > 0.f) || !std::isfinite(state.mass)) return false;
++    if (!impl_->Synchronize(state)) return false;
++    JPH::StateRecorderImpl recorder;
++    impl_->physics.SaveState(recorder);
++    const bool wet = impl_->wet;
++    // Step may reject after integration. Native state remains authoritative;
++    // reconstruct that body only if the failure invalidated its projection.
++    const auto initial = state;
++    const auto initialNeighbors = neighbors ? *neighbors : std::vector<ReactiveNeighbor>{};
++    impl_->predicting = true;
++    const bool accepted = Step(state, forces, fluid, seconds, neighbors);
++    impl_->predicting = false;
++    recorder.Rewind();
++    const bool restored = impl_->physics.RestoreState(recorder);
++    impl_->wet = wet;
++    if (!restored)
++    {
++        impl_->Remove(impl_->moving);
++        state = initial;
++        if (neighbors) *neighbors = initialNeighbors;
++        return false;
++    }
++    return accepted;
++}
+ } // namespace roundhouse

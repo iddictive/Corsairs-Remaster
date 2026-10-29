@@ -14157,8 +14157,19 @@ production GEOM/NODER fresh-load parity, rollback, phase and whole PROGRAM probe
 pass. The integrated old-save replay loads 24 native ships and 27 resident
 islands after the region-identity startup repair. Engine
 `59e303c71b50b44ddf350421c91ab55fec99057c0c41936d9b7aae6ccb6dd0ed`
-is installed and its bundle signature verifies. The aggregate morning9→7
+was installed with a verified bundle signature before the jet repair below. The aggregate morning9→7
 appearance transaction still rejects and preserves the previous palette;
 morning9 and its repeat pass. That rejection, whole-scene lighting acceptance,
 the remaining far-coast coverage difference and jet ground-contact cost remain
 open. Gameplay verification belongs to the user.
+
+### Jet and falling FPS repair — October 29
+
+Engine `170fa6c14da4043033d34f21d53d41e3e75531401f1fd397416e6f9b7c5a6f10`
+is installed. The installer retained the preceding startup-fixed engine
+`59e303c71b50b44ddf350421c91ab55fec99057c0c41936d9b7aae6ccb6dd0ed`
+for recovery. The native intact/damaged fall cost is7.60/7.73ms versus84.11ms;
+the certified collider,60Hz integration tradeoffs, cold373ms admission and
+contrasting exhaust readbacks are retained in
+[reactive flight evidence](evidence/phonk-reactive-flight-20261029/README.md).
+Installed FPS and gameplay appearance remain the user's verification.

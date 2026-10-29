@@ -1,0 +1,51 @@
+#include "ship_reactive_collision.hpp"
+// Reuse intake: pinned Jolt5.6 convex hulls/compound retain runtime collision.
+// https://jrouwe.github.io/JoltPhysicsDocs/5.6.0/class_convex_hull_shape.html
+// Native convex::components is reused; exact coalesce only reduced44206→34468
+// in the retained earlier experiment. Native SAT gaps are distance LOWER
+// bounds; closestFacePoint is float triangle-surface geometry, not distance
+// to the interior of a double-coordinate convex prism. The small product-
+// distance certificate is needed here, with existing native graph ownership.
+// Upstream Jolt ships commonly use preprocessed VHACD hulls:
+// https://github.com/jrouwe/JoltPhysics/discussions/1877
+// VHACD is archived; maintained CoACD supports AppleSilicon and metric error:
+// https://github.com/SarahWeiii/CoACD (2026-04 real_metric mode).
+// Neither ACD dependency is installed. Generic whole-mesh decomposition would
+// add dependency/build and live-cut remeshing ownership; it is unnecessary for
+// the bounded native connected-prism cover certificate evaluated here.
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
+static double prismDistance(const storm::ship::contact::MaterialPiece &p,const double q[3])
+{
+ bool positive=false,negative=false;double distance=INFINITY;
+ for(size_t i=0;i<p.hull.points.size();i++){auto a=p.hull.points[i],b=p.hull.points[(i+1)%p.hull.points.size()];double x=b.x-a.x,z=b.z-a.z,cross=x*(q[2]-a.z)-z*(q[0]-a.x);positive|=cross>0;negative|=cross<0;double t=std::clamp(((q[0]-a.x)*x+(q[2]-a.z)*z)/(x*x+z*z),0.,1.),dx=q[0]-a.x-t*x,dz=q[2]-a.z-t*z;distance=std::min(distance,dx*dx+dz*dz);}
+ if(!positive||!negative)distance=0;double y=std::max({p.lowerY-q[1],0.,q[1]-p.upperY});return std::sqrt(distance+y*y);
+}
+static double globalDistance(const storm::ship::contact::MaterialSnapshot &material,const double q[3])
+{
+ const auto &root=storm::ship::contact::materialRoot(material);double best=INFINITY;
+ auto visit=[&](auto&&self,size_t id)->void{const auto&node=root.index[id];const auto&b=node.bounds;double x=std::max({b.loX-q[0],0.,q[0]-b.hiX}),y=std::max({b.lowerY-q[1],0.,q[1]-b.upperY}),z=std::max({b.loZ-q[2],0.,q[2]-b.hiZ});if(x*x+y*y+z*z>=best*best)return;if(node.piece!=std::numeric_limits<size_t>::max()){const auto&p=root.pieces[node.piece];if(storm::ship::contact::materialSupportRetained(material,p.supportCell))best=std::min(best,prismDistance(p,q));}else{self(self,node.left);self(self,node.right);}};
+ if(!root.index.empty())visit(visit,0);return best;
+}
+static void collisionProjectionProbe(const storm::ship::material::convex::ContactSnapshot &snapshot,const CMatrix &frame,const storm::ship::contact::MaterialSnapshot &global)
+{
+ const storm::ship::material::ContactTransform transform={frame.Vx().x,frame.Vx().y,frame.Vx().z,frame.Vy().x,frame.Vy().y,frame.Vy().z,frame.Vz().x,frame.Vz().y,frame.Vz().z,frame.Pos().x,frame.Pos().y,frame.Pos().z};
+ auto start=std::chrono::steady_clock::now();auto groups=roundhouse::ReactiveCollisionGroups(snapshot,transform);double groupMs=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
+ size_t original=0,singles=0,maxMembers=0,failures=0;double maxSupport=0,maxActualCover=0,sumProxyVolume=0,maxConcavitySample=0,maxConcavityUpper=0,addedEstimate=0,addedUpper=0,addedLower=0;roundhouse::ReactiveWorld registration;
+ for(const auto&g:groups){original+=g.members.size();singles+=g.members.size()==1;maxMembers=std::max(maxMembers,g.members.size());double lo[3]={INFINITY,INFINITY,INFINITY},hi[3]={-INFINITY,-INFINITY,-INFINITY},c[3],s[3];for(auto p:g.vertices){double v[]={p.x,p.y,p.z};for(int k=0;k<3;k++){lo[k]=std::min(lo[k],v[k]);hi[k]=std::max(hi[k],v[k]);}}for(int k=0;k<3;k++){c[k]=(lo[k]+hi[k])*.5;s[k]=std::max((hi[k]-lo[k])*.5,1e-6);}JPH::Array<JPH::Vec3> points;for(auto p:g.vertices)points.emplace_back(float((p.x-c[0])/s[0]),float((p.y-c[1])/s[1]),float((p.z-c[2])/s[2]));JPH::ConvexHullShapeSettings settings(points,0.f);settings.mHullTolerance=1e-7f;auto result=settings.Create();if(result.HasError()){if(failures<8)printf("proxy_rejected members=%zu points=%zu error=%s\n",g.members.size(),points.size(),result.GetError().c_str());failures++;continue;}
+  JPH::Vec3 scale{float(s[0]),float(s[1]),float(s[2])},center{float(c[0]),float(c[1]),float(c[2])};JPH::RefConst<JPH::Shape> scaled=new JPH::ScaledShape(result.Get(),scale);sumProxyVolume+=scaled->GetVolume();JPH::ConvexShape::SupportBuffer buffer;auto *support=static_cast<JPH::ConvexShape*>(result.Get().GetPtr())->GetSupportFunction(JPH::ConvexShape::ESupportMode::IncludeConvexRadius,buffer,scale);
+  for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++)if(x||y||z){JPH::Vec3 direction{float(x),float(y),float(z)};double actual=(support->GetSupport(direction)+scaled->GetCenterOfMass()+center).Dot(direction),expected=-INFINITY;for(auto p:g.vertices)expected=std::max(expected,x*p.x+y*p.y+z*p.z);maxSupport=std::max(maxSupport,std::abs(actual-expected));}
+  storm::ship::contact::MaterialSnapshot anchor;const auto anchorKey=g.members.front();check(storm::ship::material::appendContactPiece(anchor,snapshot.cells->convex->cells[anchorKey.cell]->pieces->at(anchorKey.piece),anchorKey.cell,transform),"certificate_anchor");const auto*actualHull=static_cast<const JPH::ConvexHullShape*>(result.Get().GetPtr());for(JPH::uint i=0;i<actualHull->GetNumPoints();++i){auto p=actualHull->GetPoint(i)+actualHull->GetCenterOfMass();double point[]={double(p.GetX())*s[0]+c[0],double(p.GetY())*s[1]+c[1],double(p.GetZ())*s[2]+c[2]};maxActualCover=std::max(maxActualCover,prismDistance(anchor.pieces.front(),point));}
+  if(g.members.size()==1||std::getenv("JET_CERTIFICATE_ONLY"))continue;
+  storm::ship::contact::MaterialSnapshot originals;for(auto key:g.members)check(storm::ship::material::appendContactPiece(originals,snapshot.cells->convex->cells[key.cell]->pieces->at(key.piece),key.cell,transform),"proxy_oracle_prism");
+  const auto *convex=static_cast<const JPH::ConvexHullShape*>(result.Get().GetPtr());const auto &planes=convex->GetPlanes();double step[3],half[3];for(int k=0;k<3;k++){lo[k]-=1e-5;hi[k]+=1e-5;step[k]=(hi[k]-lo[k])/8;half[k]=step[k]*.5;}double diagonal=std::sqrt(half[0]*half[0]+half[1]*half[1]+half[2]*half[2]),voxel=step[0]*step[1]*step[2];
+  for(int x=0;x<8;x++)for(int y=0;y<8;y++)for(int z=0;z<8;z++){double q[3]={lo[0]+(x+.5)*step[0],lo[1]+(y+.5)*step[1],lo[2]+(z+.5)*step[2]};JPH::Vec3 local(float((q[0]-c[0])/s[0]),float((q[1]-c[1])/s[1]),float((q[2]-c[2])/s[2]));local-=convex->GetCenterOfMass();JPH::Vec3 extent(float(half[0]/s[0]),float(half[1]/s[1]),float(half[2]/s[2]));bool outside=false,centerInside=true,voxelInside=true;for(const auto&plane:planes){double d=plane.SignedDistance(local),r=plane.GetNormal().Abs().Dot(extent);outside|=d-r>1e-6;centerInside&=d<=0;voxelInside&=d+r<=0;}if(outside)continue;
+   double d=globalDistance(global,q);maxConcavityUpper=std::max(maxConcavityUpper,d+diagonal);if(centerInside){maxConcavitySample=std::max(maxConcavitySample,d);if(d>1e-8)addedEstimate+=voxel;}if(voxelInside&&d>diagonal)addedLower+=voxel;
+   bool covered=false;if(d==0)for(const auto&p:originals.pieces){bool all=true;for(int mask=0;mask<8&&all;mask++){double corner[3];for(int k=0;k<3;k++)corner[k]=q[k]+(mask&(1<<k)?half[k]:-half[k]);all=prismDistance(p,corner)<1e-9;}if(all){covered=true;break;}}if(!covered)addedUpper+=voxel;
+  }
+ }
+ printf("collision_proxy original_parts=%zu proxy_groups=%zu singleton_groups=%zu largest_group=%zu grouping_ms=%.5f shape_failures=%zu max_support_error_m=%.9g proxy_summed_volume_m3=%.12g\n",original,groups.size(),singles,maxMembers,groupMs,failures,maxSupport,sumProxyVolume);check(original>0&&failures==0&&maxSupport<1e-4,"collision_proxy_support_admission");
+ printf("actual_collider_vertex_anchor_distance_upper_m=%.9g certificate_limit_m=0.02\n",maxActualCover);check(maxActualCover<.020001,"actual_collider_convex_offset_certificate");
+ if(!std::getenv("JET_CERTIFICATE_ONLY"))printf("proxy_concavity original_union=global voxel_grid=8 max_sample_distance_m=%.9g max_distance_upper_bound_m=%.9g groupwise_added_volume_estimate_m3=%.9g groupwise_added_volume_interval_m3=[%.9g,%.9g] total_geometry_oracle_ms=%.5f\n",maxConcavitySample,maxConcavityUpper,addedEstimate,addedLower,addedUpper,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count());
+}

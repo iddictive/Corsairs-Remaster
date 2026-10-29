@@ -1,15 +1,66 @@
 # Reactive ship flight, 2026-10-29
 
+## Reopened installed-runtime acceptance
+
+The installed experimental batch reproduced the user's severe jet/falling FPS
+regression. A three-second native process sample records 1,528 of 1,801 main
+thread samples in `AdvancePhonkJet -> ReactiveWorld::Step`: 901 in contact
+collision work and 627 in continuous collision casts. Raw process evidence is
+private in application diagnostics `performance-20261029/installed-fps-sample.txt`.
+This confirms the known contact limitation affects gameplay; successful component
+physics checks did not establish usable flight performance. The repaired native
+consumer now measures7.60ms intact and7.73ms after a real canonical material cut.
+`certified-cover-60hz-native-consumer-output.txt` and its damaged counterpart
+retain controls, codec, prediction, death and terrain-pose checks. Retained-time
+recovery measures96/48/16ms input at31.61/15.66/5.59ms CPU; no time is discarded.
+Installed-game FPS remains the user's check.
+
+The existing additive plume also clips to pure white on a bright water substrate.
+`exhaust-contrast-replay.py.txt` and `exhaust-contrast-result.json` retain native
+Metal compact-primitive readbacks on bright water, dark water and grey backgrounds.
+The source-over, denser purple plume retains colour on all three; the luminous
+water halo keeps its additive state. Depth occlusion and zero-alpha tail preserve
+the background. Vertex count, topology, depth policy and shader remain unchanged;
+one extra draw is possible only while both the halo and plume are present. This
+is component contrast evidence, with appearance in gameplay still user-owned.
+
 Consumer: the main native `SHIP` in local-sea Phonk mode. Ctrl applies four
 body-aligned nozzle forces; W/S and A/D distribute them to pitch and roll.
 Force uses the authored full-load engine rating. Actual retained hull/cargo mass,
 shape inertia, gravity and attitude determine acceleration. There is no altitude
 target, pose interpolation, automatic levelling or flight trajectory.
 
-The immediate package retains the native yaw-prism contact projection, with
-all 44,206 Brig1 parts normalized from doubles into Jolt scaled convex shapes.
-The actual retained-solid optimization remains unfinished and is not wired to
-the game. Ground-contact performance remains an experimental limitation.
+The first installed package used all 44,206 Brig1 yaw-prism contact parts.
+The repaired candidate retains that original shape for mass, inertia and water
+integrals, while a derived collision cover uses 16,407 parts. Connected subsets
+are admitted only when every vertex is within a 2cm Euclidean offset of one
+original convex prism. Convexity bounds the entire new hull by that same offset;
+float construction has reserved headroom. Cut support cells retain their original
+parts, and material identity/revision invalidates the derived cover. No damage
+consumer is moved to proxy subshape IDs. The independent final actual-Jolt-vertex
+oracle admits all16,407 hulls and measures maximum anchor distance19.9871182mm;
+its complete result is `final-certified-vertices-collision-projection-output.txt`.
+Original-volume tilted-water and cargo-scaled mass/inertia pairs agree exactly.
+
+Native Nevis contact falls from 84.11ms to 7.600ms per 16ms input frame with the
+certified cover and maximum 1/60s Jolt steps. Full CCD and all elapsed time remain;
+forces, gravity, COM, mass, inertia and original-shape buoyancy retain their owners.
+The integration tradeoff is measured: lift height differs by 5.4cm after0.96s,
+and sustained pitch/roll differs by9.57cm after3s between30/120Hz frame cadences
+(velocity difference below0.001m/s). These are trajectory differences, separate
+from the2cm collision-cover bound. First hull preparation costs373ms; this remains
+a cold-admission stutter. Whole-game FPS and appearance remain user-owned.
+
+The extra `projection-physics-contract.cpp.txt` stress fixture retains a known
+invalid late momentum assertion: model-origin velocity is not COM velocity for
+an asymmetric rotating body. Its correction is pending the existing tooling
+owner; that exit must not be presented as a full fixture pass. Earlier output
+does establish300m/s translation CCD without crossing (11.07mm overlap) and
+complete elapsed-time gravity. Rotating impacts show temporary vertex overlap
+at both60Hz (0.443m) and240Hz (0.861m), with the body staying on the entry side.
+This is the pinned linear-CCD rotational limitation, not a claimed cure for all
+high-speed rotating contacts. Rejected persistent-body, coarse760-part and
+240Hz-certified candidates remain labelled by their raw evidence filenames.
 
 `ship_reactive_jet.cpp` owns native input/state/geometry projection and exhaust
 delivery. `ReactiveWorld` in the existing `roundhouse_ragdoll.cpp` owns Jolt 5.6
@@ -86,7 +137,7 @@ Immutable shape-mass caching and a transformed all-dry bound reduce its dry
 native frame from 7,286 to 28.2 microseconds with identical control output.
 First hull admission takes 161 ms. Same-process RSS rises by 163.8 MB for
 authored hull/material and another 55.4 MB for the physics projection.
-Ground contact remains expensive: 84.1 ms/frame over the original Nevis replay;
+That original 240Hz package measured 84.1 ms/frame over the Nevis replay;
 the simple floor/ceiling probe averages 17.6/23.6 ms and water 2.81 ms.
 These are component CPU costs, not game FPS. The 27-resident replay remains
 unaccepted; its retained older failure must not be read as final acceptance.

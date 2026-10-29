@@ -2843,6 +2843,7 @@ void SHIP::DrawPhonkGlow(uint32_t)
             }
         }
     }
+    const unsigned haloVertices = at;
     if (phonkJet.active)
     {
         CMatrix frame(State.vAng, State.vPos + CVECTOR(fXOffset,
@@ -2857,7 +2858,7 @@ void SHIP::DrawPhonkGlow(uint32_t)
                 const float t = float(ring)*.5f;
                 const float radius = .3f+1.7f*t;
                 const auto p = frame*(jet.point+CVECTOR(radius*std::cos(angle), -length*t, radius*std::sin(angle)));
-                const uint32_t color = ring==0 ? 0xd8fff0ff : ring==1 ? 0x90be52ff : 0x00a020ff;
+                const uint32_t color = ring==0 ? 0xd8fff0ff : ring==1 ? 0xe0be52ff : 0x00a020ff;
                 return Vertex{p.x,p.y,p.z,color};
             };
             for (unsigned ring=0;ring<2;++ring) for (unsigned i=0;i<16;++i)
@@ -2891,8 +2892,17 @@ void SHIP::DrawPhonkGlow(uint32_t)
     CMatrix world;
     pRS->GetTransform(storm_render::TransformWorld, world);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
-    StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
-                                   at / 3, vertices.data(), sizeof(Vertex));
+    if (haloVertices)
+        StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
+                                       haloVertices / 3, vertices.data(), sizeof(Vertex));
+    if (at > haloVertices)
+    {
+        // Additive exhaust saturates to white over sunlit water. Keep the
+        // luminous water halo additive, but retain the dense plume's colour.
+        device->SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
+        StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
+                                       (at - haloVertices) / 3, vertices.data() + haloVertices, sizeof(Vertex));
+    }
     pRS->SetTransform(storm_render::TransformWorld, world);
     for (const auto &s : stages) device->SetTextureStageState(s.stage, s.type, s.previous);
     for (const auto &s : states) device->SetRenderState(s.type, s.previous);

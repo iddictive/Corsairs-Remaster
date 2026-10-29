@@ -4,15 +4,32 @@ import os,subprocess,shlex
 root=Path(__file__).resolve().parents[3];native=root/'experiments/native-metal';build=native/'.cache/build';work=Path(sys.argv[1]).resolve();evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
 line=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','CMakeFiles/roundhouse_ragdoll.dir/roundhouse_ragdoll.cpp.o'],text=True).strip()
 c=shlex.split(line);source=os.environ.get('JET_COMPONENT_SOURCE','production-component.cpp.txt');c[c.index('-c')+1]=str(evidence/source)
+c+=['-I'+str(evidence)]
+if os.environ.get('JET_CADENCE_REPORT')=='1':
+ body=(evidence/source).read_text();old='require(~(b.pose.Pos()-reference)<.0001f,"frame_invariance");'
+ if body.count(old)!=1:raise ValueError('cadence oracle changed')
+ body=body.replace(old,'printf("cadence_delta_from_30hz_m=%.9g\\n",std::sqrt(~(b.pose.Pos()-reference)));')
+ (work/'cadence.cpp').write_text(body);c[c.index('-c')+1]=str(work/'cadence.cpp')
+if os.environ.get('JET_CONTACT_REPORT')=='1':
+ body=(evidence/source).read_text();old='require(clearance>-.05,"no_high_speed_thin_wall_tunneling");'
+ if body.count(old)!=1:raise ValueError('contact oracle changed')
+ body=body.replace(old,'printf("REPORT_ONLY_50mm_penetration_gate_pass=%d\\n",int(clearance>-.05));')
+ (work/'contact.cpp').write_text(body);c[c.index('-c')+1]=str(work/'contact.cpp')
 c+=['-x','c++'];c[c.index('-c'):c.index('-c')]=['-x','c++']
 for flag,name in [('-o','probe.o'),('-MF','probe.d'),('-MT','probe.o')]:
  if flag in c:c[c.index(flag)+1]=str(work/name)
 c=[x for x in c if x!='-v']
 r=subprocess.run(c,cwd=build,capture_output=True,text=True,timeout=80)
 if r.returncode:print((r.stdout+r.stderr)[-6000:]);raise SystemExit(r.returncode)
-r=subprocess.run(['/usr/bin/c++','-arch','arm64',str(work/'probe.o'),str(build/'libroundhouse_ragdoll.a'),str(build/'_deps/roundhouse_jolt-build/libJolt.a'),'-pthread','-o',str(work/'probe')],capture_output=True,text=True,timeout=50)
+archive=build/'libroundhouse_ragdoll.a'
+if os.environ.get('JET_ISOLATED_REACTIVE')=='1':
+ subprocess.run([sys.executable,str(evidence/'isolated-reactive-build.py.txt'),str(root),str(work),'roundhouse'],check=True,timeout=100)
+ archive=work/'libroundhouse_ragdoll.a'
+r=subprocess.run(['/usr/bin/c++','-arch','arm64',str(work/'probe.o'),str(archive),str(build/'_deps/roundhouse_jolt-build/libJolt.a'),'-pthread','-o',str(work/'probe')],capture_output=True,text=True,timeout=50)
 if r.returncode:print((r.stdout+r.stderr)[-6000:]);raise SystemExit(r.returncode)
 r=subprocess.run([str(work/'probe')],capture_output=True,text=True,timeout=40)
 out=r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n'
-(evidence/(source.replace('.cpp.txt','')+'-output.txt')).write_text(out.replace(str(root),'<repo>').replace(str(work),'<scratch>'));print(out[-7000:]);raise SystemExit(r.returncode)
+prefix=os.environ.get('JET_RESULT_PREFIX','')
+if prefix and not all(c.islower() or c.isdigit() or c=='-' for c in prefix):raise ValueError('result prefix')
+(evidence/((prefix+'-' if prefix else '')+source.replace('.cpp.txt','')+'-output.txt')).write_text(out.replace(str(root),'<repo>').replace(str(work),'<scratch>'));print(out[-7000:]);raise SystemExit(r.returncode)
 

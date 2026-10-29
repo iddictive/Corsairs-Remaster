@@ -1,0 +1,27 @@
+rss_scene_before_ship_bytes=284147712
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+collision_proxy original_parts=44206 proxy_groups=16407 singleton_groups=8507 largest_group=88 grouping_ms=82.34850 shape_failures=0 max_support_error_m=2.38418579e-06 proxy_summed_volume_m3=406.021411285
+proxy_concavity original_union=global voxel_grid=8 max_sample_distance_m=0.0131092062 max_distance_upper_bound_m=0.189428033 groupwise_added_volume_estimate_m3=0.313746194 groupwise_added_volume_interval_m3=[0,144.570963] total_geometry_oracle_ms=14546.50317
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+       19.35 real        18.92 user         0.14 sys
+           468598784  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               30375  page reclaims
+                  43  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   1  voluntary context switches
+                5759  involuntary context switches
+        423741993490  instructions retired
+         81043237793  cycles elapsed
+           400164232  peak memory footprint
+
+EXIT 0

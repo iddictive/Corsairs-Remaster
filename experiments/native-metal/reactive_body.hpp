@@ -40,7 +40,11 @@ class ReactiveWorld
     ReactiveWorld &operator=(const ReactiveWorld &) = delete;
     // Convex parts come from the current native retained hull material.
     bool SetHull(const std::vector<std::vector<ReactivePoint>> &parts);
+    bool SetHull(const std::vector<std::vector<ReactivePoint>> &parts,
+                 const std::vector<std::vector<ReactivePoint>> &collisionParts);
     bool SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts);
+    bool SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts,
+                         const std::vector<std::vector<ReactivePoint>> &collisionParts);
     bool ImpulseNeighbor(uint64_t key, ReactiveBody &body, const CVECTOR &impulse, const CVECTOR &worldPoint);
     bool SetStaticTriangles(const std::vector<CVECTOR> &triangles);
     // Returns the native reference-pose submerged fraction used to preserve
