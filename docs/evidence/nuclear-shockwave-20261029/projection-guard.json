@@ -1,0 +1,6 @@
+{
+  "source_boundary": "Exact refraction offset block, native simd math; no render/UI",
+  "stdout": "w=0 offset=(0,0) finite=1\nw=-1 offset=(0,0) finite=1\nw=1 offset=(0.0118585,-0.00395285) finite=1\nw=1 offset=(0.0115229,-0.00484486) finite=1\nold_zero_w_nonfinite=1\n",
+  "stderr": "",
+  "exit": 0
+}

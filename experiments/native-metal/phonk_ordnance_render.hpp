@@ -25,6 +25,7 @@ class PhonkNuclearRenderer
     id<MTLRenderPipelineState> pipeline = nil;
     id<MTLTexture> noise = nil;
     id<MTLTexture> smokeSprite = nil;
+    id<MTLTexture> scene = nil;
     MTLPixelFormat format = MTLPixelFormatInvalid;
     bool prepare(id<MTLDevice> device, MTLPixelFormat requested)
     {
@@ -131,6 +132,21 @@ class PhonkNuclearRenderer
         const auto right=NSUInteger(std::clamp(std::ceil(maxX)+2.f,0.f,float(target.width)));
         const auto bottom=NSUInteger(std::clamp(std::ceil(maxY)+2.f,0.f,float(target.height)));
         if (right<=left || bottom<=top) return true;
+        // Pressure is clear refracting air with condensation, so retain the
+        // current scene rather than painting an opaque ring over its detail.
+        if (age<pressureLife) {
+            if (!scene || scene.width!=target.width || scene.height!=target.height || scene.pixelFormat!=target.pixelFormat) {
+                auto snapshot=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:target.pixelFormat
+                    width:target.width height:target.height mipmapped:NO];
+                snapshot.storageMode=MTLStorageModePrivate;snapshot.usage=MTLTextureUsageShaderRead;
+                scene=[device newTextureWithDescriptor:snapshot];if(!scene)return false;
+            }
+            auto blit=[command blitCommandEncoder];if(!blit)return false;
+            [blit copyFromTexture:target sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
+                sourceSize:MTLSizeMake(target.width,target.height,1) toTexture:scene destinationSlice:0
+                destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];
+            [blit endEncoding];
+        }
         auto pass=[MTLRenderPassDescriptor renderPassDescriptor];
         pass.colorAttachments[0].texture=target;
         pass.colorAttachments[0].loadAction=MTLLoadActionLoad;
@@ -144,6 +160,7 @@ class PhonkNuclearRenderer
         [encoder setFragmentTexture:depth atIndex:0];
         [encoder setFragmentTexture:noise atIndex:1];
         [encoder setFragmentTexture:smokeSprite atIndex:2];
+        [encoder setFragmentTexture:scene atIndex:3];
         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
         [encoder endEncoding];
         return true;

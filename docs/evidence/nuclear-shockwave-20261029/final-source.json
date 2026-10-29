@@ -1,0 +1,23 @@
+{
+  "shader_sha256": "a5725d892dcb7de8ac5ee492ac52205b7dd774bb501de5c3db1e76c6e8d47072",
+  "renderer_sha256": "414f30fd27e93f3a9fdf375ed96031ad0a6f05d97c20416827cc762aaf3c4236",
+  "baseline_commit": "e106aac45f510eca8208e61a0fdd12b45a6c02c9",
+  "renderer_reuse": "immutable same-size snapshot per PhonkNuclearRenderer; correct-order copy before each blast; canonical target source, no current-blast feedback",
+  "native_current_scene_resolution": [
+    2056,
+    1329
+  ],
+  "condition": "pure offscreen; no user game observed at intake; other task GPU windows released; OS shader cache not flushed",
+  "runtime": {
+    "os": "macOS-27.2-arm64-arm-64bit",
+    "cpu": "Apple M5 Max",
+    "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+    "sdk": "27.0"
+  },
+  "fixture_sha256": "1412d524e4bfa334e44ac7f126fa8ab6b0598ebde105d1c983a3a187989bfac4",
+  "timing_limit": "Last pre-run process check found no game; GPU component windows were coordinated, not globally profiled/isolated. One paired workload sweep with warm objects; no statistical or whole-game FPS guarantee.",
+  "paired_timing_shader_sha256": "0eab62817d16854a41b7b127ea6cd7773a5a70d91dc35c34c77762d7e77f8a16",
+  "paired_timing_renderer_sha256": "414f30fd27e93f3a9fdf375ed96031ad0a6f05d97c20416827cc762aaf3c4236",
+  "post_timing_delta": "Final guard adds two comparisons of already-computed clip.w outside the marches. Invalid/behind-eye displaced points yield zero refraction; no copy/pass/sample/allocation change. Final-source native projection probe and GPU lifecycle replay pass; full timing not repeated for this bounded guard.",
+  "final_correctness_sources": "motion.json _sources binds final-source GPU capture; projection-guard.json binds exact source-linked native math negative."
+}

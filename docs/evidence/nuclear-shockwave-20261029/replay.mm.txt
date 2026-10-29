@@ -1,0 +1,104 @@
+#import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#include <simd/simd.h>
+#include <algorithm>
+#include <cstdio>
+#include <vector>
+#include <stdexcept>
+#include <chrono>
+#ifndef SHOCK_RENDERER_HEADER
+#define SHOCK_RENDERER_HEADER "experiments/native-metal/phonk_ordnance_render.hpp"
+#endif
+#include SHOCK_RENDERER_HEADER
+#ifndef FIXTURE_WIDTH
+#define FIXTURE_WIDTH 960
+#define FIXTURE_HEIGHT 540
+#endif
+constexpr unsigned width=FIXTURE_WIDTH,height=FIXTURE_HEIGHT;
+struct DemoCamera {simd_float4x4 viewProjection,inverseViewProjection;simd_float4 eye,viewport,sun,time;};
+const char*sceneMSL=R"MSL(
+struct DemoCamera {float4x4 viewProjection,inverseViewProjection;float4 eye,viewport,sun,time;};
+struct SceneO {float4 p [[position]];};
+struct ScenePixel {float4 color [[color(0)]];float depth [[depth(any)]];};
+vertex SceneO demo_scene_vs(uint id [[vertex_id]]){float2 q=float2((id<<1)&2,id&2);return {float4(q*float2(2,-2)+float2(-1,1),0,1)};}
+float3 demoRay(float2 pixel,constant DemoCamera&c){float2 ndc=pixel/c.viewport.zw*float2(2,-2)+float2(-1,1);float4 p=c.inverseViewProjection*float4(ndc,0,1);return normalize(p.xyz/p.w-c.eye.xyz);}
+fragment ScenePixel demo_scene_fs(SceneO o [[stage_in]],constant DemoCamera&c [[buffer(1)]]){
+ if(c.time.w==2.f)return {float4(.17f+o.p.x/c.viewport.z*.2f,.21f,.27f+o.p.y/c.viewport.w*.15f,1),.5f};
+ float3 ray=demoRay(o.p.xy,c),horizon=mix(float3(.40f,.47f,.50f),float3(.66f,.76f,.86f),c.time.y),zenith=mix(float3(.075f,.14f,.22f),float3(.40f,.60f,.86f),c.time.y);
+ if(ray.z<-.001f) {
+  float distance=(200.f-c.eye.z)/ray.z;float3 p=c.eye.xyz+ray*distance;
+  if(distance>0.f && p.x>45.f && p.x<150.f && p.y>0.f && p.y<180.f) {
+   float4 clip=c.viewProjection*float4(p,1);
+   return {float4(.18f,.15f,.11f,1),clip.z/clip.w};
+  }
+ }
+ float3 sky=mix(horizon,zenith,smoothstep(-.03f,.55f,ray.y));
+ float clouds=shipFireTurbulence(ray*7.f+float3(0,1.7f,0));sky+=float3(.045f)*smoothstep(.58f,.78f,clouds)*smoothstep(.06f,.32f,ray.y);
+ if(c.time.w==1.f && abs(ray.y-ray.x*.25f)>.0001f) {
+  float distance=(c.eye.x*.25f-c.eye.y)/(ray.y-ray.x*.25f);
+  float3 p=c.eye.xyz+ray*distance;
+  float water=ray.y<-.0001f?(-.35f-c.eye.y)/ray.y:1.e8f;
+  if(distance>0.f && distance<water && p.x>0.f) {
+   float4 clip=c.viewProjection*float4(p,1);
+   float shade=.72f+.13f*sin(p.x*.07f)*cos(p.z*.09f);
+   return {float4(float3(.25f,.31f,.18f)*shade,1),clip.z/clip.w};
+  }
+ }
+ if(ray.y>=-.0001f)return {float4(sky,1),1};
+ float distance=(-.35f-c.eye.y)/ray.y;float3 p=c.eye.xyz+ray*distance;
+ float2 wave=p.xz*.16f;float time=c.time.x;
+ float a=sin(wave.x*.87f+wave.y*.39f-time*.8f),b=sin(wave.y*1.13f-wave.x*.33f+time*.6f);
+ float3 normal=normalize(float3(-a*.14f,1,-b*.12f));float fresnel=pow(1.f-saturate(dot(normal,-ray)),4.f);
+ float sheen=pow(max(dot(normal,normalize(-ray+normalize(c.sun.xyz))),0.f),100.f);
+ float3 water=mix(float3(.035f,.10f,.13f),horizon*.65f,fresnel)+sheen*float3(.35f,.31f,.21f);
+ water+=float3(.025f,.03f,.033f)*(a*.5f+b*.5f);
+ float haze=1.f-exp(-distance*.0008f);water=mix(water,horizon,haze);
+ water=mix(water,mix(float3(.52f,.66f,.72f),horizon,haze)+float3(.03f)*(a+b)*.5f,c.time.y);
+ float4 clip=c.viewProjection*float4(p,1);float depth=clamp(clip.z/clip.w,0.f,1.f);
+ return {float4(water,1),depth};
+}
+)MSL";
+simd_float4x4 lookAt(simd_float3 eye,simd_float3 target){
+ auto z=simd_normalize(target-eye),x=simd_normalize(simd_cross(simd_make_float3(0,1,0),z)),y=simd_cross(z,x);
+ return (simd_float4x4){{{x.x,y.x,z.x,0},{x.y,y.y,z.y,0},{x.z,y.z,z.z,0},{-simd_dot(x,eye),-simd_dot(y,eye),-simd_dot(z,eye),1}}};
+}
+simd_float4x4 perspective(){float scale=1.f/std::tan(.72f*.5f),near=.3f,far=32000.f;return (simd_float4x4){{{scale/(float(width)/height),0,0,0},{0,scale,0,0},{0,0,far/(far-near),1},{0,0,-near*far/(far-near),0}}};}
+void savePNG(id<MTLTexture>texture,NSString*path){
+ NSBitmapImageRep*image=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:nullptr pixelsWide:width pixelsHigh:height bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bitmapFormat:0 bytesPerRow:width*4 bitsPerPixel:32];
+ std::vector<uint8_t>bgra(size_t(width)*height*4);[texture getBytes:bgra.data() bytesPerRow:width*4 fromRegion:MTLRegionMake2D(0,0,width,height) mipmapLevel:0];auto*rgba=image.bitmapData;
+ for(size_t i=0;i<bgra.size();i+=4){rgba[i]=bgra[i+2];rgba[i+1]=bgra[i+1];rgba[i+2]=bgra[i];rgba[i+3]=255;}
+ NSData*png=[image representationUsingType:NSBitmapImageFileTypePNG properties:@{}];if(![png writeToFile:path atomically:YES])throw std::runtime_error("Cannot save rendered PNG");
+}
+
+int main(int argc,char**argv){@autoreleasepool{try{
+ auto device=MTLCreateSystemDefaultDevice();auto queue=[device newCommandQueue];NSError *error=nil;
+ auto library=[device newLibraryWithSource:@((std::string(storm_metal::shipFireCommonMSL)+sceneMSL).c_str()) options:nil error:&error];if(!library)throw std::runtime_error(error.localizedDescription.UTF8String);
+ auto pd=[MTLRenderPipelineDescriptor new];pd.vertexFunction=[library newFunctionWithName:@"demo_scene_vs"];pd.fragmentFunction=[library newFunctionWithName:@"demo_scene_fs"];pd.colorAttachments[0].pixelFormat=MTLPixelFormatBGRA8Unorm;pd.depthAttachmentPixelFormat=MTLPixelFormatDepth32Float;
+ auto pipeline=[device newRenderPipelineStateWithDescriptor:pd error:&error];if(!pipeline)throw std::runtime_error(error.localizedDescription.UTF8String);
+ auto td=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:width height:height mipmapped:NO];td.storageMode=MTLStorageModeShared;td.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;auto color=[device newTextureWithDescriptor:td];td.pixelFormat=MTLPixelFormatDepth32Float;td.storageMode=MTLStorageModePrivate;auto depth=[device newTextureWithDescriptor:td];
+ auto dd=[MTLDepthStencilDescriptor new];dd.depthCompareFunction=MTLCompareFunctionAlways;dd.depthWriteEnabled=YES;auto ds=[device newDepthStencilStateWithDescriptor:dd];
+ storm_metal::PhonkNuclearRenderer nuclear;
+ for(unsigned camera=0;camera<2;++camera)for(float age:{0.f,.5f,1.f,2.f,4.f,7.8f,8.2f,9.2f}){
+  auto eye=simd_make_float3(90.f,std::strtof(argv[6],nullptr),std::strtof(argv[7],nullptr));auto view=lookAt(eye,simd_make_float3(0.f,80.f,0.f)),projection=perspective();
+  DemoCamera c{};c.viewProjection=simd_mul(projection,view);c.inverseViewProjection=simd_inverse(c.viewProjection);c.eye=simd_make_float4(eye,1);c.viewport={0,0,width,height};c.sun={-.48f,.81f,-.32f,0};c.time.x=age;c.time.y=float(camera);c.time.w=std::strtof(argv[4],nullptr);
+  std::vector<double> times,cpus,walls;double firstCPU=0;
+  for(unsigned repeat=0;repeat<24;repeat++){
+   auto wallBegin=std::chrono::steady_clock::now();auto command=[queue commandBuffer];auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=color;pass.colorAttachments[0].loadAction=MTLLoadActionClear;pass.colorAttachments[0].storeAction=MTLStoreActionStore;pass.depthAttachment.texture=depth;pass.depthAttachment.loadAction=MTLLoadActionClear;pass.depthAttachment.storeAction=MTLStoreActionStore;pass.depthAttachment.clearDepth=1;
+   auto encoder=[command renderCommandEncoderWithDescriptor:pass];[encoder setRenderPipelineState:pipeline];[encoder setDepthStencilState:ds];[encoder setFragmentBytes:&c length:sizeof(c) atIndex:1];[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[encoder endEncoding];
+   auto encodeBegin=std::chrono::steady_clock::now();
+   auto rebasedView=lookAt(simd_make_float3(0.f,0.f,0.f),simd_make_float3(0.f,80.f,0.f)-eye);
+   for(unsigned slot=0;slot<unsigned(std::atoi(argv[5]));slot++) {
+    const float center[]={std::atoi(argv[5])==1?0.f:(float(slot)-1.5f)*120.f,0,0};
+    bool encoded=nuclear.encode(device,command,color,depth,rebasedView,projection,-eye,{0,0,width,height},center,
+      220.f*std::strtof(argv[3],nullptr),age,1.f+slot,2500.f*std::strtof(argv[3],nullptr)*std::min(1.f,age/8.f),8.f);
+    if(!encoded && age<9.f)throw std::runtime_error("encode failed");
+   }
+   double cpu=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-encodeBegin).count();
+   if(!repeat)firstCPU=cpu;
+   [command commit];[command waitUntilCompleted];if(command.status!=MTLCommandBufferStatusCompleted)throw std::runtime_error("GPU failed");if(repeat>=4){times.push_back((command.GPUEndTime-command.GPUStartTime)*1000.);cpus.push_back(cpu);walls.push_back(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-wallBegin).count());}
+  }
+  std::sort(times.begin(),times.end());std::sort(cpus.begin(),cpus.end());std::sort(walls.begin(),walls.end());printf("camera=%u age=%.2f gpuMedianMs=%.5f gpuP95Ms=%.5f cpuMedianMs=%.5f cpuP95Ms=%.5f wallMedianMs=%.5f wallP95Ms=%.5f firstEncodeMs=%.5f\\n",camera,age,times[10],times[18],cpus[10],cpus[18],walls[10],walls[18],firstCPU);
+  savePNG(color,[NSString stringWithFormat:@"%s/%s-c%u-a%.2f.png",argv[1],argv[2],camera,age]);
+ }
+ return 0;
+}catch(const std::exception&e){fprintf(stderr,"%s\n",e.what());return 1;}}}

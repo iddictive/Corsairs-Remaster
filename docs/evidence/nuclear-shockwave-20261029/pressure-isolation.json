@@ -1,0 +1,52 @@
+{
+  "0": {
+    "bounds": [
+      0,
+      255,
+      959,
+      508
+    ],
+    "regions": {
+      "near": {
+        "changed_pixels": 22268,
+        "mean_rgb_delta": 25.022724358974358,
+        "max_channel_delta": 82.0
+      },
+      "far": {
+        "changed_pixels": 2596,
+        "mean_rgb_delta": 0.9762905092592593,
+        "max_channel_delta": 37.0
+      },
+      "whole": {
+        "changed_pixels": 89026,
+        "mean_rgb_delta": 7.007775848765432,
+        "max_channel_delta": 86.0
+      }
+    }
+  },
+  "1": {
+    "bounds": [
+      0,
+      255,
+      959,
+      506
+    ],
+    "regions": {
+      "near": {
+        "changed_pixels": 21665,
+        "mean_rgb_delta": 4.052307692307692,
+        "max_channel_delta": 22.0
+      },
+      "far": {
+        "changed_pixels": 2622,
+        "mean_rgb_delta": 0.8035300925925926,
+        "max_channel_delta": 43.0
+      },
+      "whole": {
+        "changed_pixels": 85159,
+        "mean_rgb_delta": 1.206977237654321,
+        "max_channel_delta": 86.0
+      }
+    }
+  }
+}

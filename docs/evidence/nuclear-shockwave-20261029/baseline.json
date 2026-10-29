@@ -1,0 +1,31 @@
+{
+  "source_commit": "e106aac45f510eca8208e61a0fdd12b45a6c02c9",
+  "shader_sha256": "e758c0a73ba70f87ebfd584d0271e0c32ce79bc8c31f0de710cea38558d1eb0a",
+  "renderer_sha256": "a4e8fd1cd1df5fb4a06a3193517a5d1de146121fdf06ba5af039a231b12f9806",
+  "fixture": "pure offscreen Metal; no window/device input/gameplay/SAVE",
+  "size": [
+    960,
+    540
+  ],
+  "eye": [
+    90,
+    120,
+    1600
+  ],
+  "target": [
+    0,
+    80,
+    0
+  ],
+  "yield_tier": 1,
+  "ages": [
+    0.5,
+    1,
+    2,
+    4
+  ],
+  "repeats": 7,
+  "stdout": "camera=0 age=0.50 gpuFullPassMedianMs=0.50496\ncamera=0 age=1.00 gpuFullPassMedianMs=0.54963\ncamera=0 age=2.00 gpuFullPassMedianMs=0.58725\ncamera=0 age=4.00 gpuFullPassMedianMs=0.53221\ncamera=1 age=0.50 gpuFullPassMedianMs=0.49700\ncamera=1 age=1.00 gpuFullPassMedianMs=0.56204\ncamera=1 age=2.00 gpuFullPassMedianMs=0.60179\ncamera=1 age=4.00 gpuFullPassMedianMs=0.41071\n",
+  "stderr": "",
+  "timing_limit": "Exploratory original baseline; concurrent-process isolation unverified. Final paired timings live in replay-results.json."
+}

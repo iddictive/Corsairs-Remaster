@@ -62,57 +62,121 @@ float2 phonkNuclearField(float3 q,float age,float4 variant,texture3d<float> nois
     float heat=exp(-age*(.45f+variant.w*.16f))*core*(.52f+coarse*.48f);
     return float2(density,heat);
 }
+// The pressure front is a finite annular bank of condensation, not a decal.
+// Its cross-section rolls behind the authoritative expanding leading edge.
+float4 phonkPressureField(float3 p,float front,float width,float age,float4 variation,texture3d<float> noise) {
+    float radial=length(p.xz),r=(radial-front)/width,h=p.y/width;
+    float2 section=float2((r+.7f)/1.25f,(h-.85f)/1.05f);
+    if(length(section)>1.4f)return 0;
+    float turn=age*1.1f,cs=cos(turn),sn=sin(turn);
+    float2 rolled=float2(cs*section.x-sn*section.y,sn*section.x+cs*section.y);
+    float3 flow=p/(width*3.f)+variation.xyz*23.f+float3(0,-age*.2f,0);
+    float coarse=phonkNuclearNoise(flow,noise);
+    float detail=phonkNuclearNoise(flow*2.7f+float3(rolled*.4f,0),noise);
+    float body=1.f-smoothstep(.78f,1.15f,length(section)+(coarse-.5f)*.32f+(detail-.5f)*.16f);
+    float density=body*(.65f+.55f*coarse)*(.25f+.9f*smoothstep(.2f,.75f,detail))*1.4f;
+    float2 axis=p.xz/max(radial,.001f);
+    float3 normal=float3(axis.x*section.x/1.25f,section.y/1.05f,axis.y*section.x/1.25f);
+    normal=length(normal)>1.e-5f?normalize(normal):float3(0,1,0);
+    return float4(normal,density);
+}
+float2 phonkPressureCylinder(float3 origin,float3 ray,float radius) {
+    float a=dot(ray.xz,ray.xz),b=dot(origin.xz,ray.xz),c=dot(origin.xz,origin.xz)-radius*radius;
+    if(a<1.e-8f)return c<=0.f?float2(-1.e8f,1.e8f):float2(1,-1);
+    float discriminant=b*b-a*c;
+    if(discriminant<0.f)return float2(1,-1);
+    float root=sqrt(discriminant);
+    return float2(-b-root,-b+root)/a;
+}
+struct PhonkPressureSample {float4 haze,bend;};
+PhonkPressureSample phonkPressureVolume(float3 origin,float3 ray,float stop,float front,float width,float age,
+                          float4 variation,texture3d<float> noise) {
+    float2 outer=phonkPressureCylinder(origin,ray,front+width*2.8f);
+    float near=max(0.f,outer.x),far=min(stop,outer.y);
+    if(abs(ray.y)<1.e-7f) {
+        if(origin.y<-.1f*width||origin.y>3.f*width)return {};
+    } else {
+        float2 vertical=(float2(-.1f,3.f)*width-origin.y)/ray.y;
+        near=max(near,min(vertical.x,vertical.y));far=min(far,max(vertical.x,vertical.y));
+    }
+    if(far<=near)return {};
+    // Skip the empty center instead of spending a march across the full blast.
+    float2 inner=front>width*2.8f?phonkPressureCylinder(origin,ray,front-width*2.8f):float2(far,far);
+    float2 ranges[2]={float2(near,min(far,inner.x)),float2(max(near,inner.y),far)};
+    if(inner.x>inner.y){ranges[0]=float2(near,far);ranges[1]=float2(far,far);}
+    float transmission=1.f;float3 color=0;float4 bend=0;
+    const float3 light=normalize(float3(-.48f,.81f,-.32f));
+    for(uint section=0;section<2;section++) {
+        float step=max(0.f,ranges[section].y-ranges[section].x)/6.f;
+        if(step<=0.f)continue;
+        for(uint i=0;i<6;i++) {
+            float distance=ranges[section].x+(float(i)+.5f)*step;
+            float3 point=origin+ray*distance;
+            float4 field=phonkPressureField(point,front,width,age,variation,noise);
+            float alpha=1.f-exp(-field.w*step/width*.12f);
+            if(alpha>.001f) {
+                float shadow=phonkPressureField(point+light*width*.9f,front,width,age,variation,noise).w;
+                float3 normal=field.xyz;
+                float shape=.4f+.6f*saturate(dot(normal,light)*.5f+.5f);
+                float lighting=.28f+.75f*shape*exp(-shadow*.85f);
+                bend+=transmission*alpha*float4(normal,distance);
+                color+=transmission*float3(.74f,.79f,.81f)*lighting*alpha;
+                transmission*=1.f-alpha;
+            }
+        }
+    }
+    float alpha=1.f-transmission,limit=alpha>.001f?min(alpha,.35f)/alpha:0.f;
+    return {float4(color,alpha)*limit,bend*limit};
+}
+float4 phonkPressureComposite(float4 effect,float4 pressure,float2 pixel,float3 ray,
+                              constant PhonkNuclearUniforms&u,depth2d<float,access::read> depth,
+                              texture2d<float> scene) {
+    if(pressure.w<=.001f)return effect;
+    float3 position=u.eye.xyz+ray*pressure.w*u.sourceRadius.w;
+    float4 center=u.viewProjection*float4(position,1);
+    float4 displaced=u.viewProjection*float4(position+pressure.xyz*u.eye.w*u.sourceRadius.w*3.f,1);
+    float2 offset=0;
+    if(center.w>1.e-5f && displaced.w>1.e-5f)
+        offset=(displaced.xy/displaced.w-center.xy/center.w)*float2(.5f,-.5f);
+    offset*=min(1.f,.0125f/max(length(offset),1.e-5f));
+    float2 uv=pixel/float2(scene.get_width(),scene.get_height());
+    float2 shifted=clamp(uv+offset,float2(0),float2(1));
+    uint2 at=min(uint2(shifted*float2(depth.get_width(),depth.get_height())),uint2(depth.get_width()-1,depth.get_height()-1));
+    float shiftedDepth=depth.read(at),sourceDepth=depth.read(uint2(pixel));
+    bool discontinuity=shiftedDepth<center.z/center.w;
+    if(sourceDepth<1.f) {
+        discontinuity|=shiftedDepth>=1.f;
+        if(shiftedDepth<1.f) {
+            float3 source=phonkNuclearUnproject(pixel,sourceDepth,u);
+            float3 receiver=phonkNuclearUnproject(shifted*float2(depth.get_width(),depth.get_height()),shiftedDepth,u);
+            discontinuity|=length(receiver-source)>u.eye.w*u.sourceRadius.w*8.f;
+        }
+    }
+    if(discontinuity)shifted=uv;
+    constexpr sampler image(coord::normalized,address::clamp_to_edge,filter::linear);
+    return float4(effect.rgb+scene.sample(image,shifted).rgb*(1.f-effect.a),1);
+}
 fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclearUniforms &u [[buffer(0)]],
                                 depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],
-                                texture2d<float> smokeSprite [[texture(2)]]) {
+                                texture2d<float> smokeSprite [[texture(2)]],texture2d<float> scene [[texture(3)]]) {
     uint2 location=min(uint2(pixel.xy),uint2(depth.get_width()-1,depth.get_height()-1));
     float sceneDepth=depth.read(location);
     float3 ray=normalize(phonkNuclearUnproject(pixel.xy,1.f,u)-u.eye.xyz);
     float stop=sceneDepth<1.f?max(0.f,dot(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.eye.xyz,ray)):1.e8f;
     float radius=u.sourceRadius.w;
     float3 origin=(u.eye.xyz-u.sourceRadius.xyz)/radius;
-    // The pressure front rides the rendered water/ground depth rather than
-    // a luminous air shell or an elevated plane cutting through the shoreline.
     // sourceRadius is camera-rebased: it must never seed a blast's identity.
     float seed=shipFireHash(u.params.w*float3(.13f,.71f,.37f));
     float4 variation=fract(sin(float4(seed,seed+1.3f,seed+2.7f,seed+4.1f))*43758.5453f);
-    // A bounded density slab follows the visible receiver normal. Its radial/
-    // normal cross-section rolls above terrain and water without an air dome.
-    float4 ground=0;
-    if(sceneDepth<1.f && u.params.x<u.params.z) {
-        float3 at=(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.sourceRadius.xyz)/radius;
-        float width=u.eye.w,front=u.params.y,radial=length(at.xz);
-        float footprint=fwidth(radial),feather=max(width,footprint*.45f);
-        float3 dx=dfdx(at),dy=dfdy(at),normal=cross(dx,dy);
-        normal=length(normal)>1.e-8f?normalize(normal):float3(0,1,0);
-        if(dot(normal,ray)>0.f)normal=-normal;
-        float incidence=max(.035f,-dot(normal,ray));
-        float height=width*3.f,slabLength=min(height/incidence,width*8.f);
-        if(abs(radial-front)<width*10.f+footprint) {
-            float turn=u.params.x*1.3f,cs=cos(turn),sn=sin(turn);
-            float step=slabLength/6.f,transmission=1.f;float3 color=0;
-            for(uint i=0;i<6;i++) {
-                float distance=(float(i)+.5f)*step;
-                float3 p=at-ray*distance;float lift=distance*incidence;
-                float r=length(p.xz)-front;
-                float2 section=float2((r+width*.5f)/(width*1.6f+feather*.5f),(lift-width*.9f)/(width*1.25f));
-                float body=1.f-smoothstep(.65f,1.25f,length(section));
-                if(body>0.f) {
-                    float2 rolled=float2(cs*section.x-sn*section.y,sn*section.x+cs*section.y);
-                    float detail=.65f;
-                    if(footprint<width*3.f)detail=phonkNuclearNoise(p/(width*2.f)+float3(rolled*.8f,0)+variation.xyz*23.f,noise);
-                    float density=body*smoothstep(.18f,.82f,detail)*1.4f;
-                    float alpha=1.f-exp(-density*step/width*.38f);
-                    float lighting=.63f+.30f*lift/height+.20f*detail;
-                    float3 spray=float3(.74f,.79f,.81f)*lighting;
-                    color+=transmission*spray*alpha;transmission*=1.f-alpha;
-                }
-            }
-            float alpha=1.f-transmission;
-            float fade=smoothstep(0.f,.12f,u.params.x)*(1.f-smoothstep(max(0.f,u.params.z-.5f),u.params.z,u.params.x));
-            float limit=alpha>.001f?min(alpha,.65f)/alpha:0.f;
-            ground=float4(color,alpha)*(fade*limit);
-        }
+    PhonkPressureSample pressure={};float4 ground=0;
+    float fade=smoothstep(0.f,.12f,u.params.x)*(1.f-smoothstep(max(0.f,u.params.z-.5f),u.params.z,u.params.x));
+    if(u.params.x<u.params.z) {
+        // Ordinary depth clips the world volume behind land and ships;
+        // never extrude a second painted field over their visible slopes.
+        pressure=phonkPressureVolume(origin,ray,stop/radius,u.params.y,u.eye.w,u.params.x,variation,noise);
+        ground=pressure.haze*fade;
+        pressure.bend.w/=max(1.e-5f,pressure.haze.a);
+        pressure.bend.xyz*=fade;
     }
     // A vertical world-space smoke card: scene depth occludes it like the
     // plume. Horizontal facing preserves its readable cap around the blast.
@@ -144,7 +208,8 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
     float3 last=(float3(1.6f,3.0f,1.6f)-origin)*inverse;
     float near=max(0.f,max(max(min(first,last).x,min(first,last).y),min(first,last).z));
     float far=min(stop/radius,min(min(max(first,last).x,max(first,last).y),max(first,last).z));
-    if(far<=near || age>=9.f)return mix(ground,sprite+ground*(1.f-sprite.a),faceAmount);
+    if(far<=near || age>=9.f)return phonkPressureComposite(mix(ground,sprite+ground*(1.f-sprite.a),faceAmount),
+        pressure.haze.a*fade>.001f?pressure.bend:float4(0),pixel.xy,ray,u,depth,scene);
     constexpr uint steps=64;
     float step=(far-near)/float(steps),transmission=1.f;
     float3 color=0;
@@ -168,7 +233,8 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
         if(transmission<.015f)break;
     }
     float4 volume=float4(color+ground.rgb*transmission,1.f-transmission*(1.f-ground.a));
-    return mix(volume,sprite+ground*(1.f-sprite.a),faceAmount);
+    return phonkPressureComposite(mix(volume,sprite+ground*(1.f-sprite.a),faceAmount),
+        pressure.haze.a*fade>.001f?pressure.bend:float4(0),pixel.xy,ray,u,depth,scene);
 }
 )MSL";
 }

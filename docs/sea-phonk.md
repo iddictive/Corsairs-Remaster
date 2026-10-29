@@ -262,18 +262,17 @@ ordinary cannonball state is not required. Existing immunity, ownership,
 contribution, SAVE and surrender settlement remain in `Fort_ApplyCannonDamage`.
 The native radius/eligibility replay and eight real-VM settlement cases pass;
 ordinary contact/airburst damage is unchanged.
-The pressure front follows actual scene depth, sharing its CPU-computed radius
-with ship contact. Stable detonation seeds vary mushroom proportions, fire
-pockets, drift and cooling. The rejected luminous dome and its elevated flat
-crop are replaced by neutral condensation/foam. Six bounded density samples
-above the visible terrain/water normal give the front rolling thickness without
-an absolute-height cutoff; terrain relief uses a conservative viewport. The64
-cloud steps and render-pass count remain unchanged. This represents visible
-first-hit receiver volume, not hidden terrain or full fluid simulation.
-[Controlled before/after frames and
-observations](evidence/nuclear-effects-20261026/observations.json) retain the
-rejection and two distinct seeds; native Metal compilation and depth/age controls
-pass, while player appearance and full-frame cost remain unverified.
+The pressure front is a world-space condensation bank with rolling density,
+directional shading and refraction of the current scene. Land and ships occlude
+it normally; it no longer paints a second front over visible mountain slopes.
+The same CPU pressure-front radius still drives ship contact; the visual width
+and lifetime are unchanged. Stable detonation seeds retain mushroom proportions, fire
+pockets, drift and cooling; the64 cloud steps and blast slots are unchanged.
+The native renderer reuses one scene snapshot, copied before each active pressure
+front so the current blast cannot sample itself. [Controlled frames, lifecycle,
+depth controls and full effect timings](evidence/nuclear-shockwave-20261029/README.md)
+record the visual tradeoff and the bounded copy/march cost. These isolated Metal
+observations do not establish player appearance or whole-game FPS.
 
 An automatic launch samples the existing tsunami `u²` distribution once and snapshots
 an integer yield tier1–10 in the missile and blast. Tier1 occurs about31.62% and

@@ -1,0 +1,26 @@
+#include <simd/simd.h>
+#include <cmath>
+#include <algorithm>
+#include <cstdio>
+using float2=simd_float2;using std::min;using std::max;
+float length(float2 x){return simd_length(x);}
+float2 bend(simd_float4 center,simd_float4 displaced){
+    float2 offset=0;
+    if(center.w>1.e-5f && displaced.w>1.e-5f)
+        offset=(displaced.xy/displaced.w-center.xy/center.w)*simd_make_float2(.5f,-.5f);
+    offset*=min(1.f,.0125f/max(length(offset),1.e-5f));
+
+return offset;
+}
+int main(){
+simd_float4 center={.2f,.3f,.7f,1};
+for(auto p:{simd_float4{.2f,.3f,0,0},simd_float4{.4f,.3f,0,-1},simd_float4{.5f,.4f,.7f,1},simd_float4{9,4,.7f,1}}){
+auto v=bend(center,p);bool finite=std::isfinite(v.x)&&std::isfinite(v.y);
+if(!finite || (p.w<=0 && simd_length(v)!=0) || simd_length(v)>.012501f)return 1;
+printf("w=%g offset=(%g,%g) finite=%d\n",p.w,v.x,v.y,finite);
+}
+auto zero=simd_float4{.2f,.3f,0,0};
+auto old=(zero.xy/zero.w-center.xy/center.w)*simd_make_float2(.5f,-.5f);
+old*=min(1.f,.0125f/max(length(old),1.e-5f));
+printf("old_zero_w_nonfinite=%d\n",!std::isfinite(old.x)||!std::isfinite(old.y));
+}

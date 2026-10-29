@@ -1,0 +1,36 @@
+{
+  "plume_only_lifecycle_parity": {
+    "0": {
+      "different_pixels": 0,
+      "max_channel_delta": 0
+    },
+    "8.2": {
+      "different_pixels": 23,
+      "max_channel_delta": 1
+    },
+    "9.2": {
+      "different_pixels": 0,
+      "max_channel_delta": 0
+    }
+  },
+  "complete_foreground_depth_max_delta": {
+    "baseline": {
+      "0": 0,
+      "0.5": 0,
+      "1": 0,
+      "2": 0,
+      "4": 0,
+      "7.8": 0,
+      "8.2": 0
+    },
+    "candidate": {
+      "0": 0,
+      "0.5": 0,
+      "1": 0,
+      "2": 0,
+      "4": 0,
+      "7.8": 0,
+      "8.2": 0
+    }
+  }
+}
