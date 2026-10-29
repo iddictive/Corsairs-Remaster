@@ -1,0 +1,66 @@
+{
+  "base_commit": "b325c241bf2403d80c72d2624ca6e0cc5fc4235f",
+  "request": "Ordinary world ships should not remain at minimum crew because completed service bypasses feasible recruitment toward existing optimal-crew policy.",
+  "private_snapshot_aggregate": {
+    "live_ordinary_hulls": 177,
+    "at_minimum": 40,
+    "below_minimum": 2,
+    "between_minimum_and_optimal": 10,
+    "at_or_above_optimal": 125,
+    "all_minimum_hulls_have_completed_v2_service": true
+  },
+  "baseline": {
+    "exit": 1,
+    "stdout": "Run=1\nscript_errors=0\n",
+    "script_errors": 0,
+    "seconds": 0.382
+  },
+  "candidate": {
+    "exit": 0,
+    "stdout": "Run=0\nAfterLoad=0\nscript_errors=0\n",
+    "script_errors": 0,
+    "seconds": 0.56
+  },
+  "fixture": {
+    "vm": "current whole PROGRAM through script-vm-probe",
+    "actual_functions": [
+      "WdmTrafficStockService",
+      "WdmTrafficPlanService",
+      "WdmTrafficFinishService",
+      "WdmTrafficServiceReady",
+      "WdmTrafficServiceCrewAvailable",
+      "WdmTrafficPhysicalLoad"
+    ],
+    "synthetic_hull": {
+      "min": 20,
+      "optimal": 100,
+      "maximum": 125,
+      "capacity": 1000,
+      "hp": 1000,
+      "cannons": 0
+    },
+    "starting_crew": 20,
+    "npc_reserve": 300,
+    "negatives": [
+      "already optimal completed plan",
+      "empty current reserve",
+      "hold exactly physically full",
+      "incomplete plan",
+      "below-minimum casualties remain until paid finish",
+      "repeated pending review does not debit supplies again"
+    ],
+    "codec": "one native VM SaveState/LoadState round; game OnSave/OnLoad intentionally no-op fixture seams",
+    "expected_completion": "real count remains20 until24elapsed hours, then becomes100 exactly once"
+  },
+  "limits": [
+    "Aggregate private save observed read-only; no player data modified or published.",
+    "Codec check is not ordinary full-game startup/load acceptance; root's accelerated production-world replay owns it.",
+    "Single short VM timings have different scenario counts; they do not prove performance change."
+  ],
+  "performance": {
+    "frequency": "Existing once-per-game-day service review for a completed under-optimal plan.",
+    "added_work": "Reuses existing bounded service planner and resource/capacity checks; no new per-frame scan, scheduler, actor or allocation owner.",
+    "retained_behavior": "Finite availability and hold space still bound paid recruitment; no at-sea crew refill; unavailable top-up keeps previously seaworthy vessel departable."
+  }
+}
+

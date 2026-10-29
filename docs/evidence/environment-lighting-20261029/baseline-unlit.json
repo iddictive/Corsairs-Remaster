@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "stdout": "",
+  "stderr": "[StormMetal] backend-opt-20260918: on\n[StormMetal] direct Metal device Apple M5 Max; backbuffer 64x64; SDL drawable 64x64; samples 1\n[StormMetal] water mode: original shader fidelity\nFAIL: pose 0 RGB mismatch at pixel 671: cpu=d04080c0 gpu=d060c0ff\n"
+}
+

@@ -55,6 +55,10 @@ void ISLAND::Uninit()
 {
     for (const auto id : residentRegions) core.EraseEntity(id);
     residentRegions.clear();
+    legacyExposureSources.clear();
+    logicalRegionID.clear();
+    legacyExposureRoot = 0;
+    legacyExposureFallback = false;
     selectedRegion = 0;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     CancelWorldCutWork();
@@ -218,12 +222,55 @@ float ISLAND::DistanceToRegionSquared(const CVECTOR &point) const
 
 float ISLAND::RegionDistanceBlend() const
 {
-    if (maxViewDistance <= 0.f) return 0.f;
+    if (legacyExposureFallback) return 0.f;
     CVECTOR camera, angles; float perspective;
     pRS->GetCamera(camera, angles, perspective);
+    float blend = RawRegionDistanceBlend(camera);
+    for (const auto id : legacyExposureSources)
+        if (const auto *source = Region(id)) blend = std::min(blend, source->RawRegionDistanceBlend(camera));
+    return blend;
+}
+
+float ISLAND::RawRegionDistanceBlend(const CVECTOR &camera) const
+{
+    if (maxViewDistance <= 0.f) return 0.f;
     const float start = maxViewDistance * maxViewDistance;
     const float end = (maxViewDistance * 1.3f) * (maxViewDistance * 1.3f);
     return std::clamp((DistanceToRegionSquared(camera) - start) / (end - start), 0.f, 1.f);
+}
+
+bool ISLAND::BindLegacySeaExposure()
+{
+    std::vector<ISLAND*> regions{this};
+    for (const auto id : residentRegions) if (auto *region = Region(id)) regions.push_back(region);
+    std::vector<std::vector<entid_t>> bindings(regions.size());
+    for (const auto &[provider, consumer] : pGS->LegacySeaExposures())
+    {
+        size_t target = regions.size(), source = regions.size();
+        for (size_t i = 0; i < regions.size(); ++i)
+        {
+            if (regions[i]->logicalRegionID == provider) target = i;
+            if (regions[i]->logicalRegionID == consumer) source = i;
+        }
+        if (target == regions.size() || source == regions.size())
+        {
+            for (auto *region : regions)
+            {
+                region->legacyExposureRoot = GetId();
+                region->legacyExposureFallback = true;
+            }
+            core.Trace("LEGACY_SEA_GEOMETRY: exposure pending provider=%s consumer=%s residents=%zu; previous bindings retained, distance fade paused until region state arrives", provider.c_str(), consumer.c_str(), regions.size());
+            return false;
+        }
+        bindings[target].push_back(regions[source]->GetId());
+    }
+    for (size_t i = 0; i < regions.size(); ++i)
+    {
+        regions[i]->legacyExposureSources.swap(bindings[i]);
+        regions[i]->legacyExposureRoot = GetId();
+        regions[i]->legacyExposureFallback = false;
+    }
+    return true;
 }
 
 bool ISLAND::RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin) const
@@ -275,6 +322,32 @@ bool ISLAND::Init()
     }
 
     return true;
+}
+
+bool ISLAND::PrepareEnvironmentLighting(const std::string&path,bool isDay)
+{
+    FinishEnvironmentLighting(false);
+    pendingLightingPath=path;pendingLightingDay=isDay;
+    bool ready=true;
+    for(const auto model:{model_id,seabed_id})if(core.GetEntityPointer(model))
+        ready=(core.Send_Message(model,"lsl",MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING,path.c_str(),int32_t(isDay))!=0)&&ready;
+    for(const auto id:residentRegions)if(auto*region=Region(id))
+        ready=region->PrepareEnvironmentLighting(path,isDay)&&ready;
+    pendingLightingReady=ready;
+    if(!ready)FinishEnvironmentLighting(false);
+    return ready;
+}
+
+void ISLAND::FinishEnvironmentLighting(bool commit)
+{
+    for(const auto id:residentRegions)if(auto*region=Region(id))region->FinishEnvironmentLighting(commit);
+    const auto code=commit?MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING:MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING;
+    for(const auto model:{model_id,seabed_id})if(core.GetEntityPointer(model))core.Send_Message(model,"l",code);
+    if(commit&&pendingLightingReady&&AttributesPointer){
+        AttributesPointer->SetAttribute("LightingPath",pendingLightingPath.c_str());
+        AttributesPointer->SetAttributeUseDword("LightingDay",pendingLightingDay?1:0);
+    }
+    pendingLightingReady=false;pendingLightingPath.clear();
 }
 
 uint32_t ISLAND::AttributeChanged(ATTRIBUTES *attribute)
@@ -509,6 +582,13 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
     entid_t eID;
     switch (message.Long())
     {
+    case MSG_ISLAND_BIND_LEGACY_EXPOSURE: return BindLegacySeaExposure() ? 1 : 0;
+    case MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING: {
+        const auto path=message.String();const bool day=message.Long()!=0;
+        return PrepareEnvironmentLighting(path,day)?1:0;
+    }
+    case MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING: FinishEnvironmentLighting(true);return 1;
+    case MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING: FinishEnvironmentLighting(false);return 1;
     case MSG_ISLAND_ATTACH_REGION: {
         const auto id = message.EntityID();
         if (id != GetId() && Region(id) && std::find(residentRegions.begin(), residentRegions.end(), id) == residentRegions.end())
@@ -542,6 +622,8 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
     case MSG_ISLAND_WORLD_STATE: {
         auto *state = message.AttributePointer();
         const auto reflection = message.EntityID();
+        const auto *regionID = state ? static_cast<const char *>(state->GetAttribute("id")) : nullptr;
+        logicalRegionID = regionID ? regionID : "";
         if (AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
         {
             auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(reflection));
@@ -551,6 +633,8 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
         RestoreWorldCuts(state, reflection);
 #endif
+        if (auto *root = Region(legacyExposureRoot); root && root->legacyExposureFallback)
+            root->BindLegacySeaExposure();
         break;
     }
     case MSG_ISLAND_ADD_FORT: {
@@ -1233,7 +1317,10 @@ bool ISLAND::Mount(const std::string_view &fname, const std::string_view &fdir, 
     // <---
 
     model_id = core.CreateEntity("MODELR");
-    core.Send_Message(model_id, "ls", MSG_MODEL_SET_LIGHT_PATH, static_cast<const char*>(AttributesPointer->GetAttribute("LightingPath")));
+    core.Send_Message(model_id,"lsl",MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING,
+        static_cast<const char*>(AttributesPointer->GetAttribute("LightingPath")),
+        int32_t(AttributesPointer->GetAttributeAsDword("LightingDay",1)!=0));
+    core.Send_Message(model_id,"l",MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING);
     const auto loaded = core.Send_Message(model_id, "ls", MSG_MODEL_LOAD_GEO, pathStr.c_str());
     if (!loaded && AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas"))
         throw std::runtime_error("SEA_ATLAS_MODEL: physical body missing; reinstall matching sea assets: " + pathStr);

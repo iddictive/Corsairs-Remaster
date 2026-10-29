@@ -686,7 +686,7 @@ def texture_inventory(root, manifest):
     return result
 
 
-def extract(data, selected):
+def extract(data, selected, *, retain_bounds=False, allow_empty=False):
     """Prune render ranges and original BSP references, retaining source IDs."""
     g = parse_gm(data)
     keep_ids = {i for row in selected for a, b in row["face_ranges"] for i in range(a, b)}
@@ -707,21 +707,23 @@ def extract(data, selected):
         row = list(obj)
         row[8] = len(keep)
         if keep:
-            low, high = bounds(object_points)
-            row[3:6] = [(a+b)*.5 for a, b in zip(low, high)]
-            row[6] = max(sum((p[i]-row[3+i])**2 for i in range(3))**.5 for p in object_points)
+            if not retain_bounds:
+                low, high = bounds(object_points)
+                row[3:6] = [(a+b)*.5 for a, b in zip(low, high)]
+                row[6] = max(sum((p[i]-row[3+i])**2 for i in range(3))**.5 for p in object_points)
         else:
             row[2] &= ~17
         OBJECT.pack_into(result, g["objects_offset"] + oi*OBJECT.size, *row)
         for j, tri in enumerate(keep):
             struct.pack_into("<3H", result, g["triangles_offset"] + (obj[9]+j)*6, *tri)
-    if not kept_points:
+    if not kept_points and not allow_empty:
         raise ValueError("Empty body extraction")
-    low, high = bounds(kept_points)
+    low, high = bounds(kept_points) if kept_points else (list(g["header"][14:17]),list(g["header"][14:17]))
     header = list(g["header"])
-    header[11:14] = [b-a for a, b in zip(low, high)]
-    header[14:17] = [(a+b)*.5 for a, b in zip(low, high)]
-    header[17] = max(sum((p[i]-header[14+i])**2 for i in range(3))**.5 for p in kept_points)
+    if not retain_bounds and kept_points:
+        header[11:14] = [b-a for a, b in zip(low, high)]
+        header[14:17] = [(a+b)*.5 for a, b in zip(low, high)]
+        header[17] = max(sum((p[i]-header[14+i])**2 for i in range(3))**.5 for p in kept_points)
     HEADER.pack_into(result, 0, *header)
     # BSP faces have their own index/vertex tables. Bind by exact source
     # triangle geometry instead of assuming a render index is a BSP index.

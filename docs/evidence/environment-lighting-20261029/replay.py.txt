@@ -1,0 +1,44 @@
+import pathlib,subprocess,os,shlex,json,sys
+root=pathlib.Path(sys.argv[1]).resolve();build=root/"experiments/native-metal/.cache/build";work=pathlib.Path(os.environ["CODEX_SCRATCH_DIR"])
+src=(root/"experiments/native-metal/gpu_skinning_offscreen_probe.cpp").read_text()
+needle="    device->SetRenderState(storm_render::RenderLighting, false);\n"
+assert src.count(needle)==1
+src=src.replace(needle,needle+"""    storm_render::Light sun{}; sun.Type=storm_render::LightKind::Directional; sun.Diffuse={.4f,.4f,.4f,1}; sun.Ambient={.1f,.1f,.1f,1}; sun.Direction={0,0,1}; device->SetLight(0,&sun); device->LightEnable(0,true);
+""")
+
+src=src.replace('    for (std::size_t poseIndex = 0; poseIndex < poses.size(); ++poseIndex) {', '''
+    storm_render::Material material{};material.Diffuse={.5f,.6f,.7f,1.f};material.Ambient={.1f,.2f,.3f,1.f};device->SetMaterial(&material);device->SetRenderState(storm_render::RenderAmbient,0xff333333);
+    std::uint64_t drawn=0;
+    for(int mode=0;mode<8;++mode){
+      device->SetRenderState(storm_render::RenderLighting,mode&1);device->LightEnable(0,(mode&2)!=0);
+      device->SetRenderState(storm_render::RenderDiffuseMaterialSource,(mode&4)?storm_render::MaterialSourceMaterial:storm_render::MaterialSourceDiffuseColor);
+      device->SetRenderState(storm_render::RenderAmbientMaterialSource,(mode&4)?storm_render::MaterialSourceMaterial:storm_render::MaterialSourceDiffuseColor);
+      for (std::size_t poseIndex = 0; poseIndex < poses.size(); ++poseIndex) {
+''')
+src=src.replace('StormMetalRawSkinnedDraws(device) == poseIndex + 1','StormMetalRawSkinnedDraws(device) == ++drawn')
+src=src.replace('    device->SetStreamSource(0, nullptr, 0, 0);','    }\n    device->SetStreamSource(0, nullptr, 0, 0);')
+src=src.replace('        compare(cpuPixels, gpuPixels, static_cast<int>(poseIndex));', '''
+        compare(cpuPixels, gpuPixels, static_cast<int>(poseIndex));
+        size_t sample=0;while(sample<cpuPixels.size()&&cpuPixels[sample]==kClear)++sample;require(sample<cpuPixels.size(),"covered sample");
+        float authored[]={64.f/255.f,128.f/255.f,192.f/255.f},md[]={.5f,.6f,.7f},ma[]={.1f,.2f,.3f};
+        for(unsigned channel=0;channel<3;channel++){
+          float expected=authored[channel];
+          if(mode&1)expected=((mode&4)?ma[channel]:authored[channel])*(.2f+((mode&2)? .1f:0.f))+((mode&4)?md[channel]:authored[channel])*((mode&2)? .4f:0.f);
+          int observed=int(cpuPixels[sample]>>(16-channel*8)&255u);require(std::abs(observed-int(std::lround(expected*255.f)))<=1,"independent FFP colour oracle");
+        }
+        printf("mode=%d pose=%zu sample=%zu cpu=%08x gpu=%08x\\n",mode,poseIndex,sample,cpuPixels[sample],gpuPixels[sample]);
+''')
+
+source=work/"probe.cpp";source.write_text(src)
+commands=subprocess.check_output([str(root/"experiments/native-metal/inputs/toolchain/bin/ninja"),"-t","commands","gpu-skinning-offscreen-probe"],cwd=build,text=True).splitlines()
+compile=shlex.split(next(x for x in commands if " -c " in x and x.endswith("/gpu_skinning_offscreen_probe.cpp")))
+compile[compile.index("-o")+1]=str(work/"probe.o");compile[compile.index("-c")+1]=str(source)
+if "-MF" in compile:compile[compile.index("-MF")+1]=str(work/"probe.d")
+subprocess.run(compile,cwd=work,check=True)
+link=shlex.split(commands[-1]);assert link[:2]==[":","&&"] and link[-2:]==["&&",":"];link=link[2:-2]
+old=next(x for x in link if x.endswith("/gpu_skinning_offscreen_probe.cpp.o"));link[link.index(old)]=str(work/"probe.o");link[link.index("-o")+1]=str(work/"probe")
+subprocess.run(link,cwd=build,check=True)
+for modern in ["0","1"]:
+ r=subprocess.run([str(work/"probe")],capture_output=True,text=True,env=dict(os.environ,STORM_METAL_DYNAMIC_SKY="0",STORM_METAL_MODERN_LIGHTING=modern))
+ print(json.dumps({"modern":modern,"exit":r.returncode,"stdout":r.stdout,"stderr":r.stderr}))
+

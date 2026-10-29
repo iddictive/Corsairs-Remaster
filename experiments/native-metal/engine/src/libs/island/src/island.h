@@ -69,7 +69,16 @@ class ISLAND : public ISLAND_BASE
     CVECTOR vBoxSize, vBoxCenter, vRealBoxSize;
     uint32_t iDMapSize, iDMapSizeShift;
     entid_t model_id{}, seabed_id{};
+    bool pendingLightingReady=false, pendingLightingDay=true;
+    std::string pendingLightingPath;
+    bool PrepareEnvironmentLighting(const std::string&path,bool isDay);
+    void FinishEnvironmentLighting(bool commit);
     std::vector<entid_t> traceModels, residentRegions, aggregateTraceModels;
+    std::vector<entid_t> legacyExposureSources;
+    std::string logicalRegionID;
+    entid_t legacyExposureRoot = 0;
+    bool legacyExposureFallback = false;
+    bool BindLegacySeaExposure();
     entid_t selectedRegion = 0;
     CVECTOR regionOffset = CVECTOR(0.f);
     storm_sea_atlas::Frame regionPose, regionInverse;
@@ -87,6 +96,7 @@ class ISLAND : public ISLAND_BASE
     bool LocalGroundDepth(float x, float z, float keelY, float &depth);
     bool RegionVisible() const;
     float RegionDistanceBlend() const;
+    float RawRegionDistanceBlend(const CVECTOR &camera) const;
     float DistanceToRegionSquared(const CVECTOR &point) const;
     bool RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin = 50.f) const;
     void IncludeFortTraceBounds(entid_t fort);

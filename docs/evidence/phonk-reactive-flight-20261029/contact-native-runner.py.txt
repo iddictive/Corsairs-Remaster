@@ -1,0 +1,50 @@
+from pathlib import Path
+import sys
+import os,subprocess,shutil
+root=Path(__file__).resolve().parents[3];work=Path(sys.argv[1]).resolve();native=root/'experiments/native-metal'
+evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
+for n in ('engine.ini','fixture.c'):shutil.copy2(root/'docs/evidence/particle-tracer-capacity-20261029'/(n+'.txt'),work/n)
+(work/'RESOURCE').mkdir()
+for entry in (native/'.cache/runtime/RESOURCE').iterdir():
+ if entry.name.casefold()!='shared':(work/'RESOURCE'/entry.name).symlink_to(entry)
+shutil.copytree(native/'engine/src/libs/shared_headers/include/shared',work/'resource/shared')
+p=(root/'docs/evidence/particle-tracer-capacity-20261029/native-probe.cpp.txt').read_text();p=p[:p.index(' auto *service=')]
+component=(evidence/'contact-component.cpp.txt').read_text()
+p=p.replace('int main(int argc,char **argv) {',component+'\nint main(int argc,char **argv) {')
+p+=r'''
+ auto id=core.CreateEntity("MODELR");if(!core.Send_Message(id,"ls",MSG_MODEL_LOAD_GEO,"islands\\Nevis\\Nevis"))return 71;
+ auto *model=static_cast<MODELR*>(core.GetEntityPointer(id));model->Update();
+ auto begin=std::chrono::steady_clock::now();model->Clip(nullptr,0,CVECTOR(0.f),100000.f,Collect);
+ printf("canonical_triangles=%zu clip_ms=%.3f\n",triangles.size()/3,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count());
+ if(triangles.empty())return 72;
+ // The native trace supplies the expected receiver independently from Jolt.
+ GEOS::INFO info{};model->root->geo->GetInfo(info);CVECTOR from(info.boxcenter.x,info.boxcenter.y+info.radius,info.boxcenter.z),to=from;to.y-=info.radius*2;
+ auto fraction=model->Trace(from,to);if(fraction>1.f)return 73;CVECTOR hit=from+(to-from)*fraction;
+ RegisterDefaultAllocator();Factory::sInstance=new Factory;RegisterTypes();
+ {Physics w;w.mesh(triangles);auto b=w.body(Vec3(hit.x,hit.y+8,hit.z),Vec3::sZero());
+  for(int i=0;i<720;i++)w.step();auto p=w.physics.GetBodyInterface().GetPosition(b);
+  printf("native_receiver_y=%.5f jolt_rest_y=%.5f bottom_error=%.5f\n",hit.y,float(p.GetY()),float(p.GetY())-.5f-hit.y);
+  if(float(p.GetY())<hit.y-.5f)return 74;}
+ // Axis-oriented contact oracles use the same authored triangle samples,
+ // normalized to one plane. They exercise the adapter in both winding senses.
+ std::vector<CVECTOR> floor{{-100.f,0.f,-100.f},{-100.f,0.f,100.f},{100.f,0.f,100.f},{-100.f,0.f,-100.f},{100.f,0.f,100.f},{100.f,0.f,-100.f}};
+ for(int test=0;test<3;test++){auto t=floor;for(auto&v:t){if(test==1){v.y=10;v.x=-v.x;}if(test==2){v.y=-v.x;v.x=0;}}
+  Physics w;w.mesh(t);auto b=w.body(test==0?Vec3(0,8,0):test==1?Vec3(0,5,0):Vec3(5,5,0),test==0?Vec3::sZero():test==1?Vec3(0,15,0):Vec3(-15,0,0),Quat::sRotation(Vec3::sAxisZ(),.35f));
+  for(int i=0;i<test==1?60:240;i++){} // replaced by the driver below
+ }
+ UnregisterTypes();delete Factory::sInstance;Factory::sInstance=nullptr;
+ readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}
+'''
+p=p.replace('for(int i=0;i<test==1?60:240;i++){} // replaced by the driver below',r'''for(int i=0;i<(test==1?144:480);i++)w.step();auto pos=w.physics.GetBodyInterface().GetPosition(b);auto vel=w.physics.GetBodyInterface().GetLinearVelocity(b);printf("contact_axis_%d p=(%.4f,%.4f,%.4f) v=(%.4f,%.4f,%.4f)\n",test,float(pos.GetX()),float(pos.GetY()),float(pos.GetZ()),vel.GetX(),vel.GetY(),vel.GetZ());if((test==0&&pos.GetY()<-.5f)||(test==1&&pos.GetY()>10.f)||(test==2&&pos.GetX()<-.5f))return 75;''')
+(work/'probe.cpp').write_text(p)
+driver=(root/'docs/evidence/particle-tracer-capacity-20261029/build-probe.py.txt').read_text()
+driver=driver.replace("compile+=['-I'+str(root/'engine/src/libs/particles/src')]","compile+=['-I'+str(root/'engine/src/libs/particles/src'),'-I'+str(root/'engine/src/libs/model/src'),'-I'+str(build/'_deps/roundhouse_jolt-src')]")
+(work/'build.py').write_text(driver)
+built=subprocess.run(['/usr/bin/python3',str(work/'build.py'),str(root),str(work)],capture_output=True,text=True,timeout=100)
+if built.returncode:print(built.stdout[-6000:]+built.stderr[-1000:]);raise SystemExit(built.returncode)
+run=subprocess.run([str(work/'probe'),str(work)],capture_output=True,text=True,timeout=70)
+out=run.stdout+run.stderr+'\nEXIT '+str(run.returncode)+'\n';print(out[-6000:])
+(evidence/'contact-native-output.txt').write_text(out);(evidence/'contact-native.cpp.txt').write_text(p)
+raise SystemExit(run.returncode)
+

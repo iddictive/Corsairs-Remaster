@@ -17,6 +17,7 @@ from pathlib import Path
 from runtime_script_patch import atomic_write
 from prepare_native_movies import movie_paths
 from prepare_puerto_rico_city import paths as city_paths
+from prepare_legacy_sea_geometry import paths as legacy_sea_paths
 from prepare_port_rowboat import paths as rowboat_paths
 from prepare_roundhouse import paths as roundhouse_paths
 from sea_chart_albedo import TEXTURE as CHART_LAND_TEXTURE
@@ -72,7 +73,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/MODELS/locations/decks/deck2/great_recipe_items.gm",
     "RESOURCE/MODELS/locations/decks/camp_deck/great_recipe_items.gm",
     "RESOURCE/Sounds/MUSIC/phonk-drive.mp3",
-) + movie_paths() + city_paths() + rowboat_paths() + roundhouse_paths()
+) + movie_paths() + city_paths() + rowboat_paths() + roundhouse_paths() + legacy_sea_paths()
 
 
 def digest(data: bytes) -> str:

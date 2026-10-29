@@ -1,4 +1,5 @@
 #include "roundhouse_ragdoll.hpp"
+#include "reactive_body.hpp"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/RegisterTypes.h>
@@ -10,6 +11,9 @@
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
 #include <Jolt/Physics/Ragdoll/Ragdoll.h>
 
@@ -459,4 +463,280 @@ std::size_t RagdollWorld::Size() const
 {
     return impl_ && impl_->world ? impl_->world->entries.size() : 0;
 }
+
+struct ReactiveWorld::Impl
+{
+    // Both native consumers retain the same process-global registration lease.
+    std::shared_ptr<Runtime> runtime = AcquireRuntime();
+    BroadPhaseLayers layers;
+    BroadPhaseFilter broadFilter;
+    ObjectFilter objectFilter;
+    // The 8192-contact solver requests a 3.75 MiB block even for one active
+    // body. Keep the existing native 8 MiB budget, with Jolt's overflow owner.
+    JPH::TempAllocatorImplWithMallocFallback allocator{8 * 1024 * 1024};
+    JPH::JobSystemSingleThreaded jobs{JPH::cMaxPhysicsJobs};
+    JPH::PhysicsSystem physics;
+    JPH::RefConst<JPH::Shape> hull;
+    JPH::MassProperties hullMass;
+    std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> neighborShapes;
+    std::unordered_map<uint64_t, JPH::MassProperties> neighborMass;
+    JPH::BodyID terrain, moving;
+    bool wet = false;
+    JPH::EPhysicsUpdateError updateError = JPH::EPhysicsUpdateError::None;
+    float submergedHeight = NAN, submergedFraction = 0.f;
+
+    Impl()
+    {
+        physics.Init(1024, 0, 8192, 8192, layers, broadFilter, objectFilter);
+        physics.SetGravity(JPH::Vec3(0.f, -9.81f, 0.f));
+    }
+    void Remove(JPH::BodyID &id)
+    {
+        if (id.IsInvalid()) return;
+        auto &bodies = physics.GetBodyInterface();
+        bodies.RemoveBody(id);
+        bodies.DestroyBody(id);
+        id = JPH::BodyID();
+    }
+    ~Impl() { Remove(moving); Remove(terrain); }
+    JPH::BodyID Hydrate(const JPH::Shape *shape, const JPH::MassProperties &mass,
+                        const ReactiveBody &body, bool planar)
+    {
+        const auto frame = Matrix(body.pose);
+        JPH::BodyCreationSettings settings(shape, frame.GetTranslation(), frame.GetQuaternion(),
+            JPH::EMotionType::Dynamic, planar ? StaticLayer : MovingLayer);
+        // The immutable retained shape owns these integrals. Cargo changes
+        // scale the same tensor; a retained-shape revision replaces the cache.
+        settings.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+        settings.mMassPropertiesOverride = mass;
+        settings.mMassPropertiesOverride.ScaleToMass(body.mass);
+        settings.mMassPropertiesOverride.mInertia(3, 3) = 1.f;
+        settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
+        settings.mLinearDamping = settings.mAngularDamping = 0.f;
+        settings.mMaxLinearVelocity = 10000.f;
+        settings.mMaxAngularVelocity = 100.f;
+        if (planar)
+        {
+            settings.mAllowedDOFs = JPH::EAllowedDOFs::TranslationX | JPH::EAllowedDOFs::TranslationZ |
+                JPH::EAllowedDOFs::RotationY;
+            settings.mGravityFactor = 0.f;
+        }
+        auto &bodies = physics.GetBodyInterface();
+        auto id = bodies.CreateAndAddBody(settings, JPH::EActivation::Activate);
+        if (id.IsInvalid()) return id;
+        const auto angular = Vec(body.angularVelocity);
+        bodies.SetLinearAndAngularVelocity(id, Vec(body.velocity) +
+            angular.Cross(frame.GetRotation() * shape->GetCenterOfMass()), angular);
+        return id;
+    }
+    void Read(JPH::BodyID id, const JPH::Shape *shape, ReactiveBody &body)
+    {
+        auto &bodies = physics.GetBodyInterface();
+        body.pose = Matrix(bodies.GetWorldTransform(id));
+        const auto angular = bodies.GetAngularVelocity(id);
+        const auto velocity = bodies.GetLinearVelocity(id) - angular.Cross(bodies.GetRotation(id) * shape->GetCenterOfMass());
+        body.velocity = CVECTOR(velocity.GetX(), velocity.GetY(), velocity.GetZ());
+        body.angularVelocity = CVECTOR(angular.GetX(), angular.GetY(), angular.GetZ());
+    }
+};
+
+ReactiveWorld::ReactiveWorld() : impl_(std::make_unique<Impl>()) {}
+ReactiveWorld::~ReactiveWorld() = default;
+
+static JPH::RefConst<JPH::Shape> ReactiveShape(const std::vector<std::vector<ReactivePoint>> &parts)
+{
+    JPH::StaticCompoundShapeSettings compound;
+    for (const auto &part : parts)
+    {
+        if (part.size() < 4) return nullptr;
+        double lower[3] = {INFINITY, INFINITY, INFINITY};
+        double upper[3] = {-INFINITY, -INFINITY, -INFINITY};
+        for (const auto &v : part)
+        {
+            const double coordinates[] = {v.x, v.y, v.z};
+            for (unsigned axis = 0; axis < 3; ++axis)
+            {
+                if (!std::isfinite(coordinates[axis])) return nullptr;
+                lower[axis] = std::min(lower[axis], coordinates[axis]);
+                upper[axis] = std::max(upper[axis], coordinates[axis]);
+            }
+        }
+        double center[3], scale[3];
+        for (unsigned axis = 0; axis < 3; ++axis)
+        {
+            center[axis] = .5 * (lower[axis] + upper[axis]);
+            // This is the decorator's minimum nonzero scale, not a geometry
+            // thickness floor: dividing vertices by it preserves every point.
+            scale[axis] = std::max(.5 * (upper[axis] - lower[axis]), 1e-6);
+        }
+        JPH::Array<JPH::Vec3> points;
+        for (const auto &v : part)
+            points.emplace_back(float((v.x-center[0])/scale[0]),
+                float((v.y-center[1])/scale[1]), float((v.z-center[2])/scale[2]));
+        // Jolt's absolute initial-triangle threshold rejects valid tiny native
+        // prisms. Build in normalized space, then restore the affine geometry.
+        JPH::ConvexHullShapeSettings settings(points, 0.f);
+        settings.mHullTolerance = 1e-7f;
+        auto shape = settings.Create();
+        if (shape.HasError()) return nullptr;
+        JPH::RefConst<JPH::Shape> scaled = new JPH::ScaledShape(shape.Get(),
+            JPH::Vec3(float(scale[0]), float(scale[1]), float(scale[2])));
+        compound.AddShape(JPH::Vec3(float(center[0]), float(center[1]), float(center[2])),
+            JPH::Quat::sIdentity(), scaled);
+    }
+    if (compound.mSubShapes.empty()) return nullptr;
+    auto result = compound.Create();
+    return result.HasError() ? nullptr : result.Get();
+}
+
+bool ReactiveWorld::SetHull(const std::vector<std::vector<ReactivePoint>> &parts)
+{
+    auto result = ReactiveShape(parts);
+    if (!result) return false;
+    impl_->Remove(impl_->moving);
+    impl_->hull = result;
+    impl_->hullMass = result->GetMassProperties();
+    impl_->submergedHeight = NAN;
+    return true;
+}
+
+bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts)
+{
+    auto result = ReactiveShape(parts);
+    if (!result) return false;
+    impl_->neighborShapes[key] = result;
+    impl_->neighborMass[key] = result->GetMassProperties();
+    return true;
+}
+
+bool ReactiveWorld::ImpulseNeighbor(uint64_t key, ReactiveBody &body, const CVECTOR &impulse, const CVECTOR &worldPoint)
+{
+    const auto shape = impl_->neighborShapes.find(key);
+    if (shape == impl_->neighborShapes.end() || !Finite(impulse) || !Finite(worldPoint) || !(body.mass>0.f)) return false;
+    auto id = impl_->Hydrate(shape->second, impl_->neighborMass.at(key), body, true);
+    if (id.IsInvalid()) return false;
+    impl_->physics.GetBodyInterface().AddImpulse(id, Vec(impulse), JPH::RVec3(worldPoint.x, worldPoint.y, worldPoint.z));
+    impl_->Read(id, shape->second, body);
+    impl_->Remove(id);
+    return true;
+}
+
+bool ReactiveWorld::SetStaticTriangles(const std::vector<CVECTOR> &triangles)
+{
+    if (triangles.empty()) { impl_->Remove(impl_->terrain); return true; }
+    JPH::TriangleList mesh;
+    for (std::size_t i = 0; i + 2 < triangles.size(); i += 3)
+        mesh.emplace_back(JPH::Float3(triangles[i].x, triangles[i].y, triangles[i].z),
+                          JPH::Float3(triangles[i+1].x, triangles[i+1].y, triangles[i+1].z),
+                          JPH::Float3(triangles[i+2].x, triangles[i+2].y, triangles[i+2].z));
+    auto result = JPH::MeshShapeSettings(mesh).Create();
+    if (result.HasError()) return false;
+    auto &bodies = impl_->physics.GetBodyInterface();
+    JPH::BodyCreationSettings settings(result.Get(), JPH::RVec3::sZero(),
+        JPH::Quat::sIdentity(), JPH::EMotionType::Static, StaticLayer);
+    const auto next = bodies.CreateAndAddBody(settings, JPH::EActivation::DontActivate);
+    if (next.IsInvalid()) return false;
+    impl_->Remove(impl_->terrain);
+    impl_->terrain = next;
+    return true;
+}
+
+float ReactiveWorld::SubmergedFraction(float localWaterHeight) const
+{
+    if (!impl_->hull || !std::isfinite(localWaterHeight)) return 0.f;
+    if (impl_->submergedHeight == localWaterHeight) return impl_->submergedFraction;
+    float total = 0.f, submerged = 0.f;
+    JPH::Vec3 center;
+    const auto com = impl_->hull->GetCenterOfMass();
+    impl_->hull->GetSubmergedVolume(JPH::Mat44::sTranslation(com),
+        JPH::Vec3::sReplicate(1.f), JPH::Plane(JPH::Vec3::sAxisY(), -localWaterHeight),
+        total, submerged, center
+#ifdef JPH_DEBUG_RENDERER
+        , JPH::RVec3::sZero()
+#endif
+    );
+    impl_->submergedHeight = localWaterHeight;
+    impl_->submergedFraction = total > 0.f ? submerged / total : 0.f;
+    return impl_->submergedFraction;
+}
+
+bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &forces,
+                         const ReactiveFluid &fluid, float seconds,
+                         std::vector<ReactiveNeighbor> *neighbors)
+{
+    impl_->updateError = JPH::EPhysicsUpdateError::None;
+    if (!impl_->hull || !Finite(state.pose) || !Finite(state.velocity) ||
+        !Finite(state.angularVelocity) || !std::isfinite(seconds) || seconds <= 0.f ||
+        !std::isfinite(state.mass) || state.mass <= 0.f) return false;
+    auto &w = *impl_;
+    auto &bodies = w.physics.GetBodyInterface();
+    // Rehydration also makes TOUCH prediction read-only for native state.
+    w.Remove(w.moving);
+    w.moving = w.Hydrate(w.hull, w.hullMass, state, false);
+    if (w.moving.IsInvalid()) return false;
+    std::vector<std::pair<ReactiveNeighbor *, JPH::BodyID>> others;
+    struct ReleaseNeighbors
+    {
+        Impl &world;
+        decltype(others) &bodies;
+        ~ReleaseNeighbors() { for (auto &entry : bodies) world.Remove(entry.second); }
+    } release{w, others};
+    if (neighbors) for (auto &neighbor : *neighbors)
+    {
+        const auto shape = w.neighborShapes.find(neighbor.key);
+        if (shape == w.neighborShapes.end()) continue;
+        // The ordinary native sea owner constrains these three DOFs. The
+        // flying body remains unconstrained and receives the opposing impulse.
+        auto id = w.Hydrate(shape->second, w.neighborMass.at(neighbor.key), neighbor.body, true);
+        if (id.IsInvalid()) continue;
+        others.emplace_back(&neighbor, id);
+    }
+    // No lost simulation time at low FPS: subdivide the complete frame. A
+    // 240 Hz upper step bounds collision travel and buoyancy/force integration.
+    const unsigned steps = std::max(1u, unsigned(std::ceil(seconds * 240.f)));
+    const float dt = seconds / steps;
+    w.wet = false;
+    for (unsigned step = 0; step < steps; ++step)
+    {
+        const auto q = bodies.GetRotation(w.moving);
+        JPH::Vec3 force = JPH::Vec3::sZero(), torque = JPH::Vec3::sZero();
+        for (const auto &jet : forces)
+        {
+            const auto f = q * Vec(jet.force);
+            force += f;
+            torque += (q * (Vec(jet.point) - w.hull->GetCenterOfMass())).Cross(f);
+        }
+        bodies.AddForceAndTorque(w.moving, force, torque, JPH::EActivation::Activate);
+        const auto surface = JPH::RVec3(state.pose.v.pos.x, fluid.height, state.pose.v.pos.z);
+        const auto normal = Vec(fluid.normal);
+        // Transform the entire retained bound, including attitude, each step.
+        // Only a wholly dry bound may bypass per-part submerged-volume work.
+        const auto bound = w.hull->GetLocalBounds().Transformed(bodies.GetCenterOfMassTransform(w.moving));
+        const float clearance = normal.Dot(bound.GetCenter() - surface) -
+            normal.Abs().Dot(bound.GetExtent());
+        if (clearance <= .001f)
+            w.wet |= bodies.ApplyBuoyancyImpulse(w.moving, surface, normal,
+                fluid.buoyancy, .5f, .1f, Vec(fluid.velocity), w.physics.GetGravity(), dt);
+        w.updateError = w.physics.Update(dt, 1, &w.allocator, &w.jobs);
+        if (w.updateError != JPH::EPhysicsUpdateError::None) return false;
+    }
+    auto next = state;
+    w.Read(w.moving, w.hull, next);
+    if (!Finite(next.pose) || !Finite(next.velocity) || !Finite(next.angularVelocity)) return false;
+    std::vector<ReactiveBody> projected;
+    projected.reserve(others.size());
+    for (auto &[neighbor, id] : others)
+    {
+        projected.push_back(neighbor->body);
+        auto &body = projected.back();
+        w.Read(id, w.neighborShapes.at(neighbor->key), body);
+        if (!Finite(body.pose) || !Finite(body.velocity) || !Finite(body.angularVelocity)) return false;
+    }
+    state = next;
+    for (size_t i = 0; i < others.size(); ++i) others[i].first->body = projected[i];
+    return true;
+}
+
+bool ReactiveWorld::Wet() const { return impl_->wet; }
+uint32_t ReactiveWorld::UpdateError() const { return uint32_t(impl_->updateError); }
 } // namespace roundhouse

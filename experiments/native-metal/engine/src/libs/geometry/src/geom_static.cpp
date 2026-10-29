@@ -306,18 +306,22 @@ catch(...) { return {}; }
 
 namespace
 {
-std::vector<uint32_t> getColData(GEOM_SERVICE &srv, const std::string_view &file_name)
+enum class ColStatus { Missing, Invalid, Valid };
+std::vector<uint32_t> getColData(GEOM_SERVICE &srv, const std::string_view &file_name, ColStatus *status=nullptr)
 {
     std::vector<uint32_t> result;
-
+    if(status)*status=ColStatus::Missing;
     auto ltfl = srv.OpenFile(file_name.data());
     if (ltfl.is_open())
     {
+        if(status)*status=ColStatus::Invalid;
         const auto file_size = srv.FileSize(file_name.data());
-        if (file_size > 0)
+        if (file_size > 0 && file_size % sizeof(uint32_t) == 0)
         {
             result.resize(file_size / sizeof(uint32_t));
-            srv.ReadFile(ltfl, result.data(), file_size);
+            if(srv.ReadFile(ltfl, result.data(), file_size)) {
+                if(status)*status=ColStatus::Valid;
+            } else result.clear();
         }
     }
     srv.CloseFile(ltfl);
@@ -325,6 +329,19 @@ std::vector<uint32_t> getColData(GEOM_SERVICE &srv, const std::string_view &file
     return result;
 }
 } // namespace
+
+struct GEOM::ColourUpdate
+{
+    struct Write { int vb=-1,stride=0,count=0; size_t offset=0; void *locked=nullptr; };
+    std::string file;
+    std::vector<uint32_t> colours;
+    std::vector<Write> writes;
+    bool changed=false;
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+    std::vector<std::vector<IslandDraw>> islands;
+    bool replaceIslands=false;
+#endif
+};
 
 // create geometry func
 GEOS *CreateGeometry(const char *fname, const char *lightname, GEOM_SERVICE &srv, int32_t flags)
@@ -513,6 +530,13 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
         nvertices += vbuff[v].nverts;
     }
     srv.free(rvb);
+    colourOffsets.resize(size_t(rhead.nvrtbuffs)+1);
+    bool staticColours=lightname&&lightname[0];
+    for(int32_t n=0;n<rhead.nvrtbuffs;++n){
+        colourOffsets[n+1]=colourOffsets[n]+size_t(vbuff[n].nverts);
+        staticColours=staticColours&&!(vbuff[n].type>>2);
+    }
+    if(staticColours){intrinsicColours.resize(nvertices);physicalColours.resize(nvertices);}
     // read vertices
     auto itColData = colData.begin();
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
@@ -533,11 +557,13 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
         for (int32_t vr = 0; vr < vbuff[v].nverts; vr++)
         {
             auto *prv = (RDF_VERTEX0 *)((uint8_t *)(vrt) + vbuff[v].stride * vr);
+            if(staticColours)intrinsicColours[colourOffsets[v]+vr]=prv->color;
             if (colData.size() == nvertices)
             {
                 prv->color = *itColData;
                 ++itColData;
             }
+            if(staticColours)physicalColours[colourOffsets[v]+vr]=prv->color;
         }
 
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
@@ -640,6 +666,7 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
     if (captureIsland && !islandTriangles.empty()) {
         std::vector<island_geometry::Face> faces;
+        std::vector<std::array<uint32_t,3>> faceColourIndices;
         for (int o=0; o<rhead.nobjects; ++o) {
             const auto& ob=object[o];
             if (!(ob.flags & VISIBLE) || ob.vertex_buff<0 || ob.vertex_buff>=rhead.nvrtbuffs) continue;
@@ -654,15 +681,18 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
                 const int triangle=ob.striangle+t;
                 if (triangle<0 || size_t(triangle)>=islandTriangles.size()) continue;
                 island_geometry::Face face{}; face.object=o;face.material=ob.material;bool valid=true;
+                std::array<uint32_t,3> colourIndices{};
                 for (int j=0;j<3;j++) {
                     const int64_t vertex=int64_t(ob.start_vertex)+islandTriangles[triangle].vindex[j];
                     if(vertex<0 || uint64_t(vertex)*vb.stride+vb.stride>bytes.size()){valid=false;break;}
                     std::memcpy(&face.v[j],bytes.data()+size_t(vertex)*vb.stride,vb.stride);
+                    colourIndices[j]=uint32_t(colourOffsets[ob.vertex_buff]+size_t(vertex));
                 }
-                if(valid)faces.push_back(face);
+                if(valid){faces.push_back(face);faceColourIndices.push_back(colourIndices);}
             }
         }
         storm_metal::weatherTerrain.capture(this,faces);
+        if(refineIsland){islandAppearanceFaces=faces;islandAppearanceIndices=std::move(faceColourIndices);}
         islandDraws.resize(rhead.nobjects);
         size_t changedFaces=0,outputTriangles=0;
         for(int o=0;refineIsland && o<rhead.nobjects;o++) {
@@ -700,11 +730,114 @@ GEOM::GEOM(const char *fname, const char *lightname, GEOM_SERVICE &_srv, int32_t
         const float thickness=storm_ship_wood::thickness(fname?fname:"",&globname[tname[texture]]);if(thickness>0)laserWoodThickness.emplace(o,thickness);}
 #endif
     srv.free(rmat);
+    renderColours=physicalColours;
+    hadBakedColours=staticColours && colData.size()==size_t(nvertices) && !colData.empty();
+    if(hadBakedColours&&lightname)lightFile=lightname;
+}
+
+bool GEOM::PrepareLightPath(const char *file)
+{
+    CancelLightPath();colourFailure.clear();
+    const std::string target=file?file:"";
+    if(target==lightFile)return true;
+    const auto fail=[&](const char *reason){colourFailure=reason;CancelLightPath();return false;};
+    try {
+        ColStatus status=ColStatus::Valid;
+        auto colours=target.empty()?intrinsicColours:getColData(srv,target,&status);
+        // Native geometry creation uses authored GM colours when no COL exists.
+        // Retain that material policy; an existing corrupt/read-failed file is
+        // a different state and cannot replace the prior valid appearance.
+        if(status==ColStatus::Missing)colours=intrinsicColours;
+        else if(status!=ColStatus::Valid)return fail("invalid-col");
+        if(colours.size()!=intrinsicColours.size())return fail("vertex-count");
+        const bool changed=colours!=renderColours;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        // Active baked receivers are static models. Ship damage uses intrinsic
+        // models with no COL path; never reset a live damage job to relight it.
+        if(changed&&(hullOwner||laserOwner||worldOwner||worldPrepared||worldPending||
+                     hullRebuildJob||hullDesiredValid||laserPending||!hullDraws.empty()||!laserFragments.empty()))
+            return fail("active-damage");
+#endif
+        pendingColours=std::make_unique<ColourUpdate>();
+        auto&pending=*pendingColours;pending.file=target;pending.colours=std::move(colours);pending.changed=changed;
+        if(!changed)return true;
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+        const bool refined=std::any_of(islandDraws.begin(),islandDraws.end(),[](const auto&draws){return !draws.empty();});
+        if(refined){
+            if(islandAppearanceFaces.size()!=islandAppearanceIndices.size())return fail("pn-source");
+            auto faces=islandAppearanceFaces;
+            for(size_t f=0;f<faces.size();++f)for(unsigned n=0;n<3;++n){
+                const auto index=islandAppearanceIndices[f][n];
+                if(index>=pending.colours.size())return fail("pn-source");
+                faces[f].v[n].color=pending.colours[index];
+            }
+            pending.islands.resize(islandDraws.size());pending.replaceIslands=true;
+            for(size_t o=0;o<islandDraws.size();++o)if(!islandDraws[o].empty()){
+                std::vector<island_geometry::Face> objectFaces;
+                for(const auto&face:faces)if(face.object==int(o))objectFaces.push_back(face);
+                if(objectFaces.empty())return fail("pn-source");
+                island_geometry::Surface surface(objectFaces);
+                const auto&original=vbuff[object[o].vertex_buff];
+                for(const auto&chunk:island_geometry::chunks(surface,objectFaces,int(o))){
+                    pending.islands[o].emplace_back();auto&draw=pending.islands[o].back();
+                    draw.stride=original.stride;draw.vertices=int(chunk.vertices.size());draw.triangles=int(chunk.indices.size()/3);
+                    draw.vb=srv.CreateVertexBuffer(original.type,draw.vertices*draw.stride);
+                    draw.ib=srv.CreateIndexBuffer(draw.triangles*3*int(sizeof(uint16_t)));
+                    auto*vertices=draw.vb>=0?static_cast<uint8_t*>(srv.LockVertexBuffer(draw.vb)):nullptr;
+                    auto*indices=draw.ib>=0?srv.LockIndexBuffer(draw.ib):nullptr;
+                    if(!vertices||!indices){if(vertices)srv.UnlockVertexBuffer(draw.vb);if(indices)srv.UnlockIndexBuffer(draw.ib);return fail("pn-buffer");}
+                    for(size_t n=0;n<chunk.vertices.size();++n)std::memcpy(vertices+n*draw.stride,&chunk.vertices[n],draw.stride);
+                    std::memcpy(indices,chunk.indices.data(),chunk.indices.size()*sizeof(uint16_t));
+                    srv.UnlockVertexBuffer(draw.vb);srv.UnlockIndexBuffer(draw.ib);
+                }
+            }
+        }
+#endif
+        // All validation/allocation precedes these locks and the tree's commit.
+        for(int v=0;v<rhead.nvrtbuffs;++v)if(vbuff[v].nverts){
+            pending.writes.push_back({vbuff[v].dev_buff,vbuff[v].stride,vbuff[v].nverts,colourOffsets[v],nullptr});
+            auto&write=pending.writes.back();write.locked=srv.LockVertexBuffer(write.vb);
+            if(!write.locked)return fail("vertex-buffer");
+        }
+        return true;
+    } catch(const std::exception&) { return fail("allocation-or-io"); }
+}
+
+void GEOM::CommitLightPath()
+{
+    if(!pendingColours)return;
+    auto&pending=*pendingColours;
+    for(auto&write:pending.writes){
+        auto*bytes=static_cast<uint8_t*>(write.locked);
+        for(int n=0;n<write.count;++n)std::memcpy(bytes+size_t(n)*write.stride+24,&pending.colours[write.offset+n],4);
+        srv.UnlockVertexBuffer(write.vb);write.locked=nullptr;
+    }
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+    if(pending.replaceIslands)islandDraws.swap(pending.islands);
+#endif
+    lightFile=std::move(pending.file);
+    if(pending.changed){renderColours.swap(pending.colours);++appearanceEpoch;}
+    if(!lightFile.empty())hadBakedColours=true;
+    CancelLightPath();
+}
+
+void GEOM::CancelLightPath()
+{
+    if(!pendingColours)return;
+    for(auto&write:pendingColours->writes)if(write.locked)srv.UnlockVertexBuffer(write.vb);
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+    for(const auto&draws:pendingColours->islands)for(const auto&draw:draws){
+        if(draw.vb>=0)srv.ReleaseVertexBuffer(draw.vb);
+        if(draw.ib>=0)srv.ReleaseIndexBuffer(draw.ib);
+    }
+#endif
+    pendingColours.reset();
 }
 
 // delete all textures, buffers, memory
 GEOM::~GEOM()
 {
+    CancelLightPath();
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     RetireHullRebuild();
     ReleaseHullDraws(hullDraws);
@@ -1056,6 +1189,8 @@ bool GEOM::CaptureHullObject(int objectIndex)
     const auto&vb=vbuff[ob.vertex_buff];if((vb.type>>2)||vb.stride<36||vb.stride>60||ob.start_vertex+ob.num_vertices>vb.nverts||ob.striangle+ob.ntriangles>rhead.ntriangles)return false;
     auto*vertices=static_cast<uint8_t*>(srv.LockVertexBuffer(vb.dev_buff));if(!vertices)return false;
     HullOriginal source;source.type=vb.type;source.stride=vb.stride;source.vertices.assign(vertices+size_t(ob.start_vertex)*vb.stride,vertices+size_t(ob.start_vertex+ob.num_vertices)*vb.stride);srv.UnlockVertexBuffer(vb.dev_buff);
+    if(!physicalColours.empty())for(int n=0;n<ob.num_vertices;++n)
+        std::memcpy(source.vertices.data()+size_t(n)*vb.stride+24,&physicalColours[colourOffsets[ob.vertex_buff]+ob.start_vertex+n],4);
     auto*indices=static_cast<uint16_t*>(srv.LockIndexBuffer(idx_buff));if(!indices)return false;source.indices.assign(indices+ob.striangle*3,indices+(ob.striangle+ob.ntriangles)*3);srv.UnlockIndexBuffer(idx_buff);
     for(auto index:source.indices)if(index>=ob.num_vertices)return false;
     source.broadphase.build(source.vertices,source.stride,source.indices);hullOriginals.emplace(objectIndex,std::move(source));return true;
@@ -1447,13 +1582,17 @@ bool GEOM::CaptureWorldSurface(bool terrainModel)
         const auto&source=hullOriginals.at(o);auto&destination=(terrainModel&&worldTerrainObjects.count(o)?terrain:stone)[o];
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
         if(size_t(o)<islandDraws.size()&&!islandDraws[o].empty()){
-            for(const auto&draw:islandDraws[o]){
-                auto*v=static_cast<uint8_t*>(srv.LockVertexBuffer(draw.vb));if(!v)return false;
-                std::vector<uint8_t>vertices(v,v+size_t(draw.vertices)*draw.stride);srv.UnlockVertexBuffer(draw.vb);
-                auto*i=static_cast<uint16_t*>(srv.LockIndexBuffer(draw.ib));if(!i)return false;
-                std::vector<uint16_t>indices(i,i+size_t(draw.triangles)*3);srv.UnlockIndexBuffer(draw.ib);
-                for(size_t n=0;n<indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c){if(indices[n+c]>=draw.vertices)return false;triangle[c]=storm_ship_hull::decode(vertices.data()+size_t(indices[n+c])*draw.stride,draw.stride);}destination.push_back(triangle);}
-            }continue;
+            // PN render buffers may have a newer palette/welding. The physical
+            // source retains the original face attributes and triangle order.
+            std::vector<island_geometry::Face> faces;
+            for(const auto&face:islandAppearanceFaces)if(face.object==o)faces.push_back(face);
+            if(faces.empty())return false;
+            island_geometry::Surface surface(faces);
+            for(const auto&face:faces){const auto vertices=surface.refine(face);
+                for(size_t n=0;n<vertices.size();n+=3){storm_ship_hull::Triangle triangle;
+                    for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(reinterpret_cast<const uint8_t*>(&vertices[n+c]),sizeof(island_geometry::Vertex));
+                    destination.push_back(triangle);}}
+            continue;
         }
 #endif
         for(size_t n=0;n<source.indices.size();n+=3){storm_ship_hull::Triangle triangle;for(unsigned c=0;c<3;++c)triangle[c]=storm_ship_hull::decode(source.vertices.data()+size_t(source.indices[n+c])*source.stride,source.stride);destination.push_back(triangle);}

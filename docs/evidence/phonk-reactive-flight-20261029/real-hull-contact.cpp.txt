@@ -1,0 +1,19 @@
+static void realHullContacts(const storm::ship::contact::MaterialSnapshot &material)
+{
+ std::vector<std::vector<roundhouse::ReactivePoint>> parts;
+ for(const auto&p:storm::ship::contact::materialRoot(material).pieces){std::vector<roundhouse::ReactivePoint> points;for(auto v:p.hull.points){points.push_back({v.x,p.lowerY,v.z});points.push_back({v.x,p.upperY,v.z});}parts.push_back(std::move(points));}
+ auto minimum=[&](roundhouse::ReactiveBody &body,int axis){double result=1e30;for(const auto&p:parts)for(auto v:p){auto w=body.pose*CVECTOR(float(v.x),float(v.y),float(v.z));double d=axis==0?w.y:axis==1?40-w.y:w.x;result=std::min(result,d);}return result;};
+ roundhouse::ReactiveFluid dry;dry.height=-10000.f;
+ for(int axis=0;axis<3;axis++){
+  roundhouse::ReactiveWorld world;check(world.SetHull(parts),"real_hull_contact_shape");
+  std::vector<CVECTOR> mesh={{-100.f,0.f,-100.f},{-100.f,0.f,100.f},{100.f,0.f,100.f},{-100.f,0.f,-100.f},{100.f,0.f,100.f},{100.f,0.f,-100.f}};
+  for(auto&v:mesh){if(axis==1){v.y=40;v.x=-v.x;}if(axis==2){v.y=-v.x;v.x=0;}}
+  check(world.SetStaticTriangles(mesh),"real_hull_contact_plane");roundhouse::ReactiveBody body;body.mass=400000;body.pose=CMatrix(CVECTOR(.15f,0.f,.2f),axis==2?CVECTOR(30.f,50.f,0.f):CVECTOR(0.f,30.f,0.f));if(axis==1)body.velocity.y=30;if(axis==2)body.velocity.x=-25;
+  double clearance=1e30,stepUs=0;int frames=axis==0?240:60;
+  for(int i=0;i<frames;i++){auto start=std::chrono::steady_clock::now();check(world.Step(body,{},dry,1.f/60),"real_hull_contact_step");stepUs+=std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count();clearance=std::min(clearance,minimum(body,axis));}
+  printf("real_hull_axis_%d min_surface_clearance_m=%.8g frame_us=%.5f\n",axis,clearance,stepUs/frames);check(clearance>-.05,"real_hull_all_vertices_stay_outside_plane");
+ }
+ roundhouse::ReactiveWorld world;check(world.SetHull(parts),"real_water_shape");roundhouse::ReactiveFluid fluid;fluid.buoyancy=1/world.SubmergedFraction(.1f);roundhouse::ReactiveBody body;body.mass=400000;body.pose=CMatrix(CVECTOR(.2f,0.f,.3f),CVECTOR(0.f,25.f,0.f));double low=1e30;bool wet=false;auto start=std::chrono::steady_clock::now();
+ for(int i=0;i<1200;i++){check(world.Step(body,{},fluid,1.f/120),"real_hull_water_step");low=std::min(low,double(body.pose.Pos().y));wet|=world.Wet();}
+ printf("real_hull_water wet=%d low_origin_y=%.8g final_origin_y=%.8g final_vy=%.8g frame_us=%.5f\n",int(wet),low,body.pose.Pos().y,body.velocity.y,std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count()/1200);check(wet&&low>-25&&std::abs(body.velocity.y)<1,"real_hull_water_recovers");
+}

@@ -1,0 +1,27 @@
+{
+  "baseline_prepare": {
+    "milliseconds": 642.5814169924706,
+    "files": 14,
+    "bytes": 44154647
+  },
+  "candidate_cold_prepare": {
+    "milliseconds": 10473.999583991827,
+    "files": 272,
+    "bytes": 80579351
+  },
+  "candidate_warm": {
+    "candidate_warm_prepare_ms": 85.91712499037385,
+    "files": 272,
+    "bytes": 80579351,
+    "old_geometry_files_unchanged": 14,
+    "native_source_inputs": 129,
+    "morning9_copied_COL_exact": true,
+    "malformed_COL_rejected": true
+  },
+  "scope": "Offline asset producer only; no installed runtime or world-hour update.",
+  "missing_cache_recovery": {
+    "missing_cache_recovered": true,
+    "files": 272,
+    "elapsed_ms": 10431.398792003165
+  }
+}

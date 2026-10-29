@@ -3,6 +3,12 @@ string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
 void SeaPhonk_InitControls()
 {
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Jet"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Jet", CI_GetKeyCode("VK_CONTROL"), 0, true);
+        MapControlToGroup("Phonk_Jet", "Sailing1Pers");
+        MapControlToGroup("Phonk_Jet", "BattleInterfaceControls");
+    }
     if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Laser") ||
         objControlsState.keygroups.Sailing3Pers.Phonk_Laser == "KEY_6")
     {

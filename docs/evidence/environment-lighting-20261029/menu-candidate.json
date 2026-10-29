@@ -1,0 +1,104 @@
+{
+  "exit": 0,
+  "clouds": 0,
+  "modern_lighting": 1,
+  "dimensions": [
+    64,
+    64
+  ],
+  "device": "Apple M5 Max",
+  "persistent_vertex_buffer": true,
+  "rows": [
+    {
+      "menu": 0,
+      "world_z": 20,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 21.999,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 22,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 22.001,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 24,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 1,
+      "world_z": 20,
+      "raw": "ff54514d",
+      "cpu": "ff54514d"
+    },
+    {
+      "menu": 1,
+      "world_z": 21.999,
+      "raw": "ff54514d",
+      "cpu": "ff54514d"
+    },
+    {
+      "menu": 1,
+      "world_z": 22,
+      "raw": "ff14110d",
+      "cpu": "ff14110d"
+    },
+    {
+      "menu": 1,
+      "world_z": 22.001,
+      "raw": "ff14110d",
+      "cpu": "ff14110d"
+    },
+    {
+      "menu": 1,
+      "world_z": 24,
+      "raw": "ff14110d",
+      "cpu": "ff14110d"
+    },
+    {
+      "menu": 0,
+      "world_z": 20,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 21.999,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 22,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 22.001,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    },
+    {
+      "menu": 0,
+      "world_z": 24,
+      "raw": "ff5a5a5a",
+      "cpu": "ff5a5a5a"
+    }
+  ],
+  "oracle": "Original production CPU fixed-function evaluator selected by generated coordinates; diffuse-only combiner ignores UV."
+}

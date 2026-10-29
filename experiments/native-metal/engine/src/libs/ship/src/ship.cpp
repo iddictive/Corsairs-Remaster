@@ -652,6 +652,20 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
 {
     if (!pTPOld && !pTPNew)
         return false;
+    if (phonkJet.active)
+    {
+        const auto before = State;
+        const auto jet = phonkJet;
+        const auto write = [&](TOUCH_PARAMS *out) {
+            if (!out) return;
+            out->vPos = State.vPos + CVECTOR(fXOffset, 0.f, fZOffset);
+            out->vAng = State.vAng; out->vSpeed = State.vSpeed; out->vRotate = State.vRotate;
+        };
+        write(pTPOld);
+        if (pTPNew) { AdvancePhonkJet(DeltaTime, true); write(pTPNew); }
+        State = before; phonkJet = jet;
+        return true;
+    }
     // Wreck prediction uses the same passive motion as Execute, without
     // consuming the saved momentum or moving the death-pose anchor.
     if (isDead())
@@ -756,6 +770,11 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
 BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision, GroundMotion *groundMotion)
 {
     const auto dtime = DELTA_TIME(DeltaTime);
+    if (AdvancePhonkJet(DeltaTime, bCollision != 0))
+    {
+        if (!bCollision) { vPos = State.vPos; vAng = State.vAng; }
+        return true;
+    }
     if (isDead())
     {
         // Keep wreck momentum in the existing saved native state. Integrate
@@ -1697,8 +1716,8 @@ void SHIP::SetDead()
     {
         if (phonkFlight.airborne && pSea)
             State.vPos.y = vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
-        const CVECTOR eventTilt(tsunamiMotion.pitch + floodAngles.x, 0.f,
-                                tsunamiMotion.roll + floodAngles.z);
+        const CVECTOR eventTilt = phonkJet.active ? CVECTOR(0.f) :
+            CVECTOR(tsunamiMotion.pitch + floodAngles.x, 0.f, tsunamiMotion.roll + floodAngles.z);
         State.vAng = vAng - eventTilt;
 
         vOldAng = State.vAng;
@@ -2253,7 +2272,7 @@ void SHIP::Execute(uint32_t DeltaTime)
         const auto pos = GetPos();
         const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
         const auto vortexSample = pSea ? pSea->GetWhirlpoolSample(pos.x, pos.z) : SeaWhirlpoolSample{};
-        if (bGroundSupported || bGroundFalling || PhonkActive() || sample.serial != 0 || tsunamiMotion.serial != 0 || vortexSample.serial != 0 ||
+        if (bGroundSupported || bGroundFalling || phonkJet.active || PhonkActive() || sample.serial != 0 || tsunamiMotion.serial != 0 || vortexSample.serial != 0 ||
             whirlpoolMotion.pitch != 0.f || whirlpoolMotion.roll != 0.f)
         {
             // Match this frame's sampled buoyancy and drift before event rotation.
@@ -2265,7 +2284,7 @@ void SHIP::Execute(uint32_t DeltaTime)
             fRotate = 0.25f;
         if (fRotate < -0.25f)
             fRotate = -0.25f;
-        const bool phonkPose = bGroundSupported || bGroundFalling || bLandContact || (PhonkActive() && phonkFlight.sampled);
+        const bool phonkPose = phonkJet.active || bGroundSupported || bGroundFalling || bLandContact || (PhonkActive() && phonkFlight.sampled);
         if (!phonkPose) vAng.z += fRotate;
         const float protection = TsunamiProtection();
         const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
@@ -2331,7 +2350,7 @@ void SHIP::Execute(uint32_t DeltaTime)
       if (vPos.y < -100.0f) vPos.y = -1000.0f;
     }*/
 
-    if (isDead())
+    if (isDead() && !phonkJet.active)
     {
         auto fScale = Bring2Range(0.0f, 1.0f, -15.0f, 0.0f, vPos.y);
 
@@ -2789,10 +2808,10 @@ void SHIP::PublishPhonkLights(uint32_t deltaTime)
 void SHIP::DrawPhonkGlow(uint32_t)
 {
 #ifdef STORM_METAL_RENDERER_CONSUMERS
-    if (!PhonkActive() || !bVisible || !pSea || !HasWaterContact()) return;
+    if ((!PhonkActive() && !phonkJet.active) || !bVisible || !pSea) return;
     struct Vertex { float x, y, z; uint32_t color; };
     constexpr unsigned segments = 32, rings = 8;
-    std::array<Vertex, segments * (rings * 2 - 1) * 3> vertices{};
+    std::array<Vertex, segments * (rings * 2 - 1) * 3 + 4 * 16 * 12> vertices{};
     std::array<Vertex, (rings + 1) * segments> points{};
     unsigned at = 0;
     const auto point = [&](unsigned ring, unsigned segment) {
@@ -2804,6 +2823,8 @@ void SHIP::DrawPhonkGlow(uint32_t)
         const uint32_t alpha = uint32_t(storm::ship::phonk::haloOpacity(r, phonkSeconds) * 255.f);
         return Vertex{p.x, pSea->WaveXZ(p.x, p.z) + .55f, p.z, (alpha << 24) | 0x00ce80ff};
     };
+    if (PhonkActive() && HasWaterContact())
+    {
     for (unsigned ring = 0; ring <= rings; ++ring)
         for (unsigned s = 0; s < segments; ++s)
             points[ring * segments + s] = point(ring, s);
@@ -2821,6 +2842,32 @@ void SHIP::DrawPhonkGlow(uint32_t)
                 vertices[at++] = cached(ring - 1, s + 1);
             }
         }
+    }
+    if (phonkJet.active)
+    {
+        CMatrix frame(State.vAng, State.vPos + CVECTOR(fXOffset,
+            -State.fShipImmersion-SP.fWaterLine, fZOffset));
+        for (const auto &jet : phonkJet.forces)
+        {
+            if (!(jet.force.y > 0.f)) continue;
+            const float nominal = std::max(1.f, phonkJet.installedThrust*.25f);
+            const float length = 12.f*std::sqrt(jet.force.y/nominal);
+            const auto exhaust = [&](unsigned ring, unsigned segment) {
+                const float angle = float(segment%16)*6.28318530718f/16.f;
+                const float t = float(ring)*.5f;
+                const float radius = .3f+1.7f*t;
+                const auto p = frame*(jet.point+CVECTOR(radius*std::cos(angle), -length*t, radius*std::sin(angle)));
+                const uint32_t color = ring==0 ? 0xd8fff0ff : ring==1 ? 0x90be52ff : 0x00a020ff;
+                return Vertex{p.x,p.y,p.z,color};
+            };
+            for (unsigned ring=0;ring<2;++ring) for (unsigned i=0;i<16;++i)
+            {
+                vertices[at++]=exhaust(ring,i); vertices[at++]=exhaust(ring+1,i); vertices[at++]=exhaust(ring+1,i+1);
+                vertices[at++]=exhaust(ring,i); vertices[at++]=exhaust(ring+1,i+1); vertices[at++]=exhaust(ring,i+1);
+            }
+        }
+    }
+    if (!at) return;
     auto *device = static_cast<storm_render::Device *>(pRS->GetNativeDevice());
     struct RenderState { storm_render::RenderStateField type; DWORD value, previous; };
     RenderState states[] = {
@@ -2845,7 +2892,7 @@ void SHIP::DrawPhonkGlow(uint32_t)
     pRS->GetTransform(storm_render::TransformWorld, world);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
-                                   vertices.size() / 3, vertices.data(), sizeof(Vertex));
+                                   at / 3, vertices.data(), sizeof(Vertex));
     pRS->SetTransform(storm_render::TransformWorld, world);
     for (const auto &s : stages) device->SetTextureStageState(s.stage, s.type, s.previous);
     for (const auto &s : states) device->SetRenderState(s.type, s.previous);
@@ -4094,6 +4141,18 @@ void SHIP::SetACharacter(ATTRIBUTES *pAP)
 
 void SHIP::Save(CSaveLoad *pSL)
 {
+    // Character attributes use the existing SAVE codec. Native SHIP_STATE
+    // already carries the full pose and linear/angular momentum unchanged.
+    if (auto *character = GetACharacter())
+    {
+        auto *jet = character->FindAClass(character, "Ship.ReactiveFlight");
+        if (!jet && phonkJet.active) jet = character->CreateSubAClass(character, "Ship.ReactiveFlight");
+        if (jet)
+        {
+            jet->SetAttributeUseDword("Version", 1);
+            jet->SetAttributeUseDword("Active", phonkJet.active ? 1 : 0);
+        }
+    }
 #ifdef STORM_METAL_SHIP_FIRE
     SaveShipFire();
 #endif
@@ -4101,7 +4160,7 @@ void SHIP::Save(CSaveLoad *pSL)
     SHIP_STATE ordinaryState;
     const SHIP_STATE *savedState = &State;
     float savedY = vPos.y;
-    if (PhonkActive() && phonkDrift.initialized)
+    if (!phonkJet.active && PhonkActive() && phonkDrift.initialized)
     {
         // The scene mode is transient. Save its ordinary exit projection,
         // leaving live world momentum and binary layout intact.
@@ -4187,6 +4246,7 @@ void SHIP::Load(CSaveLoad *pSL)
     tsunamiDrift.Reset();
     phonkDrift.reset();
     phonkFlight.reset();
+    phonkJet = {};
     phonkSeconds = 0.f;
     bLandContact = false;
     bGroundSupported = bGroundFalling = false;
@@ -4251,6 +4311,10 @@ void SHIP::Load(CSaveLoad *pSL)
     dwSaveFogColor = pSL->LoadDword();
     pSL->Load2Buffer(&saveLight);
     pSL->Load2Buffer(&State);
+
+    if (auto *character = GetACharacter())
+        if (auto *jet = character->FindAClass(character, "Ship.ReactiveFlight"))
+            phonkJet.active = jet->GetAttributeAsDword("Version") == 1 && jet->GetAttributeAsDword("Active") != 0;
 
     if (const auto pose = storm_sea_atlas::Frame::LegacyPose(GetACharacter()))
     {

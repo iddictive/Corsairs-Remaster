@@ -4561,7 +4561,7 @@
       "files": {
         "terrain": {
           "path": "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm",
-          "sha256": "415978433a33384159e384c457f002dc128669ffef4c39f20e210360b96704a9",
+          "sha256": "9089a67f8d0e713c06bbaa9b3bd6022d017a7e7b41cc746afb5fd3b430e32ce3",
           "bytes": 7679961,
           "triangles": 76020,
           "component_count": 418,
@@ -4940,7 +4940,7 @@
         },
         "reflection": {
           "path": "RESOURCE/MODELS/Islands/PuertoRico/PuertoRico_refl.gm",
-          "sha256": "70119987a36f9f449dc7ca59d4a9de9fe36bcbe96a3e835d7ea2b13556d36d1e",
+          "sha256": "24f61e2f03e509dedd69cee198e3b691edeae3943eca11345780372dfa2e68a5",
           "bytes": 2974401,
           "triangles": 76020,
           "component_count": 418,

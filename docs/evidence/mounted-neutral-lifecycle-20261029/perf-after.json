@@ -1,0 +1,34 @@
+{
+  "scope": "real full PROGRAM VM: actual mounted adapter, guards, actor ownership/snapshot, arrival/paid service/dispatch/save codec; native entity presence/task message/locator lookup and two-port market selection are explicit fixture seams; not rendered/physics acceptance",
+  "seams": [
+    "Main",
+    "OnSave",
+    "OnLoad",
+    "Group_GetGroupCommanderIndexR",
+    "WdmFleetSeaApplyTask",
+    "FindColony",
+    "FindStore",
+    "WdmTrafficPortAdmits",
+    "WdmTrafficNextPort",
+    "WdmTrafficPortLocator",
+    "WdmTrafficLoadCargo",
+    "WdmTrafficStockPersonalCargo",
+    "WdmMilitaryArrived",
+    "WdmMilitaryReturnNews"
+  ],
+  "exit": 0,
+  "seconds": 1.751214041010826,
+  "stdout": "Run=0\nscript_errors=0\n",
+  "stderr": "",
+  "sources": {
+    "PROGRAM/worldmap/worldmap_encgen.c": "3aa51830d23b18710e26166981217d17d9e640c2cabb14d9972085ae0abd3b92",
+    "PROGRAM/sea_ai/sea_traffic.c": "ebc04feacd97c9edcaff3096ec6463ce1ed7195ed9ac82a48b72dfdcafa4b48c",
+    "PROGRAM/sea_ai/sea.c": "3e97ac102ac53f5bac4fc2e5ddacfc58cf1f7d7d7d0fc0b2ac2a8da32d833d75"
+  },
+  "fixture_sha256": "ea606781962f66508097ecc333e3f35deec2e499722f7284b0d342b90133c6d8",
+  "probe_sha256": "d75a01ffd554e71cf09078d07c4d123bc9bea556b3822d851a197c8636dbef1b",
+  "logs": {
+    "compile.log": "[2026-10-29 16:43:18.465] [compile] [trace] MOUNTED perf 10000 ordinary physical-voyage refreshes; actor pose/crew retained\n"
+  },
+  "mode": "perf-after"
+}

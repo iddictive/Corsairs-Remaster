@@ -1,0 +1,20 @@
+object Render;
+object Character;
+object Ship;
+object SaveData;
+ref Pointer;
+#event_handler("SeaLoad_GetPointer", "LoadPointer");
+void Main() {}
+ref LoadPointer()
+{
+ string type=GetEventData();
+ int index=GetEventData();
+ switch(type)
+ {
+  case "character": makeref(Pointer,Character); break;
+  case "ship": makeref(Pointer,Ship); break;
+  case "seasave": makeref(Pointer,SaveData); break;
+ }
+ return Pointer;
+}
+

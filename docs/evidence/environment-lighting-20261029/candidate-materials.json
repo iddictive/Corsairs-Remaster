@@ -1,0 +1,15 @@
+[
+  {
+    "modern": "0",
+    "exit": 0,
+    "stdout": "mode=0 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=0 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=1 pose=0 sample=671 cpu=d00d1a26 gpu=d00d1a26\nmode=1 pose=1 sample=607 cpu=d00d1a26 gpu=d00d1a26\nmode=2 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=2 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=3 pose=0 sample=671 cpu=d02d5a86 gpu=d02d5a86\nmode=3 pose=1 sample=607 cpu=d02d5a86 gpu=d02d5a86\nmode=4 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=4 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=5 pose=0 sample=671 cpu=ff050a0f gpu=ff050a0f\nmode=5 pose=1 sample=607 cpu=ff050a0f gpu=ff050a0f\nmode=6 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=6 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=7 pose=0 sample=671 cpu=ff3b4d5e gpu=ff3b4d5e\nmode=7 pose=1 sample=607 cpu=ff3b4d5e gpu=ff3b4d5e\nPASS: two AVERTEX0 GPU poses match the CPU 36-byte oracle in coverage, depth and pixels\n",
+    "stderr": "[StormMetal] backend-opt-20260918: on\n[StormMetal] direct Metal device Apple M5 Max; backbuffer 64x64; SDL drawable 64x64; samples 1\n[StormMetal] water mode: original shader fidelity\n"
+  },
+  {
+    "modern": "1",
+    "exit": 0,
+    "stdout": "mode=0 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=0 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=1 pose=0 sample=671 cpu=d00d1a26 gpu=d00d1a26\nmode=1 pose=1 sample=607 cpu=d00d1a26 gpu=d00d1a26\nmode=2 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=2 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=3 pose=0 sample=671 cpu=d02d5a86 gpu=d02d5a86\nmode=3 pose=1 sample=607 cpu=d02d5a86 gpu=d02d5a86\nmode=4 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=4 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=5 pose=0 sample=671 cpu=ff050a0f gpu=ff050a0f\nmode=5 pose=1 sample=607 cpu=ff050a0f gpu=ff050a0f\nmode=6 pose=0 sample=671 cpu=d04080c0 gpu=d04080c0\nmode=6 pose=1 sample=607 cpu=d04080c0 gpu=d04080c0\nmode=7 pose=0 sample=671 cpu=ff3b4d5e gpu=ff3b4d5e\nmode=7 pose=1 sample=607 cpu=ff3b4d5e gpu=ff3b4d5e\nPASS: two AVERTEX0 GPU poses match the CPU 36-byte oracle in coverage, depth and pixels\n",
+    "stderr": "[StormMetal] backend-opt-20260918: on\n[StormMetal] direct Metal device Apple M5 Max; backbuffer 64x64; SDL drawable 64x64; samples 1\n[StormMetal] water mode: original shader fidelity\n"
+  }
+]
+

@@ -327,9 +327,20 @@ class WdmStaticResources final : public Entity
     uint64_t ProcessMessage(MESSAGE &message) override
     {
         const auto command = message.String();
-        if (command != "IslandOrigins" && command != "SeaAtlas" && command != "SeaAtlasFrame" && command != "SeaRoute") return 0;
+        if (command != "IslandOrigins" && command != "SeaAtlas" && command != "SeaAtlasFrame" && command != "SeaRoute" && command != "SeaLocator" && command != "LegacySeaGeometry") return 0;
         auto *target = message.AttributePointer();
         if (!target) return 0;
+        if (command == "LegacySeaGeometry")
+            return geometry->ConfigureLegacySeaGeometry(target);
+        if (command == "SeaLocator")
+        {
+            CVECTOR point;
+            if (!wdmObjects || !wdmObjects->islands ||
+                !wdmObjects->islands->GetQuestLocator(message.String().c_str(), point)) return 0;
+            target->SetAttributeUseFloat("x", point.x);
+            target->SetAttributeUseFloat("z", point.z);
+            return 1;
+        }
         if (command == "SeaAtlas") return assets->PublishAtlas(*target);
         if (command == "SeaAtlasFrame")
         {

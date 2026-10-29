@@ -1,0 +1,25 @@
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+normalized_parts=44206 build_and_oracles_ms=173.8688 max_support_error_m=2.38418579e-06 max_ray_fraction_error=3.97364299e-08 native_volume=548.260866597 mass_relative_error=2.14160771e-05 center_error_m=1.79485651e-05 inertia_error_per_mass_100m2=2.46428753e-05
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        5.28 real         4.79 user         0.19 sys
+           499793920  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               32306  page reclaims
+                  16  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+               15908  involuntary context switches
+         90086840250  instructions retired
+         21104534555  cycles elapsed
+           431326624  peak memory footprint
+
+EXIT 0

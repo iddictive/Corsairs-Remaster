@@ -1,0 +1,34 @@
+"""Read-only asset audit; repository path is the first argument."""
+import array, hashlib, json, pathlib, sys, time
+root = pathlib.Path(sys.argv[1]).resolve()
+assets = root / "experiments/native-metal/.cache/runtime/RESOURCE/MODELS"
+islands = assets / "Islands"
+lookup = {str(p).lower(): p for p in islands.rglob("*") if p.is_file()}
+pairs = []
+for path in lookup.values():
+    if path.name.lower().endswith("_morning7.col"):
+        target = lookup.get(str(path).lower().replace("_morning7.col", "_morning9.col"))
+        if target:
+            pairs.append((path, target))
+start = time.perf_counter()
+total = sum(len(target.read_bytes()) for _, target in pairs)
+elapsed = (time.perf_counter() - start) * 1000
+representative = []
+for before, after in sorted(pairs):
+    if "puertorico" not in str(before.parent).lower():
+        continue
+    a, b = array.array("I", before.read_bytes()), array.array("I", after.read_bytes())
+    assert len(a) == len(b)
+    representative.append({
+        "model": before.stem.removesuffix("_MORNING7"),
+        "vertices": len(a), "col_bytes": before.stat().st_size,
+        "changed_vertices": sum(x != y for x, y in zip(a, b)),
+        "mean_rgb7": [sum((x >> c) & 255 for x in a) / len(a) for c in (16, 8, 0)],
+        "mean_rgb9": [sum((x >> c) & 255 for x in b) / len(b) for c in (16, 8, 0)],
+        "sha7": hashlib.sha256(before.read_bytes()).hexdigest(),
+        "sha9": hashlib.sha256(after.read_bytes()).hexdigest()
+    })
+print(json.dumps({"scope": "all island assets, upper bound rather than a resident list",
+                  "paired_col_files": len(pairs), "target_bytes": total,
+                  "vertices": total // 4, "warm_target_read_ms": elapsed,
+                  "representative": representative}, indent=2))

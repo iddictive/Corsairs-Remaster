@@ -1,0 +1,29 @@
+rss_scene_before_ship_bytes=284704768
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+true_hull_rejected index=7581 vertices=24 volume=0.00506782539993 error=Hull building failed, point 7 had an error of 0.000488426 (relative to tolerance: 4884.26)
+true_hull_rejected index=7843 vertices=24 volume=0.000136699282542 error=Hull building failed, point 2 had an error of 0.000562446 (relative to tolerance: 5624.46)
+true_retained_before=44206 after_coalesce=44206 native_volume_before=138.33040739 after=138.33040739 failed_shapes=2 prepare_and_integrals_ms=148.95375
+FAIL true_shape_all_pieces_admitted
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        4.84 real         4.41 user         0.14 sys
+           505135104  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               32629  page reclaims
+                  16  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                4719  involuntary context switches
+         88856351578  instructions retired
+         20127433263  cycles elapsed
+           436585888  peak memory footprint
+
+EXIT 75

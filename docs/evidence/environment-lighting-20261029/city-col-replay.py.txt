@@ -1,0 +1,33 @@
+import sys,time,struct,hashlib,json
+from pathlib import Path
+root=Path(sys.argv[1]).resolve()
+sys.path.insert(0,str(root/'tools'));import prepare_puerto_rico_city as o
+r=root/'experiments/native-metal/.cache/runtime';spec=o.layout()
+def readcase(relative):
+ p=r/relative
+ if p.exists():return p.read_bytes()
+ return next(x for x in p.parent.iterdir() if x.name.lower()==p.name.lower()).read_bytes()
+def inject(data,col):
+ g=o.parse_gm(data);raw=bytearray(data);n=0
+ for b in g['buffers']:
+  for i in range(b['size']//b['stride']):
+   raw[b['payload_offset']+i*b['stride']+24:b['payload_offset']+i*b['stride']+28]=col[n*4:n*4+4];n+=1
+ assert n*4==len(col);return bytes(raw)
+def stream(data):
+ g=o.parse_gm(data);return b''.join(data[b['payload_offset']+i*b['stride']+24:b['payload_offset']+i*b['stride']+28] for b in g['buffers'] for i in range(b['size']//b['stride']))
+def structural(data):
+ g=o.parse_gm(data);raw=bytearray()
+ for b in g['buffers']:
+  v=bytearray(data[b['payload_offset']:b['payload_offset']+b['size']])
+  for i in range(b['size']//b['stride']):v[i*b['stride']+24:i*b['stride']+28]=bytes(4)
+  raw+=struct.pack('<2i',b['type'],b['size'])+v
+ raw+=b''.join(struct.pack('<3H',*tri) for tri in g['triangles'])
+ return bytes(raw)
+t=time.perf_counter();out=[]
+for role,stem in [('city','SanJuan'),('citybed','SanJuan_sb'),('citysigns','SanJuan_signsA'),('citymarket','SanJuan_rinok')]:
+ data=(o.ORIGINALS/(o.TOWN+stem+'.gm')).read_bytes();col=readcase(o.TOWN+stem+'_morning9.col');target=readcase(o.ISLAND+'PuertoRico_'+role+'.gm');expected=inject(data,col)
+ assert structural(target)==structural(expected),role
+ vals=struct.unpack('<'+str(len(col)//4)+'I',col)
+ out.append({'role':role,'vertices':len(vals),'col_bytes':len(col),'unique_baked_colours':len(set(vals)),'mean_rgb9':[sum((x>>c)&255 for x in vals)/len(vals) for c in [16,8,0]],'col_sha256':hashlib.sha256(col).hexdigest()})
+original=(o.ORIGINALS/(o.ISLAND+'PuertoRico.gm')).read_bytes();lit=inject(original,readcase(o.ISLAND+'PuertoRico_morning9.col'));terrain,groups,counts=o.terrain_candidate(lit,spec);blend=o.patch_model(lit,groups);target=readcase(o.ISLAND+'PuertoRico_cityblend.gm');assert structural(target)==structural(blend),'blend changed geometry';col=stream(blend);out.append({'role':'cityblend','vertices':len(col)//4,'col_bytes':len(col),'col_sha256':hashlib.sha256(col).hexdigest()})
+print(json.dumps({'pure_rebuild_ms':(time.perf_counter()-t)*1000,'all_noncolour_vertex_and_index_bytes_preserved':True,'models':out}))

@@ -522,6 +522,7 @@ uint64_t MODELR::ProcessMessage(MESSAGE &message)
         NODER::gs = GeometyService;
         NODER::rs = rs;
         root = new NODER();
+        root->environmentIsDay=environmentIsDay;
         if (!root->Init(LightPath.c_str(), str.c_str(), "", CMatrix(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), mtx, nullptr,
                         lmPath.c_str()))
         {
@@ -532,6 +533,7 @@ uint64_t MODELR::ProcessMessage(MESSAGE &message)
         }
         // CVECTOR tmp;
         root->Update(mtx, tmp);
+        root->ApplyLightingPhase(environmentIsDay);
         return 1;
         // UNGUARD
         break;
@@ -553,14 +555,27 @@ uint64_t MODELR::ProcessMessage(MESSAGE &message)
     case MSG_MODEL_SET_LIGHT_PATH:
         // GUARD(MSG_MODEL_SET_LIGHT_PATH)
         str = message.String();
-        if (LightPath != str)
-        {
-            LightPath = str;
-            if (root)
-                root->SetLightPath(LightPath);
-        }
+        if(root&&!root->UsesLightPath(str)&&!root->SetLightPath(str))return 0;
+        LightPath=str;
         // UNGUARD
         break;
+    case MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING:
+        pendingEnvironmentReady=false;
+        pendingEnvironmentPath=message.String();
+        pendingEnvironmentDay=message.Long()!=0;
+        if(root&&!root->PrepareEnvironmentLighting(pendingEnvironmentPath,pendingEnvironmentDay))return 0;
+        pendingEnvironmentReady=true;
+        return 1;
+    case MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING:
+        if(!pendingEnvironmentReady)return 1;
+        if(root)root->CommitEnvironmentLighting();
+        LightPath.swap(pendingEnvironmentPath);environmentIsDay=pendingEnvironmentDay;
+        pendingEnvironmentPath.clear();pendingEnvironmentReady=false;
+        return 1;
+    case MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING:
+        if(root)root->CancelEnvironmentLighting();
+        pendingEnvironmentPath.clear();pendingEnvironmentReady=false;
+        return 1;
     case MSG_MODEL_SET_LIGHT_LMPATH:
         // GUARD(MSG_MODEL_SET_LIGHT_LMPATH)
         lmPath = message.String();

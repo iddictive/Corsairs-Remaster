@@ -159,6 +159,8 @@ void SeaTraffic_ReportPositions()
             if (index < 0) break;
             ref captain = &Characters[index];
             if (!IsEntity(captain) || !WdmFleetSeaAlive(captain) || !WdmFleetSeaActorOwned(captain, true)) continue;
+            if (captain.trafficFleetID != group.trafficFleetID) continue;
+            WdmFleetSeaPublishGroup(group);
             worldMap.(path).x = Sea_MapX(stf(captain.Ship.Pos.x), stf(captain.Ship.Pos.z));
             worldMap.(path).z = Sea_MapZ(stf(captain.Ship.Pos.x), stf(captain.Ship.Pos.z));
             worldMap.(path).ay = Sea_MapHeading(stf(captain.Ship.Ang.y));
@@ -534,6 +536,212 @@ bool SeaTraffic_HasOriginalGroup(aref descriptor)
     int index = Group_GetGroupCommanderIndexR(&AIGroups[g]);
     return index >= 0 && IsEntity(&Characters[index]) && CheckAttribute(&Characters[index], "trafficFleetID") &&
         Characters[index].trafficFleetID == descriptor.trafficFleetID && WdmFleetSeaAlive(&Characters[index]);
+}
+
+bool SeaTraffic_CanAdvanceFleet(aref descriptor, ref group)
+{
+    if (!bSeaActive || !bSeaLoaded || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched) ||
+        !WdmTrafficIsOrdinary(descriptor) || CheckAttribute(descriptor, "trafficHarbour") ||
+        CheckAttribute(descriptor, "trafficMission") || CheckAttribute(descriptor, "trafficBattle") ||
+        CheckAttribute(descriptor, "trafficReleasePending") || CheckAttribute(descriptor, "trafficRollback")) return false;
+    if (CheckAttribute(group, "Task") && sti(group.Task) != AITASK_MOVE &&
+        sti(group.Task) != AITASK_DRIFT && sti(group.Task) != AITASK_NONE) return false;
+    int count = 0;
+    for (int slot = 0; slot < MAX_CHARACTERS; slot++)
+    {
+        int index = Group_GetCharacterIndexR(group, slot);
+        if (index < 0) break;
+        ref captain = &Characters[index];
+        if (!WdmFleetSeaAlive(captain)) continue;
+        if (!IsEntity(captain) || !WdmFleetSeaActorOwned(captain, true) ||
+            CheckAttribute(captain, "ShipTaskLock") || CheckAttribute(captain, "SeaSurrender") ||
+            CheckAttribute(captain, "Surrendered")) return false;
+        if (CheckAttribute(captain, "Ship.Stopped") && sti(captain.Ship.Stopped)) return false;
+        if (CheckAttribute(captain, "SeaAI.Task") && sti(captain.SeaAI.Task) != AITASK_MOVE &&
+            sti(captain.SeaAI.Task) != AITASK_DRIFT && sti(captain.SeaAI.Task) != AITASK_NONE) return false;
+        count++;
+    }
+    return count > 0;
+}
+
+void SeaTraffic_FleetCourse(aref descriptor, ref group)
+{
+    float x = Sea_LocalX(stf(descriptor.gotoX), stf(descriptor.gotoZ));
+    float z = Sea_LocalZ(stf(descriptor.gotoX), stf(descriptor.gotoZ));
+    if (CheckAttribute(group, "Task.Pos.x") && CheckAttribute(group, "Task.Pos.z") &&
+        sti(group.Task) == AITASK_MOVE && abs(stf(group.Task.Pos.x) - x) < 1.0 &&
+        abs(stf(group.Task.Pos.z) - z) < 1.0) return;
+    group.Task = AITASK_MOVE; group.Task.Pos.x = x; group.Task.Pos.z = z;
+    group.trafficIntent = descriptor.trafficIntent;
+    WdmFleetSeaApplyTask(group.id);
+}
+
+// Apply only service-owned values. Entity identity, pose, task, reload and
+// independently observed damage remain with the existing physical actors.
+bool SeaTraffic_ApplySails(aref descriptor, ref captain, aref entry)
+{
+    if (!CheckAttribute(entry, "trafficService.nativeSails")) return true;
+    float remaining = stf(entry.trafficService.nativeSails);
+    float previous = stf(captain.Ship.SP);
+    int broken = 0;
+    aref masts; makearef(masts, captain.Ship.Masts);
+    for (int m = 0; m < GetAttributesNum(masts); m++)
+    {
+        aref mast = GetAttributeN(masts, m);
+        int number = BI_MastRepairMainNumber(GetAttributeName(mast));
+        if (number > 0 && number < 100 && stf(GetAttributeValue(mast)) >= 1.0) broken++;
+    }
+    if (CheckAttribute(entry, "trafficService.nativeMasts") && broken > 0)
+    {
+        object before; aref source; makearef(source, captain.Ship); CopyAttributes(&before, source);
+        BI_MastRepairRestore(captain, broken);
+        if (SendMessage(captain, "l", MSG_SHIP_REPAIR_MASTS) != broken)
+        {
+            aref saved, target;
+            makearef(saved, before.Masts); makearef(target, captain.Ship.Masts); CopyAttributes(target, saved);
+            DeleteAttribute(captain, "Ship.Sails");
+            if (CheckAttribute(&before, "Sails"))
+            { makearef(saved, before.Sails); makearef(target, captain.Ship.Sails); CopyAttributes(target, saved); }
+            captain.Ship.SP = before.SP;
+            descriptor.trafficServiceBlocked = "mast-geometry";
+            return false;
+        }
+    }
+    DeleteAttribute(entry, "trafficService.nativeMasts");
+    remaining = remaining - stf(captain.Ship.SP) + previous;
+    if (remaining > 0.0) remaining = remaining - ProcessSailRepair(captain, remaining);
+    if (remaining > 0.01)
+    {
+        entry.trafficService.nativeSails = remaining;
+        descriptor.trafficServiceBlocked = "sail-geometry";
+        return false;
+    }
+    DeleteAttribute(entry, "trafficService.nativeSails");
+    return true;
+}
+
+bool SeaTraffic_ApplyService(aref descriptor, ref group)
+{
+    bool applied = true;
+    for (int slot = 0; slot < MAX_CHARACTERS; slot++)
+    {
+        int index = Group_GetCharacterIndexR(group, slot);
+        if (index < 0) break;
+        ref captain = &Characters[index];
+        if (!WdmFleetSeaAlive(captain)) continue;
+        string key = "ship" + captain.trafficRosterSlot;
+        aref entry; makearef(entry, descriptor.encdata.trafficRoster.(key));
+        float hp = stf(entry.Ship.HP);
+        float previousHP = stf(captain.Ship.HP);
+        float sp = stf(entry.Ship.SP);
+        if (hp > previousHP)
+        {
+            captain.Ship.HP = hp;
+            int type = GetCharacterShipType(captain);
+            if (hp >= stf(RealShips[type].HP)) Ship_ResetHullDamage(captain);
+            else Ship_QueueHullMaterialRepair(captain, 100.0 * (hp - previousHP) / stf(RealShips[type].HP));
+        }
+        SetCrewQuantity(captain, sti(entry.trafficCrewQuantity));
+        for (int good = 0; good < GOODS_QUANTITY; good++)
+        {
+            int quantity = WdmTrafficEntryGoods(entry, good);
+            if (quantity != GetCargoGoods(captain, good)) SetCharacterGoods(captain, good, quantity);
+        }
+        if (!CheckAttribute(entry, "trafficService.nativeSails") && sp > stf(captain.Ship.SP))
+        {
+            entry.trafficService.nativeSails = sp - stf(captain.Ship.SP);
+            if (sp >= 100.0) entry.trafficService.nativeMasts = 1;
+        }
+        if (CheckAttribute(entry, "Ship.Cannons.Borts"))
+        {
+            aref borts; makearef(borts, entry.Ship.Cannons.Borts);
+            for (int b = 0; b < GetAttributesNum(borts); b++)
+            {
+                aref bort = GetAttributeN(borts, b);
+                if (!CheckAttribute(bort, "damages")) continue;
+                string side = GetAttributeName(bort);
+                aref damages; makearef(damages, bort.damages);
+                for (int c = 0; c < GetAttributesNum(damages); c++)
+                {
+                    aref damage = GetAttributeN(damages, c);
+                    string cannon = GetAttributeName(damage);
+                    captain.Ship.Cannons.Borts.(side).damages.(cannon) = GetAttributeValue(damage);
+                }
+            }
+        }
+        RecalculateCargoLoad(captain);
+        if (!SeaTraffic_ApplySails(descriptor, captain, entry)) applied = false;
+    }
+    if (!applied) return false;
+    DeleteAttribute(descriptor, "trafficServiceBlocked");
+    return true;
+}
+
+void SeaTraffic_AdvanceFleet(aref descriptor)
+{
+    if (!SeaTraffic_HasOriginalGroup(descriptor)) return;
+    string groupID = descriptor.trafficActorGroup;
+    ref group = Group_GetGroupByID(groupID);
+    if (!SeaTraffic_CanAdvanceFleet(descriptor, group)) return;
+    // Retry only the unapplied paid rigging delta before observing fresh state;
+    // never replay a stale crew/cargo/hull snapshot over the physical actor.
+    for (int slot = 0; slot < MAX_CHARACTERS; slot++)
+    {
+        int member = Group_GetCharacterIndexR(group, slot);
+        if (member < 0) break;
+        ref actor = &Characters[member];
+        if (!WdmFleetSeaAlive(actor)) continue;
+        string key = "ship" + actor.trafficRosterSlot;
+        aref entry; makearef(entry, descriptor.encdata.trafficRoster.(key));
+        if (!SeaTraffic_ApplySails(descriptor, actor, entry)) return;
+    }
+    int commander = Group_GetGroupCommanderIndexR(group);
+    ref captain = &Characters[commander];
+    descriptor.x = Sea_MapX(stf(captain.Ship.Pos.x), stf(captain.Ship.Pos.z));
+    descriptor.z = Sea_MapZ(stf(captain.Ship.Pos.x), stf(captain.Ship.Pos.z));
+    if (descriptor.trafficLifecycle != "service")
+    {
+        float dx = stf(descriptor.x) - stf(descriptor.gotoX);
+        float dz = stf(descriptor.z) - stf(descriptor.gotoZ);
+        float radius = 12.0;
+        if (CheckAttribute(descriptor, "gotoRad") && stf(descriptor.gotoRad) > radius) radius = stf(descriptor.gotoRad);
+        if (dx * dx + dz * dz > radius * radius) { SeaTraffic_FleetCourse(descriptor, group); return; }
+        if (sti(descriptor.trafficRole) == 1 || CheckAttribute(descriptor, "trafficServiceOnArrival"))
+        {
+            WdmFleetSeaSnapshotFleet(descriptor.trafficFleetID, false);
+            descriptor.trafficLifecycle = "service"; descriptor.trafficIntent = "service";
+            WdmTrafficArriveFleet(descriptor);
+            if (!SeaTraffic_ApplyService(descriptor, group)) return;
+            group.Task = AITASK_DRIFT; group.trafficIntent = "service";
+            WdmFleetSeaApplyTask(groupID);
+        }
+        else
+        {
+            if (!CheckAttribute(descriptor, "trafficReturnX") || !CheckAttribute(descriptor, "trafficReturnZ")) return;
+            float x = stf(descriptor.trafficReturnX);
+            float z = stf(descriptor.trafficReturnZ);
+            descriptor.trafficReturnX = descriptor.gotoX; descriptor.trafficReturnZ = descriptor.gotoZ;
+            descriptor.gotoX = x; descriptor.gotoZ = z;
+            SeaTraffic_FleetCourse(descriptor, group);
+            return;
+        }
+    }
+    WdmFleetSeaSnapshotFleet(descriptor.trafficFleetID, false);
+    WdmTrafficVoyageAdvance(descriptor);
+    if (!SeaTraffic_ApplyService(descriptor, group)) return;
+    group.trafficIntent = descriptor.trafficIntent;
+    if (!CheckAttribute(descriptor, "trafficNextLocator")) return;
+    object endpoint;
+    aref resources;
+    if (!GetEntity(&resources, "WdmStaticResources"))
+    { descriptor.trafficRouteBlocked = "resources"; return; }
+    if (!SendMessage(resources, "sas", "SeaLocator", &endpoint, descriptor.trafficNextLocator))
+    { descriptor.trafficRouteBlocked = "locator"; return; }
+    descriptor.gotoX = endpoint.x; descriptor.gotoZ = endpoint.z; descriptor.gotoRad = 2.0;
+    DeleteAttribute(descriptor, "trafficNextLocator"); DeleteAttribute(descriptor, "trafficRouteBlocked");
+    descriptor.trafficLifecycle = "voyage"; descriptor.trafficVoyage = sti(descriptor.trafficVoyage) + 1;
+    WdmTrafficDepartFleet(descriptor);
+    SeaTraffic_FleetCourse(descriptor, group);
 }
 
 void WdmFleetSeaApplyTask(string groupID)

@@ -406,7 +406,7 @@ BOOL TOUCH::BuildContour(int32_t ship_idx)
 BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
 {
     auto *ship = pShips[idx];
-    if (iDeltaTime <= 0 || !pIslandBase || !ship->pShip ||
+    if (iDeltaTime <= 0 || !pIslandBase || !ship->pShip || ship->pShip->HasRigidFlight() ||
         !ship->pShip->TouchMove(iDeltaTime, &ship->TP[0], &ship->TP[1]))
         return false;
     const bool wet = ship->pShip->HasWaterContact();
@@ -703,7 +703,7 @@ void TOUCH::ResolveShips()
     for (int i = 0; i < iNumShips; ++i)
     {
         auto *entry = pShips[i];
-        if (!entry->pShip || !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
+        if (!entry->pShip || entry->pShip->HasRigidFlight() || !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
         FrameBody frame;
         if (entry->pShip->isDead() || entry->pShip->GetHullContourRevision())
         {

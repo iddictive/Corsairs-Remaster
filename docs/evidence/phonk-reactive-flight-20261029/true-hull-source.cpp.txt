@@ -1,0 +1,50 @@
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include "ship_hull_contact_geometry.hpp"
+static void trueHullSource(const storm::ship::material::convex::ContactSnapshot &snapshot,const CMatrix &frame)
+{
+ using namespace storm::ship::material::convex;
+ check(snapshot.cells&&snapshot.cells->convex,"true_convex_source");
+ roundhouse::ReactiveWorld registration;std::vector<std::vector<roundhouse::ReactivePoint>> parts;
+ JPH::StaticCompoundShapeSettings compound;size_t before=0,after=0,failures=0,rayFailures=0;double maxSupport=0,maxRay=0,nativeBefore=0,nativeAfter=0,volume=0,first[3]{},second[3][3]{};auto start=std::chrono::steady_clock::now();
+ for(const auto&cell:snapshot.cells->convex->cells)if(cell&&cell->pieces){
+  std::map<std::pair<uint32_t,uint32_t>,std::vector<Piece>> groups;
+  for(const auto&p:*cell->pieces){if(snapshot.retainedSupports&&p.supportCell!=storm_ship_structure::NoCell&&(p.supportCell>=snapshot.retainedSupports->size()||!snapshot.retainedSupports->at(p.supportCell)))continue;groups[{p.supportCell,p.authoredOwner}].push_back(p);before++;nativeBefore+=p.volume;}
+  for(auto&entry:groups){Budget budget;if(std::getenv("JET_TRUE_HULL_COALESCE"))check(coalesce(entry.second,budget),"existing_exact_coalesce");for(const auto&p:entry.second){after++;nativeAfter+=p.volume;
+   std::vector<roundhouse::ReactivePoint> vertices;double lo[3]={INFINITY,INFINITY,INFINITY},hi[3]={-INFINITY,-INFINITY,-INFINITY};
+   for(const auto&f:p.faces)for(const auto&v:f.vertices){auto w=CMatrix(frame)*CVECTOR(v.position.x,v.position.y,v.position.z);vertices.push_back({w.x,w.y,w.z});double q[]={w.x,w.y,w.z};for(int k=0;k<3;k++){lo[k]=std::min(lo[k],q[k]);hi[k]=std::max(hi[k],q[k]);}}
+   // Align a longest edge and its widest perpendicular. The affine map
+   // restores the original points; this neither thickens nor drops slivers.
+   JPH::DVec3 anchor(vertices[0].x,vertices[0].y,vertices[0].z),x=JPH::DVec3::sAxisX(),y=JPH::DVec3::sAxisY();double longest=0,widest=0;
+   for(auto a:vertices)for(auto b:vertices){auto delta=JPH::DVec3(b.x-a.x,b.y-a.y,b.z-a.z);if(delta.LengthSq()>longest){longest=delta.LengthSq();x=delta;}}x=x.Normalized();
+   for(auto a:vertices){auto delta=JPH::DVec3(a.x,a.y,a.z)-anchor;delta-=x*delta.Dot(x);if(delta.LengthSq()>widest){widest=delta.LengthSq();y=delta;}}y=y.Normalized();auto z=x.Cross(y).Normalized();y=z.Cross(x).Normalized();
+   JPH::DVec3 axes[]={x,y,z};for(int k=0;k<3;k++){lo[k]=INFINITY;hi[k]=-INFINITY;for(auto v:vertices){auto delta=JPH::DVec3(v.x,v.y,v.z)-anchor;double q=delta.Dot(axes[k]);lo[k]=std::min(lo[k],q);hi[k]=std::max(hi[k],q);}}
+   double c[3],s[3];for(int k=0;k<3;k++){c[k]=(lo[k]+hi[k])*.5;s[k]=std::max((hi[k]-lo[k])*.5,1e-6);}JPH::Array<JPH::Vec3> points;
+   for(auto v:vertices){auto delta=JPH::DVec3(v.x,v.y,v.z)-anchor;points.emplace_back(float((delta.Dot(x)-c[0])/s[0]),float((delta.Dot(y)-c[1])/s[1]),float((delta.Dot(z)-c[2])/s[2]));}
+   JPH::ConvexHullShapeSettings settings(points,0.f);auto shape=settings.Create();
+   if(shape.HasError()){if(failures<8)printf("true_hull_rejected index=%zu vertices=%zu volume=%.12g error=%s\n",after,vertices.size(),p.volume,shape.GetError().c_str());failures++;continue;}
+   const JPH::Vec3 scale(float(s[0]),float(s[1]),float(s[2]));JPH::RefConst<JPH::Shape> scaled=new JPH::ScaledShape(shape.Get(),scale);auto position=anchor+x*c[0]+y*c[1]+z*c[2];JPH::Mat44 basis(JPH::Vec4(JPH::Vec3(x),0.f),JPH::Vec4(JPH::Vec3(y),0.f),JPH::Vec4(JPH::Vec3(z),0.f),JPH::Vec4(0.f,0.f,0.f,1.f));auto rotation=basis.GetQuaternion();compound.AddShape(JPH::Vec3(position),rotation,scaled);
+   JPH::ConvexShape::SupportBuffer buffer;auto *support=static_cast<const JPH::ConvexShape*>(shape.Get().GetPtr())->GetSupportFunction(JPH::ConvexShape::ESupportMode::IncludeConvexRadius,buffer,scale);JPH::DVec3 midpoint=JPH::DVec3::sZero();
+   for(auto v:vertices)midpoint+=JPH::DVec3(v.x,v.y,v.z);midpoint/=double(vertices.size());
+   for(int dx=-1;dx<=1;dx++)for(int dy=-1;dy<=1;dy++)for(int dz=-1;dz<=1;dz++)if(dx||dy||dz){JPH::Vec3 direction{float(dx),float(dy),float(dz)};auto point=rotation*(support->GetSupport(rotation.Conjugated()*direction)+scaled->GetCenterOfMass())+JPH::Vec3(position);double expected=-INFINITY;for(auto v:vertices)expected=std::max(expected,dx*v.x+dy*v.y+dz*v.z);maxSupport=std::max(maxSupport,std::abs(double(point.Dot(direction))-expected));}
+   double entry=-INFINITY;const double radius=std::max({s[0],s[1],s[2]})*4;
+   for(const auto&face:p.faces){if(face.vertices.size()<3)continue;auto transformed=[&](size_t n){auto v=face.vertices[n].position;auto a=CMatrix(frame)*CVECTOR(v.x,v.y,v.z);return JPH::DVec3(a.x,a.y,a.z);};auto a=transformed(0),b=transformed(1),cc=transformed(2);auto normal=(b-a).Cross(cc-a);if(normal.Dot(midpoint-a)>0)normal=-normal;double denom=normal.Dot(x);if(denom<0)entry=std::max(entry,normal.Dot(a-midpoint)/denom);}
+   JPH::RayCast ray(rotation.Conjugated()*JPH::Vec3(midpoint-x*radius-position)-scaled->GetCenterOfMass(),rotation.Conjugated()*JPH::Vec3(x*(2*radius)));JPH::RayCastResult hit;if(!scaled->CastRay(ray,JPH::SubShapeIDCreator(),hit))rayFailures++;else maxRay=std::max(maxRay,std::abs(double(hit.mFraction)*2*radius-radius-entry));parts.push_back(std::move(vertices));
+   const auto origin=p.faces.front().vertices.front().position;
+   for(const auto&f:p.faces)for(size_t i=1;i+1<f.vertices.size();i++){
+    double v[4][3];auto vector=[&](int n,const auto&q){auto w=CMatrix(frame)*CVECTOR(q.x,q.y,q.z);v[n][0]=w.x;v[n][1]=w.y;v[n][2]=w.z;};vector(0,origin);vector(1,f.vertices[0].position);vector(2,f.vertices[i].position);vector(3,f.vertices[i+1].position);
+    double a[3],b[3],c[3];for(int k=0;k<3;k++){a[k]=v[1][k]-v[0][k];b[k]=v[2][k]-v[0][k];c[k]=v[3][k]-v[0][k];}const double dv=(a[0]*(b[1]*c[2]-b[2]*c[1])+a[1]*(b[2]*c[0]-b[0]*c[2])+a[2]*(b[0]*c[1]-b[1]*c[0]))/6.;volume+=dv;
+    double sum[3]{};for(int k=0;k<3;k++){for(int n=0;n<4;n++)sum[k]+=v[n][k];first[k]+=dv*sum[k]/4.;}for(int x=0;x<3;x++)for(int y=0;y<3;y++){double joint=0;for(int n=0;n<4;n++)joint+=v[n][x]*v[n][y];second[x][y]+=dv*(sum[x]*sum[y]+joint)/20.;}
+   }
+  }}
+ }
+ printf("true_retained_before=%zu after_coalesce=%zu native_volume_before=%.12g after=%.12g failed_shapes=%zu max_support_error_m=%.9g ray_failures=%zu max_ray_error_m=%.9g prepare_and_integrals_ms=%.5f\n",before,after,nativeBefore,nativeAfter,failures,maxSupport,rayFailures,maxRay,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count());check(failures==0,"true_shape_all_pieces_admitted");auto shape=compound.Create();check(!shape.HasError(),"true_hull_compound");auto mass=shape.Get()->GetMassProperties();auto com=shape.Get()->GetCenterOfMass();double centerError=0,inertiaError=0;for(int i=0;i<3;i++){centerError=std::max(centerError,std::abs(double(com[i])-first[i]/volume));for(int j=0;j<3;j++){double expected=-(second[i][j]-first[i]*first[j]/volume);if(i==j){expected=0;for(int k=0;k<3;k++)if(k!=i)expected+=second[k][k]-first[k]*first[k]/volume;}inertiaError=std::max(inertiaError,std::abs(double(mass.mInertia(i,j))-1000*expected)/(1000*volume*100));}}
+ printf("true_polyhedral_volume=%.12g jolt_volume=%.12g COM=(%.9g,%.9g,%.9g) mass_relative_error=%.9g center_error_m=%.9g inertia_error_per_mass_100m2=%.9g\n",volume,mass.mMass/1000.,com.GetX(),com.GetY(),com.GetZ(),std::abs(mass.mMass/1000.-volume)/volume,centerError,inertiaError);check(std::abs(nativeAfter-nativeBefore)/nativeBefore<1e-4&&std::abs(mass.mMass/1000.-volume)/volume<1e-4&&centerError<1e-4&&inertiaError<1e-4,"true_union_mass_oracle");
+ if(!std::getenv("JET_TRUE_HULL_INTEGRATE"))return;
+ roundhouse::ReactiveWorld world;check(world.SetHull(parts),"true_production_shape");roundhouse::ReactiveBody body;body.mass=400000;body.pose=CMatrix(CVECTOR(.15f,0.f,.2f),CVECTOR(0.f,30.f,0.f));roundhouse::ReactiveFluid dry;dry.height=-10000;
+ std::vector<CVECTOR> floor={{-100.f,0.f,-100.f},{-100.f,0.f,100.f},{100.f,0.f,100.f},{-100.f,0.f,-100.f},{100.f,0.f,100.f},{100.f,0.f,-100.f}};check(world.SetStaticTriangles(floor),"true_floor");start=std::chrono::steady_clock::now();for(int i=0;i<240;i++)check(world.Step(body,{},dry,1.f/60),"true_contact_step");printf("true_hull_floor_y=%.9g contact_frame_us=%.5f\n",body.pose.Pos().y,std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count()/240);check(body.pose.Pos().y>0,"true_hull_floor_catches");
+}

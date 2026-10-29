@@ -1,0 +1,36 @@
+{
+  "base_commit": "b325c241bf2403d80c72d2624ca6e0cc5fc4235f",
+  "candidate_sources": {
+    "experiments/native-metal/backend.mm": "3ac70e493619ee8643744163011eadc27fbb0759b61e9ab8d1c4cdc00507eddc",
+    "experiments/native-metal/gpu_skinning_offscreen_probe.cpp": "ee14d463f598316d695b6cb99f1654f31bda94f9ed6023e7f2c2a46bee973cc7",
+    "experiments/native-metal/island_forest_shaders.hpp": "22d84e61828ad748cd8ca1bcef4be52784e53e70230164d3b165c9856160b328",
+    "tools/prepare_puerto_rico_city.py": "6e327ac0122a6ce96596bc6567ac509f2326440bd470936d7d74f83a96fc0c50",
+    "src/assets/islands/puerto-rico/manifest.json": "649d4f7c8119f5a7f5785986df6f7d405fdd4e76bb0fbb3d694bc5b3b5b149e6",
+    "src/gameplay/PROGRAM/weather/WhrWeather.c": "bf2202bde56ae5a6020e642593d6b30f3954e83b8f2b881a41a9c84a246c6705",
+    "experiments/native-metal/engine/src/libs/model/src/node.cpp": "781fdc54fcf69d88b134be49d574da440d0d3ed44aece0c1c290f1720c69f672",
+    "experiments/native-metal/engine/src/libs/geometry/src/geom_static.cpp": "3554351f2a59a2ed09607c3bef321e8f00f7d7ca68eba666915eebf73391db16",
+    "experiments/native-metal/world_cut_geometry.hpp": "9eb76ad260634af8d14d2cf95c70f6445a03893622e8fbea3d49380460ddb5bd",
+    "experiments/native-metal/ship_hull_material.hpp": "4c3b18f718c294ee50484d1ff615f0ce322e0ecdf6ff5241e7451dc6675fbb94",
+    "experiments/native-metal/engine/src/libs/geometry/include/geometry.h": "550daefbb9178827d1c359e47de0af6bb2309bd5acc03c5c94440f76bce5c3af",
+    "experiments/native-metal/engine/src/libs/geometry/include/geos.h": "d1766fe3d7963e26545a030138122f1448902cb2cdc209a025aeb54ef1bf1807",
+    "experiments/native-metal/engine/src/libs/geometry/src/geom.h": "b9f7023ff0df113c8454a47c225c61408ea696388a576f35fbe4f9e07885a6bd",
+    "experiments/native-metal/engine/src/libs/geometry/src/geometry.cpp": "af70c9ecfcf338c099b99fafb171550a8ed0c54e9cf6ac46c79c91b3c21f4a1a",
+    "experiments/native-metal/engine/src/libs/model/src/modelr.h": "3985e57ab71b4860a923d2b674b3177e140ebba41c3ff848a980dc08e7faf961",
+    "experiments/native-metal/engine/src/libs/model/src/model.cpp": "e5d2d26831ca034884b67d954a07e9388d0b8a09039dd72cf5eab4db66d97473",
+    "experiments/native-metal/engine/src/libs/island/src/island.cpp": "d43d73a9a58ca2ab735689c88bad12a53977ccbaace2969c13736eb63f4a5f38",
+    "experiments/native-metal/engine/src/libs/island/src/island.h": "000403c2b3117ece037206549e101d4981b5fb2ec7d3f6dacdac466a9e89088e",
+    "experiments/native-metal/engine/src/libs/location/src/model_array.cpp": "c8c4ad6b9078e41959475eace18736b535db8bb46f1423d70a40d4c0d6a0c296",
+    "experiments/native-metal/engine/src/libs/location/src/model_array.h": "3e27028db52bbfca652874230d9eff065bfcbd5325761d9921bf35e7cd80ce71",
+    "experiments/native-metal/engine/src/libs/location/src/location.cpp": "36df205d5efd79cdcb16d01349737e6d95f41734e4642db39246e87dcef014d4",
+    "experiments/native-metal/engine/src/libs/shared_headers/include/shared/messages.h": "6eb9103b2b3acea23fa3ca5599a0b8ccfba8eb0e4f9450331cb9a08206b03b9d",
+    "src/gameplay/PROGRAM/sea_ai/sea.c": "dc512465c122e4a1ee8d267cd2fc97ade64a0436a32bdd111e9a5bc106a260ee",
+    "src/gameplay/PROGRAM/locations/locations_loader.c": "6a5020a69e2ff88dddc4880def0ad93a63ecbf7c2ec577bb25de1f8a15053582",
+    "src/gameplay/PROGRAM/locations/init/PuertoRico.c": "d5a52a77d0f39a04e46f74db7d62fc0cb9234ca8508118448364cff0904ecfde",
+    "experiments/native-metal/world_damage_policy.hpp": "c3e54aa5619e8f109e346ee4dcc6d2d21e24fad94ad52536f7b4ab318eedf028"
+  },
+  "component_archives": {
+    "lib/libgeometry.a": "c5cd9c1bd5c608eacdedf9d4b0daa7f6264a25fa21fa75bdb3ef143e7b1dfd44",
+    "lib/libmodel.a": "d6f7f68eec080c10c850a87bcca7f75369f7596987e044a65d364cb372601211",
+    "libstorm_metal.a": "743b00396cda32998f33713be2533aa5b123874d4d5b537de4156f7b404413e7"
+  }
+}

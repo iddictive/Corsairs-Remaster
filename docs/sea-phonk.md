@@ -968,6 +968,32 @@ installation receipt belong to `runtime.md`.
 
 ## Contract and owners
 
+### Ctrl reactive flight
+
+While Phonk is active on the main ship, hold Ctrl for four reactive nozzles.
+W/S pitch and A/D roll by differential thrust. Tilt changes thrust direction;
+gravity and inertia continue when Ctrl is released, so poor control can cause a
+fall or collision. There is no automatic hover or levelling. The installed engine
+rating uses authored full-load displacement; actual cargo/retained mass changes
+acceleration. Exhaust transfers point momentum and heat to the nearest exposed
+ship, occluded by current island geometry. Fire remains the damage owner.
+
+`ship_reactive_jet.cpp` adapts native state to the existing Jolt owner. Canonical
+retained hull material and authored island collision polygons supply contacts;
+water uses buoyancy impulses. Nearby ordinary ships keep their native XZ/yaw
+constraints. The player free body retains full attitude, gravity and momentum
+through Ctrl release, mode exit and an in-flight SAVE/load. An upright settled
+water contact returns to normal sailing. Ordinary TOUCH skips this body to avoid
+double collision impulses. Ctrl's telescope action is suppressed only while the
+scene's Phonk controls own it; ordinary controls keep their mapping.
+
+The binary save layout is unchanged. Versioned `Ship.ReactiveFlight` character
+attributes select physical continuation; the existing `SHIP_STATE` stores actual
+linear/angular motion and pose. The regular save callback runs before character
+serialization. The native codec/component evidence and its runtime limits are in
+[reactive flight evidence](evidence/phonk-reactive-flight-20261029/README.md).
+Appearance and gameplay replay remain with the player; no game UI is automated.
+
 At local sea, **Esc → Phonk Mode** sits directly below **Цунами**. The same
 button turns it off and resumes play. Map, land and boarding retain their menus.
 W accelerates, releasing W coasts, S brakes, and A/D turn the hull through the

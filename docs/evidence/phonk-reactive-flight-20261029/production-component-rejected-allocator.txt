@@ -1,0 +1,3 @@
+TempAllocator: Out of memory trying to allocate 3932160 bytes
+
+EXIT -6

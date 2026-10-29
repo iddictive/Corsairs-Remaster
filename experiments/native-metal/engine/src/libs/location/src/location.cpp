@@ -597,11 +597,21 @@ uint64_t Location::ProcessMessage(MESSAGE &message)
         model.UpdateTexturesPath();
         return 1;
     case MSG_LOCATION_LIGHTPATH:
-        model.lightpath = message.String();
-        model.UpdateLightPath();
+        if(!model.PrepareEnvironmentLighting(message.String(),model.EnvironmentIsDay()))return 0;
+        model.FinishEnvironmentLighting(true);
         core.Send_Message(lighter, "ss", "LightPath", model.lightpath.c_str());
 
         return 1;
+    case MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING: {
+        const auto path=message.String();const bool day=message.Long()!=0;
+        return model.PrepareEnvironmentLighting(path,day)?1:0;
+    }
+    case MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING:
+        model.FinishEnvironmentLighting(true);
+        core.Send_Message(lighter,"ss","LightPath",model.lightpath.c_str());
+        return 1;
+    case MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING:
+        model.FinishEnvironmentLighting(false);return 1;
     case MSG_LOCATION_SHADOWPATH:
         model.shadowpath = message.String();
         model.UpdateShadowPath();

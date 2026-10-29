@@ -14145,3 +14145,20 @@ Disposition: both measured variants rejected for integration; no HUD/pacer,
 canonical engine build/stage or player replay. Prototypes and failed getter-guard
 attempt remain private/recoverable. Native optimization and unmeasured alternative
 frame-generation mechanisms remain separate work.
+
+### Common environment lighting — October 29, source candidates
+
+The native skin unlit-light leak, menu room sun cutoff parity and generated
+PuertoRico city COL producer are corrected in source. Native component readbacks,
+asset oracles, raw results and exact replay inputs are retained in
+[environment-lighting-20261029](evidence/environment-lighting-20261029/README.md).
+The hourly in-place COL transaction and generated day-only role are implemented;
+production GEOM/NODER fresh-load parity, rollback, phase and whole PROGRAM probes
+pass. The integrated old-save replay loads 24 native ships and 27 resident
+islands after the region-identity startup repair. Engine
+`59e303c71b50b44ddf350421c91ab55fec99057c0c41936d9b7aae6ccb6dd0ed`
+is installed and its bundle signature verifies. The aggregate morning9→7
+appearance transaction still rejects and preserves the previous palette;
+morning9 and its repeat pass. That rejection, whole-scene lighting acceptance,
+the remaining far-coast coverage difference and jet ground-contact cost remain
+open. Gameplay verification belongs to the user.

@@ -1,0 +1,5 @@
+recreate_hz=0 vx=4.995288849 other_vx=5.004712105 momentum=10000.0009766
+recreate_hz=60 vx=4.995288849 other_vx=5.004712105 momentum=10000.0009766
+recreate_hz=120 vx=4.995288372 other_vx=5.004712582 momentum=10000.0009766
+
+EXIT 0

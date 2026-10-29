@@ -1,0 +1,277 @@
+ninja: Entering directory `experiments/native-metal/.cache/build'
+[0/2] Re-checking globbed directories...
+[1/7] Building CXX object CMakeFiles/roundhouse_ragdoll.dir/roundhouse_ragdoll.cpp.o
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.cpp:1:
+In file included from <repo>/experiments/native-metal/roundhouse_ragdoll.hpp:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+7 warnings generated.
+[2/7] Linking CXX static library libroundhouse_ragdoll.a
+[3/7] Building CXX object native-engine/storm/libs/ship/CMakeFiles/ship.dir/src/ship_reactive_jet.cpp.o
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.2.0
+Thread model: posix
+InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+ignoring nonexistent directory "/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"
+ "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx15.0.0 -O3 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name ship_reactive_jet.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -mllvm -extra-vectorizer-passes -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -fno-sized-deallocation -target-sdk-version=27.0 -fdepfile-entry=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/SDKSettings.json -fvisibility-inlines-hidden-static-local-var -fno-modulemap-allow-subdirectory-search -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -enable-tlsdesc -target-cpu apple-m1 -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +ccpp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +flagm -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=<repo>/experiments/native-metal/.cache/build -fdebug-prefix-map=<repo>=. -target-linker-version 1166.2 -v -fcoverage-compilation-dir=<repo>/experiments/native-metal/.cache/build -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/21 -dependency-file native-engine/storm/libs/ship/CMakeFiles/ship.dir/src/ship_reactive_jet.cpp.o.d -skip-unused-modulemap-deps -MT native-engine/storm/libs/ship/CMakeFiles/ship.dir/src/ship_reactive_jet.cpp.o -sys-header-deps -isystem <repo>/experiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include -isystem <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include -isystem <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include/SDL2 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -D FMT_CONSTEVAL= -D FMT_HEADER_ONLY -D NOMINMAX -D SENTRY_BUILD_STATIC -D SPDLOG_FMT_EXTERNAL -D SSE2NEON_PRECISE_DIV=1 -D SSE2NEON_PRECISE_MINMAX=1 -D SSE2NEON_PRECISE_SQRT=1 -D STORM_METAL_AIM_VOLUME_BRIDGE=1 -D STORM_METAL_DYNAMIC_LIGHTING_BRIDGE=1 -D STORM_METAL_DYNAMIC_SKY_BRIDGE=1 -D STORM_METAL_GRASS_BRIDGE=1 -D STORM_METAL_INTERFACE_BACK_SCENE=1 -D STORM_METAL_ISLAND_GEOMETRY_BRIDGE=1 -D STORM_METAL_LIGHT_SHAFT_OPENINGS=1 -D STORM_METAL_PARTICLE_BRIDGE=1 -D STORM_METAL_RENDERER_CONSUMERS=1 -D STORM_METAL_ROCKK2=1 -D STORM_METAL_SCENE_HUD_BOUNDARY=1 -D STORM_METAL_SHIP_FIRE=1 -D STORM_METAL_SHIP_HULL_DAMAGE=1 -D STORM_METAL_WEATHER_VISUAL_STATE=1 -D "STORM_WATERMARK_FILE=\"storm_build_watermark.hpp\"" -D UNICODE -D _CRT_SECURE_NO_WARNINGS -D _UNICODE -I <repo>/experiments/native-metal/inputs/native -I <repo>/experiments/native-metal/engine/.. -I <repo>/experiments/native-metal/inputs/native/d3d9/dxvk-native/include/native/windows -I <repo>/experiments/native-metal/.cache/build/native-engine/storm -I <repo>/experiments/native-metal/engine/src/libs/ship/include -I <repo>/experiments/native-metal -I <repo>/experiments/native-metal/engine/src/libs/collide/include -I <repo>/experiments/native-metal/engine/src/libs/core/include -I <repo>/experiments/native-metal/engine/src/libs/diagnostics/include -I <repo>/experiments/native-metal/engine/src/libs/util/include -I <repo>/experiments/native-metal/inputs/conan/spdlog/1.9.2/_/_/package/70a17ef929dad20e1afdd6cf274326a965e13481/include -I <repo>/experiments/native-metal/inputs/conan/sentry-native/0.6.5/_/_/source/src/include -I <repo>/experiments/native-metal/engine/src/libs/math/include -I <repo>/experiments/native-metal/engine/src/libs/shared_headers/include -I <repo>/experiments/native-metal/engine/src/libs/steam_api/include -I <repo>/experiments/native-metal/inputs/conan/fast_float/3.4.0/_/_/package/5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9/include -I <repo>/experiments/native-metal/engine/src/libs/window/include -I <repo>/experiments/native-metal/engine/src/libs/geometry/include -I <repo>/experiments/native-metal/engine/src/libs/renderer/include -I <repo>/experiments/native-metal/engine/src/libs/island/include -I <repo>/experiments/native-metal/engine/src/libs/model/include -I <repo>/experiments/native-metal/engine/src/libs/animation/include -I <repo>/experiments/native-metal/engine/src/libs/sea/include -I <repo>/experiments/native-metal/engine/src/libs/sea_ai/include -I <repo>/experiments/native-metal/engine/src/libs/location/include -I <repo>/experiments/native-metal/audio -I <repo>/experiments/native-metal/engine/src/libs/sound_service/include -I <repo>/experiments/native-metal/engine/src/libs/particles/include -I <repo>/experiments/native-metal/engine/src/libs/weather/include -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/21/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks -fmacro-prefix-map=<repo>=. -fcoverage-prefix-map=<repo>=. -Wno-elaborated-enum-base -std=c++20 -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fno-implicit-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -vectorize-loops -vectorize-slp -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -Wno-error=allocator-wrappers -fdwarf2-cfi-asm -o native-engine/storm/libs/ship/CMakeFiles/ship.dir/src/ship_reactive_jet.cpp.o -x c++ <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp
+clang -cc1 version 21.0.0 (clang-2100.3.34.2) default target arm64-apple-darwin27.2.0
+ignoring nonexistent directory "/usr/local/include"
+ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"
+ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+ignoring duplicate directory "<repo>/experiments/native-metal"
+#include "..." search starts here:
+#include <...> search starts here:
+ <repo>/experiments/native-metal/inputs/native
+ <repo>/experiments/native-metal/engine/..
+ <repo>/experiments/native-metal/inputs/native/d3d9/dxvk-native/include/native/windows
+ <repo>/experiments/native-metal/.cache/build/native-engine/storm
+ <repo>/experiments/native-metal/engine/src/libs/ship/include
+ <repo>/experiments/native-metal/engine/src/libs/collide/include
+ <repo>/experiments/native-metal/engine/src/libs/core/include
+ <repo>/experiments/native-metal/engine/src/libs/diagnostics/include
+ <repo>/experiments/native-metal/engine/src/libs/util/include
+ <repo>/experiments/native-metal/inputs/conan/spdlog/1.9.2/_/_/package/70a17ef929dad20e1afdd6cf274326a965e13481/include
+ <repo>/experiments/native-metal/inputs/conan/sentry-native/0.6.5/_/_/source/src/include
+ <repo>/experiments/native-metal/engine/src/libs/math/include
+ <repo>/experiments/native-metal/engine/src/libs/shared_headers/include
+ <repo>/experiments/native-metal/engine/src/libs/steam_api/include
+ <repo>/experiments/native-metal/inputs/conan/fast_float/3.4.0/_/_/package/5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9/include
+ <repo>/experiments/native-metal/engine/src/libs/window/include
+ <repo>/experiments/native-metal/engine/src/libs/geometry/include
+ <repo>/experiments/native-metal/engine/src/libs/renderer/include
+ <repo>/experiments/native-metal/engine/src/libs/island/include
+ <repo>/experiments/native-metal/engine/src/libs/model/include
+ <repo>/experiments/native-metal/engine/src/libs/animation/include
+ <repo>/experiments/native-metal/engine/src/libs/sea/include
+ <repo>/experiments/native-metal/engine/src/libs/sea_ai/include
+ <repo>/experiments/native-metal/engine/src/libs/location/include
+ <repo>/experiments/native-metal/audio
+ <repo>/experiments/native-metal/engine/src/libs/sound_service/include
+ <repo>/experiments/native-metal/engine/src/libs/particles/include
+ <repo>/experiments/native-metal/engine/src/libs/weather/include
+ <repo>/experiments/native-metal/inputs/conan/fmt/8.0.1/_/_/package/8c0a53bc9b0a08b9311ca89254091ba7fb4f89b4/include
+ <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include
+ <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/include/SDL2
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1
+ /Library/Developer/CommandLineTools/usr/lib/clang/21/include
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include
+ /Library/Developer/CommandLineTools/usr/include
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
+ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks (framework directory)
+End of search list.
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1045:46: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1045 |     Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                            ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1048:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1048 |     return Rotate(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1054:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1054 |     return Make2D(rand() * ((2.0f * 3.141592654f) / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1060:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1060 |     x = min.x + rand() * ((max.x - min.x) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1061:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1061 |     y = min.y + rand() * ((max.y - min.y) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1062:53: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1062 |     z = min.z + rand() * ((max.z - min.z) * (1.0f / RAND_MAX));
+      |                                                   ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/collide.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/collide/include/object.h:3:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/matrix.h:6:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/matrix.h:9:
+In file included from <repo>/experiments/native-metal/engine/src/libs/math/include/math3d/plane.h:11:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math3d/vector.h:1070:41: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+ 1070 |     *this *= rand() * (radius * (1.0f / RAND_MAX));
+      |                                       ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:7:
+In file included from <repo>/experiments/native-metal/engine/src/libs/core/include/d_timer.h:2:
+<repo>/experiments/native-metal/engine/src/libs/math/include/math_inlines.h:14:9: warning: 'SQR' macro redefined [-Wmacro-redefined]
+   14 | #define SQR(a) ((a) * (a))
+      |         ^
+<repo>/experiments/native-metal/engine/src/libs/math/include/types3d.h:10:9: note: previous definition is here
+   10 | #define SQR(x) ((x) * (x))
+      |         ^
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:8:
+In file included from <repo>/experiments/native-metal/engine/src/libs/renderer/include/dx9render.h:16:
+<repo>/experiments/native-metal/engine/src/libs/util/include/utf8.h:117:17: warning: result of comparison of constant 237 with expression of type 'const char' is always false [-Wtautological-constant-out-of-range-compare]
+  117 |     if (utf8[0] == 0xed && (utf8[1] & 0xa0) == 0xa0)
+      |         ~~~~~~~ ^  ~~~~
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:13:
+<repo>/experiments/native-metal/engine/src/libs/core/include/save_load.h:40:34: warning: 'SetAttribute' is deprecated: Pass attribute value by string_view instead [-Wdeprecated-declarations]
+   40 |                 pV->GetAClass()->SetAttribute("save", pFFSave);
+      |                                  ^
+<repo>/experiments/native-metal/engine/src/libs/core/include/attributes.h:67:7: note: 'SetAttribute' has been explicitly marked deprecated here
+   67 |     [[deprecated("Pass attribute value by string_view instead")]]
+      |       ^
+In file included from <repo>/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp:1:
+<repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:452:17: warning: enumeration values 'lost_render' and 'restore_render' not handled in switch [-Wswitch]
+  452 |         switch (stage)
+      |                 ^~~~~
+<repo>/experiments/native-metal/engine/src/libs/ship/src/ship.h:452:17: note: add missing switch cases
+  452 |         switch (stage)
+      |                 ^
+  453 |         {
+  454 |         case Stage::execute:
+  455 |             Execute(delta);
+  456 |             break;
+  457 |         case Stage::realize:
+  458 |             Realize(delta);
+  459 |             break;
+  460 |             /*case Stage::lost_render:
+  461 |                 LostRender(delta); break;
+  462 |             case Stage::restore_render:
+  463 |                 RestoreRender(delta); break;*/
+  464 |         }
+11 warnings generated.
+[4/7] Linking CXX static library lib/libship.a
+[5/7] Linking CXX executable bin/engine-1
+Apple clang version 21.0.0 (clang-2100.3.34.2)
+Target: arm64-apple-darwin27.2.0
+Thread model: posix
+InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 15.0.0 27.0 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -O3 -mllvm -enable-linkonceodr-outlining -o bin/engine-1 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -force_load <repo>/experiments/native-metal/.cache/build/lib/libanimals.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libanimation.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libball_splash.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libbattle_interface.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libblade.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libblot.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libcollide.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libdialog.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libgeometry.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libisland.a -force_load <repo>/experiments/native-metal/.cache/build/lib/liblighter.a -force_load <repo>/experiments/native-metal/.cache/build/lib/liblocation.a -force_load <repo>/experiments/native-metal/.cache/build/lib/liblocator.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libmast.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libmodel.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libparticles.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libpcs_controls.a -force_load <repo>/experiments/native-metal/.cache/build/lib/librenderer.a -force_load <repo>/experiments/native-metal/.cache/build/lib/librigging.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsailors.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libscript_library.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsea.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsea_ai.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsea_cameras.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsea_creatures.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsea_foam.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsea_operator.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libshadow.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libship.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsink_effect.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsound.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsound_service.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libsteam_api.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libteleport.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libtornado.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libtouch.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libwater_rings.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libweather.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libworldmap.a -force_load <repo>/experiments/native-metal/.cache/build/lib/libxinterface.a native-engine/storm/apps/engine/CMakeFiles/engine.dir/src/main.cpp.o -rpath <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/lib lib/libcore.a lib/libdiagnostics.a lib/libutil.a lib/libwindow.a lib/libmimalloc.a lib/libsentry.a /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd -lffi lib/libanimals.a lib/libanimation.a lib/libball_splash.a lib/libbattle_interface.a lib/libblade.a lib/libblot.a lib/libcollide.a lib/libdialog.a lib/libgeometry.a lib/libisland.a lib/liblighter.a lib/liblocation.a lib/liblocator.a lib/libmast.a lib/libmodel.a lib/libparticles.a lib/libpcs_controls.a lib/librenderer.a lib/librigging.a lib/libsailors.a lib/libscript_library.a lib/libsea.a lib/libsea_ai.a lib/libsea_cameras.a lib/libsea_creatures.a lib/libsea_foam.a lib/libsea_operator.a lib/libshadow.a lib/libship.a lib/libsink_effect.a lib/libsound.a lib/libsound_service.a lib/libsteam_api.a lib/libteleport.a lib/libtornado.a lib/libtouch.a lib/libwater_rings.a lib/libweather.a lib/libworldmap.a lib/libxinterface.a -lpthread lib/libpcs_controls.a lib/libinput.a lib/libbattle_interface.a lib/libisland.a lib/liblocation.a lib/libsea.a lib/libsea_ai.a lib/libship.a lib/libweather.a lib/libisland.a lib/liblocation.a lib/libsea.a lib/libsea_ai.a lib/libship.a lib/libweather.a lib/libsound_service.a -framework AudioToolbox -framework CoreAudio -framework CoreFoundation lib/libparticles.a libroundhouse_ragdoll.a _deps/roundhouse_jolt-build/libJolt.a lib/libmodel.a lib/libanimation.a lib/libcollide.a lib/libgeometry.a lib/librenderer.a lib/libcore.a lib/libdiagnostics.a lib/libsteam_api.a lib/libcore.a lib/libdiagnostics.a lib/libsteam_api.a lib/libwindow.a /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd lib/libsentry.a lib/libutil.a libstorm_metal.a <repo>/experiments/native-metal/inputs/native/d3d9/sdl2-fixed/lib/libSDL2-2.0.0.dylib libcloud_noise_assets.a -framework Metal -framework MetalFX -framework Cocoa -framework QuartzCore -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework Foundation -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/21/lib/darwin/libclang_rt.osx.a
+ld: warning: ignoring duplicate libraries: 'lib/libanimation.a', 'lib/libbattle_interface.a', 'lib/libcollide.a', 'lib/libcore.a', 'lib/libdiagnostics.a', 'lib/libgeometry.a', 'lib/libisland.a', 'lib/liblocation.a', 'lib/libmodel.a', 'lib/libparticles.a', 'lib/libpcs_controls.a', 'lib/librenderer.a', 'lib/libsea.a', 'lib/libsea_ai.a', 'lib/libsentry.a', 'lib/libship.a', 'lib/libsound_service.a', 'lib/libsteam_api.a', 'lib/libutil.a', 'lib/libweather.a', 'lib/libwindow.a'
+[6/7] Creating executable symlink bin/engine

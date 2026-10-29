@@ -208,6 +208,7 @@ class SHIP_BASE : public VAI_OBJBASE
     // Physical water support, not a script/save flag. Other ship kinds retain
     // their established water effects unless they explicitly leave the water.
     virtual bool HasWaterContact() const { return true; }
+    virtual bool HasRigidFlight() const { return false; }
     virtual SHIP_WATER_IMPACT GetWaterImpact() const { return {}; }
     // Main-camera legibility for render-only crew, reflections and casters.
     // Other ship implementations retain their existing detail by default.

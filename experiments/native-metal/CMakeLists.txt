@@ -42,6 +42,7 @@ add_compile_definitions(STORM_METAL_SHIP_HULL_DAMAGE=1)
 include(roundhouse_jolt.cmake)
 add_subdirectory(engine native-engine)
 target_link_libraries(location PRIVATE roundhouse_ragdoll)
+target_link_libraries(ship PRIVATE roundhouse_ragdoll)
 target_sources(xinterface PRIVATE "${STORM_SOURCE}/src/libs/xinterface/src/aviplayer/native_video.mm")
 target_link_libraries(xinterface PRIVATE "-framework AVFoundation" "-framework CoreMedia"
   "-framework CoreVideo" "-framework Foundation")

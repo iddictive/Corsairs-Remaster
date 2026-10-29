@@ -1,0 +1,29 @@
+rss_scene_before_ship_bytes=284606464
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+real_hull_axis_0 min_surface_clearance_m=-0.025323391 frame_us=17550.98961
+real_hull_axis_1 min_surface_clearance_m=-0.011230469 frame_us=23591.36812
+real_hull_axis_2 min_surface_clearance_m=1.2118599 frame_us=7.11030
+real_hull_water wet=1 low_origin_y=-1.1221453 final_origin_y=0.55025601 final_vy=0.27701363 frame_us=2812.70142
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+       14.59 real        14.21 user         0.15 sys
+           504152064  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               33092  page reclaims
+                  16  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  16  voluntary context switches
+                5990  involuntary context switches
+        241275572020  instructions retired
+         61330625454  cycles elapsed
+           435324368  peak memory footprint
+
+EXIT 0

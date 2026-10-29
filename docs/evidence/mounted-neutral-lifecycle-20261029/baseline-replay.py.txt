@@ -1,0 +1,28 @@
+import hashlib,json,os,re,shutil,subprocess,sys,time
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[3]
+WORK=Path(os.environ["CODEX_SCRATCH_DIR"])
+sys.path.insert(0,str(ROOT/"tools"));import gameplay_sources
+program=WORK/"program";shutil.copytree(ROOT/"experiments/native-metal/.cache/runtime/PROGRAM",program)
+sources,_=gameplay_sources.read()
+for name,(data,_,_) in sources.items():
+ if name.startswith("PROGRAM/"):
+  p=program/name[8:];p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+binary=WORK/"script-vm-probe";shutil.copy2(ROOT/"experiments/native-metal/.cache/build/bin/script-vm-probe",binary)
+shutil.copytree(ROOT/"experiments/native-metal/engine/src/libs/shared_headers/include/shared",WORK/"resource/shared")
+files={p:p.read_bytes().decode("latin1") for p in program.rglob("*.c")}
+main=program/"seadogs.c";files[main],n=re.subn(r"void\s+Main\s*\(\s*\)","void FixtureGameMainNotExecuted()",files[main]);assert n==1
+for name in ("WdmTrafficBeginService","WdmTrafficPortAdmits","WdmTrafficNearestPort","FindColony"):
+ count=0
+ for p,body in files.items():
+  body,n=re.subn(r"(\b(?:void|bool|int|ref|float|string)\s+)"+name+r"(\s*\()",r"\1Unused_"+name+r"\2",body);count+=n;files[p]=body
+ assert count==1,(name,count)
+for p,body in files.items():p.write_bytes(body.encode("latin1"))
+fixture=Path(__file__).with_name("baseline-fixture.c.txt").read_text();(program/"cases.c").write_text(fixture)
+start=time.perf_counter()
+r=subprocess.run([str(binary),str(program),"Run","0"],cwd=WORK,capture_output=True,text=True,timeout=90)
+record={"base_commit":"b325c241bf2403d80c72d2624ca6e0cc5fc4235f","scope":"real whole-PROGRAM script VM and actual VoyageUpdate body; only BeginService/PortAdmits/NearestPort/FindColony are explicit counted seams; no native actors/game loop","exit":r.returncode,"seconds":time.perf_counter()-start,"stdout":r.stdout,"stderr":r.stderr[-3000:],"sources":{n:hashlib.sha256(sources[n][0]).hexdigest() for n in ["PROGRAM/worldmap/worldmap_encgen.c","PROGRAM/sea_ai/sea_traffic.c","PROGRAM/sea_ai/sea.c"]},"fixture_sha256":hashlib.sha256(fixture.encode()).hexdigest(),"logs":{p.name:p.read_text(errors="replace")[-6000:] for p in (program/".vm-userdata/Logs").glob("*") if p.stat().st_size}}
+Path(__file__).with_name("baseline.json").write_text(json.dumps(record,indent=2)+"\n")
+print(json.dumps({k:v for k,v in record.items() if k not in ("sources",)}))
+raise SystemExit(r.returncode)
+

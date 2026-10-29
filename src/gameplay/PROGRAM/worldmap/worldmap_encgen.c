@@ -2353,10 +2353,11 @@ bool WdmTrafficPlanService(aref ship, int availableCrew, ref store, ref plan)
 bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 {
 	WdmTrafficServiceMigrate(ship, false);
+	bool completedReady = false;
 	if (CheckAttribute(ship, "trafficService"))
 	{
 		if (!CheckAttribute(ship, "trafficService.complete") || !sti(ship.trafficService.complete)) return true;
-		if (WdmTrafficServiceReady(ship)) return true;
+		completedReady = WdmTrafficServiceReady(ship);
 	}
 	object paid;
 	int available = 0;
@@ -2364,9 +2365,14 @@ bool WdmTrafficStockService(aref ship, int colony, int storeIndex)
 	if (CheckAttribute(ship, "RealShip")) makearef(hull, ship.RealShip);
 	int optimalCrew = sti(hull.OptCrew);
 	if (optimalCrew < sti(hull.MinCrew)) optimalCrew = sti(hull.MinCrew);
+	if (completedReady && WdmTrafficCrewQuantity(ship) >= optimalCrew) return true;
 	if (WdmTrafficCrewQuantity(ship) < optimalCrew) available = WdmTrafficServiceCrewAvailable(colony);
 	ref store = &Stores[storeIndex];
-	if (!WdmTrafficPlanService(ship, available, store, &paid)) return false;
+	if (!WdmTrafficPlanService(ship, available, store, &paid)) return completedReady;
+	// A completed minimum-crew plan is not a permanent recruitment exemption.
+	// Reopen it only for people who can actually fit and be provisioned; an
+	// unavailable top-up must not turn a seaworthy hull into a no-work port loop.
+	if (completedReady && sti(paid.crew) <= WdmTrafficCrewQuantity(ship)) return true;
 	DeleteAttribute(ship, "trafficService");
 	aref plan; makearef(plan, ship.trafficService);
 	CopyAttributes(plan, &paid);
@@ -2654,13 +2660,40 @@ int WdmTrafficNextPort(aref encounter, int origin, int nation, int role)
 
 void WdmTrafficVoyageUpdate(aref encounter)
 {
+	if (CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea))
+	{
+		SeaTraffic_AdvanceFleet(encounter);
+		return;
+	}
+	WdmTrafficVoyageAdvance(encounter);
+}
+
+// A paid native repair which could not obtain geometry remains an unapplied
+// delta. A newly created/offscreen hull can consume it without another charge.
+void WdmTrafficCompleteUnmountedService(aref ship)
+{
+	if (!CheckAttribute(ship, "trafficService.nativeSails")) return;
+	ship.sp = WdmTrafficFraction(stf(ship.sp) + 0.01 * stf(ship.trafficService.nativeSails));
+	ship.Ship.SP = 100.0 * stf(ship.sp);
+	if (CheckAttribute(ship, "trafficService.nativeMasts"))
+	{
+		DeleteAttribute(ship, "Ship.Masts");
+		DeleteAttribute(ship, "Ship.Sails");
+	}
+	DeleteAttribute(ship, "trafficService.nativeSails");
+	DeleteAttribute(ship, "trafficService.nativeMasts");
+}
+
+// The map and physical sea adapters share one paid service/dispatch policy.
+// A mounted adapter snapshots its live actors before entering this body.
+void WdmTrafficVoyageAdvance(aref encounter)
+{
 	if (!WdmTrafficIsOrdinary(encounter)) return;
 	// Generated harbour guards keep their existing local defence assignment.
 	if (CheckAttribute(encounter, "trafficHarbour")) return;
 	WdmTrafficMigrateVoyage(encounter);
 	if (CheckAttribute(encounter, "trafficMission")) return;
-	if (!CheckAttribute(encounter, "trafficVersion") || CheckAttribute(encounter, "trafficBattle") ||
-		(CheckAttribute(encounter, "trafficInSea") && sti(encounter.trafficInSea))) return;
+	if (!CheckAttribute(encounter, "trafficVersion") || CheckAttribute(encounter, "trafficBattle")) return;
 	if (encounter.trafficLifecycle != "service")
 	{
 		WdmTrafficConsumeSupplies(encounter);
@@ -2718,6 +2751,8 @@ void WdmTrafficVoyageUpdate(aref encounter)
 		makearef(ship, roster.(key));
 		if (sti(ship.dead)) continue;
 		survivors++;
+		if (!CheckAttribute(encounter, "trafficInSea") || !sti(encounter.trafficInSea))
+			WdmTrafficCompleteUnmountedService(ship);
 		if (stock && !WdmTrafficStockService(ship, colony, storeIndex)) funded = false;
 		if (!WdmTrafficFinishService(ship)) ready = false;
 	}
@@ -2787,6 +2822,11 @@ void WdmTrafficArrived()
 	if (!CheckAttribute(&worldMap, path)) return;
 	aref encounter;
 	makearef(encounter, worldMap.(path));
+	WdmTrafficArriveFleet(encounter);
+}
+
+void WdmTrafficArriveFleet(aref encounter)
+{
 	if (WdmMilitaryArrived(encounter)) return;
 	if (!WdmTrafficIsOrdinary(encounter) || !CheckAttribute(encounter, "trafficDestinationPort")) return;
 	encounter.trafficCurrentPort = encounter.trafficDestinationPort;
@@ -2803,6 +2843,11 @@ void WdmTrafficDeparted()
 	if (!CheckAttribute(&worldMap, path)) return;
 	aref encounter;
 	makearef(encounter, worldMap.(path));
+	WdmTrafficDepartFleet(encounter);
+}
+
+void WdmTrafficDepartFleet(aref encounter)
+{
 	if (!WdmTrafficIsOrdinary(encounter)) return;
 	aref clock;
 	makearef(clock, encounter.trafficSupplyClock);

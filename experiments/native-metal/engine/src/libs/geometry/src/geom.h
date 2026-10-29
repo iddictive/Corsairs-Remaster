@@ -13,6 +13,11 @@ Import library class
 #include "geos.h"
 
 #include <vector>
+#include <memory>
+#include <string>
+#ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
+#include "island_geometry.hpp"
+#endif
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
 #include <map>
 #include <atomic>
@@ -68,6 +73,14 @@ class GEOM : public GEOS
     OBJECT *object = nullptr;
     int32_t idx_buff;
     VERTEX_BUFFER *vbuff = nullptr;
+    struct ColourUpdate;
+    std::unique_ptr<ColourUpdate> pendingColours;
+    std::vector<uint32_t> intrinsicColours, physicalColours, renderColours;
+    std::vector<size_t> colourOffsets;
+    std::string lightFile;
+    std::string colourFailure;
+    bool hadBakedColours = false;
+    uint64_t appearanceEpoch = 0;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     struct HullOriginal {int type=0,stride=0;std::vector<uint8_t>vertices;std::vector<uint16_t>indices;storm_ship_hull::Broadphase broadphase;};
     struct HullDraw {int vb=-1,ib=-1,vertices=0,triangles=0,stride=0;bool cutWall=false;};
@@ -176,6 +189,8 @@ class GEOM : public GEOS
 #ifdef STORM_METAL_ISLAND_GEOMETRY_BRIDGE
     struct IslandDraw { int32_t vb=-1, ib=-1, vertices=0, triangles=0, stride=0; };
     std::vector<std::vector<IslandDraw>> islandDraws;
+    std::vector<island_geometry::Face> islandAppearanceFaces;
+    std::vector<std::array<uint32_t,3>> islandAppearanceIndices;
     float islandRenderHorizontalMargin = 0;
 #endif
 
@@ -190,6 +205,10 @@ class GEOM : public GEOS
   public:
     GEOM(const char *fname, const char *lightname, GEOM_SERVICE &srv, int32_t flags);
     virtual ~GEOM();
+    bool PrepareLightPath(const char *file) override;
+    void CommitLightPath() override;
+    void CancelLightPath() override;
+    const char *LightPathFailure() const override { return colourFailure.c_str(); }
 
     virtual int32_t FindName(const char *name) const;
 

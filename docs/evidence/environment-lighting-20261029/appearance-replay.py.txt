@@ -1,0 +1,31 @@
+import os,pathlib,shlex,subprocess,sys
+root=pathlib.Path(sys.argv[1]).resolve()
+native=root/'experiments/native-metal'; build=native/'.cache/build'
+scratch=pathlib.Path(os.environ['CODEX_SCRATCH_DIR'])
+evidence=root/'docs/evidence/environment-lighting-20261029'
+ninja=native/'inputs/toolchain/bin/ninja'
+commands=subprocess.check_output([str(ninja),'-C',str(build),'-t','commands','sea-fleet-benchmark'],text=True).splitlines()
+compile_line=next(x for x in commands if 'geom_static.cpp.o -c ' in x)
+args=shlex.split(compile_line)
+cut=args.index('-MD'); args=args[:cut]
+args += ['-I'+str(p) for p in (native/'engine/src/libs').glob('*/include')]
+source=scratch/'appearance.cpp';source.write_bytes((evidence/'appearance-native.cpp.txt').read_bytes())
+obj=scratch/'appearance.o'; exe=scratch/'appearance'
+result=subprocess.run(args+['-c',str(source),'-o',str(obj)],cwd=build,capture_output=True,text=True)
+if result.returncode:sys.exit(result.stderr)
+link=shlex.split(commands[-1].split(' && ')[1])
+old='native-engine/CMakeFiles/sea-fleet-benchmark.dir/__/sea_fleet_benchmark.cpp.o'
+assert link.count(old)==1
+link[link.index(old)]=str(obj);link[link.index('-o')+1]=str(exe)
+result=subprocess.run(link,cwd=build,capture_output=True,text=True)
+if result.returncode:sys.exit(result.stderr)
+results=[]
+for mode in ['0','1']:
+ env=dict(os.environ,STORM_METAL_ISLAND_GEOMETRY=mode)
+ result=subprocess.run([str(exe),str(native/'.cache/runtime')],cwd=build,env=env,capture_output=True,text=True)
+ print(result.stdout,end='');print(result.stderr,end='',file=sys.stderr)
+ if result.returncode:sys.exit(result.returncode)
+ import json
+ lines=result.stdout.splitlines();payload=next(x for x in reversed(lines) if x.startswith('{'))
+ parsed=json.loads(payload);parsed['diagnostics']=[x for x in lines if x!=payload];results.append(parsed)
+(evidence/'appearance-native-result.json').write_text(json.dumps(results,indent=2)+'\n')

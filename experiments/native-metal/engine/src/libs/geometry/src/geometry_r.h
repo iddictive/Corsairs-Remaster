@@ -3,6 +3,8 @@
 #include "dx9render.h"
 #include "vma.hpp"
 #include <geometry.h>
+#include <map>
+#include <string>
 
 //-------------------------------------------------------------------
 // animated vertices
@@ -10,9 +12,13 @@
 class GEOMETRY final : public VGEOMETRY
 {
     VDX9RENDER *RenderService;
+    std::map<std::string, std::string> legacySeaModels;
+    bool legacySeaGeometry = false;
+    std::vector<std::pair<std::string,std::string>> legacySeaExposures;
 
   public:
     GEOMETRY();
+    ~GEOMETRY() override;
     bool Init();
     bool LoadState(ENTITY_STATE *state);
     GEOS *CreateGeometry(const char *file_name, const char *light_file_name, int32_t flags, const char *lmPath);
@@ -27,6 +33,8 @@ class GEOMETRY final : public VGEOMETRY
     void SetTexturePath(const char *);
 
     void SetCausticMode(bool bSet = false);
+    bool ConfigureLegacySeaGeometry(const ATTRIBUTES *) override;
+    const std::vector<std::pair<std::string,std::string>>& LegacySeaExposures() const override { return legacySeaExposures; }
 };
 
 class GEOM_SERVICE_R final : public GEOM_SERVICE
@@ -37,12 +45,14 @@ class GEOM_SERVICE_R final : public GEOM_SERVICE
     GEOS::ID CurentIndexBuffer;
     GEOS::ID CurentVertexBuffer;
     uint32_t CurentVertexBufferSize;
+    const std::map<std::string,std::string> *legacySeaModels = nullptr;
     bool bCaustic;
 #ifdef STORM_METAL_SHIP_HULL_DAMAGE
     bool hullTwoSided = false;
 #endif
 
   public:
+    void SetLegacySeaModels(const std::map<std::string,std::string> *models) { legacySeaModels = models; }
     void SetRenderService(VDX9RENDER *render_service);
 
     std::fstream OpenFile(const char *fname);

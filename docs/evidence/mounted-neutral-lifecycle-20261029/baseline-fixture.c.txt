@@ -1,0 +1,26 @@
+#include "seadogs.c"
+int FixtureServiceVisits;
+void WdmTrafficBeginService(aref encounter) { FixtureServiceVisits++; }
+bool WdmTrafficPortAdmits(int colony, int nation) { return false; }
+int WdmTrafficNearestPort(aref encounter) { return -1; }
+int FindColony(string id) { return 0; }
+void FixtureFleet(ref fleet, bool mounted)
+{
+ DeleteAttribute(fleet,"");
+ fleet.type="Merchant"; fleet.trafficRole=1; fleet.trafficNation=ENGLAND;
+ fleet.trafficVersion=1; fleet.trafficLifecycle="service";
+ fleet.trafficCurrentPort="Bridgetown";fleet.trafficInSea=mounted;
+ fleet.encdata.RealEncounterType=ENCOUNTER_TYPE_MERCHANT_SMALL;
+ fleet.encdata.trafficRoster.count=1;
+}
+int Run()
+{
+ object offscreen,mounted;
+ FixtureFleet(&offscreen,false);FixtureFleet(&mounted,true);
+ FixtureServiceVisits=0;WdmTrafficVoyageUpdate(&offscreen);int outside=FixtureServiceVisits;
+ FixtureServiceVisits=0;WdmTrafficVoyageUpdate(&mounted);int inside=FixtureServiceVisits;
+ Trace("MOUNTED_SERVICE baseline offscreen="+outside+" mounted="+inside);
+ if(outside!=1 || inside!=0)return 1;
+ return 0;
+}
+

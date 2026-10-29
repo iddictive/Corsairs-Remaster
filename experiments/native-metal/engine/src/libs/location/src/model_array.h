@@ -114,6 +114,9 @@ class ModelArray
     void UpdateModelsPath();
     void UpdateTexturesPath();
     void UpdateLightPath();
+    bool PrepareEnvironmentLighting(std::string path,bool isDay);
+    void FinishEnvironmentLighting(bool commit);
+    bool EnvironmentIsDay() const { return environmentIsDay; }
     void UpdateShadowPath();
 
     // Check the visibility of two points
@@ -135,6 +138,8 @@ class ModelArray
     std::vector<LocationModel> model;
     int32_t numModels;
     int32_t maxModels;
+    bool environmentIsDay=true,pendingLightingReady=false,pendingLightingDay=true;
+    std::string pendingLightingPath;
     TRIANGLE ctrg;
     bool isHavecTrg;
 

@@ -1,0 +1,4 @@
+capacity_retry=0 accepted=1 bits=0x0
+FAIL capacity_error_reported
+
+EXIT 1

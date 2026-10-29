@@ -1,0 +1,88 @@
+import os,sys,re,shutil,subprocess,json,time
+from pathlib import Path
+ROOT=Path(sys.argv[1]).resolve();WORK=Path(os.environ['CODEX_SCRATCH_DIR'])
+sys.path.insert(0,str(ROOT/'tools'));import gameplay_sources
+program=WORK/'program';shutil.copytree(ROOT/'experiments/native-metal/.cache/runtime/PROGRAM',program)
+sources,_=gameplay_sources.read()
+for name,(data,_,_) in sources.items():
+ if name.startswith('PROGRAM/'):
+  p=program/name[8:];p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+main=program/'seadogs.c';body=main.read_bytes();body,n=re.subn(rb'void\s+Main\s*\(\s*\)',b'void GameMainNotExecuted()',body);assert n==1;body,n=re.subn(rb'void\s+OnSave\s*\(\s*\)',b'void FixtureUnusedGameOnSave()',body);assert n==1
+body,n=re.subn(rb'void\s+OnLoad\s*\(\s*\)',b'void FixtureUnusedGameOnLoad()',body);assert n==1
+main.write_bytes(body)
+binary=WORK/'script-vm-probe';shutil.copy2(ROOT/'experiments/native-metal/.cache/build/bin/script-vm-probe',binary)
+shutil.copytree(ROOT/'experiments/native-metal/engine/src/libs/shared_headers/include/shared',WORK/'resource/shared')
+fixture=r'''
+#include "seadogs.c"
+#include "store/initGoods.c"
+object FixtureCrewShip;
+void OnSave() {}
+void OnLoad() {}
+void CrewFixtureSetup(int quantity,int capacity,int reserve){
+ Environment.time=12.0;Environment.date.year=1668;Environment.date.month=12;Environment.date.day=28;
+ ref hull=&ShipsTypes[0];DeleteAttribute(hull,"");
+ hull.HP=1000;hull.MinCrew=20;hull.OptCrew=100;hull.MaxCrew=125;hull.Capacity=capacity;
+ hull.Cannon=CANNON_TYPE_NONECANNON;hull.CannonsQuantity=0;
+ DeleteAttribute(&FixtureCrewShip,"");FixtureCrewShip.baseType=0;FixtureCrewShip.dead=0;
+ FixtureCrewShip.hp=1.0;FixtureCrewShip.sp=1.0;FixtureCrewShip.trafficCrewQuantity=quantity;
+ FixtureCrewShip.crew=makefloat(quantity)/125.0;FixtureCrewShip.Ship.Crew.Quantity=quantity;
+ FixtureCrewShip.Ship.Cannons.Type=CANNON_TYPE_NONECANNON;
+ aref real;makearef(real,FixtureCrewShip.RealShip);CopyAttributes(real,hull);
+ string food=Goods[GOOD_FOOD].name;FixtureCrewShip.trafficSupplies.(food)=140;
+ FixtureCrewShip.trafficService.version=2;FixtureCrewShip.trafficService.hours=24;
+ FixtureCrewShip.trafficService.complete=1;FixtureCrewShip.trafficService.startCrew=quantity;
+ FixtureCrewShip.trafficService.crew=quantity;
+ FixtureCrewShip.trafficService.year=1668;FixtureCrewShip.trafficService.month=10;
+ FixtureCrewShip.trafficService.day=20;FixtureCrewShip.trafficService.time=0.0;
+ DeleteAttribute(&Stores[0],"");
+ for(int g=0;g<GOODS_QUANTITY;g++){
+  string name=Goods[g].name;Stores[0].Goods.(name).Quantity=10000;
+  Stores[0].Goods.(name).Norm=1000;Stores[0].Goods.(name).TradeType=TRADE_TYPE_NORMAL;
+ }
+ DeleteAttribute(&Colonies[0],"");Colonies[0].Ship.Crew.Quantity=300;
+ Colonies[0].CrewDate.control_year=1668;Colonies[0].CrewDate.control_month=12;Colonies[0].CrewDate.control_day=28;
+ Colonies[0].trafficCrewReserve.quantity=reserve;
+ Colonies[0].trafficCrewReserve.control_year=1668;Colonies[0].trafficCrewReserve.control_month=12;Colonies[0].trafficCrewReserve.control_day=28;
+}
+int FixtureFoodPaid;
+int Run(){
+ CannonsInit();InitGoods();
+ CrewFixtureSetup(100,1000,300);
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || sti(FixtureCrewShip.trafficService.day)!=20)return 10;
+ CrewFixtureSetup(20,1000,0);
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || sti(FixtureCrewShip.trafficService.crew)!=20 || !sti(FixtureCrewShip.trafficService.complete))return 11;
+ CrewFixtureSetup(20,1000,300);
+ FixtureCrewShip.RealShip.Capacity=WdmTrafficPhysicalLoad(&FixtureCrewShip);
+ if(!WdmTrafficServiceReady(&FixtureCrewShip))return 12;
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || sti(FixtureCrewShip.trafficService.crew)!=20 || !sti(FixtureCrewShip.trafficService.complete))return 13;
+ CrewFixtureSetup(20,1000,300);DeleteAttribute(&FixtureCrewShip,"trafficService.complete");
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || sti(FixtureCrewShip.trafficService.crew)!=20)return 14;
+ CrewFixtureSetup(10,1000,300);
+ if(WdmTrafficServiceReady(&FixtureCrewShip))return 15;
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || sti(FixtureCrewShip.trafficService.crew)!=100 || WdmTrafficCrewQuantity(&FixtureCrewShip)!=10)return 16;
+ CrewFixtureSetup(20,1000,300);
+ if(!WdmTrafficServiceReady(&FixtureCrewShip))return 90;
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0))return 91;
+ if(sti(FixtureCrewShip.trafficService.crew)!=100)return 1;
+ if(CheckAttribute(&FixtureCrewShip,"trafficService.complete"))return 2;
+ if(WdmTrafficCrewQuantity(&FixtureCrewShip)!=20)return 3;
+ FixtureFoodPaid=GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD);
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD)!=FixtureFoodPaid)return 17;
+ return 0;
+}
+int AfterLoad(){
+ if(WdmTrafficCrewQuantity(&FixtureCrewShip)!=20 || sti(FixtureCrewShip.trafficService.crew)!=100 || CheckAttribute(&FixtureCrewShip,"trafficService.complete"))return 20;
+ if(!WdmTrafficStockService(&FixtureCrewShip,0,0) || GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD)!=FixtureFoodPaid)return 21;
+ Environment.date.day=29;
+ if(!WdmTrafficFinishService(&FixtureCrewShip) || WdmTrafficCrewQuantity(&FixtureCrewShip)!=100)return 22;
+ if(!WdmTrafficFinishService(&FixtureCrewShip) || WdmTrafficCrewQuantity(&FixtureCrewShip)!=100)return 23;
+ return 0;
+}
+'''
+(program/'cases.c').write_text(fixture)
+start=time.perf_counter();r=subprocess.run([str(binary),str(program),'Run','1','AfterLoad'],cwd=WORK,capture_output=True,text=True,timeout=90)
+out={'exit':r.returncode,'seconds':round(time.perf_counter()-start,3),'stdout':r.stdout,'stderr_tail':r.stderr[-1500:]}
+logs=program/'.vm-userdata/Logs'
+out['logs']={p.name:p.read_text(errors='replace')[-2500:] for p in logs.glob('*') if p.is_file() and p.stat().st_size}
+print(json.dumps(out,ensure_ascii=False))
+

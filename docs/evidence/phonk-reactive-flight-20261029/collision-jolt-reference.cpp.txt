@@ -1,0 +1,27 @@
+#include <Jolt/Jolt.h>
+#include <Jolt/RegisterTypes.h>
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <cstdio>
+using namespace JPH;
+class Layers final:public BroadPhaseLayerInterface{public:uint GetNumBroadPhaseLayers()const override{return 2;}BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer a)const override{return BroadPhaseLayer(uint8(a));}};
+class Broad final:public ObjectVsBroadPhaseLayerFilter{public:bool ShouldCollide(ObjectLayer a,BroadPhaseLayer b)const override{return a==1||b.GetValue()==1;}};
+class Pair final:public ObjectLayerPairFilter{public:bool ShouldCollide(ObjectLayer a,ObjectLayer b)const override{return a==1||b==1;}};
+int main(){RegisterDefaultAllocator();Factory::sInstance=new Factory;RegisterTypes();
+ for(int cadence:{0,60,120}){Layers l;Broad b;Pair p;TempAllocatorImplWithMallocFallback temp(8*1024*1024);JobSystemSingleThreaded jobs(cMaxPhysicsJobs);PhysicsSystem world;world.Init(1024,0,8192,8192,l,b,p);world.SetGravity(Vec3(0,-9.81f,0));
+ BodyCreationSettings a(new BoxShape(Vec3(5,2,15)),RVec3(-11,0,0),Quat::sIdentity(),EMotionType::Dynamic,1);
+ a.mOverrideMassProperties=EOverrideMassProperties::CalculateInertia;a.mMassPropertiesOverride.mMass=1000;a.mLinearDamping=a.mAngularDamping=0;a.mAllowSleeping=false;a.mMotionQuality=EMotionQuality::LinearCast;
+ auto c=a;c.mPosition=RVec3(1,0,0);c.mObjectLayer=0;c.mGravityFactor=0;c.mAllowedDOFs=EAllowedDOFs::TranslationX|EAllowedDOFs::TranslationZ|EAllowedDOFs::RotationY;
+ auto &bodies=world.GetBodyInterface();auto id=bodies.CreateAndAddBody(a,EActivation::Activate),other=bodies.CreateAndAddBody(c,EActivation::Activate);bodies.SetLinearVelocity(id,Vec3(10,0,0));
+ for(int i=0;i<240;i++){
+  if(cadence&&i&&i%(240/cadence)==0){for(auto body:{id,other}){auto pos=bodies.GetPosition(body);auto rot=bodies.GetRotation(body);auto v=bodies.GetLinearVelocity(body);auto w=bodies.GetAngularVelocity(body);auto settings=body==id?a:c;bodies.RemoveBody(body);bodies.DestroyBody(body);settings.mPosition=pos;settings.mRotation=rot;auto next=bodies.CreateAndAddBody(settings,EActivation::Activate);bodies.SetLinearAndAngularVelocity(next,v,w);if(body==id)id=next;else other=next;}}
+  bodies.AddForce(id,Vec3(0,9810,0));world.Update(1.f/240,1,&temp,&jobs);}
+ auto v=bodies.GetLinearVelocity(id),u=bodies.GetLinearVelocity(other);printf("recreate_hz=%d vx=%.9f other_vx=%.9f momentum=%.7f\n",cadence,v.GetX(),u.GetX(),1000*(v.GetX()+u.GetX()));
+ }
+ UnregisterTypes();delete Factory::sInstance;Factory::sInstance=nullptr;
+}
+

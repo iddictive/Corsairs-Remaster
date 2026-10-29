@@ -5,6 +5,7 @@
 #include "modelr.h"
 #include "string_compare.hpp"
 #include <algorithm>
+#include <exception>
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
 extern "C" bool StormMetalBeginOffscreenPointCaster(void*, const float*, float);
 extern "C" void StormMetalEndOffscreenPointCaster(void*);
@@ -265,6 +266,8 @@ bool NODER::Init(const char *lightPath, const char *pname, const char *oname, co
             mt.Pos() = CVECTOR(lb.m[3][0], lb.m[3][1], lb.m[3][2]);
 
             next[l] = new NODER();
+            static_cast<NODER *>(next[l])->lightingDayOnly=(lb.flags&GEOS::LABEL_LIGHTING_DAY_ONLY)!=0;
+            static_cast<NODER *>(next[l])->environmentIsDay=environmentIsDay;
 
             if (!next[l]->Init(lightPath, pname, lb.name, mt, glob_mtx, this, lmPath))
                 return false;
@@ -342,25 +345,82 @@ void NODER::RestoreGeometry()
 
 bool NODER::UsesLightPath(const std::string_view lightPath) const
 {
+    return UsesEnvironmentLighting(lightPath,environmentIsDay);
+}
+
+bool NODER::UsesEnvironmentLighting(const std::string_view lightPath, bool isDay) const
+{
+    if(environmentIsDay!=isDay)return false;
+    if(lightingDayOnly&&!isDay)return true;
     if (sys_LightPath != lightPath)
         return false;
 
     for (const auto *child : next)
     {
-        if (child && !static_cast<const NODER *>(child)->UsesLightPath(lightPath))
+        if (child && !static_cast<const NODER *>(child)->UsesEnvironmentLighting(lightPath,isDay))
             return false;
     }
     return true;
 }
 
-void NODER::StoreLightPath(const std::string_view lightPath)
+bool NODER::PrepareLightingTree(const std::string_view lightPath, bool isDay)
 {
-    sys_LightPath = lightPath;
-    for (auto *child : next)
-    {
-        if (child)
-            static_cast<NODER *>(child)->StoreLightPath(lightPath);
+    pendingLighting=true;pendingLightingDay=isDay;
+    if(lightingDayOnly&&!isDay)return true;
+    pendingLightPath=lightPath;
+    if(geo&&!isReleased&&sys_LightPath!=lightPath&&
+       !gs->PrepareGeometryLighting(geo,sys_modelName_full,lightPath)){
+        core.Trace("LIGHTING_APPEARANCE: model=%s target=%s reason=%s; previous appearance retained; repair matching COL asset and retry",
+                   sys_modelName_full.c_str(),pendingLightPath.c_str(),geo->LightPathFailure());
+        return false;
     }
+    for (auto *child : next)
+        if(child&&!static_cast<NODER*>(child)->PrepareLightingTree(lightPath,isDay))return false;
+    return true;
+}
+
+bool NODER::PrepareEnvironmentLighting(const std::string_view lightPath, bool isDay)
+{
+    CancelEnvironmentLighting();
+    if(UsesEnvironmentLighting(lightPath,isDay))return true;
+    try { if(PrepareLightingTree(lightPath,isDay))return true; }
+    catch(const std::exception&) { core.Trace("LIGHTING_APPEARANCE: preparation allocation failed; previous appearance retained"); }
+    CancelEnvironmentLighting();return false;
+}
+
+void NODER::CancelEnvironmentLighting()
+{
+    if(geo&&!isReleased)geo->CancelLightPath();
+    pendingLighting=false;pendingLightPath.clear();
+    for(auto*child:next)if(child)static_cast<NODER*>(child)->CancelEnvironmentLighting();
+}
+
+void NODER::ApplyLightingPhase(bool isDay)
+{
+    constexpr int availability=VISIBLE|VISIBLE_TREE|TRACE_ENABLE|TRACE_ENABLE_TREE|CLIP_ENABLE|CLIP_ENABLE_TREE;
+    if(lightingDayOnly){
+        if(!isDay&&!lightingHidden){lightingSavedFlags=flags&availability;flags&=~availability;lightingHidden=true;}
+        else if(isDay&&lightingHidden){flags=(flags&~availability)|lightingSavedFlags;lightingHidden=false;}
+    }
+    environmentIsDay=isDay;
+    for(auto*child:next)if(child)static_cast<NODER*>(child)->ApplyLightingPhase(isDay);
+}
+
+void NODER::CommitLightingTree()
+{
+    if(pendingLighting&&!(lightingDayOnly&&!pendingLightingDay)){
+        if(geo&&!isReleased)geo->CommitLightPath();
+        sys_LightPath.swap(pendingLightPath);
+    }
+    pendingLighting=false;pendingLightPath.clear();
+    for(auto*child:next)if(child)static_cast<NODER*>(child)->CommitLightingTree();
+}
+
+void NODER::CommitEnvironmentLighting()
+{
+    if(!pendingLighting)return;
+    const bool day=pendingLightingDay;
+    CommitLightingTree();ApplyLightingPhase(day);
 }
 
 bool NODER::SetLightPath(const std::string_view lightPath)
@@ -368,14 +428,8 @@ bool NODER::SetLightPath(const std::string_view lightPath)
     if (UsesLightPath(lightPath))
         return false;
 
-    const bool restoreGeometry = !isReleased;
-    if (restoreGeometry)
-        ReleaseGeometry();
-
-    StoreLightPath(lightPath);
-
-    if (restoreGeometry)
-        RestoreGeometry();
+    if(!PrepareEnvironmentLighting(lightPath,environmentIsDay))return false;
+    CommitEnvironmentLighting();
     return true;
 }
 

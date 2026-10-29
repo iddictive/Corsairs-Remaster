@@ -12,6 +12,7 @@ import gameplay_sources
 import metal_engine_source
 import prepare_native_movies
 import prepare_puerto_rico_city
+import prepare_legacy_sea_geometry
 import prepare_roundhouse
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 
@@ -145,6 +146,11 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
         (prepare_native_movies, (prepare_native_movies.MANIFEST,)),
         (city, (city.LAYOUT, city.MANIFEST, Path(city.__file__),
                 Path(city.__file__).with_name("puerto_rico_city_blocks.py"))),
+        (prepare_legacy_sea_geometry, (prepare_legacy_sea_geometry.MANIFEST,
+            Path(prepare_legacy_sea_geometry.__file__),
+            PROJECT/"tools/prepare_seamless_sea_assets.py",
+            PROJECT/"src/assets/islands/seamless-sea/recipe.json",
+            PROJECT/"src/assets/islands/seamless-sea/manifest.json")),
         (kick, (kick.RECIPE, kick.SOURCES, kick.MANIFEST, Path(kick.__file__),
                 Path(kick.__file__).with_name("prepare_port_rowboat.py"))),
     ):

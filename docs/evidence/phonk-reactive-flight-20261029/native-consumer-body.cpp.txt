@@ -1,0 +1,46 @@
+
+ setbuf(stdout,nullptr);
+ auto *character=static_cast<VDATA*>(core.GetScriptVariable("Character"))->GetAClass();
+ auto *shipAttributes=static_cast<VDATA*>(core.GetScriptVariable("Ship"))->GetAClass();
+ character->SetAttributeUseDword("MainCharacter",1);character->SetAttributeUseDword("index",0);shipAttributes->SetAttributeUseDword("index",0);
+ ATTRIBUTES seaAttributes(core_internal.Compiler->GetVSC());auto *mode=seaAttributes.CreateSubAClass(&seaAttributes,"Phonk.Active");mode->SetValue("0");
+ FlatSea sea;sea.AttributesPointer=&seaAttributes;Keys keys;auto *previousControls=core.Controls;core.Controls=&keys;
+ const auto model=core.CreateEntity("MODELR");check(core.Send_Message(model,"ls",MSG_MODEL_LOAD_GEO,"islands\\Nevis\\Nevis"),"fixture_model");
+ std::vector<ISLAND_BASE::WorldSurface> fixtureSurfaces;CVECTOR fixtureCenter(0.f);
+ // SCENE_INPUTS
+ resident("scene_before_ship");
+ {
+ JetShip ship(sea,*character,*shipAttributes,model,rs);
+ const auto brig=core.CreateEntity("MODELR");check(core.Send_Message(brig,"ls",MSG_MODEL_LOAD_GEO,"ships\\Brig1\\Brig1"),"authored_ship_model");ship.authoredHull(brig);const float nativeMass=ship.State.fWeight;
+ resident("authored_material");
+ keys.held={"Phonk_Jet","Ship_SailUp","Ship_TurnLeft"};const auto ordinary=ship.State;
+ check(!ship.admit()&&!ship.HasRigidFlight()&&!memcmp(&ordinary,&ship.State,sizeof(ordinary)),"ordinary_state_unchanged");
+ auto baseTime=std::chrono::steady_clock::now();for(int i=0;i<1000;i++)ship.admit();printf("ordinary_admission_us=%.6f\n",std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-baseTime).count()/1000);
+ mode->SetValue("1");keys.held={"Phonk_Jet"};ship.State.fWeight=0;const auto invalidAdmission=ship.State;auto coldHull=std::chrono::steady_clock::now();check(!ship.admit()&&!ship.HasRigidFlight()&&!memcmp(&invalidAdmission,&ship.State,sizeof(invalidAdmission)),"inactive_invalid_step_remains_ordinary");printf("native_hull_cold_ms=%.5f\n",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-coldHull).count());ship.State.fWeight=nativeMass;
+ auto hullStart=std::chrono::steady_clock::now();ship.tick(16);printf("native_hull_admission_ms=%.5f\n",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-hullStart).count());resident("physical_hull");auto dryStart=std::chrono::steady_clock::now();for(int i=1;i<60;i++)ship.tick(16);printf("native_dry_flight_warm_us=%.5f\n",std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-dryStart).count()/59);ship.print("ctrl_lift");check(ship.HasRigidFlight()&&ship.State.vPos.y>100&&ship.State.vSpeed.y>0,"ctrl_lifts");
+ const auto before=ship.State;TOUCH_PARAMS a{},b{};ship.TouchMove(48,&a,&b);check(!memcmp(&before,&ship.State,sizeof(before)),"prediction_read_only");check(b.vPos.y>a.vPos.y,"prediction_moves");
+ keys.held={"Phonk_Jet","Ship_SailUp","Ship_TurnLeft"};for(int i=0;i<30;i++)ship.tick(16);ship.print("wasd_torque");check(std::abs(ship.State.vRotate.x)>.01f&&std::abs(ship.State.vRotate.z)>.01f,"wasd_attitude");
+ keys.held.clear();mode->SetValue("0");const float velocity=ship.comVelocityY();ship.tick(16);ship.print("modeoff_fall");check(ship.HasRigidFlight()&&std::abs(ship.comVelocityY()-(velocity-9.81f*.016f))<.002f,"modeoff_preserves_COM_ballistic");
+ ship.presentation();const auto saved=ship.State;
+ {CSaveLoad writer;writer.CreateWrite();ship.Save(&writer);}
+ ship.State.vPos=CVECTOR(0.f);ship.State.vSpeed=CVECTOR(0.f);ship.State.vRotate=CVECTOR(0.f);
+ {CSaveLoad reader;reader.CreateLoad();ship.Load(&reader);}
+ ship.print("save_restored");check(ship.HasRigidFlight()&&!memcmp(&saved,&ship.State,sizeof(saved)),"save_full_state_roundtrip");
+ const float y=ship.State.vPos.y,vy=ship.comVelocityY();ship.tick(16);ship.print("restored_passive_step");check(ship.State.vPos.y!=0&&ship.HasRigidFlight()&&std::abs(ship.comVelocityY()-(vy-9.81f*.016f))<.002f,"restore_COM_momentum_continuation");
+ ship.State.fWeight=0;const auto invalidStep=ship.State;ship.tick(16);check(ship.HasRigidFlight()&&!memcmp(&invalidStep,&ship.State,sizeof(invalidStep)),"active_invalid_step_retains_state");ship.State.fWeight=nativeMass;const float retryVelocity=ship.comVelocityY();ship.tick(16);check(std::abs(ship.comVelocityY()-(retryVelocity-9.81f*.016f))<.002f,"active_invalid_step_recovers");
+ ship.kill();const float deathVelocity=ship.comVelocityY();ship.Execute(16);ship.print("dead_flight_continues");check(ship.HasRigidFlight()&&ship.State.vPos.y>50.f&&std::abs(ship.comVelocityY()-(deathVelocity-9.81f*.016f))<.002f,"native_dead_execute_preserves_COM_flight");
+ auto *terrainModel=static_cast<MODEL*>(core.GetEntityPointer(model));terrainModel->mtx.SetIdentity();terrainModel->Update();const auto visualPose=terrainModel->mtx;
+ SurfaceIsland island(model,terrainModel);island.surfaces=fixtureSurfaces;float hit=-5000.f;
+ for(const auto&s:island.GetWorldSurfaces()){auto*m=static_cast<MODEL*>(core.GetEntityPointer(s.model));auto old=m->mtx;m->mtx=s.authored;m->Update();const float t=m->Trace(fixtureCenter+CVECTOR(0.f,5000.f,0.f),fixtureCenter+CVECTOR(0.f,-5000.f,0.f));if(t<=1.f)hit=std::max(hit,5000.f-10000.f*t);m->mtx=old;m->Update();}check(hit>0.f,"native_floor_oracle");printf("resident_surface_count=%zu native_floor_y=%.5f\n",island.GetWorldSurfaces().size(),hit);
+ ship.terrain(&island);ship.place(fixtureCenter+CVECTOR(0.f,hit+30.f,0.f));
+ auto cold=std::chrono::steady_clock::now();ship.tick(16);printf("native_geometry_cold_ms=%.5f\n",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-cold).count());
+ auto warm=std::chrono::steady_clock::now();for(int i=0;i<180;i++)ship.tick(16);printf("native_flight_warm_us=%.5f\n",std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-warm).count()/180);
+ ship.print("native_terrain_contact");check(ship.State.vPos.y>hit-3.f,"native_terrain_catches_fall");
+ island.pose.Pos().y=100.f;for(auto&s:island.surfaces)s.authored.Pos().y+=100.f;ship.place(fixtureCenter+CVECTOR(0.f,hit+130.f,0.f));for(int i=0;i<180;i++)ship.tick(16);ship.print("authored_pose_invalidated");check(ship.State.vPos.y>hit+97.f,"authored_pose_rebuilds_mesh");
+ check(!memcmp(&visualPose,&terrainModel->mtx,sizeof(visualPose)),"visual_pose_restored");
+ puts("NATIVE_PASS");
+ }
+ core.Controls=previousControls;JetShip::clearStatics();
+ readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}
+

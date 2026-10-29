@@ -1,0 +1,98 @@
+// Diagnostic scene driver. It never runs seadogs.c, loads SAVE, shows or focuses
+// a window. The isolated fixture owns scene setup; CORE owns the real frame.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "weather_engine.hpp"
+#include "script_libriary.h"
+#include "s_import_func.h"
+#include "v_s_stack.h"
+#include "ship_base.h"
+#include <SDL2/SDL.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <spdlog/spdlog.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+extern "C" uint64_t StormMetalRawSkinnedDraws(void *);
+extern "C" bool StormMetalFlushFrameTrace(void *);
+extern uint64_t dwRdtsc; // Existing TOUCH::Execute timer, in SDL performance ticks.
+
+#include "service/particle_service.h"
+#include "manager/particle_manager.h"
+#include "system/particle_system/particle_system.h"
+#include "i_common/i_emitter.h"
+#include "i_common/names.h"
+#include "system/data_source/data_graph.h"
+
+#include <Jolt/Jolt.h>
+#include <Jolt/RegisterTypes.h>
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include "modelr.h"
+#include "shared/messages.h"
+using namespace JPH;
+class Layers final: public BroadPhaseLayerInterface { public:uint GetNumBroadPhaseLayers()const override{return 2;} BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer l)const override{return BroadPhaseLayer(uint8(l));}};
+class BroadFilter final:public ObjectVsBroadPhaseLayerFilter{public:bool ShouldCollide(ObjectLayer a,BroadPhaseLayer b)const override{return a==1||b.GetValue()==1;}};
+class ObjFilter final:public ObjectLayerPairFilter{public:bool ShouldCollide(ObjectLayer a,ObjectLayer b)const override{return a==1||b==1;}};
+std::vector<CVECTOR> triangles;
+bool Collect(const CVECTOR *v,int32_t n){for(int i=1;i+1<n;i++){if(~((v[i]-v[0])^(v[i+1]-v[0]))>1.e-10f){triangles.push_back(v[0]);triangles.push_back(v[i]);triangles.push_back(v[i+1]);}}return true;}
+struct Physics {
+ Layers layers;BroadFilter broad;ObjFilter filter;TempAllocatorImpl allocator{1024*1024};JobSystemSingleThreaded jobs{cMaxPhysicsJobs};PhysicsSystem physics;
+ Physics(){physics.Init(8,0,32,32,layers,broad,filter);physics.SetGravity(Vec3(0,-9.81f,0));}
+ void mesh(const std::vector<CVECTOR>&v){TriangleList t;for(size_t i=0;i+2<v.size();i+=3)t.emplace_back(Float3(v[i].x,v[i].y,v[i].z),Float3(v[i+1].x,v[i+1].y,v[i+1].z),Float3(v[i+2].x,v[i+2].y,v[i+2].z));auto shape=MeshShapeSettings(t).Create();if(shape.HasError())throw std::runtime_error(shape.GetError().c_str());physics.GetBodyInterface().CreateAndAddBody(BodyCreationSettings(shape.Get(),RVec3::sZero(),Quat::sIdentity(),EMotionType::Static,0),EActivation::DontActivate);}
+ BodyID body(Vec3 p,Vec3 v,Quat q=Quat::sIdentity()){BodyCreationSettings s(new BoxShape(Vec3(.5f,.5f,.5f)),p,q,EMotionType::Dynamic,1);s.mOverrideMassProperties=EOverrideMassProperties::CalculateInertia;s.mMassPropertiesOverride.mMass=1000;s.mLinearDamping=s.mAngularDamping=0;s.mAllowSleeping=false;s.mMotionQuality=EMotionQuality::LinearCast;auto id=physics.GetBodyInterface().CreateAndAddBody(s,EActivation::Activate);physics.GetBodyInterface().SetLinearVelocity(id,v);return id;}
+ void step(){physics.Update(1.f/240,1,&allocator,&jobs);}
+};
+
+int main(int argc,char **argv) {
+ if(argc!=2) return 64;
+ const auto cwd=std::filesystem::canonical(argv[1]); std::filesystem::current_path(cwd);
+ std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1); setenv("STORM_QUIET_CLIENT","1",1);
+ spdlog::set_level(spdlog::level::off);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO)!=0) return 65;
+ steamapi::SteamApi::getInstance(true);
+ auto window=storm::OSWindow::Create(640,480,0,false,false);
+ core_internal.Init(); core_internal.SetWindow(window); core_internal.InitBase(); core_internal.SetDeltaTime(16);
+ if(!core_internal.Run())return 68;
+ auto *rs=static_cast<VDX9RENDER*>(core.GetService("dx9render"));
+ rs->SetCamera(CVECTOR(0.f,0.f,-20.f),CVECTOR(0.f,0.f,100.f),CVECTOR(0.f,1.f,0.f));rs->SetPerspective(1.05f);
+ auto *device=static_cast<storm_render::Device*>(rs->GetNativeDevice());
+ storm_render::Surface *target=nullptr,*readback=nullptr;
+ device->GetRenderTarget(&target);device->CreateOffscreenPlainSurface(640,480,storm_render::AssetFormat::A8R8G8B8,&readback);
+
+ auto id=core.CreateEntity("MODELR");if(!core.Send_Message(id,"ls",MSG_MODEL_LOAD_GEO,"islands\\Nevis\\Nevis"))return 71;
+ auto *model=static_cast<MODELR*>(core.GetEntityPointer(id));model->Update();
+ auto begin=std::chrono::steady_clock::now();model->Clip(nullptr,0,CVECTOR(0.f),100000.f,Collect);
+ printf("canonical_triangles=%zu clip_ms=%.3f\n",triangles.size()/3,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count());
+ if(triangles.empty())return 72;
+ // The native trace supplies the expected receiver independently from Jolt.
+ GEOS::INFO info{};model->root->geo->GetInfo(info);CVECTOR from(info.boxcenter.x,info.boxcenter.y+info.radius,info.boxcenter.z),to=from;to.y-=info.radius*2;
+ auto fraction=model->Trace(from,to);if(fraction>1.f)return 73;CVECTOR hit=from+(to-from)*fraction;
+ RegisterDefaultAllocator();Factory::sInstance=new Factory;RegisterTypes();
+ {Physics w;w.mesh(triangles);auto b=w.body(Vec3(hit.x,hit.y+8,hit.z),Vec3::sZero());
+  for(int i=0;i<720;i++)w.step();auto p=w.physics.GetBodyInterface().GetPosition(b);
+  printf("native_receiver_y=%.5f jolt_rest_y=%.5f bottom_error=%.5f\n",hit.y,float(p.GetY()),float(p.GetY())-.5f-hit.y);
+  if(float(p.GetY())<hit.y-.5f)return 74;}
+ // Axis-oriented contact oracles use the same authored triangle samples,
+ // normalized to one plane. They exercise the adapter in both winding senses.
+ std::vector<CVECTOR> floor{{-100.f,0.f,-100.f},{-100.f,0.f,100.f},{100.f,0.f,100.f},{-100.f,0.f,-100.f},{100.f,0.f,100.f},{100.f,0.f,-100.f}};
+ for(int test=0;test<3;test++){auto t=floor;for(auto&v:t){if(test==1){v.y=10;v.x=-v.x;}if(test==2){v.y=-v.x;v.x=0;}}
+  Physics w;w.mesh(t);auto b=w.body(test==0?Vec3(0,8,0):test==1?Vec3(0,5,0):Vec3(5,5,0),test==0?Vec3::sZero():test==1?Vec3(0,15,0):Vec3(-15,0,0),Quat::sRotation(Vec3::sAxisZ(),.35f));
+  for(int i=0;i<(test==1?144:480);i++)w.step();auto pos=w.physics.GetBodyInterface().GetPosition(b);auto vel=w.physics.GetBodyInterface().GetLinearVelocity(b);printf("contact_axis_%d p=(%.4f,%.4f,%.4f) v=(%.4f,%.4f,%.4f)\n",test,float(pos.GetX()),float(pos.GetY()),float(pos.GetZ()),vel.GetX(),vel.GetY(),vel.GetZ());if((test==0&&pos.GetY()<-.5f)||(test==1&&pos.GetY()>10.f)||(test==2&&pos.GetX()<-.5f))return 75;
+ }
+ UnregisterTypes();delete Factory::sInstance;Factory::sInstance=nullptr;
+ readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}

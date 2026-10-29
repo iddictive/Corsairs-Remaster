@@ -3,6 +3,12 @@
 #include "geos.h"
 #include "service.h"
 #include "vma.hpp"
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+class ATTRIBUTES;
 
 class ANIMATION
 {
@@ -27,6 +33,18 @@ class VGEOMETRY : public SERVICE
     };
 
     ~VGEOMETRY() override{};
+    static std::string LightFileName(std::string_view model, std::string_view lighting)
+    {
+        if (lighting.empty()) return {};
+        for (unsigned n = 0; n < 2 && !lighting.empty() && lighting.front() == '\\'; ++n)
+            lighting.remove_prefix(1);
+        return "resource\\models\\" + std::string(model) + "_" + std::string(lighting) + ".col";
+    }
+    bool PrepareGeometryLighting(GEOS *geometry, std::string_view model, std::string_view lighting)
+    {
+        const auto file = LightFileName(model, lighting);
+        return geometry && geometry->PrepareLightPath(file.c_str());
+    }
     virtual GEOS *CreateGeometry(const char *file_name, const char *light_file_name, int32_t flags,
                                  const char *lmPath = nullptr) = 0;
     virtual void DeleteGeometry(GEOS *) = 0;
@@ -40,4 +58,10 @@ class VGEOMETRY : public SERVICE
     virtual void SetTexturePath(const char *) = 0;
 
     virtual void SetCausticMode(bool bSet = false) = 0;
+    virtual bool ConfigureLegacySeaGeometry(const ATTRIBUTES *) { return false; }
+    virtual const std::vector<std::pair<std::string,std::string>>& LegacySeaExposures() const
+    {
+        static const std::vector<std::pair<std::string,std::string>> empty;
+        return empty;
+    }
 };

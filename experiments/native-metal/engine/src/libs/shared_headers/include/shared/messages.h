@@ -21,6 +21,9 @@
 #define MSG_MODEL_SET_TECHNIQUE 20510 // "s" = technique
 #define MSG_MODEL_SET_FOG 20511
 #define MSG_MODEL_SET_MAX_VIEW_DIST 20512
+#define MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING 20513 // "lsl", light path, is day
+#define MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING 20514
+#define MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING 20515
 
 #define MSG_MODEL_SUBSTITUTE_GEOMETRY_NODE 20600 // "ss", geometry, new model name
 #define MSG_MODEL_PLAY_ACTION 20601 // "lls", player, action name
@@ -56,6 +59,7 @@
 #define MSG_ISLAND_SELECT_REGION 50108 // "li", logical active IslandRegion entity
 #define MSG_WORLDMAP_NOTIFY 50109 // "ls", canonical worldMap attribute path
 #define MSG_ISLAND_POSE_REGION 50110 // "lffffff", absolute rigid body-to-sea a,b,c,d,tx,tz; before world-state restore
+#define MSG_ISLAND_BIND_LEGACY_EXPOSURE 50111 // "l", bind admitted complete legacy terrain exposure
 
 //============================================================================================
 // Sea Reflection Messages

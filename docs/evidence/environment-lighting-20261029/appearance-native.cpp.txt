@@ -1,0 +1,110 @@
+// Disposable production-GEOM fixture; no engine scene, window or game input.
+#include "geos.h"
+#include "engine/src/libs/model/src/modelr.h"
+#include "engine/src/libs/geometry/src/geometry_r.h"
+#include <algorithm>
+#include <chrono>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <stdexcept>
+#include <vector>
+namespace fs=std::filesystem;
+struct Service final:GEOM_SERVICE {
+    fs::path root;int next=1,locks=0,creates=0;bool corrupt=false;
+    std::map<int,std::vector<unsigned char>> buffers;int drawVB=0,drawIB=0;std::vector<unsigned char>drawBytes;
+    explicit Service(fs::path p):root(std::move(p)){}
+    fs::path resolve(std::string s){std::replace(s.begin(),s.end(),'\\','/');if(fs::path(s).is_absolute())return s;fs::path p=root;
+        for(const auto&part:fs::path(s)){if(part==".")continue;auto candidate=p/part;if(fs::exists(candidate)){p=candidate;continue;}
+            auto lower=[](std::string x){for(auto&c:x)c=char(std::tolower((unsigned char)c));return x;};
+            bool found=false;if(fs::is_directory(p))for(const auto&e:fs::directory_iterator(p))if(lower(e.path().filename().string())==lower(part.string())){p=e.path();found=true;break;}
+            if(!found)return candidate;
+        }return p;
+    }
+    std::fstream OpenFile(const char*s)override{return std::fstream(resolve(s),std::ios::in|std::ios::binary);}
+    bool ReadFile(std::fstream&f,void*p,int32_t n)override{if(corrupt)return false;return bool(f.read((char*)p,n));}
+    int FileSize(const char*s)override{return int(fs::file_size(resolve(s)));}
+    void CloseFile(std::fstream&f)override{f.close();}
+    void*malloc(int32_t n)override{return std::malloc(n);}void free(void*p)override{std::free(p);}
+    int CreateTexture(const char*)override{return -1;}void ReleaseTexture(int)override{}void SetMaterial(const GEOS::MATERIAL&)override{}
+    int CreateVertexBuffer(int32_t,int32_t n)override{creates++;int id=next++;buffers[id].resize(n);return id;}
+    void*LockVertexBuffer(int id)override{locks++;return buffers.at(id).data();}void UnlockVertexBuffer(int)override{}
+    void ReleaseVertexBuffer(int id)override{buffers.erase(id);}
+    int CreateIndexBuffer(int32_t n)override{int id=next++;buffers[id].resize(n);return id;}
+    void*LockIndexBuffer(int id)override{return buffers.at(id).data();}void UnlockIndexBuffer(int)override{}void ReleaseIndexBuffer(int id)override{buffers.erase(id);}
+    void SetIndexBuffer(int id)override{drawIB=id;}void SetVertexBuffer(int32_t,int id)override{drawVB=id;}
+    void DrawIndexedPrimitive(int32_t base,int32_t,int32_t stride,int32_t start,int32_t triangles)override{
+        const auto&indices=buffers.at(drawIB);const auto&vb=buffers.at(drawVB);
+        for(int n=0;n<triangles*3;n++){uint16_t index;std::memcpy(&index,indices.data()+size_t(start+n)*2,2);
+            auto begin=vb.begin()+size_t(base+index)*stride;drawBytes.insert(drawBytes.end(),begin,begin+stride);}
+    }
+    int CreateLight(GEOS::LIGHT)override{return -1;}void ActivateLight(int)override{}void SetCausticMode(bool)override{}
+};
+void require(bool value,const char*message){if(!value)throw std::runtime_error(message);}
+class NoderLightPathTestAccessor {
+public:
+    static void bind(NODER&n,GEOS*g,const std::string&model,const std::string&path,bool dayOnly=false){
+        n.geo=g;n.isReleased=false;n.sys_modelName_full=model;n.sys_LightPath=path;n.lightingDayOnly=dayOnly;
+        n.flags=NODE::VISIBLE|NODE::VISIBLE_TREE|NODE::TRACE_ENABLE|NODE::TRACE_ENABLE_TREE|NODE::CLIP_ENABLE|NODE::CLIP_ENABLE_TREE;
+    }
+    static bool prepare(NODER&n,const char*path,bool day){return n.PrepareEnvironmentLighting(path,day);}
+    static void commit(NODER&n){n.CommitEnvironmentLighting();}
+    static bool hidden(const NODER&n){return n.lightingHidden;}
+};
+using Bytes=std::vector<std::vector<unsigned char>>;
+Bytes vertices(GEOS&g,Service&s){GEOS::INFO i{};g.GetInfo(i);Bytes out;for(int v=0;v<i.nvrtbuffs;v++)out.push_back(s.buffers.at(g.GetVertexBuffer(v)));return out;}
+std::vector<unsigned char>draw(GEOS&g,Service&s){s.drawBytes.clear();g.Draw(nullptr,0,nullptr);return s.drawBytes;}
+int main(int argc,char**argv)try{
+    require(argc==2,"runtime root required");
+    const std::string stem="resource/models/islands/PuertoRico/PuertoRico";
+    Service s(argv[1]),fresh(argv[1]);
+    auto start=std::chrono::steady_clock::now();
+    std::unique_ptr<GEOS>g(CreateGeometry((stem+".gm").c_str(),(stem+"_morning7.col").c_str(),s,LOAD_VISIBLE|LOAD_COLLIDE));
+    const auto initial=vertices(*g,s);const int oldCreates=s.creates;
+    const auto initialDraw=draw(*g,s);
+    std::vector<int>ids;GEOS::INFO info{};g->GetInfo(info);for(int i=0;i<info.nvrtbuffs;i++)ids.push_back(g->GetVertexBuffer(i));
+    auto begin=std::chrono::steady_clock::now();
+    require(g->PrepareLightPath((stem+"_morning9.col").c_str()),"prepare9");
+    require(vertices(*g,s)==initial,"prepare mutated prior palette");g->CommitLightPath();
+    auto end=std::chrono::steady_clock::now();
+    const auto changed=vertices(*g,s);
+    std::unique_ptr<GEOS>f(CreateGeometry((stem+".gm").c_str(),(stem+"_morning9.col").c_str(),fresh,LOAD_VISIBLE|LOAD_COLLIDE));
+    require(changed==vertices(*f,fresh),"fresh9 independent oracle");require(changed!=initial,"7 and9 must differ");
+    require(draw(*g,s)==draw(*f,fresh),"derived render triangles differ fresh9");
+    for(int i=0;i<info.nvrtbuffs;i++)require(ids[i]==g->GetVertexBuffer(i),"base buffer identity changed");
+    const bool refined=std::getenv("STORM_METAL_ISLAND_GEOMETRY")&&std::string(std::getenv("STORM_METAL_ISLAND_GEOMETRY"))=="1";
+    if(!refined)require(s.creates==oldCreates,"default appearance allocated render geometry");
+    int oldLocks=s.locks;require(g->PrepareLightPath((stem+"_morning9.col").c_str()),"noop prepare");g->CommitLightPath();require(oldLocks==s.locks,"noop locked base");
+    s.corrupt=true;require(!g->PrepareLightPath((stem+"_morning7.col").c_str()),"read error accepted");s.corrupt=false;
+    require(vertices(*g,s)==changed,"failed transaction changed prior");
+    require(g->PrepareLightPath((stem+"_morning7.col").c_str()),"retry7");g->CancelLightPath();require(vertices(*g,s)==changed,"cancel changed prior");
+    require(g->PrepareLightPath((stem+"_absent-appearance.col").c_str()),"missing fallback");g->CommitLightPath();
+    Service missing(argv[1]);std::unique_ptr<GEOS>m(CreateGeometry((stem+".gm").c_str(),(stem+"_absent-appearance.col").c_str(),missing,LOAD_VISIBLE|LOAD_COLLIDE));
+    require(vertices(*g,s)==vertices(*m,missing),"missing differs fresh intrinsic");
+    require(g->PrepareLightPath((stem+"_morning9.col").c_str()),"recovery9");g->CommitLightPath();require(vertices(*g,s)==changed,"recovery differs");
+    const auto generation=g->GeometryGeneration(),revision=g->CollisionRevision();
+    GEOMETRY geometryService;NODER::gs=&geometryService;
+    NODER node;NoderLightPathTestAccessor::bind(node,g.release(),"islands/PuertoRico/PuertoRico","morning9");
+    auto*child=new NODER();node.next.push_back(child);
+    NoderLightPathTestAccessor::bind(*child,f.release(),"islands/PuertoRico/PuertoRico","morning9",true);
+    const auto priorFlags=child->flags;
+    require(NoderLightPathTestAccessor::prepare(node,"morning7",false),"tree night prepare");
+    require(!NoderLightPathTestAccessor::hidden(*child),"prepare hid live child");NoderLightPathTestAccessor::commit(node);
+    require(NoderLightPathTestAccessor::hidden(*child),"day child visible at night");require(child->flags==0,"hidden child traces or clips");
+    require(node.geo->GeometryGeneration()==generation&&node.geo->CollisionRevision()==revision,"appearance changed physical identity");
+    require(NoderLightPathTestAccessor::prepare(node,"morning9",true),"tree day prepare");NoderLightPathTestAccessor::commit(node);
+    require(!NoderLightPathTestAccessor::hidden(*child)&&child->flags==priorFlags,"day flags not restored");
+    require(vertices(*node.geo,s)==changed,"tree root differs fresh9");require(vertices(*child->geo,fresh)==changed,"tree child differs fresh9");
+    fresh.corrupt=true;
+    require(!NoderLightPathTestAccessor::prepare(node,"morning7",true),"child read failure accepted");fresh.corrupt=false;
+    require(vertices(*node.geo,s)==changed&&vertices(*child->geo,fresh)==changed,"tree failure published partial palette");
+    require(!NoderLightPathTestAccessor::hidden(*child)&&child->flags==priorFlags,"tree failure changed phase flags");
+    Service metadata(argv[1]);const auto generated=(fs::path(argv[1]).parent_path()/"puerto-rico-city/RESOURCE/MODELS/Islands/PuertoRico/PuertoRico.gm").string();
+    std::unique_ptr<GEOS>l(CreateGeometry(generated.c_str(),nullptr,metadata,LOAD_VISIBLE));GEOS::INFO labelInfo{};l->GetInfo(labelInfo);
+    int dayLabels=0;for(int i=0;i<labelInfo.nlabels;i++){GEOS::LABEL label{};l->GetLabel(i,label);if(label.flags&GEOS::LABEL_LIGHTING_DAY_ONLY)dayLabels++;}
+    require(dayLabels==1,"authored generated day-only role missing or broadened");
+    std::cout<<"{\"vertices\":60741,\"buffers\":"<<info.nvrtbuffs<<",\"pn\":"<<refined<<",\"prepare_commit_ms\":"<<std::chrono::duration<double,std::milli>(end-begin).count()<<",\"fresh9_exact\":true,\"derived_triangles_fresh_exact\":true,\"base_ids_preserved\":true,\"noop_no_locks\":true,\"read_failure_rollback\":true,\"cancel_rollback\":true,\"missing_fresh_intrinsic\":true,\"retry_exact\":true,\"node_day_night_day\":true,\"child_failure_tree_rollback\":true,\"physical_generation_revision_preserved\":true,\"generated_day_labels\":"<<dayLabels<<"}\n";
+    return 0;
+}catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}

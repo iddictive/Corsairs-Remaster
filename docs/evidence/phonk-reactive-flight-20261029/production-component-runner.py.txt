@@ -1,0 +1,18 @@
+from pathlib import Path
+import sys
+import os,subprocess,shlex
+root=Path(__file__).resolve().parents[3];native=root/'experiments/native-metal';build=native/'.cache/build';work=Path(sys.argv[1]).resolve();evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
+line=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','CMakeFiles/roundhouse_ragdoll.dir/roundhouse_ragdoll.cpp.o'],text=True).strip()
+c=shlex.split(line);source=os.environ.get('JET_COMPONENT_SOURCE','production-component.cpp.txt');c[c.index('-c')+1]=str(evidence/source)
+c+=['-x','c++'];c[c.index('-c'):c.index('-c')]=['-x','c++']
+for flag,name in [('-o','probe.o'),('-MF','probe.d'),('-MT','probe.o')]:
+ if flag in c:c[c.index(flag)+1]=str(work/name)
+c=[x for x in c if x!='-v']
+r=subprocess.run(c,cwd=build,capture_output=True,text=True,timeout=80)
+if r.returncode:print((r.stdout+r.stderr)[-6000:]);raise SystemExit(r.returncode)
+r=subprocess.run(['/usr/bin/c++','-arch','arm64',str(work/'probe.o'),str(build/'libroundhouse_ragdoll.a'),str(build/'_deps/roundhouse_jolt-build/libJolt.a'),'-pthread','-o',str(work/'probe')],capture_output=True,text=True,timeout=50)
+if r.returncode:print((r.stdout+r.stderr)[-6000:]);raise SystemExit(r.returncode)
+r=subprocess.run([str(work/'probe')],capture_output=True,text=True,timeout=40)
+out=r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n'
+(evidence/(source.replace('.cpp.txt','')+'-output.txt')).write_text(out.replace(str(root),'<repo>').replace(str(work),'<scratch>'));print(out[-7000:]);raise SystemExit(r.returncode)
+

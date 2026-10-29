@@ -1,0 +1,35 @@
+#include "reactive_body.hpp"
+#include "roundhouse_ragdoll.hpp"
+#include "collision_triangles.hpp"
+#include <Jolt/Jolt.h>
+#include <cstdarg>
+#include <cstdio>
+#include <chrono>
+#include <cmath>
+#include <cstdlib>
+using namespace roundhouse;
+void trace(const char *fmt,...){va_list args;va_start(args,fmt);vfprintf(stderr,fmt,args);va_end(args);fputc('\n',stderr);}
+void require(bool b,const char*n){if(!b){printf("FAIL %s\n",n);std::exit(1);}}
+std::vector<std::vector<ReactivePoint>> hull(){std::vector<ReactivePoint>v;for(float x:{-5.f,5.f})for(float y:{-2.f,2.f})for(float z:{-15.f,15.f})v.push_back({x,y,z});return {v};}
+std::vector<CVECTOR> floorMesh(){return {{-100.f,0.f,-100.f},{-100.f,0.f,100.f},{100.f,0.f,100.f},{-100.f,0.f,-100.f},{100.f,0.f,100.f},{100.f,0.f,-100.f}};}
+std::vector<ReactiveForce> jets(float f,float pitch=0.f,float roll=0.f){std::vector<ReactiveForce>out;for(int i=0;i<4;i++){float x=i&1?1.f:-1.f,z=i&2?1.f:-1.f;out.push_back({CVECTOR(3.f*x,-2.f,9.f*z),CVECTOR(0.f,f*.25f*std::clamp(1.f-pitch*z+roll*x,0.f,2.f),0.f)});}return out;}
+ReactiveFluid dry(){ReactiveFluid f;f.height=-10000;return f;}
+ReactiveBody initial(float mass=1000.f){ReactiveBody b;b.mass=mass;b.pose=CMatrix(CVECTOR(0.f),CVECTOR(0.f,100.f,0.f));return b;}
+void print(const char*n,const ReactiveBody&b){printf("%s p=(%.8f,%.8f,%.8f) v=(%.8f,%.8f,%.8f) w=(%.8f,%.8f,%.8f)\n",n,b.pose.Pos().x,b.pose.Pos().y,b.pose.Pos().z,b.velocity.x,b.velocity.y,b.velocity.z,b.angularVelocity.x,b.angularVelocity.y,b.angularVelocity.z);}
+int main(){
+ setbuf(stdout,nullptr);
+ JPH::Trace=trace;
+#ifdef JET_CAPACITY_HYPOTHESIS
+ {ReactiveWorld w;auto parts=hull();parts.resize(9000,parts.front());require(w.SetHull(parts),"capacity_fixture_shape");w.SetStaticTriangles(floorMesh());w.SetNeighborHull(1,hull());auto b=initial();b.pose.Pos().y=1.f;auto other=initial();other.pose.Pos().x=40;std::vector<ReactiveNeighbor> neighbors{{1,other}};const auto before=b;const auto neighborBefore=neighbors[0].body;for(int retry=0;retry<3;retry++){bool accepted=w.Step(b,{},dry(),1.f/60,&neighbors);printf("capacity_retry=%d accepted=%d bits=0x%x\n",retry,int(accepted),w.UpdateError());require(!accepted&&w.UpdateError()!=0,"capacity_error_reported");require(!memcmp(&b,&before,sizeof(b))&&!memcmp(&neighbors[0].body,&neighborBefore,sizeof(neighborBefore)),"capacity_no_partial_export");}require(w.SetHull(hull()),"capacity_recovery_shape");require(w.Step(b,{},dry(),1.f/60,&neighbors),"capacity_recovers_without_neighbor_leak");}
+#endif
+ for(float mass:{1000.f,2000.f}){ReactiveWorld w;require(w.SetHull(hull()),"hull");auto b=initial(mass);for(int i=0;i<60;i++)require(w.Step(b,jets(9810),dry(),1.f/60),"step");print(mass==1000?"hover":"double_mass",b);require(std::abs(b.velocity.y-(9810/mass-9.81f))<.001f,"F_over_m");}
+ {ReactiveWorld w;w.SetHull(hull());auto b=initial();for(int i=0;i<60;i++)w.Step(b,jets(14715),dry(),1.f/60);for(int i=0;i<120;i++)w.Step(b,{},dry(),1.f/60);print("release",b);require(std::abs(b.velocity.y+14.715f)<.002f,"ballistic_release");}
+ CVECTOR reference(0.f);for(int hz:{30,60,120}){ReactiveWorld w;w.SetHull(hull());auto b=initial();for(int i=0;i<3*hz;i++)w.Step(b,jets(14715,.8f,.6f),dry(),1.f/hz);char n[32];snprintf(n,sizeof(n),"wasd_%dhz",hz);print(n,b);if(hz==30)reference=b.pose.Pos();else require(~(b.pose.Pos()-reference)<.0001f,"frame_invariance");require(b.pose.Pos().y<100,"bad_attitude_falls");}
+ for(int axis=0;axis<3;axis++){ReactiveWorld w;w.SetHull(hull());auto mesh=floorMesh();for(auto &v:mesh){if(axis==1){v.y=10;v.x=-v.x;}if(axis==2){v.y=-v.x;v.x=0;}}require(w.SetStaticTriangles(mesh),"mesh");auto b=initial();b.pose=CMatrix(CVECTOR(.15f,0.f,.2f),axis==0?CVECTOR(0.f,20.f,0.f):axis==1?CVECTOR(0.f,0.f,0.f):CVECTOR(20.f,20.f,0.f));if(axis==1)b.velocity.y=25;if(axis==2)b.velocity.x=-25;for(int i=0;i<(axis==1?30:180);i++)require(w.Step(b,{},dry(),1.f/60),"contact_step");char n[32];snprintf(n,sizeof(n),"contact_axis_%d",axis);print(n,b);require(axis==0?b.pose.Pos().y>0:axis==1?b.pose.Pos().y<10:b.pose.Pos().x>0,"no_penetration");}
+ {ReactiveWorld w;w.SetHull(hull());float fraction=w.SubmergedFraction(0.f);printf("half_submerged=%.8f\n",fraction);require(std::abs(fraction-.5f)<.0001f,"displacement");require(std::abs(w.SubmergedFraction(1.f)-.75f)<.0001f,"draft_query_invalidation");ReactiveFluid f;f.buoyancy=1/fraction;auto b=initial();b.pose=CMatrix(CVECTOR(.2f,0.f,.3f),CVECTOR(0.f,20.f,0.f));float low=100;for(int i=0;i<1200;i++){w.Step(b,{},f,1.f/120);low=std::min(low,b.pose.Pos().y);}print("water_impact",b);printf("water_lowest=%.6f\n",low);require(low>-20&&std::abs(b.velocity.y)<1,"buoyant_recovery");}
+ {ReactiveWorld w;w.SetHull(hull());w.SetNeighborHull(1,hull());auto b=initial();b.pose.Pos()=CVECTOR(-11.f,0.f,0.f);b.velocity.x=10;auto other=initial();other.pose.Pos()=CVECTOR(1.f,0.f,0.f);std::vector<ReactiveNeighbor> n{{1,other}};for(int i=0;i<60;i++)w.Step(b,{},dry(),1.f/60,&n);print("contact_player",b);print("contact_neighbor",n[0].body);float momentum=(b.velocity.x+n[0].body.velocity.x)*1000;printf("total_x_momentum=%.7f\n",momentum);require(n[0].body.velocity.x>0&&std::abs(momentum-10000)<1,"reaction_momentum");auto before=n[0].body;require(w.ImpulseNeighbor(1,n[0].body,CVECTOR(1000.f,0.f,0.f),n[0].body.pose.Pos()+CVECTOR(0.f,0.f,10.f)),"exhaust_impulse");require(std::abs(n[0].body.velocity.x-before.velocity.x-1.f)<.001f&&std::abs(n[0].body.angularVelocity.y-before.angularVelocity.y)>.001f,"shape_inertia");}
+ {ReactiveWorld w;w.SetHull(hull());auto b=initial();auto start=std::chrono::steady_clock::now();for(int i=0;i<1000;i++)w.Step(b,jets(9810),dry(),1.f/60);printf("production_full_frame_us=%.5f\n",std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count()/1000);}
+ {RigDefinition rig;rig.jointParents={-1};rig.bindWorld={CMatrix(CVECTOR(0.f),CVECTOR(0.f,10.f,0.f))};BodyDefinition d;d.joint=0;rig.bodies={d};rig.headBody=0;auto rag=std::make_unique<RagdollWorld>();rag->SetStaticTriangles(floorMesh());auto id=rag->Create(rig,rig.bindWorld,CVECTOR(0.f),CVECTOR(0.f));require(id!=0,"ragdoll_create");auto jet=std::make_unique<ReactiveWorld>();jet->SetHull(hull());rag.reset();auto b=initial();require(jet->Step(b,{},dry(),1.f/60),"jet_survives_ragdoll_teardown");rag=std::make_unique<RagdollWorld>();rag->SetStaticTriangles(floorMesh());id=rag->Create(rig,rig.bindWorld,CVECTOR(0.f),CVECTOR(0.f));jet.reset();for(int i=0;i<120;i++)rag->Step(1.f/60);std::vector<CMatrix>pose;require(rag->GetPose(id,pose),"ragdoll_survives_jet_teardown");printf("ragdoll_rest_y=%.8f\n",pose[0].Pos().y);require(pose[0].Pos().y>=0&&pose[0].Pos().y<1,"ragdoll_floor");}
+ puts("PASS");
+}
+

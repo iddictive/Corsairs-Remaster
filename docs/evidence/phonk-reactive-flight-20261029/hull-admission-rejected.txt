@@ -1,0 +1,34 @@
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+rejected_piece=2549 vertices=8 lower=3.4587466716766357 upper=3.459028959274292 volume=1.9909439837502891e-11 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=3784 vertices=8 lower=2.2515773773193359 upper=2.2525472640991211 volume=7.2866990219466743e-12 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=3786 vertices=6 lower=2.2515773773193359 upper=2.2525472640991211 volume=5.439420326195747e-12 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=7581 vertices=6 lower=2.2522525787353516 upper=2.2525472640991211 volume=3.6709258318297815e-12 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=8813 vertices=6 lower=4.2431521415710449 upper=4.2441067695617676 volume=6.2274999971615825e-12 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=8838 vertices=6 lower=4.243401050567627 upper=4.2441067695617676 volume=1.0591969431169209e-11 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=8840 vertices=6 lower=4.243401050567627 upper=4.2441082000732422 volume=1.917796824124629e-11 error=Could not find a suitable initial triangle because its area was too small
+rejected_piece=9227 vertices=6 lower=2.2515773773193359 upper=2.2525472640991211 volume=5.439420326195747e-12 error=Could not find a suitable initial triangle because its area was too small
+convex_create_failures=13
+compound_create=success
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        4.98 real         4.60 user         0.13 sys
+           495140864  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               32021  page reclaims
+                  16  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                4997  involuntary context switches
+         89447821169  instructions retired
+         20336440558  cycles elapsed
+           426968456  peak memory footprint
+
+EXIT 0

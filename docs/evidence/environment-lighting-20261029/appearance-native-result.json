@@ -1,0 +1,44 @@
+[
+  {
+    "vertices": 60741,
+    "buffers": 2,
+    "pn": 0,
+    "prepare_commit_ms": 0.311916,
+    "fresh9_exact": true,
+    "derived_triangles_fresh_exact": true,
+    "base_ids_preserved": true,
+    "noop_no_locks": true,
+    "read_failure_rollback": true,
+    "cancel_rollback": true,
+    "missing_fresh_intrinsic": true,
+    "retry_exact": true,
+    "node_day_night_day": true,
+    "child_failure_tree_rollback": true,
+    "physical_generation_revision_preserved": true,
+    "generated_day_labels": 1,
+    "diagnostics": [
+      "[2026-10-29 18:13:58.784] [info] LIGHTING_APPEARANCE: model=islands/PuertoRico/PuertoRico target=morning7 reason=invalid-col; previous appearance retained; repair matching COL asset and retry"
+    ]
+  },
+  {
+    "vertices": 60741,
+    "buffers": 2,
+    "pn": 1,
+    "prepare_commit_ms": 54.3865,
+    "fresh9_exact": true,
+    "derived_triangles_fresh_exact": true,
+    "base_ids_preserved": true,
+    "noop_no_locks": true,
+    "read_failure_rollback": true,
+    "cancel_rollback": true,
+    "missing_fresh_intrinsic": true,
+    "retry_exact": true,
+    "node_day_night_day": true,
+    "child_failure_tree_rollback": true,
+    "physical_generation_revision_preserved": true,
+    "generated_day_labels": 1,
+    "diagnostics": [
+      "[2026-10-29 18:13:59.429] [info] LIGHTING_APPEARANCE: model=islands/PuertoRico/PuertoRico target=morning7 reason=invalid-col; previous appearance retained; repair matching COL asset and retry"
+    ]
+  }
+]

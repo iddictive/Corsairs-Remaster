@@ -12,6 +12,7 @@ from collections import defaultdict
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import struct
 
@@ -26,6 +27,25 @@ ORIGINALS = ROOT / "experiments/native-metal/inputs/native/puerto-rico-city-orig
 OUTPUT = ROOT / "experiments/native-metal/.cache/puerto-rico-city"
 ISLAND = "RESOURCE/MODELS/Islands/PuertoRico/"
 TOWN = "RESOURCE/MODELS/Locations/Town_PuertoRico/Town/"
+LOCATION_MODELS = ROOT / "src/gameplay/PROGRAM/locations/init/PuertoRico.c"
+CITY_MODELS = {"city":"SanJuan", "citybed":"SanJuan_sb",
+               "citysigns":"SanJuan_signsA", "citymarket":"SanJuan_rinok"}
+_GEOS = ROOT / "experiments/native-metal/engine/src/libs/geometry/include/geos.h"
+DAY_ONLY = int(re.search(r"LABEL_LIGHTING_DAY_ONLY\s*=\s*(0x[0-9a-fA-F]+)",
+                         _GEOS.read_text()).group(1),0)
+
+
+def child_lighting_flags(source=None):
+    text=LOCATION_MODELS.read_text() if source is None else source
+    result={}
+    for role,model in CITY_MODELS.items():
+        memberships={m.lower() for m in re.findall(r'\.models\.(always|day|night)\.\w+\s*=\s*"'+
+                                   re.escape(model)+r'"',text,re.IGNORECASE)}
+        if memberships=={"day"}:
+            result[role]=DAY_ONLY
+        elif memberships!={"always"}:
+            raise ValueError(f"Unsupported native city model membership: {model}: {memberships}")
+    return result
 
 
 def sha(data):
@@ -84,7 +104,9 @@ def prepared():
     spec = json.loads(MANIFEST.read_text())
     if (spec["layout_sha256"] != sha(LAYOUT.read_bytes()) or
             spec["generator_sha256"] != sha(Path(__file__).read_bytes()) or
-            spec.get("blocks_sha256") != sha(Path(__file__).with_name("puerto_rico_city_blocks.py").read_bytes())):
+            spec.get("blocks_sha256") != sha(Path(__file__).with_name("puerto_rico_city_blocks.py").read_bytes()) or
+            spec.get("location_models_sha256") != sha(LOCATION_MODELS.read_bytes()) or
+            spec.get("day_only_label_flag") != DAY_ONLY):
         raise ValueError("Puerto Rico recipe changed; prepare its candidate first")
     result = {}
     for name, row in spec["files"].items():
@@ -95,7 +117,7 @@ def prepared():
     return result
 
 
-def metadata(data, children=(), texture_names=None):
+def metadata(data, children=(), texture_names=None, child_flags=None):
     """Append native child labels without relocating any existing name index."""
     g = parse_gm(data)
     h = list(g["header"])
@@ -122,7 +144,7 @@ def metadata(data, children=(), texture_names=None):
     labels_end = labels_start + h[7] * LABEL.size
     records = []
     for name, matrix in children:
-        records.append(LABEL.pack(add("geometry"), add(name), 0, *matrix,
+        records.append(LABEL.pack(add("geometry"), add(name), (child_flags or {}).get(name,0), *matrix,
                                   0, 0, 0, 0, 0., 0., 0., 0.))
     old_material_start = g["materials_offset"]
     h[2], h[3], h[7] = len(strings), len(names), h[7] + len(records)
@@ -470,6 +492,65 @@ def reflection_terrain(terrain):
     return HEADER.pack(*h)+terrain[HEADER.size:start]+terrain[start+LABEL.size:g["parsed_end"]]
 
 
+def colour_stream(data):
+    g=parse_gm(data)
+    return b"".join(data[b["payload_offset"]+i*b["stride"]+24:
+                         b["payload_offset"]+i*b["stride"]+28]
+                    for b in g["buffers"] for i in range(b["size"]//b["stride"]))
+
+
+def with_colours(data, colours):
+    g=parse_gm(data)
+    count=sum(b["size"]//b["stride"] for b in g["buffers"])
+    if len(colours)!=count*4:
+        raise ValueError("Native city lighting vertex count mismatch")
+    result=bytearray(data)
+    index=0
+    for b in g["buffers"]:
+        for i in range(b["size"]//b["stride"]):
+            offset=b["payload_offset"]+i*b["stride"]+24
+            result[offset:offset+4]=colours[index:index+4]
+            index+=4
+    return bytes(result)
+
+
+def lighting_inputs(source_root, stock):
+    """Keep native COL inputs beside the immutable source GMs they address."""
+    result={}
+    for name in (ISLAND+"PuertoRico.gm", *(TOWN+stem+".gm" for stem in CITY_MODELS.values())):
+        model=Path(name)
+        prefix=model.stem.lower()+"_"
+        folder=source_root/model.parent
+        captured_folder=ORIGINALS/model.parent
+        candidates={p.name.lower():p for p in captured_folder.iterdir()} if captured_folder.is_dir() else {}
+        if folder.is_dir():
+            for path in folder.iterdir():
+                candidates.setdefault(path.name.lower(),path)
+        child_stems=[p.stem.lower()+"_" for p in candidates.values()
+                     if p.suffix.lower()==".gm" and p.stem.lower().startswith(prefix)]
+        g=parse_gm(stock[name])
+        expected=4*sum(b["size"]//b["stride"] for b in g["buffers"])
+        for path in sorted(candidates.values()):
+            if path.suffix.lower()!=".col" or not path.stem.lower().startswith(prefix):
+                continue
+            if any(path.stem.lower().startswith(child) for child in child_stems):
+                continue
+            relative=str(model.parent/path.name)
+            captured=ORIGINALS/relative
+            if path.is_symlink() or captured.is_symlink():
+                raise ValueError(f"Linked city lighting input: {relative}")
+            data=captured.read_bytes() if captured.exists() else path.read_bytes()
+            # Validate its exact native vertex addressing before capture/use.
+            if len(data)!=expected:
+                raise ValueError(f"Native city lighting vertex count mismatch: {relative}")
+            if not captured.exists():
+                captured.parent.mkdir(parents=True,exist_ok=True)
+                atomic_write(captured,data)
+            suffix=path.stem[len(model.stem)+1:].lower()
+            result[(name,suffix)]=(relative,data)
+    return result
+
+
 def prepare(source_root, review=False):
     spec=layout()
     source_root=source_root.resolve()
@@ -488,13 +569,36 @@ def prepare(source_root, review=False):
         if source.is_symlink() or sha(data)!=expected:
             raise ValueError(f"Captured city input changed: {name}")
         stock[name]=data
+    lighting=lighting_inputs(source_root,stock)
+    identity={"version":1,"layout_sha256":sha(LAYOUT.read_bytes()),
+              "generator_sha256":sha(Path(__file__).read_bytes()),
+              "blocks_sha256":sha(Path(__file__).with_name("puerto_rico_city_blocks.py").read_bytes()),
+              "location_models_sha256":sha(LOCATION_MODELS.read_bytes()),
+              "day_only_label_flag":DAY_ONLY,
+              "lighting_inputs":{name:sha(data) for name,data in lighting.values()}}
+    # The reviewed recipe and immutable inputs own this cache. A changed source,
+    # missing output or modified byte always returns to generation/review below.
+    if not review and MANIFEST.exists() and (OUTPUT/"metrics.json").is_file():
+        record=json.loads(MANIFEST.read_text())
+        if all(record.get(key)==value for key,value in identity.items()):
+            cached={}
+            for name,row in record["files"].items():
+                path=OUTPUT/name
+                if path.is_symlink() or not path.is_file():
+                    break
+                data=path.read_bytes()
+                if sha(data)!=row["sha256"]:
+                    break
+                cached[name]=data
+            else:
+                print((OUTPUT/"metrics.json").read_text())
+                return cached
     shadow=source_root/"RESOURCE/Textures"/Path(spec["shadow_texture"].replace("\\","/")+".tx")
     if not shadow.is_file():
         raise ValueError("Native San Juan ground texture missing")
     children={}
-    for role,name in (("city","SanJuan.gm"),("citybed","SanJuan_sb.gm"),
-                      ("citysigns","SanJuan_signsA.gm"),("citymarket","SanJuan_rinok.gm")):
-        data=stock[TOWN+name]
+    for role,stem in CITY_MODELS.items():
+        data=stock[TOWN+stem+".gm"]
         g=parse_gm(data)
         replacements={i:spec["shadow_texture"] for i,t in enumerate(g["textures"]) if t.lower()=="shadow.tga"}
         children[role]=metadata(data,texture_names=replacements) if replacements else data
@@ -518,7 +622,7 @@ def prepare(source_root, review=False):
         labels=([(role,matrix(spec)) for role in children]+[("cityblend",matrix())]+
                 extension["children"])
         receiver=terrain if stem=="PuertoRico" else reflection_terrain(terrain)
-        outputs[ISLAND+stem+".gm"]=metadata(receiver,labels)
+        outputs[ISLAND+stem+".gm"]=metadata(receiver,labels,child_flags=child_lighting_flags())
         outputs[ISLAND+stem+"_cityblend.gm"]=blend
         for role,data in children.items():
             outputs[ISLAND+stem+"_"+role+".gm"]=data
@@ -526,6 +630,19 @@ def prepare(source_root, review=False):
             outputs[ISLAND+stem+"_"+role+".gm"]=data
         metrics[stem]={**counts,"terrain_source":"PuertoRico.gm",
                        "reflection_matches_primary":stem=="PuertoRico_refl"}
+    # Geometry children keep the same vertex ordering as their native town
+    # source. The clipped terrain blend uses the existing interpolation owner.
+    roles={TOWN+source+".gm":role for role,source in CITY_MODELS.items()}
+    for (name,suffix),(_,colours) in lighting.items():
+        if name in roles:
+            role=roles[name]
+        else:
+            lit=with_colours(original,colours)
+            _,lit_groups,_=terrain_candidate(lit,spec)
+            colours=colour_stream(patch_model(lit,lit_groups))
+            role="cityblend"
+        for stem in ("PuertoRico","PuertoRico_refl"):
+            outputs[ISLAND+stem+"_"+role+"_"+suffix+".col"]=colours
     files={}
     for name,data in outputs.items():
         target=OUTPUT/name
@@ -538,10 +655,7 @@ def prepare(source_root, review=False):
         if name in spec["inputs"]:
             row["original_sha256"]=spec["inputs"][name]
         files[name]=row
-    record={"version":1,"layout_sha256":sha(LAYOUT.read_bytes()),
-            "generator_sha256":sha(Path(__file__).read_bytes()),
-            "blocks_sha256":sha(Path(__file__).with_name("puerto_rico_city_blocks.py").read_bytes()),
-            "files":files}
+    record={**identity,"files":files}
     if review:
         atomic_write(MANIFEST,(json.dumps(record,indent=2)+"\n").encode())
     elif not MANIFEST.exists() or json.loads(MANIFEST.read_text())!=record:

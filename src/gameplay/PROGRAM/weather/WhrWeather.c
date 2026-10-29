@@ -21,6 +21,7 @@ bool	bCurWeatherStorm = false;
 int		iTotalNumWeathers = 0;
 string	sLightingPath = "day";
 string	sLmLightingPath = "day";
+int WhrAppearanceRetries = 0;
 string	sInsideBack = "";
 string	sNewExecuteLayer, sNewRealizeLayer;
 string	sCurrentFog;
@@ -46,6 +47,7 @@ extern int InitWeather();
 #event_handler("EWhr_GetShadowDensity", "Whr_GetShadowDensity");
 #event_handler("EWhr_GetFogDensity", "Whr_GetFogDensity");
 #event_handler("WeatherTimeUpdate", "Whr_TimeUpdate" );
+#event_handler("WhrAppearanceRetry", "Whr_RetryAppearance");
 
 void SetNextWeather(string sWeatherID)
 {
@@ -193,7 +195,7 @@ void CreateWeatherEnvironment()
     Particles.winddirection.x=sin(Whr_GetWindAngle());
     Particles.winddirection.z=cos(Whr_GetWindAngle());
     bWeatherLoaded=true;
-    if (bSeaActive && !bAbordageStarted) {
+    if (bSeaActive && !bAbordageStarted && IsEntity(&Island)) {
         Island.LightingPath=GetLightingPath();
         Island.FogDensity=Whr_GetFogDensity();
     }
@@ -317,6 +319,8 @@ void Whr_UpdateWeatherHour()
 
 	bWeatherIsLight = Whr_GetLong(&Weathers[iCurWeatherNum],"Lights");
 	bWeatherIsNight = Whr_GetLong(&Weathers[iCurWeatherNum],"Night");
+	WhrAppearanceRetries = 0;
+	Whr_RefreshAppearance();
 
 	
 	aref aCurWeather = GetCurrentWeather();
@@ -347,6 +351,65 @@ void Whr_UpdateWeatherHour()
             doShipLightChange(aCurWeather);
         }
  	}
+}
+
+// Prepare every resident consumer before publishing either path. An unreadable
+// palette retains the previous appearance across the entire resident scene.
+bool Whr_RefreshAppearance()
+{
+    aref appearanceWeather = GetCurrentWeather();
+    string path = Whr_GetString(appearanceWeather, "Lighting");
+    bool appearanceDay = Whr_IsDay();
+    bool ready = true;
+    int prepared;
+    int locationIndex = FindLoadedLocation();
+    if (IsEntity(&Island))
+    {
+        prepared = SendMessage(&Island, "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, path, appearanceDay);
+        if (!prepared) ready = false;
+    }
+    if (IsEntity(&IslandReflModel))
+    {
+        prepared = SendMessage(&IslandReflModel, "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, path, appearanceDay);
+        if (!prepared) ready = false;
+    }
+    for (int appearanceIndex = 0; appearanceIndex < MAX_ISLANDS; appearanceIndex++)
+    {
+        if (IsEntity(&SeaIslandReflections[appearanceIndex]))
+        {
+            prepared = SendMessage(&SeaIslandReflections[appearanceIndex], "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, path, appearanceDay);
+            if (!prepared) ready = false;
+        }
+    }
+    if (locationIndex >= 0)
+    {
+        prepared = SendMessage(&Locations[locationIndex], "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, path, appearanceDay);
+        if (!prepared) ready = false;
+    }
+    int action = MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING;
+    if (ready) action = MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING;
+    if (IsEntity(&Island)) SendMessage(&Island, "l", action);
+    if (IsEntity(&IslandReflModel)) SendMessage(&IslandReflModel, "l", action);
+    for (appearanceIndex = 0; appearanceIndex < MAX_ISLANDS; appearanceIndex++)
+        if (IsEntity(&SeaIslandReflections[appearanceIndex])) SendMessage(&SeaIslandReflections[appearanceIndex], "l", action);
+    if (locationIndex >= 0) SendMessage(&Locations[locationIndex], "l", action);
+    if (ready)
+    {
+        sLightingPath = path;
+        sLmLightingPath = Whr_GetString(appearanceWeather, "LightingLm");
+        WhrAppearanceRetries = 0;
+    }
+    else if (WhrAppearanceRetries < 5)
+    {
+        WhrAppearanceRetries++;
+        PostEvent("WhrAppearanceRetry", 1000);
+    }
+    return ready;
+}
+
+void Whr_RetryAppearance()
+{
+    Whr_RefreshAppearance();
 }
 
 void doShipLightChange(ref aCurWeather)

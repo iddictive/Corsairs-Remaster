@@ -167,6 +167,7 @@ class GEOS
     //-----------------------------------------
     enum LABEL_FLAGS
     {
+        LABEL_LIGHTING_DAY_ONLY = 0x40000000,
         LABLE_FORCEDWORD = 0x7FFFFFFF
     };
 
@@ -355,6 +356,12 @@ class GEOS
     // unused
     //-----------------------------------------
     virtual ~GEOS(){};
+    // Appearance preparation holds only render-buffer locks. Commit cannot
+    // allocate/fail; cancellation leaves the previous palette intact.
+    virtual bool PrepareLightPath(const char *) { return false; }
+    virtual void CommitLightPath() {}
+    virtual void CancelLightPath() {}
+    virtual const char *LightPathFailure() const { return "unsupported"; }
 };
 
 class GEOM_SERVICE

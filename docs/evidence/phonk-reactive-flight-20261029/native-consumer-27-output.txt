@@ -1,0 +1,27 @@
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+ordinary_admission_us=0.042417
+ctrl_lift y=0.0000000 v=(0.0000000,0.0000000,0.0000000) w=(0.0000000,0.0000000,0.0000000) active=0
+FAIL ctrl_lifts
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        5.82 real         5.22 user         0.24 sys
+          1405157376  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               88021  page reclaims
+                  25  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 279  voluntary context switches
+                5578  involuntary context switches
+        108918060043  instructions retired
+         23729675972  cycles elapsed
+          1337329680  peak memory footprint
+
+EXIT 75

@@ -15,6 +15,7 @@
 #include "ship_base.h"
 #include "ship_msg.h"
 #include "ship_phonk.hpp"
+#include "ship_reactive_jet.hpp"
 #include "ship_phonk_laser.hpp"
 #include "phonk_ordnance.hpp"
 #ifdef STORM_METAL_SHIP_FIRE
@@ -160,6 +161,7 @@ class SHIP : public SHIP_BASE
     SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
     storm::ship::phonk::Drift phonkDrift; // transient; never serialized into ship velocity
     storm::ship::phonk::Flight phonkFlight; // crest launch/landing; no save layout fields
+    storm::ship::phonk::ReactiveJet phonkJet;
     storm::ship::phonk::LaserState phonkLaser;
     storm::ship::phonk::LaserCutQueue phonkLaserWork;
     storm::ship::phonk::OrdnanceState phonkOrdnance;
@@ -233,6 +235,9 @@ class SHIP : public SHIP_BASE
     BOOL ApplyStrength(float dtime, BOOL bCollision);
     bool PhonkActive();
     bool PhonkMotionAllowed();
+    bool AdvancePhonkJet(uint32_t milliseconds, bool prediction);
+    bool PreparePhonkJetWorld();
+    void ApplyPhonkJetExhaust(float seconds);
     CVECTOR PhonkDriftSpeed(float seconds, bool consume);
     void RestorePhonkVelocity(SHIP_STATE &state, float ordinarySpeed);
     void PublishPhonkLights(uint32_t deltaTime);
@@ -419,7 +424,8 @@ class SHIP : public SHIP_BASE
     MODEL *GetModel() const override;
     entid_t GetModelEID() const override;
     CVECTOR GetPos() const override;
-    bool HasWaterContact() const override { return !phonkFlight.airborne && !bLandContact; }
+    bool HasWaterContact() const override { return phonkJet.active ? phonkJet.wet : !phonkFlight.airborne && !bLandContact; }
+    bool HasRigidFlight() const override { return phonkJet.active; }
     bool IsAuxiliaryDetailVisible() override;
     SHIP_WATER_IMPACT GetWaterImpact() const override
     {

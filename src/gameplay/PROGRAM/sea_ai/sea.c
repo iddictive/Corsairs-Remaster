@@ -116,18 +116,12 @@ void Sea_ReconcileCabinSleepEnvironment()
 {
 	if (!bSeaActive || !IsEntity(&Sea)) return;
 
+	string priorLighting = GetLightingPath();
+	string priorLmLighting = GetLmLightingPath();
 	WhrCreateSeaEnvironment();
-
-	string lightPath = GetLightingPath();
-	if (IsEntity(&Island)) Island.LightingPath = lightPath;
-	if (IsEntity(&IslandReflModel))
-	{
-		SendMessage(&IslandReflModel, "ls", MSG_MODEL_SET_LIGHT_PATH, lightPath);
-	}
-	for (int i = 0; i < iNumForts; i++)
-	{
-		if (IsEntity(&Forts[i])) SendMessage(&Forts[i], "ls", MSG_MODEL_SET_LIGHT_PATH, lightPath);
-	}
+	sLightingPath = priorLighting;
+	sLmLightingPath = priorLmLighting;
+	Whr_RefreshAppearance();
 
 	aref currentWeather = GetCurrentWeather();
 	doShipLightChange(currentWeather);
@@ -1892,9 +1886,16 @@ void Sea_LoadRegionOrigins()
     if (bSeaLoad) anchor = AISea.Island;
     if (SendMessage(resources, "sas", "SeaAtlasFrame", frame, anchor)) return;
     if (bSeaLegacyRegionRestore || CheckAttribute(&AISea, "worldFrame.regions.count")) return;
+    Sea_PlanLegacyResidents(frame);
+}
+
+bool Sea_PlanLegacyResidents(ref frame)
+{
+    aref resources;
+    if (!GetEntity(&resources, "WdmStaticResources")) return false;
     object origins;
-    if (!SendMessage(resources, "sa", "IslandOrigins", &origins)) return;
-    AISea.worldFrame.regions.count = 0;
+    if (!SendMessage(resources, "sa", "IslandOrigins", &origins)) return false;
+    frame.regions.count = 0;
     for (int pass = 0; pass < 2; pass++)
     {
         for (int i = 0; i < sti(origins.count); i++)
@@ -1905,14 +1906,15 @@ void Sea_LoadRegionOrigins()
             if (index < 0 || !sti(Islands[index].visible)) continue;
             if (pass == 0 && index != SeaResidentPrimaryIndex) continue;
             if (pass == 1 && index == SeaResidentPrimaryIndex) continue;
-            int next = sti(AISea.worldFrame.regions.count);
+            int next = sti(frame.regions.count);
             string key = "r" + next;
-            AISea.worldFrame.regions.(key).id = Islands[index].id;
-            AISea.worldFrame.regions.(key).mapX = origins.(sourceKey).mapX;
-            AISea.worldFrame.regions.(key).mapZ = origins.(sourceKey).mapZ;
-            AISea.worldFrame.regions.count = next + 1;
+            frame.regions.(key).id = Islands[index].id;
+            frame.regions.(key).mapX = origins.(sourceKey).mapX;
+            frame.regions.(key).mapZ = origins.(sourceKey).mapZ;
+            frame.regions.count = next + 1;
         }
     }
+    return true;
 }
 
 void Sea_CreateRegionGrass(int index, ref targetIsland, float dx, float dz)
@@ -2045,6 +2047,7 @@ void Sea_LoadRemainingResidentIslands()
         int legacyIndex = FindIsland(AISea.worldFrame.regions.(key).id);
         if (legacyIndex >= 0) Sea_LoadIslandRegion(legacyIndex);
     }
+    SendMessage(&Island, "l", MSG_ISLAND_BIND_LEGACY_EXPOSURE);
 }
 
 void Sea_LoadIsland(string islandID)
@@ -2064,6 +2067,23 @@ void Sea_LoadIsland(string islandID)
     }
     Sea_InitWorldFrame();
     Sea_LoadRegionOrigins();
+    aref legacyGeometryFrame; makearef(legacyGeometryFrame, AISea.worldFrame);
+    object legacyGeometryPlan;
+    CopyAttributes(&legacyGeometryPlan, legacyGeometryFrame);
+    if (bSeaLegacyRegionRestore && !CheckAttribute(&legacyGeometryPlan, "regions.count"))
+        Sea_PlanLegacyResidents(&legacyGeometryPlan);
+    if (CheckAttribute(&legacyGeometryPlan, "regions.count"))
+    {
+        for (int planned = 0; planned < sti(legacyGeometryPlan.regions.count); planned++)
+        {
+            string plannedKey = "r" + planned;
+            int plannedIsland = FindIsland(legacyGeometryPlan.regions.(plannedKey).id);
+            if (plannedIsland < 0 || !sti(Islands[plannedIsland].visible)) legacyGeometryPlan.version = 0;
+        }
+    }
+    aref legacyGeometryResources;
+    if (GetEntity(&legacyGeometryResources, "WdmStaticResources"))
+        SendMessage(legacyGeometryResources, "sa", "LegacySeaGeometry", &legacyGeometryPlan);
     if (Sea_HasAtlasFrame())
     {
         for (int r = 0; r < sti(AISea.worldFrame.regions.count); r++)
@@ -2166,6 +2186,7 @@ void Sea_LoadAtlasBody(int bodyIndex, int source)
     if (source == SeaResidentPrimaryIndex) reflection = &IslandReflModel;
     if (!IsEntity(targetIsland)) CreateEntity(targetIsland, "IslandRegion");
     targetIsland.LightingPath = GetLightingPath();
+    targetIsland.LightingDay = Whr_IsDay();
     targetIsland.dynamicLightsOn = 1;
     targetIsland.ImmersionDistance = Islands[source].ImmersionDistance;
     targetIsland.ImmersionDepth = Islands[source].ImmersionDepth;
@@ -2193,7 +2214,8 @@ void Sea_LoadAtlasBody(int bodyIndex, int source)
     }
     SendMessage(targetIsland, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, viewDistance);
     CreateEntity(reflection, "MODELR");
-    SendMessage(reflection, "ls", MSG_MODEL_SET_LIGHT_PATH, GetLightingPath());
+    SendMessage(reflection, "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, GetLightingPath(), Whr_IsDay());
+    SendMessage(reflection, "l", MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING);
     SendMessage(reflection, "ls", MSG_MODEL_LOAD_GEO, body.reflection);
     SendMessage(reflection, "lffffffffffff", MSG_MODEL_SET_POSITION, stf(pose.tx), 0.0, stf(pose.tz),
         stf(pose.a), 0.0, stf(pose.c), 0.0, 1.0, 0.0, stf(pose.b), 0.0, stf(pose.d));
@@ -2239,6 +2261,7 @@ void Sea_LoadIslandRegion(int iIslandIndex)
 		float  fMaxViewDist;
 		if (!IsEntity(targetIsland)) CreateEntity(targetIsland, "IslandRegion");
 		targetIsland.LightingPath = GetLightingPath();
+		targetIsland.LightingDay = Whr_IsDay();
 		targetIsland.dynamicLightsOn = DYNAMIC_LIGHTS;
 		targetIsland.dynamicLightsOn = 1 // sti(InterfaceStates.DYNAMICLIGHTS); //  belamour динамический свет
 		targetIsland.ImmersionDistance = Islands[iIslandIndex].ImmersionDistance;			// distance = fRadius * ImmersionDistance, from island begin immersion
@@ -2271,7 +2294,8 @@ void Sea_LoadIslandRegion(int iIslandIndex)
 
 		CreateEntity(regionRefl, "MODELR");
 		string sReflModel = Islands[iIslandIndex].filespath.models + "\" + Islands[iIslandIndex].refl_model;
-		SendMessage(regionRefl, "ls", MSG_MODEL_SET_LIGHT_PATH, GetLightingPath());
+		SendMessage(regionRefl, "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, GetLightingPath(), Whr_IsDay());
+		SendMessage(regionRefl, "l", MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING);
 		SendMessage(regionRefl, "ls", MSG_MODEL_LOAD_GEO, sReflModel);
 		SendMessage(regionRefl, "lffffffffffff", MSG_MODEL_SET_POSITION, dx, 0.0, dz, 1,0,0, 0,1,0, 0,0,1);
 		SendMessage(regionRefl, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, fMaxViewDist);
@@ -2430,6 +2454,7 @@ void Sea_Load()
 	if (Sea_HasAtlasFrame()) Sea_LoadAtlasForts(false);
 	DeleteAttribute(&AISea, "worldFrame.upgrade_pending");
 	if (bSeaLegacyRegionRestore) Sea_LoadRemainingResidentIslands();
+	Whr_RefreshAppearance();
 	Sea_SelectResidentIsland(AISea.Island);
 	SendMessage(&Telescope, "leee", MSG_TELESCOPE_INIT_ARRAYS, &Nations, &RealShips, &Goods);	
 		
@@ -2911,6 +2936,15 @@ void WdmFleetSeaSetDrift(string groupID)
 	}
 }
 
+void WdmFleetSeaPublishGroup(ref group)
+{
+	if (!CheckAttribute(group, "trafficFleetID") || !CheckAttribute(group, "id")) return;
+	string path = "encounters." + group.trafficFleetID;
+	if (!CheckAttribute(&worldMap, path)) return;
+	worldMap.(path).trafficActorGroup = group.id;
+	worldMap.(path).trafficInSea = 1;
+}
+
 void WdmFleetSeaBindGroup(ref group, ref fleet)
 {
 	if (!WdmFleetSeaTagged(fleet)) return;
@@ -2918,8 +2952,7 @@ void WdmFleetSeaBindGroup(ref group, ref fleet)
 	DeleteAttribute(group, "trafficScene");
 	DeleteAttribute(group, "trafficEntry");
 	DeleteAttribute(group, "trafficBerthBase");
-	string path = "encounters." + fleet.trafficFleetID;
-	if (CheckAttribute(&worldMap, path)) worldMap.(path).trafficInSea = 1;
+	WdmFleetSeaPublishGroup(group);
 	// The world descriptor owns position. Never push a nearby fleet away from
 	// the player or replace its saved position with an unrelated harbour berth.
 }
@@ -3170,6 +3203,7 @@ void WdmFleetSeaRestoreShip(ref captain)
 	aref entry, source, destination;
 	makearef(entry, worldMap.(path));
 	if ((CheckAttribute(entry, "dead") && sti(entry.dead)) || CheckAttribute(captain, "trafficTaken") || LAi_IsDead(captain)) return;
+	WdmTrafficCompleteUnmountedService(entry);
 	WdmTrafficSyncCargo(entry);
 	int realIndex = GetCharacterShipType(captain);
 	if (realIndex < 0 || realIndex >= REAL_SHIPS_QUANTITY) return;
@@ -3321,6 +3355,13 @@ void WdmFleetSeaSave()
 
 void WdmFleetSeaSaveFleet(string identity)
 {
+	WdmFleetSeaSnapshotFleet(identity, true);
+}
+
+// Live port service must neither retire admitted actors nor refund charges
+// that remain physically loaded in their native cannons.
+void WdmFleetSeaSnapshotFleet(string identity, bool releasing)
+{
 	if (!CheckAttribute(&worldMap, "encounters")) return;
 	aref descriptors, descriptor, roster, entry, source, destination;
 	makearef(descriptors, worldMap.encounters);
@@ -3332,7 +3373,7 @@ void WdmFleetSeaSaveFleet(string identity)
 		if (CheckAttribute(descriptor, "quest") || CheckAttribute(descriptor, "encdata.qID")) continue;
 		if (!CheckAttribute(descriptor, "encdata.trafficRoster.count"))
 		{
-			DeleteAttribute(descriptor, "trafficInSea");
+			if (releasing) DeleteAttribute(descriptor, "trafficInSea");
 			continue;
 		}
 		makearef(roster, descriptor.encdata.trafficRoster);
@@ -3348,7 +3389,7 @@ void WdmFleetSeaSaveFleet(string identity)
 		}
 		if (!admitted)
 		{
-			if (!CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
+			if (releasing && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
 			continue;
 		}
 		for (int i = 0; i < iNumShips; i++)
@@ -3364,7 +3405,7 @@ void WdmFleetSeaSaveFleet(string identity)
 			// Do not resurrect a captured ship even if its former captain stays alive.
 			if (CheckAttribute(captain, "trafficTaken") || (CheckAttribute(entry, "dead") && sti(entry.dead))) continue;
 			observed.(slot) = 1;
-			if (!bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
+			if (releasing && !bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
 			entry.dead = 0;
 			SeaTraffic_SaveMotion(captain, descriptor, entry);
 			int realIndex = GetCharacterShipType(captain);
@@ -3389,7 +3430,7 @@ void WdmFleetSeaSaveFleet(string identity)
 			// The native unload refunds loaded charges after this snapshot. Mirror that
 			// inventory normalization in the persistent NPC copy before the next mount.
 			int loaded = WdmTrafficLoadedCannons(captain);
-			if (loaded > 0 && CheckAttribute(captain, "Ship.Cannons.Charge.Type"))
+			if (releasing && loaded > 0 && CheckAttribute(captain, "Ship.Cannons.Charge.Type"))
 			{
 				int charge = sti(captain.Ship.Cannons.Charge.Type);
 				if (charge == GOOD_BALLS || charge == GOOD_BOMBS || charge == GOOD_GRAPES || charge == GOOD_KNIPPELS)
@@ -3437,7 +3478,7 @@ void WdmFleetSeaSaveFleet(string identity)
 			string survivorKey = "ship" + n;
 			makearef(entry, roster.(survivorKey));
 			if (CheckAttribute(entry, "seaLoaded") && sti(entry.seaLoaded) && !CheckAttribute(&observed, survivorKey)) entry.dead = 1;
-			if (!bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
+			if (releasing && !bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(entry, "seaLoaded");
 			if (!CheckAttribute(entry, "dead") || !sti(entry.dead)) survivors++;
 			else WdmTrafficLoseCargo(entry);
 		}
@@ -3452,7 +3493,7 @@ void WdmFleetSeaSaveFleet(string identity)
 		makearef(clock, descriptor.trafficSupplyClock);
 		WdmTrafficStamp(clock);
 		DeleteAttribute(clock, "remainder");
-		if (!bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
+		if (releasing && !bSeaRetainingForMap && !CheckAttribute(descriptor, "trafficReleasePending")) DeleteAttribute(descriptor, "trafficInSea");
 		if (CheckAttribute(descriptor, "trafficMission"))
 		{
 			int colony = FindColony(descriptor.trafficMission);

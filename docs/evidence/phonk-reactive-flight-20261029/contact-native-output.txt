@@ -1,0 +1,10 @@
+canonical_triangles=82897 clip_ms=2.339
+native_receiver_y=410.07275 jolt_rest_y=410.08667 bottom_error=-0.48608
+contact_axis_0 p=(0.7743,0.4972,0.1653) v=(0.2749,-0.0014,0.0489)
+contact_axis_1 p=(-0.3768,9.0489,-0.0899) v=(-1.3262,-3.0099,-0.3849)
+contact_axis_2 p=(2.0098,-17.1008,0.0005) v=(0.8969,-21.0310,0.0003)
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

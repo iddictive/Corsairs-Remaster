@@ -3,6 +3,9 @@
 #include "geometry_r.h"
 #include "gpu_skinning_bridge.hpp"
 #include "string_compare.hpp"
+#include "rdf.h"
+#include <cmath>
+#include <set>
 #include <limits>
 #include <vector>
 #ifdef STORM_METAL_DYNAMIC_LIGHTING_BRIDGE
@@ -35,6 +38,11 @@ static VGEOMETRY::ANIMATION_VB *AnimationBuffer(int32_t id)
 GEOMETRY::GEOMETRY()
 {
     strcpy_s(texturePath, "");
+}
+
+GEOMETRY::~GEOMETRY()
+{
+    GSR.SetLegacySeaModels(nullptr);
 }
 
 const char *GEOMETRY::GetTexturePath()
@@ -103,12 +111,101 @@ bool GEOMETRY::LoadState(ENTITY_STATE *state)
     return true;
 }
 
+namespace
+{
+std::string LegacyModelKey(const char *name)
+{
+    std::string key = name ? name : "";
+    for (auto &c : key)
+        if (c == '/') c = '\\';
+        else if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    return key;
+}
+bool LegacyGeometryAvailable(const std::string &model)
+{
+    const auto name = "resource\\models\\" + model + ".gm";
+    auto file = fio->_CreateFile(name.c_str(), std::ios::binary | std::ios::in);
+    RDF_HEAD head{};
+    return file.is_open() && fio->_ReadFile(file, &head, sizeof(head)) &&
+        head.version == RDF_VERSION && head.nobjects >= 0 && head.ntriangles >= 0;
+}
+}
+
+bool GEOMETRY::ConfigureLegacySeaGeometry(const ATTRIBUTES *frame)
+{
+    legacySeaGeometry = false;
+    GSR.SetLegacySeaModels(nullptr);
+    legacySeaModels.clear();
+    legacySeaExposures.clear();
+    if (!frame || frame->GetAttributeAsDword("version") != 1) return false;
+    auto input = fio->OpenIniFile("RESOURCE\\INI\\legacy_sea_geometry.ini");
+    if (!input || input->GetInt("LegacySea", "version", 0) != 1) return false;
+    auto *regions = frame->GetAttributeClass("regions");
+    const int count = input->GetInt("LegacySea", "regions", 0);
+    const int models = input->GetInt("LegacySea", "models", 0);
+    const int providers = input->GetInt("LegacySea", "providers", 0);
+    const int exposures = input->GetInt("LegacySea", "exposures", 0);
+    if (!regions || count < 1 || count > 128 || models < 1 || models > 512 ||
+        providers < 1 || providers > 512 || exposures < 1 || exposures > 1024 || regions->GetAttributeAsDword("count") != unsigned(count) ||
+        frame->GetAttributeAsFloat("scale") != input->GetFloat("LegacySea", "scale", 0)) return false;
+    std::map<std::string, std::pair<float,float>> expected;
+    char name[512];
+    for (int i = 0; i < count; ++i)
+    {
+        const auto section = "Region" + std::to_string(i);
+        if (!input->ReadString(section.c_str(), "id", name, sizeof(name), "") || !*name ||
+            !expected.emplace(name, std::make_pair(input->GetFloat(section.c_str(), "mapX"),
+                input->GetFloat(section.c_str(), "mapZ"))).second) return false;
+    }
+    std::set<std::string> seen;
+    for (int i = 0; i < count; ++i)
+    {
+        auto *region = regions->GetAttributeClass("r" + std::to_string(i));
+        const auto *id = region ? static_cast<const char *>(region->GetAttribute("id")) : nullptr;
+        if (!id || !seen.insert(id).second) return false;
+        const auto found = expected.find(id);
+        if (found == expected.end()) return false;
+        const float x = region->GetAttributeAsFloat("mapX"), z = region->GetAttributeAsFloat("mapZ");
+        if (!std::isfinite(x) || !std::isfinite(z) || x != found->second.first || z != found->second.second) return false;
+    }
+    for (int i = 0; i < providers; ++i)
+    {
+        const auto section = "Provider" + std::to_string(i);
+        if (!input->ReadString(section.c_str(), "source", name, sizeof(name), "") || !*name ||
+            !LegacyGeometryAvailable(name)) return false;
+    }
+    for (int i = 0; i < models; ++i)
+    {
+        const auto section = "Model" + std::to_string(i);
+        char target[512];
+        if (!input->ReadString(section.c_str(), "source", name, sizeof(name), "") || !*name ||
+            !input->ReadString(section.c_str(), "projection", target, sizeof(target), "") || !*target ||
+            !LegacyGeometryAvailable(name) || !LegacyGeometryAvailable(target) ||
+            !legacySeaModels.emplace(LegacyModelKey(name), target).second)
+        { legacySeaModels.clear(); return false; }
+    }
+    std::vector<std::pair<std::string,std::string>> links;
+    for (int i = 0; i < exposures; ++i)
+    {
+        const auto section = "Exposure" + std::to_string(i);
+        char consumer[512];
+        if (!input->ReadString(section.c_str(), "provider", name, sizeof(name), "") ||
+            !input->ReadString(section.c_str(), "consumer", consumer, sizeof(consumer), "") ||
+            !expected.count(name) || !expected.count(consumer)) return false;
+        links.emplace_back(name, consumer);
+    }
+    legacySeaExposures = std::move(links);
+    legacySeaGeometry = true;
+    GSR.SetLegacySeaModels(&legacySeaModels);
+    return true;
+}
+
 char lightPath[256];
 int vrtSize;
 
 GEOS *GEOMETRY::CreateGeometry(const char *file_name, const char *light_file_name, int32_t flags, const char *lmPath)
 {
-    char fnt[256], lfn[256];
+    char fnt[256];
     if (light_file_name != nullptr)
     {
         sprintf_s(lightPath, "%s\\%s", lmPath, file_name);
@@ -133,21 +230,23 @@ GEOS *GEOMETRY::CreateGeometry(const char *file_name, const char *light_file_nam
     try
     {
         sprintf_s(fnt, "resource\\models\\%s.gm", file_name);
-        if (light_file_name == nullptr || strlen(light_file_name) == 0)
+        const auto lighting = VGEOMETRY::LightFileName(file_name, light_file_name ? light_file_name : "");
+        const auto projected = legacySeaGeometry ? legacySeaModels.find(LegacyModelKey(file_name)) : legacySeaModels.end();
+        if (projected != legacySeaModels.end())
         {
-            gp = ::CreateGeometry(fnt, nullptr, GSR, flags);
+            const auto resource = "resource\\models\\" + projected->second + ".gm";
+            try { gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags); }
+            catch (...)
+            {
+                // Provider faces remain in both paths, so native fallback
+                // retains coast after earlier copies transferred ownership.
+                legacySeaGeometry = false;
+                GSR.SetLegacySeaModels(nullptr);
+                core.Trace("LEGACY_SEA_GEOMETRY: %s failed; original geometry retained, projection disabled for this scene", resource.c_str());
+                gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags);
+            }
         }
-        else
-        {
-            // sprintf_s(lfn, "resource\\lighting\\%s.col", light_file_name);
-            const auto *elf = light_file_name;
-            if (elf[0] == '\\')
-                elf++;
-            if (elf[0] == '\\')
-                elf++;
-            sprintf_s(lfn, "resource\\models\\%s_%s.col", file_name, elf);
-            gp = ::CreateGeometry(fnt, lfn, GSR, flags);
-        }
+        else gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags);
     }
     catch (const std::exception &e)
     {
@@ -214,12 +313,27 @@ std::fstream GEOM_SERVICE_R::OpenFile(const char *fname)
     {
         RenderService->ProgressView();
     }
-    auto fileS = fio->_CreateFile(fname, std::ios::binary | std::ios::in);
+    std::string projected;
+    if (legacySeaModels)
+    {
+        auto key = LegacyModelKey(fname);
+        const std::string prefix = "resource\\models\\";
+        if (key.compare(0, prefix.size(), prefix) == 0 && key.size() > prefix.size()+3 && key.compare(key.size()-3,3,".gm") == 0)
+        {
+            key = key.substr(prefix.size(),key.size()-prefix.size()-3);
+            const auto found = legacySeaModels->find(key);
+            if (found != legacySeaModels->end()) projected = prefix+found->second+".gm";
+        }
+    }
+    auto fileS = fio->_CreateFile(projected.empty() ? fname : projected.c_str(), std::ios::binary | std::ios::in);
+    if (!projected.empty() && !fileS.is_open())
+        throw std::runtime_error("LEGACY_SEA_GEOMETRY: projected resource disappeared: " + projected);
     if (!fileS.is_open())
     {
         if (storm::iEquals(&fname[strlen(fname) - 4], ".col"))
         {
-            //    core.Trace("geometry::can't open file %s", fname);
+            if (fio->_FileOrDirectoryExists(fname))
+                throw std::runtime_error("can't read geometry COL file");
         }
         else
         {

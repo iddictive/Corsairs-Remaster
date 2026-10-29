@@ -1,0 +1,44 @@
+from pathlib import Path
+import sys
+import os,subprocess,shutil,json,math,re
+root=Path(__file__).resolve().parents[3];native=root/'experiments/native-metal';work=Path(sys.argv[1]).resolve();evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
+shutil.copy2(root/'docs/evidence/particle-tracer-capacity-20261029/engine.ini.txt',work/'engine.ini');shutil.copy2(evidence/'native-fixture.c.txt',work/'fixture.c')
+(work/'RESOURCE').mkdir()
+for entry in (native/'.cache/runtime/RESOURCE').iterdir():
+ if entry.name.casefold()!='shared':(work/'RESOURCE'/entry.name).symlink_to(entry)
+shutil.copytree(native/'engine/src/libs/shared_headers/include/shared',work/'resource/shared')
+prefix=(root/'docs/evidence/particle-tracer-capacity-20261029/native-probe.cpp.txt').read_text();prefix=prefix[:prefix.index(' auto *service=')]
+component=(evidence/'native-consumer-component.cpp.txt').read_text()
+prefix=prefix.replace('int main(int argc,char **argv) {',component+'\nint main(int argc,char **argv) {')
+source=prefix+(evidence/'native-consumer-body.cpp.txt').read_text();(work/'probe.cpp').write_text(source)
+if len(sys.argv)>2:
+ inputs=json.loads(Path(sys.argv[2]).read_text())['asset_inputs'];chunks=[];focus=False
+ for item in inputs:
+  name=Path(item['path']).stem
+  if not re.fullmatch('[A-Za-z0-9_]+',name):raise ValueError('asset name')
+  dx,dz=map(float,item['offset'])
+  if not all(math.isfinite(v) for v in (dx,dz)):raise ValueError('asset pose')
+  asset='islands\\'+name+'\\'+name
+  chunks.append('{auto id=core.CreateEntity("MODELR");check(core.Send_Message(id,"ls",MSG_MODEL_LOAD_GEO,'+json.dumps(asset)+'),"resident_model");CMatrix pose;pose.Pos()=CVECTOR('+repr(dx)+'f,0.f,'+repr(dz)+'f);fixtureSurfaces.push_back({id,pose});}')
+  if name=='Nevis':chunks.append('fixtureCenter=CVECTOR('+repr(dx)+'f,0.f,'+repr(dz)+'f);');focus=True
+ if len(inputs)!=27 or not focus:raise ValueError('expected27 resident scene including Nevis')
+ source=source.replace('// SCENE_INPUTS','\n'.join(chunks));(work/'probe.cpp').write_text(source)
+driver=(root/'docs/evidence/particle-tracer-capacity-20261029/build-probe.py.txt').read_text()
+driver=driver.replace("compile+=['-I'+str(root/'engine/src/libs/particles/src')]","compile+=['-I'+str(root/'engine/src/libs/particles/src'),'-I'+str(root/'engine/src/libs/model/src'),'-I'+str(root/'engine/src/libs/ship/src'),'-DSTORM_METAL_SHIP_FIRE=1']")
+if os.environ.get('JET_HULL_DIAGNOSTIC')=='1':driver=driver.replace("'-DSTORM_METAL_SHIP_FIRE=1'","'-DSTORM_METAL_SHIP_FIRE=1','-DJET_HULL_DIAGNOSTIC=1','-I'+str(build/'_deps/roundhouse_jolt-src')")
+if os.environ.get('JET_HULL_NORMALIZATION')=='1':
+ driver=driver.replace("'-DJET_HULL_DIAGNOSTIC=1'","'-DJET_HULL_DIAGNOSTIC=1','-DJET_HULL_NORMALIZATION=1'")
+ shutil.copy2(evidence/'hull-normalization.cpp.txt',work/'hull-normalization.cpp.txt')
+if os.environ.get('JET_REAL_HULL_CONTACT')=='1':
+ driver=driver.replace("'-DSTORM_METAL_SHIP_FIRE=1'","'-DSTORM_METAL_SHIP_FIRE=1','-DJET_REAL_HULL_CONTACT=1'")
+ shutil.copy2(evidence/'real-hull-contact.cpp.txt',work/'real-hull-contact.cpp.txt')
+if os.environ.get('JET_TRUE_HULL_SOURCE')=='1':
+ driver=driver.replace("'-DSTORM_METAL_SHIP_FIRE=1'","'-DSTORM_METAL_SHIP_FIRE=1','-DJET_TRUE_HULL_SOURCE=1','-I'+str(build/'_deps/roundhouse_jolt-src')")
+ shutil.copy2(evidence/'true-hull-source.cpp.txt',work/'true-hull-source.cpp.txt')
+(work/'build.py').write_text(driver)
+r=subprocess.run(['/usr/bin/python3',str(work/'build.py'),str(root),str(work)],capture_output=True,text=True,timeout=100)
+if r.returncode:print((r.stdout+r.stderr)[-7000:]);raise SystemExit(r.returncode)
+r=subprocess.run(['/usr/bin/time','-l',str(work/'probe'),str(work)],capture_output=True,text=True,timeout=60)
+out=(r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n').replace(str(root),'<repo>').replace(str(work),'<scratch>')
+(evidence/('true-hull-source-output.txt' if os.environ.get('JET_TRUE_HULL_SOURCE')=='1' else 'real-hull-contact-output.txt' if os.environ.get('JET_REAL_HULL_CONTACT')=='1' else 'hull-normalization-output.txt' if os.environ.get('JET_HULL_NORMALIZATION')=='1' else 'hull-admission-rejected.txt' if os.environ.get('JET_HULL_DIAGNOSTIC')=='1' else 'native-consumer-27-output.txt' if len(sys.argv)>2 else 'native-consumer-output.txt')).write_text(out);print(out[-6500:]);raise SystemExit(r.returncode)
+

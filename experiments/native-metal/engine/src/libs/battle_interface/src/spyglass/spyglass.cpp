@@ -171,12 +171,17 @@ bool ISPYGLASS::Init()
 
 void ISPYGLASS::Execute(uint32_t delta_time)
 {
+    const auto *seaEntity = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *sea = seaEntity ? seaEntity->AttributesPointer : nullptr;
+    const auto *mode = sea ? sea->FindAClass(sea, "Phonk.Active") : nullptr;
+    const bool jetControls = mode && mode->GetAttributeAsDword() != 0;
+    if (jetControls && m_bIsOn) TurnOnTelescope(false);
     CONTROL_STATE cs;
     core.Controls->GetControlState("TelescopeIn", cs);
-    if (cs.state == CST_ACTIVATED)
+    if (!jetControls && cs.state == CST_ACTIVATED)
         core.Event("MSG_TELESCOPE_REQUEST", "l", 1);
     core.Controls->GetControlState("TelescopeOut", cs);
-    if (cs.state == CST_ACTIVATED)
+    if (!jetControls && cs.state == CST_ACTIVATED)
         core.Event("MSG_TELESCOPE_REQUEST", "l", 0);
 
     if (m_bIsOn)

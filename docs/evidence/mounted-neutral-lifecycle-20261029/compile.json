@@ -1,0 +1,15 @@
+{
+  "mode": "compile",
+  "seconds": 0.36427337500208523,
+  "baseline_commit": "f2dc48016e91f983e39a864b03c8254ad7b09de7",
+  "runtime_source_sha256": {
+    "PROGRAM/sea_ai/sea.c": "3e97ac102ac53f5bac4fc2e5ddacfc58cf1f7d7d7d0fc0b2ac2a8da32d833d75",
+    "PROGRAM/sea_ai/sea_traffic.c": "f23085f29513682054bee911dc195a4048cdad1da4aed595ad82441972d3de70"
+  },
+  "probe_sha256": "d75a01ffd554e71cf09078d07c4d123bc9bea556b3822d851a197c8636dbef1b",
+  "fixture_sha256": "1b2b924b2383671e09f66a3909da43650ccfc80d1671fb08f246b59135d842dc",
+  "exit": 0,
+  "stdout": "Run=0\nscript_errors=0\n",
+  "stderr": "",
+  "logs": {}
+}

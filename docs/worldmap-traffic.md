@@ -130,6 +130,13 @@ No player replay is recorded: actual map traffic crews, port turn-around time
 and encounter strength remain player-owned. The script VM full-chain probe fails
 on the pristine baseline as well, so it does not gate this change.
 
+Completed old minimum-crew service plans now revisit feasible recruitment toward
+OptCrew at the existing port review. Only a positive, provisioned top-up opens a
+new paid interval; unavailable recruits or hold space preserve the sailing
+minimum departure rule. Actual casualties are not healed at sea.
+[Native VM and codec evidence](evidence/crew-service-resume-20261029/README.md)
+separates that repair from whole-world/game-load acceptance.
+
 ## Sea entry spacing and port service — October 8
 
 Canonical `src/gameplay/PROGRAM/sea_ai/sea.c` owns ordinary imported fleet
@@ -2113,3 +2120,23 @@ fixture; process startup variance makes the small residual imprecise. These
 component measurements support removing the redundant clone, not a player FPS
 multiplier. Normal installed-content delivery and the same chart's FPS/stutter
 replay remain unresolved.
+
+Mounted ordinary traffic now advances the same arrival/service/departure policy
+from its physical commander's position. Live snapshots preserve actor admission,
+loaded charges and reload; paid port work is applied to existing actors, with
+retryable rigging/locator failures. Harbour guards, missions and active combat
+retain their existing tasks. The real-VM lifecycle/codec evidence, explicit
+native seams and bounded refresh cost are recorded in
+[mounted neutral lifecycle](evidence/mounted-neutral-lifecycle-20261029/README.md).
+
+The private application diagnostic bundle `world-simulation-20261029` retains
+the actual old SAVE, frozen PROGRAM inputs, native replay procedure, raw logs,
+midpoint saves and paired `baseline/candidate/fourteen-days-result.json` records.
+Both runs advance 336 world hours through 20,999 native steps with a normal
+SAVE/load checkpoint. Candidate observations: 34 arrivals, 52 departures,
+5 loads, 7 deliveries and 143 paid services; no cargo/receipt mismatch or
+negative-store observation, and no surviving hull below minimum crew at the
+end. Baseline/candidate CPU loops took 84.63/76.07 seconds; differing world
+dynamics prevent interpreting this as a controlled FPS improvement. Existing
+logged errors occur in both runs. Actual mounted-sea arrival/service/retasking
+remains separate from this world-map simulation and is not yet accepted.

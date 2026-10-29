@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "menu=0 z=20.000 raw=ff5a5a5a cpu=ff5a5a5a\nmenu=0 z=21.999 raw=ff5a5a5a cpu=ff5a5a5a\nmenu=0 z=22.000 raw=ff5a5a5a cpu=ff5a5a5a\nmenu=0 z=22.001 raw=ff5a5a5a cpu=ff5a5a5a\nmenu=0 z=24.000 raw=ff5a5a5a cpu=ff5a5a5a\nmenu=1 z=20.000 raw=ff54514d cpu=ff54514d\nmenu=1 z=21.999 raw=ff54514d cpu=ff54514d\nmenu=1 z=22.000 raw=ff54514d cpu=ff14110d\nmenu=1 z=22.001 raw=ff54514d cpu=ff14110d\nmenu=1 z=24.000 raw=ff54514d cpu=ff14110d\n",
+  "stderr": "[StormMetal] backend-opt-20260918: on\n[StormMetal] direct Metal device Apple M5 Max; backbuffer 64x64; SDL drawable 64x64; samples 1\n[StormMetal] water mode: original shader fidelity\n[StormMetal] legacy 3D conversion remains: location=0 indoor=0 role=0 FVF=00000152 indexed=0 bound=0 dynamic=0 generated=1 special=0\n"
+}

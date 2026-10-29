@@ -341,6 +341,27 @@ void ModelArray::UpdateLightPath()
     UpdatePath(lightpath);
 }
 
+bool ModelArray::PrepareEnvironmentLighting(std::string path,bool isDay)
+{
+    FinishEnvironmentLighting(false);UpdatePath(path);
+    pendingLightingPath=std::move(path);pendingLightingDay=isDay;
+    bool ready=true;
+    for(int i=0;i<numModels;++i)if(core.GetEntityPointer(model[i].id))
+        ready=(core.Send_Message(model[i].id,"lsl",MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING,
+                                pendingLightingPath.c_str(),int32_t(isDay))!=0)&&ready;
+    pendingLightingReady=ready;
+    if(!ready)FinishEnvironmentLighting(false);
+    return ready;
+}
+
+void ModelArray::FinishEnvironmentLighting(bool commit)
+{
+    const auto code=commit?MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING:MSG_MODEL_CANCEL_ENVIRONMENT_LIGHTING;
+    for(int i=0;i<numModels;++i)if(core.GetEntityPointer(model[i].id))core.Send_Message(model[i].id,"l",code);
+    if(commit&&pendingLightingReady){lightpath.swap(pendingLightingPath);environmentIsDay=pendingLightingDay;}
+    pendingLightingReady=false;pendingLightingPath.clear();
+}
+
 void ModelArray::UpdateShadowPath()
 {
     UpdatePath(shadowpath);

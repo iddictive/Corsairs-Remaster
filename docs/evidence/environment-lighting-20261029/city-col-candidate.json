@@ -1,0 +1,60 @@
+{
+  "pure_rebuild_ms": 734.0015410000001,
+  "all_noncolour_vertex_and_index_bytes_preserved": true,
+  "models": [
+    {
+      "role": "city",
+      "vertices": 149071,
+      "col_bytes": 596284,
+      "unique_baked_colours": 3271,
+      "mean_rgb9": [
+        47.48512453797184,
+        48.2955772752581,
+        46.68334551992004
+      ],
+      "col_sha256": "8c5eca93e77ffd493490e984f76a64351565addd0b3f91167db0713778a4d6b4"
+    },
+    {
+      "role": "citybed",
+      "vertices": 574,
+      "col_bytes": 2296,
+      "unique_baked_colours": 175,
+      "mean_rgb9": [
+        34.06794425087108,
+        33.58536585365854,
+        32.113240418118465
+      ],
+      "col_sha256": "c7e09ac8cc4f57b5322a5b7be42ce35713099793aafff0505b6c9767e2a10a0c"
+    },
+    {
+      "role": "citysigns",
+      "vertices": 481,
+      "col_bytes": 1924,
+      "unique_baked_colours": 124,
+      "mean_rgb9": [
+        50.54469854469855,
+        50.67567567567568,
+        48.75467775467776
+      ],
+      "col_sha256": "04e43991f1f7c051df895886584e38fda2a9c979d0a8426820f3f125b21e8e6f"
+    },
+    {
+      "role": "citymarket",
+      "vertices": 13788,
+      "col_bytes": 55152,
+      "unique_baked_colours": 1742,
+      "mean_rgb9": [
+        49.69966637655933,
+        50.03111401218451,
+        48.18588627792283
+      ],
+      "col_sha256": "441c1eb2a1e43323f68ec0f7fc7516cc679be4a899c8137e01ff0d98feeab407"
+    },
+    {
+      "role": "cityblend",
+      "vertices": 4113,
+      "col_bytes": 16452,
+      "col_sha256": "8ebe201eb0d622e1b865ddf782c92aa0d17c87ac53e23e9a8021fb8f6e3d1e0b"
+    }
+  ]
+}

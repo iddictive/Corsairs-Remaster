@@ -1,0 +1,146 @@
+#include "seadogs.c"
+#include "store/initGoods.c"
+void OnSave() {}
+void OnLoad() {}
+int FixtureTaskChanges;
+object FixtureRigging;
+bool FixtureMastsReady;
+bool FixtureMissingLocator;
+bool FixtureNoResources;
+bool FixtureEntity(ref actor) { return true; }
+bool FixtureResources() { return !FixtureNoResources; }
+bool FixtureLocator(ref endpoint,string name) { if(FixtureMissingLocator)return false;endpoint.x=80.0;endpoint.z=70.0;return true; }
+int FixtureMasts(ref actor) { if(FixtureMastsReady)return 1;return 0; }
+int Group_GetGroupCommanderIndexR(ref group) { return 31; }
+void WdmFleetSeaApplyTask(string groupID) { FixtureTaskChanges++; }
+int FindColony(string id) { if(id=="Port0")return 0;if(id=="Port1")return 1;return -1; }
+int FindStore(string id) { return FindColony(id); }
+bool WdmTrafficPortAdmits(int colony,int nation) { return colony>=0 && colony<2; }
+int WdmTrafficNextPort(aref encounter,int origin,int nation,int role) { return 1; }
+string WdmTrafficPortLocator(int colony) { return "Port1_point"; }
+bool WdmTrafficLoadCargo(aref encounter,int origin,int destination) { return true; }
+void WdmTrafficStockPersonalCargo(aref encounter,ref store) {}
+bool WdmMilitaryArrived(aref encounter) { return false; }
+void WdmMilitaryReturnNews(aref encounter) {}
+void FixtureSetup()
+{
+ Environment.time=12.0;Environment.date.year=1668;Environment.date.month=12;Environment.date.day=28;
+ bSeaActive=true;bSeaLoaded=true;bSeaReloadStarted=false;bAbordageStarted=false;InterfaceStates.Launched=0;
+ nMainCharacterIndex=0;pchar=&Characters[0];pchar.index=0;pchar.id="1";
+ for(int c=0;c<COMPANION_MAX;c++){string companion="id"+c;pchar.Fellows.Companions.(companion)=-1;}
+ DeleteAttribute(&worldMap,"");worldMap.zeroX=0.0;worldMap.zeroZ=0.0;
+ AISea.worldFrame.version=1;AISea.worldFrame.zeroX=0.0;AISea.worldFrame.zeroZ=0.0;AISea.worldFrame.scale=100;
+ ref hull=&RealShips[0];DeleteAttribute(hull,"");hull.name="test";hull.BaseType=0;hull.HP=1000;hull.SP=100;
+ hull.MinCrew=20;hull.OptCrew=100;hull.MaxCrew=125;hull.Capacity=1000;hull.Class=5;hull.CannonsQuantity=0;
+ hull.fcannon=0;hull.bcannon=0;hull.lcannon=0;hull.rcannon=0;hull.Cannon=CANNON_TYPE_NONECANNON;
+ CopyAttributes(&ShipsTypes[0],hull);
+ ref actor=&Characters[31];DeleteAttribute(actor,"");actor.index=31;actor.id="31";actor.chr_ai.hp=100;
+ actor.Ship.Type=0;actor.Ship.Mode="war";actor.Ship.HP=1000;actor.Ship.SP=100;actor.Ship.Crew.Quantity=20;
+ actor.Ship.Pos.x=1000.0;actor.Ship.Pos.z=2000.0;actor.Ship.Ang.y=0.3;
+ actor.Ship.Speed.x=0.0;actor.Ship.Speed.z=0.0;
+ actor.Ship.Cannons.Type=CANNON_TYPE_NONECANNON;actor.Ship.Cannons.Charge.Type=GOOD_BALLS;
+ actor.Ship.Cannons.Borts.cannonf.LoadedCannons=3;actor.Ship.Cannons.Borts.cannonf.Reload=0.42;
+ actor.Ship.Cannons.Borts.cannonf.damages.c0=1;
+ actor.Ship.Cargo.Goods.balls=7;actor.Ship.Cargo.Goods.powder=9;actor.Ship.Cargo.Goods.food=140;
+ actor.trafficFleetID="fleet";actor.trafficRosterSlot=0;actor.SeaAI.Group.Name="fixture";actor.SeaAI.Task=AITASK_MOVE;
+ ref group=&AIGroups[0];DeleteAttribute(group,"");group.id="fixture";group.MainCharacter="31";
+ group.trafficFleetID="fleet";group.trafficIntent="route";group.Task=AITASK_MOVE;
+ group.quest.id_31="31";group.quest.id_31.index=31;
+ iNumShips=1;Ships[0]=31;
+ aref fleet;makearef(fleet,worldMap.encounters.fleet);
+ fleet.type="Merchant";fleet.trafficVersion=1;fleet.trafficRole=1;fleet.trafficNation=ENGLAND;
+ fleet.trafficFleetID="fleet";fleet.trafficInSea=1;fleet.trafficActorGroup="fixture";fleet.trafficIntent="route";
+ fleet.trafficLifecycle="voyage";fleet.gotoX=10.0;fleet.gotoZ=20.0;fleet.gotoRad=2.0;
+ fleet.x=10.0;fleet.z=20.0;fleet.ay=0.3;
+ fleet.trafficDestinationPort="Port0";fleet.trafficVoyage=0;fleet.trafficCondition=1.0;
+ fleet.encdata.RealEncounterType=ENCOUNTER_TYPE_MERCHANT_SMALL;fleet.encdata.trafficRoster.count=1;
+ fleet.encdata.trafficRoster.ship0.baseType=0;fleet.encdata.trafficRoster.ship0.dead=0;
+ fleet.encdata.trafficRoster.ship0.seaLoaded=1;
+ for(int port=0;port<2;port++)
+ {
+  DeleteAttribute(&Stores[port],"");DeleteAttribute(&Colonies[port],"");
+  Colonies[port].id="Port"+port;Colonies[port].nation=ENGLAND;Colonies[port].Ship.Crew.Quantity=300;
+  Colonies[port].CrewDate.control_year=1668;Colonies[port].CrewDate.control_month=12;Colonies[port].CrewDate.control_day=28;
+  Colonies[port].trafficCrewReserve.quantity=300;Colonies[port].trafficCrewReserve.control_year=1668;
+  Colonies[port].trafficCrewReserve.control_month=12;Colonies[port].trafficCrewReserve.control_day=28;
+  for(int good=0;good<GOODS_QUANTITY;good++){string name=Goods[good].name;Stores[port].Goods.(name).Quantity=10000;Stores[port].Goods.(name).Norm=1000;Stores[port].Goods.(name).TradeType=TRADE_TYPE_NORMAL;}
+ }
+ FixtureTaskChanges=0;FixtureMissingLocator=false;FixtureNoResources=false;
+}
+int Run()
+{
+ CannonsInit();InitGoods();FixtureSetup();
+ aref fleet;makearef(fleet,worldMap.encounters.fleet);
+ ref group=&AIGroups[0];ref actor=&Characters[31];
+ // A paid rigging failure rolls attributes back and keeps the unapplied budget.
+ aref entry;makearef(entry,fleet.encdata.trafficRoster.ship0);
+ actor.Ship.SP=20.0;actor.Ship.Masts.mast1=1.0;
+ actor.Ship.Sails.yard.sail.mastFall="mast1";actor.Ship.Sails.yard.sail.dmg=80.0;
+ entry.sp=0.2;entry.Ship.SP=20.0;entry.trafficService.nativeSails=80.0;entry.trafficService.nativeMasts=1;
+ FixtureMastsReady=false;
+ if(SeaTraffic_ApplySails(fleet,actor,entry) || stf(actor.Ship.SP)!=20.0 || stf(actor.Ship.Masts.mast1)!=1.0 || stf(entry.trafficService.nativeSails)!=80.0)return 5;
+ CopyAttributes(&FixtureRigging,entry);
+ FixtureMastsReady=true;
+ if(!SeaTraffic_ApplySails(fleet,actor,entry) || stf(actor.Ship.SP)!=100.0 || CheckAttribute(entry,"trafficService.nativeSails"))return 6;
+ FixtureSetup();makearef(fleet,worldMap.encounters.fleet);
+ WdmFleetSeaSnapshotFleet("fleet",false);
+ CopyAttributes(&Characters[32],actor);Characters[32].id="32";Characters[32].index=32;Characters[32].trafficRosterSlot=1;
+ group.quest.id_32="32";group.quest.id_32.index=32;iNumShips=2;Ships[1]=32;
+ makearef(entry,fleet.encdata.trafficRoster.ship0);
+ aref second;makearef(second,fleet.encdata.trafficRoster.ship1);CopyAttributes(second,entry);fleet.encdata.trafficRoster.count=2;
+ entry.trafficCrewQuantity=30;second.trafficCrewQuantity=40;
+ actor.Ship.SP=20.0;actor.Ship.Masts.mast1=1.0;
+ actor.Ship.Sails.yard.sail.mastFall="mast1";actor.Ship.Sails.yard.sail.dmg=80.0;
+ FixtureMastsReady=false;
+ if(SeaTraffic_ApplyService(fleet,group) || sti(actor.Ship.Crew.Quantity)!=30 || sti(Characters[32].Ship.Crew.Quantity)!=40)return 17;
+ FixtureSetup();makearef(fleet,worldMap.encounters.fleet);
+ if(!SeaTraffic_CanAdvanceFleet(fleet,group) || !SeaTraffic_HasOriginalGroup(fleet))return 10;
+ // Current combat, generated guards, authored missions, surrender and explicit stops are untouched.
+ group.Task=AITASK_ATTACK;WdmTrafficVoyageUpdate(fleet);if(FixtureTaskChanges!=0 || fleet.trafficLifecycle!="voyage")return 11;
+ group.Task=AITASK_MOVE;fleet.trafficBattle="other";WdmTrafficVoyageUpdate(fleet);DeleteAttribute(fleet,"trafficBattle");if(FixtureTaskChanges!=0)return 12;
+ fleet.trafficHarbour=1;WdmTrafficVoyageUpdate(fleet);DeleteAttribute(fleet,"trafficHarbour");if(FixtureTaskChanges!=0)return 13;
+ fleet.trafficMission="Port0";WdmTrafficVoyageUpdate(fleet);DeleteAttribute(fleet,"trafficMission");if(FixtureTaskChanges!=0)return 14;
+ actor.Ship.Stopped=1;WdmTrafficVoyageUpdate(fleet);DeleteAttribute(actor,"Ship.Stopped");if(FixtureTaskChanges!=0)return 15;
+ actor.SeaSurrender=1;WdmTrafficVoyageUpdate(fleet);DeleteAttribute(actor,"SeaSurrender");if(FixtureTaskChanges!=0)return 16;
+ // Arrival comes from current physical pose, not a virtual simulated ship.
+ WdmTrafficVoyageUpdate(fleet);
+ if(fleet.trafficLifecycle!="service" || sti(group.Task)!=AITASK_DRIFT || !CheckAttribute(fleet,"trafficService"))return 20;
+ if(sti(actor.Ship.Crew.Quantity)!=20 || sti(fleet.encdata.trafficRoster.ship0.trafficService.crew)!=100)return 21;
+ if(!CheckAttribute(fleet,"trafficInSea") || !sti(fleet.encdata.trafficRoster.ship0.seaLoaded))return 22;
+ if(sti(actor.Ship.Cargo.Goods.balls)!=7 || sti(actor.Ship.Cargo.Goods.powder)!=9)return 23;
+ if(stf(actor.Ship.Pos.x)!=1000.0 || stf(actor.Ship.Pos.z)!=2000.0 || actor.id!="31" || stf(actor.Ship.Cannons.Borts.cannonf.Reload)!=0.42)return 24;
+ int paid=GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD);
+ WdmTrafficVoyageUpdate(fleet);if(GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD)!=paid || sti(actor.Ship.Crew.Quantity)!=20)return 25;
+ Trace("MOUNTED candidate arrived; pending recruits20->100; repeated observation preserves paid stock, identity, pose, loaded charges and reload");
+ return 0;
+}
+int AfterLoad()
+{
+ aref fleet;makearef(fleet,worldMap.encounters.fleet);ref actor=&Characters[31];ref group=&AIGroups[0];
+ if(stf(FixtureRigging.trafficService.nativeSails)!=80.0)return 7;
+ WdmTrafficCompleteUnmountedService(&FixtureRigging);
+ if(abs(stf(FixtureRigging.sp)-1.0)>0.00001 || CheckAttribute(&FixtureRigging,"trafficService.nativeSails"))return 8;
+ WdmTrafficCompleteUnmountedService(&FixtureRigging);if(abs(stf(FixtureRigging.sp)-1.0)>0.00001)return 9;
+ if(sti(actor.Ship.Crew.Quantity)!=20 || sti(fleet.encdata.trafficRoster.ship0.trafficService.crew)!=100)return 30;
+ Environment.date.day=29;FixtureMissingLocator=true;
+ WdmTrafficVoyageUpdate(fleet);
+ if(sti(actor.Ship.Crew.Quantity)!=100 || fleet.trafficLifecycle!="service" || !CheckAttribute(fleet,"trafficNextLocator") || fleet.trafficRouteBlocked!="locator")return 31;
+ int paid=GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD);
+ FixtureMissingLocator=false;WdmTrafficVoyageUpdate(fleet);
+ if(sti(group.Task)!=AITASK_MOVE || fleet.trafficLifecycle!="voyage" || sti(fleet.trafficVoyage)!=1 || CheckAttribute(fleet,"trafficNextLocator"))return 32;
+ if(stf(group.Task.Pos.x)!=8000.0 || stf(group.Task.Pos.z)!=7000.0 || sti(actor.Ship.Crew.Quantity)!=100 || GetStoreGoodsQuantity(&Stores[0],GOOD_FOOD)!=paid)return 33;
+ if(stf(actor.Ship.Pos.x)!=1000.0 || actor.id!="31" || stf(actor.Ship.Cannons.Borts.cannonf.Reload)!=0.42 || sti(actor.Ship.Cargo.Goods.balls)!=7)return 34;
+ int tasks=FixtureTaskChanges;WdmTrafficVoyageUpdate(fleet);if(FixtureTaskChanges!=tasks || sti(actor.Ship.Crew.Quantity)!=100)return 35;
+ // Live observation never refunds loaded ammo; final release does so once in the persisted copy.
+ WdmFleetSeaSnapshotFleet("fleet",false);if(sti(fleet.encdata.trafficRoster.ship0.Ship.Cargo.Goods.balls)!=7)return 40;
+ WdmFleetSeaSaveFleet("fleet");if(sti(fleet.encdata.trafficRoster.ship0.Ship.Cargo.Goods.balls)!=10 || CheckAttribute(fleet,"trafficInSea"))return 41;
+ WdmFleetSeaSaveFleet("fleet");if(sti(fleet.encdata.trafficRoster.ship0.Ship.Cargo.Goods.balls)!=10 || sti(actor.Ship.Cargo.Goods.balls)!=7)return 42;
+ Trace("MOUNTED candidate save-reload->24h paid completion->locator failure/retry->departure; release charge normalization once");
+ FixtureSetup();makearef(fleet,worldMap.encounters.fleet);actor.Ship.Crew.Quantity=10;actor.Ship.Cargo.Goods.food=0;
+ Colonies[0].trafficCrewReserve.quantity=0;
+ for(int good=0;good<GOODS_QUANTITY;good++){string name=Goods[good].name;Stores[0].Goods.(name).Quantity=0;}
+ WdmTrafficVoyageUpdate(fleet);Environment.date.day=29;WdmTrafficVoyageUpdate(fleet);
+ if(fleet.trafficLifecycle!="service" || sti(group.Task)!=AITASK_DRIFT || sti(actor.Ship.Crew.Quantity)!=10 || CheckAttribute(fleet,"trafficNextLocator"))return 50;
+ Trace("MOUNTED candidate depleted port stays waiting; no phantom recruits/route/free stock; paid rigging failure rollback/retry/save recovery passed");
+ return 0;
+}

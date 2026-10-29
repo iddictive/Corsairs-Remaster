@@ -223,7 +223,8 @@ bool LoadLocation(ref loc)
 		SendMessage(loc, "ls", MSG_LOCATION_TEXTURESPATH, loc.filespath.textures);
 	}
 	//Set lighting path
-	SendMessage(loc, "ls", MSG_LOCATION_LIGHTPATH, GetLightingPath());
+	SendMessage(loc, "lsl", MSG_MODEL_PREPARE_ENVIRONMENT_LIGHTING, GetLightingPath(), Whr_IsDay());
+	SendMessage(loc, "l", MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING);
 	SendMessage(loc, "ls", MSG_LOCATION_SHADOWPATH, GetLmLightingPath());
 	//Loading always models================================================================
 	aref st, at, lit, lit1;

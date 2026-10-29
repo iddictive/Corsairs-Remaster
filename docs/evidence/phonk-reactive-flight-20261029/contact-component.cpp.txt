@@ -1,0 +1,24 @@
+#include <Jolt/Jolt.h>
+#include <Jolt/RegisterTypes.h>
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include "modelr.h"
+#include "shared/messages.h"
+using namespace JPH;
+class Layers final: public BroadPhaseLayerInterface { public:uint GetNumBroadPhaseLayers()const override{return 2;} BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer l)const override{return BroadPhaseLayer(uint8(l));}};
+class BroadFilter final:public ObjectVsBroadPhaseLayerFilter{public:bool ShouldCollide(ObjectLayer a,BroadPhaseLayer b)const override{return a==1||b.GetValue()==1;}};
+class ObjFilter final:public ObjectLayerPairFilter{public:bool ShouldCollide(ObjectLayer a,ObjectLayer b)const override{return a==1||b==1;}};
+std::vector<CVECTOR> triangles;
+bool Collect(const CVECTOR *v,int32_t n){for(int i=1;i+1<n;i++){if(~((v[i]-v[0])^(v[i+1]-v[0]))>1.e-10f){triangles.push_back(v[0]);triangles.push_back(v[i]);triangles.push_back(v[i+1]);}}return true;}
+struct Physics {
+ Layers layers;BroadFilter broad;ObjFilter filter;TempAllocatorImpl allocator{1024*1024};JobSystemSingleThreaded jobs{cMaxPhysicsJobs};PhysicsSystem physics;
+ Physics(){physics.Init(8,0,32,32,layers,broad,filter);physics.SetGravity(Vec3(0,-9.81f,0));}
+ void mesh(const std::vector<CVECTOR>&v){TriangleList t;for(size_t i=0;i+2<v.size();i+=3)t.emplace_back(Float3(v[i].x,v[i].y,v[i].z),Float3(v[i+1].x,v[i+1].y,v[i+1].z),Float3(v[i+2].x,v[i+2].y,v[i+2].z));auto shape=MeshShapeSettings(t).Create();if(shape.HasError())throw std::runtime_error(shape.GetError().c_str());physics.GetBodyInterface().CreateAndAddBody(BodyCreationSettings(shape.Get(),RVec3::sZero(),Quat::sIdentity(),EMotionType::Static,0),EActivation::DontActivate);}
+ BodyID body(Vec3 p,Vec3 v,Quat q=Quat::sIdentity()){BodyCreationSettings s(new BoxShape(Vec3(.5f,.5f,.5f)),p,q,EMotionType::Dynamic,1);s.mOverrideMassProperties=EOverrideMassProperties::CalculateInertia;s.mMassPropertiesOverride.mMass=1000;s.mLinearDamping=s.mAngularDamping=0;s.mAllowSleeping=false;s.mMotionQuality=EMotionQuality::LinearCast;auto id=physics.GetBodyInterface().CreateAndAddBody(s,EActivation::Activate);physics.GetBodyInterface().SetLinearVelocity(id,v);return id;}
+ void step(){physics.Update(1.f/240,1,&allocator,&jobs);}
+};

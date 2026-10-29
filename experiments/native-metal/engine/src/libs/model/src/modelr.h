@@ -19,11 +19,21 @@ class NODER : public NODE
     std::string sys_TexPath;
     std::string sys_lmPath;
     bool isReleased;
+    bool lightingDayOnly=false, environmentIsDay=true, lightingHidden=false;
+    int lightingSavedFlags=0;
+    bool pendingLighting=false, pendingLightingDay=true;
+    std::string pendingLightPath;
     float TraceQuery(const CVECTOR &src, const CVECTOR &dst, bool material);
 
     bool UsesLightPath(std::string_view lightPath) const;
-    void StoreLightPath(std::string_view lightPath);
     bool SetLightPath(std::string_view lightPath);
+    bool UsesEnvironmentLighting(std::string_view lightPath, bool isDay) const;
+    bool PrepareEnvironmentLighting(std::string_view lightPath, bool isDay);
+    bool PrepareLightingTree(std::string_view lightPath, bool isDay);
+    void CommitEnvironmentLighting();
+    void CommitLightingTree();
+    void CancelEnvironmentLighting();
+    void ApplyLightingPhase(bool isDay);
 
     static int32_t depth, node;
     uintptr_t idGeoGroup; // id of "geometry" string
@@ -87,6 +97,8 @@ class NODER : public NODE
 class MODELR : public MODEL
 {
     std::string LightPath, lmPath;
+    bool environmentIsDay=true, pendingEnvironmentDay=true, pendingEnvironmentReady=false;
+    std::string pendingEnvironmentPath;
 
     struct ANIBUFFER
     {

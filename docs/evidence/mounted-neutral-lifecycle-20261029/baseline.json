@@ -1,0 +1,17 @@
+{
+  "base_commit": "b325c241bf2403d80c72d2624ca6e0cc5fc4235f",
+  "scope": "real whole-PROGRAM script VM and actual VoyageUpdate body; only BeginService/PortAdmits/NearestPort/FindColony are explicit counted seams; no native actors/game loop",
+  "exit": 0,
+  "seconds": 0.3923600410053041,
+  "stdout": "Run=0\nscript_errors=0\n",
+  "stderr": "",
+  "sources": {
+    "PROGRAM/worldmap/worldmap_encgen.c": "73993a75d44084400d7a1c7bd0ed618fdbf4709215794c492a3f127ece4b0e88",
+    "PROGRAM/sea_ai/sea_traffic.c": "2047a70fbfc47fe3a974e99f8e08871cac2ca0ab7a295d6491775bc45497442e",
+    "PROGRAM/sea_ai/sea.c": "960477a72d026c2858f182f87adfde4a6c38aea2698304b67793616decc9969e"
+  },
+  "fixture_sha256": "b744284e5762af4540853d723fb450ec4380f7fe097cf57155d325e66d08c183",
+  "logs": {
+    "compile.log": "[2026-10-29 16:26:13.170] [compile] [trace] MOUNTED_SERVICE baseline offscreen=1 mounted=0\n"
+  }
+}

@@ -1,0 +1,39 @@
+import os,sys,re,shutil,subprocess,json,time
+from pathlib import Path
+root=Path(sys.argv[1]).resolve();work=Path(os.environ['CODEX_SCRATCH_DIR'])
+sys.path.insert(0,str(root/'tools'));import gameplay_sources
+program=work/'program';shutil.copytree(root/'experiments/native-metal/.cache/runtime/PROGRAM',program)
+(program/'engine.ini').write_text('[script]\ndebuginfo=1\n')
+(work/'engine.ini').write_text('[script]\ndebuginfo=1\n')
+sources,_=gameplay_sources.read()
+for name,(data,_,_) in sources.items():
+ if name.startswith('PROGRAM/'):
+  p=program/name[8:];p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+main=program/'seadogs.c';body=main.read_bytes()
+for name in ['Main','OnSave','OnLoad']:
+ body,n=re.subn(('void\\s+'+name+r'\s*\(\s*\)').encode(),('void FixtureUnused'+name+'()').encode(),body);assert n==1
+main.write_bytes(body)
+binary=work/'script-vm-probe';shutil.copy2(root/'experiments/native-metal/.cache/build/bin/script-vm-probe',binary)
+shutil.copytree(root/'experiments/native-metal/engine/src/libs/shared_headers/include/shared',work/'resource/shared')
+(program/'cases.c').write_text('''
+#include "seadogs.c"
+void OnSave() {}
+void OnLoad() {}
+int Run(){
+ iCurWeatherNum=0;bWeatherIsNight=false;
+ Weathers[0].Lighting="morning9";Weathers[0].LightingLm="morning9";
+ sLightingPath="morning7";sLmLightingPath="morning7";
+ if(!Whr_RefreshAppearance())return 1;
+ if (sLightingPath != "morning9") return 2;
+ if (sLmLightingPath != "morning9") return 3;
+ if (!Whr_RefreshAppearance()) return 4;
+ if (WhrAppearanceRetries != 0) return 5;
+ return 0;
+}
+''')
+started=time.perf_counter();r=subprocess.run([str(binary),str(program),'Run'],cwd=work,capture_output=True,text=True,timeout=90)
+out={'exit':r.returncode,'seconds':round(time.perf_counter()-started,3),'stdout':r.stdout,'stderr_tail':r.stderr[-1500:]}
+logs=program/'.vm-userdata/Logs'
+out['logs']={p.name:p.read_text(errors='replace')[-2500:] for p in logs.glob('*') if p.is_file() and p.stat().st_size}
+print(json.dumps(out));(root/'docs/evidence/environment-lighting-20261029/weather-result.json').write_text(json.dumps(out,indent=2)+'\n')
+raise SystemExit(r.returncode)
