@@ -770,9 +770,9 @@ void WdmTrafficRefresh()
 
 void WdmTrafficBeginRefresh()
 {
-	WdmTrafficRefreshPlayer();
 	// Native phase completes the previous finite batch before its next admission.
 	if (wdmTrafficRefreshPending) return;
+	WdmTrafficRefreshPlayer();
 	WdmTrafficCancelRefresh();
 	if (CheckAttribute(&worldMap, "encounters"))
 	{
@@ -1136,6 +1136,7 @@ bool WdmTrafficCreate(int role)
 		return false;
 	}
 	encounter.trafficOrigin = Colonies[home].id;
+	encounter.trafficLastPort = Colonies[home].id;
 	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;
 	encounter.trafficRole = role;
 	encounter.trafficNation = nation;
@@ -2542,6 +2543,11 @@ int WdmTrafficTradeNextPort(aref encounter, int origin, int nation, ref seller)
 	object market; WdmTrafficBuildMarket(&market);
 	int weights[MAX_COLONIES];
 	int total = 0;
+	int lastPort = -1;
+	if (CheckAttribute(encounter, "trafficLastPort")) lastPort = FindColony(encounter.trafficLastPort);
+	else if (CheckAttribute(encounter, "trafficOrigin")) lastPort = FindColony(encounter.trafficOrigin);
+	if (lastPort == origin) lastPort = -1;
+	int otherTotal = 0;
 	for (int i = 0; i < MAX_COLONIES; i++)
 	{
 		weights[i] = 0;
@@ -2550,6 +2556,12 @@ int WdmTrafficTradeNextPort(aref encounter, int origin, int nation, ref seller)
 		if (buyer < 0 || buyer == SHIP_STORE) continue;
 		weights[i] = makeint(WdmTrafficRouteWeight(origin, i, 1) * WdmTrafficTradeWork(encounter, seller, buyer, &market));
 		total = total + weights[i];
+		if (i != lastPort) otherTotal = otherTotal + weights[i];
+	}
+	if (lastPort >= 0 && otherTotal > 0)
+	{
+		total = otherTotal;
+		weights[lastPort] = 0;
 	}
 	if (total <= 0) return -1;
 	int roll = rand(total - 1);
@@ -2640,6 +2652,11 @@ int WdmTrafficNextPort(aref encounter, int origin, int nation, int role)
 	}
 	int weights[MAX_COLONIES];
 	int total = 0;
+	int lastPort = -1;
+	if (CheckAttribute(encounter, "trafficLastPort")) lastPort = FindColony(encounter.trafficLastPort);
+	else if (CheckAttribute(encounter, "trafficOrigin")) lastPort = FindColony(encounter.trafficOrigin);
+	if (lastPort == origin) lastPort = -1;
+	int otherTotal = 0;
 	for (int i = 0; i < MAX_COLONIES; i++)
 	{
 		weights[i] = 0;
@@ -2647,6 +2664,12 @@ int WdmTrafficNextPort(aref encounter, int origin, int nation, int role)
 		if (role == 3 && sti(Colonies[i].nation) == PIRATE) continue;
 		weights[i] = makeint(WdmTrafficRouteWeight(origin, i, role));
 		total = total + weights[i];
+		if (i != lastPort) otherTotal = otherTotal + weights[i];
+	}
+	if (lastPort >= 0 && otherTotal > 0)
+	{
+		total = otherTotal;
+		weights[lastPort] = 0;
 	}
 	if (total <= 0) return -1;
 	int roll = rand(total - 1);
@@ -2809,6 +2832,7 @@ void WdmTrafficVoyageAdvance(aref encounter)
 	encounter.trafficLegLocator = locator;
 	encounter.trafficNextLocator = locator;
 	if (destination >= 0) encounter.trafficDestinationPort = Colonies[destination].id;
+	encounter.trafficLastPort = Colonies[colony].id;
 	encounter.trafficIntent = "route";
 }
 
@@ -2853,6 +2877,7 @@ void WdmTrafficDepartFleet(aref encounter)
 	makearef(clock, encounter.trafficSupplyClock);
 	WdmTrafficStamp(clock);
 	DeleteAttribute(encounter, "trafficService");
+	if (CheckAttribute(encounter, "trafficCurrentPort")) encounter.trafficLastPort = encounter.trafficCurrentPort;
 	DeleteAttribute(encounter, "trafficCurrentPort");
 	if (!CheckAttribute(encounter, "trafficReturning") && !CheckAttribute(encounter, "trafficMission"))
 		DeleteAttribute(encounter, "trafficServiceOnArrival");

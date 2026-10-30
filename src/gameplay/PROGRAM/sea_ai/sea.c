@@ -2733,7 +2733,7 @@ bool WdmFleetSeaTagged(aref fleet)
 
 void WdmFleetSeaCopyIdentity(aref destination, aref source)
 {
-	string fields[16];
+	string fields[17];
 	fields[0] = "trafficFleetID";
 	fields[1] = "trafficRole";
 	fields[2] = "trafficNation";
@@ -2750,7 +2750,8 @@ void WdmFleetSeaCopyIdentity(aref destination, aref source)
 	fields[13] = "trafficCurrentPort";
 	fields[14] = "trafficHarbour";
 	fields[15] = "trafficBattleRoot";
-	for (int i = 0; i < 16; i++)
+	fields[16] = "trafficLastPort";
+	for (int i = 0; i < 17; i++)
 	{
 		string key = fields[i];
 		DeleteAttribute(destination, key);

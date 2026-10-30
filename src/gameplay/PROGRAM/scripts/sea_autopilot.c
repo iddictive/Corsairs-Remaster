@@ -147,6 +147,7 @@ void SeaAutopilot_SetMode(int mode)
         SeaAutopilot_Release();
         pchar.Ship.Autopilot.mode = mode;
         DeleteAttribute(pchar, "Ship.Autopilot.port");
+        DeleteAttribute(pchar, "Ship.Autopilot.lastPort");
         DeleteAttribute(pchar, "Ship.Autopilot.review");
         DeleteAttribute(pchar, "Ship.Autopilot.huntTarget");
         DeleteAttribute(pchar, "Ship.Autopilot.salePort");
@@ -450,40 +451,101 @@ int SeaAutopilot_NextPort(int origin)
         stock.(name).sell = GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_SELL, pchar, 1);
         stock.(name).quantity = GetStoreGoodsQuantity(&Stores[seller], good);
     }
+    int lastPort = -1;
+    if (CheckAttribute(pchar, "Ship.Autopilot.lastPort")) lastPort = sti(pchar.Ship.Autopilot.lastPort);
+    if (lastPort == origin) lastPort = -1;
     int selected = -1; float bestScore = -10000000.0;
     int selectedNet = -1; float bestNetScore = 0.0;
+    int fallback = -1; float bestFallbackScore = -10000000.0;
+    int fallbackNet = -1; float bestFallbackNetScore = 0.0;
     aref saved;
     DeleteAttribute(pchar, "Ship.Autopilot.plan");
+    DeleteAttribute(pchar, "Ship.Autopilot.fallbackPlan");
     pchar.Ship.Autopilot.plan.blocked = "no-affordable-profitable-route";
     for (int port = 0; port < MAX_COLONIES; port++)
     {
         if (port == origin || !SeaAutopilot_Port(port)) continue;
         object plan;
         if (!SeaAutopilot_Plan(origin, port, &market, &stock, &profile, monthly, food, &plan)) continue;
+        bool isLast = (lastPort >= 0 && port == lastPort);
         if (stf(plan.net) > 0.0)
         {
-            if (stf(plan.score) > bestNetScore)
+            if (!isLast)
             {
-                bestNetScore = stf(plan.score);
-                selectedNet = port;
-                makearef(saved, pchar.Ship.Autopilot.plan); CopyAttributes(saved, &plan);
+                if (stf(plan.score) > bestNetScore)
+                {
+                    bestNetScore = stf(plan.score);
+                    selectedNet = port;
+                    makearef(saved, pchar.Ship.Autopilot.plan); CopyAttributes(saved, &plan);
+                }
+            }
+            else
+            {
+                if (stf(plan.score) > bestFallbackNetScore)
+                {
+                    bestFallbackNetScore = stf(plan.score);
+                    fallbackNet = port;
+                    makearef(saved, pchar.Ship.Autopilot.fallbackPlan); CopyAttributes(saved, &plan);
+                }
             }
         }
         else
         {
-            if (stf(plan.score) > bestScore)
+            if (!isLast)
             {
-                bestScore = stf(plan.score);
-                if (selectedNet < 0)
+                if (stf(plan.score) > bestScore)
                 {
-                    selected = port;
-                    makearef(saved, pchar.Ship.Autopilot.plan); CopyAttributes(saved, &plan);
+                    bestScore = stf(plan.score);
+                    if (selectedNet < 0)
+                    {
+                        selected = port;
+                        makearef(saved, pchar.Ship.Autopilot.plan); CopyAttributes(saved, &plan);
+                    }
+                }
+            }
+            else
+            {
+                if (stf(plan.score) > bestFallbackScore)
+                {
+                    bestFallbackScore = stf(plan.score);
+                    if (fallbackNet < 0)
+                    {
+                        fallback = port;
+                        makearef(saved, pchar.Ship.Autopilot.fallbackPlan); CopyAttributes(saved, &plan);
+                    }
                 }
             }
         }
     }
-    if (selectedNet >= 0) return selectedNet;
-    return selected;
+    if (selectedNet >= 0)
+    {
+        DeleteAttribute(pchar, "Ship.Autopilot.fallbackPlan");
+        return selectedNet;
+    }
+    aref fbPlan;
+    if (fallbackNet >= 0)
+    {
+        makearef(saved, pchar.Ship.Autopilot.plan);
+        makearef(fbPlan, pchar.Ship.Autopilot.fallbackPlan);
+        CopyAttributes(saved, fbPlan);
+        DeleteAttribute(pchar, "Ship.Autopilot.fallbackPlan");
+        return fallbackNet;
+    }
+    if (selected >= 0)
+    {
+        DeleteAttribute(pchar, "Ship.Autopilot.fallbackPlan");
+        return selected;
+    }
+    if (fallback >= 0)
+    {
+        makearef(saved, pchar.Ship.Autopilot.plan);
+        makearef(fbPlan, pchar.Ship.Autopilot.fallbackPlan);
+        CopyAttributes(saved, fbPlan);
+        DeleteAttribute(pchar, "Ship.Autopilot.fallbackPlan");
+        return fallback;
+    }
+    DeleteAttribute(pchar, "Ship.Autopilot.fallbackPlan");
+    return -1;
 }
 
 // Cargo commodities only. Delivery flags apply across the player's fleet;
@@ -842,12 +904,28 @@ void SeaAutopilot_Tick()
     else
     {
         int total = 0;
+        int otherTotal = 0;
+        int lastPort = -1;
+        if (CheckAttribute(pchar, "Ship.Autopilot.lastPort")) lastPort = sti(pchar.Ship.Autopilot.lastPort);
+        if (lastPort == port) lastPort = -1;
         for (int candidate = 0; candidate < MAX_COLONIES; candidate++)
         {
             if (candidate == port || !SeaAutopilot_Port(candidate)) continue;
             int weight = makeint(WdmTrafficRouteWeight(port, candidate, 3));
             total += weight;
+            if (candidate != lastPort) otherTotal += weight;
             if (weight > 0 && rand(total - 1) < weight) destination = candidate;
+        }
+        if (lastPort >= 0 && otherTotal > 0 && destination == lastPort)
+        {
+            int roll = rand(otherTotal - 1);
+            for (candidate = 0; candidate < MAX_COLONIES; candidate++)
+            {
+                if (candidate == port || candidate == lastPort || !SeaAutopilot_Port(candidate)) continue;
+                int w = makeint(WdmTrafficRouteWeight(port, candidate, 3));
+                roll -= w;
+                if (roll < 0) { destination = candidate; break; }
+            }
         }
     }
     if (destination < 0)
@@ -864,6 +942,7 @@ void SeaAutopilot_Tick()
         SeaAutopilot_Buy(port, destination);
         SeaAutopilot_PlanSale(port, destination);
     }
+    pchar.Ship.Autopilot.lastPort = port;
     if (!SeaAutopilot_Route(destination)) return;
     pchar.Ship.Autopilot.active = 1; SeaAutopilot_Course(); SeaAutopilot_Status("sailing", "");
 }

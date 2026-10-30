@@ -26,13 +26,16 @@ launch_installed() {
     exec python3 "$root/../../tools/metal_graphics_settings.py" launch "$runtime" --binary "$bundle/Contents/MacOS/metal-engine" > "$root/.cache/launch.log" 2>&1
 }
 mode=${1:-launch}
-[[ "$mode" == launch || "$mode" == --stage-only || "$mode" == --launch-installed || "$mode" == --settings-hmr ]] || {
-    echo 'Usage: run.sh [--stage-only|--launch-installed|--settings-hmr]' >&2; exit 2;
+[[ "$mode" == launch || "$mode" == --stage-only || "$mode" == --launch-installed || "$mode" == --settings-hmr || "$mode" == --dev ]] || {
+    echo 'Usage: run.sh [--stage-only|--launch-installed|--settings-hmr|--dev]' >&2; exit 2;
 }
+if [[ "$mode" == --dev ]]; then
+    exec python3 "$root/../../tools/dev_mode.py" "${@:2}"
+fi
 if [[ "$mode" == --settings-hmr ]]; then
     exec python3 "$root/settings_hmr.py" "$runtime"
 fi
-if ps -axo comm= | rg '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/null; then
+if ps -axo comm= | grep -E '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/null; then
     echo 'Close the running game before staging or launching the Metal candidate.' >&2
     exit 1
 fi
