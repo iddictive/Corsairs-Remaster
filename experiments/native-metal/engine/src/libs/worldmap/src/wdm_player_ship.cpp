@@ -21,6 +21,10 @@
 #include "world_map.h"
 #include "world_map_player_model.hpp"
 #include "metal_world_map_bridge.h"
+#include "shared/sea_ai/player_autopilot.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstring>
 
 namespace storm_map_player
 {
@@ -438,9 +442,47 @@ int32_t WdmPlayerShip::TestInStorm() const
     return -1;
 }
 
+ATTRIBUTES *WdmPlayerShip::AutopilotState() const
+{
+    auto *index = static_cast<VDATA *>(core.GetScriptVariable("nMainCharacterIndex"));
+    auto *character = index ? storm_map_player::currentCharacter(index->GetInt()) : nullptr;
+    return storm::ship::autopilot::Active(character) ? storm::ship::autopilot::State(character) : nullptr;
+}
+
 // Move the ship
 void WdmPlayerShip::Move(float dltTime)
 {
+    if (auto *autopilot = AutopilotState())
+    {
+        goForward = false;
+        const CVECTOR target(autopilot->GetAttributeAsFloat("targetX"), 0.0f,
+                             autopilot->GetAttributeAsFloat("targetZ"));
+        if (!autopilotHadControl || target.x != autopilotTarget.x || target.z != autopilotTarget.z)
+            CancelRouteRecovery();
+        autopilotHadControl = true;
+        autopilotTarget = target;
+        if (dltTime <= 0.0f || wdmObjects->isPause) return;
+        const char *status = autopilot->GetAttribute("status");
+        const CVECTOR displacement(target.x - mtx.Pos().x, 0.0f, target.z - mtx.Pos().z);
+        if (!status || std::strcmp(status, "sailing") || !std::isfinite(target.x) ||
+            !std::isfinite(target.z) || ~displacement <= 144.0f)
+        {
+            CancelRouteRecovery();
+            speed = std::max(0.0f, speed - WDM_SHIP_INER_ST * WDM_SHIP_MAX_SPEED * dltTime * 0.5f);
+            return;
+        }
+        if (recovering) return;
+        CVECTOR direction = displacement;
+        if (wdmObjects->islands) wdmObjects->islands->FindDirection(mtx.Pos(), target, direction);
+        if (~direction > 0.00001f) SteerToDirection(direction, dltTime);
+        else speed = std::max(0.0f, speed - WDM_SHIP_INER_ST * WDM_SHIP_MAX_SPEED * dltTime * 0.5f);
+        return;
+    }
+    if (autopilotHadControl)
+    {
+        CancelRouteRecovery();
+        autopilotHadControl = false;
+    }
     CONTROL_STATE cs;
     // Forward
     core.Controls->GetControlState("WMapShipSailUp", cs);
@@ -493,4 +535,13 @@ void WdmPlayerShip::Move(float dltTime)
 void WdmPlayerShip::Collide()
 {
     goForward = false;
+    if (auto *autopilot = AutopilotState())
+    {
+        const char *status = autopilot->GetAttribute("status");
+        const CVECTOR target(autopilot->GetAttributeAsFloat("targetX"), 0.0f,
+                             autopilot->GetAttributeAsFloat("targetZ"));
+        if (status && std::strcmp(status, "sailing") == 0 &&
+            std::isfinite(target.x) && std::isfinite(target.z))
+            BeginRouteRecovery(target, 12.0f);
+    }
 }

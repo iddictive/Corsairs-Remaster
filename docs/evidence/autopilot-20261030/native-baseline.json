@@ -1,0 +1,27 @@
+{
+  "scope": "Exact original WdmPlayerShip::Move body; fixture Controls and scalar ship members. No physics/render/game acceptance.",
+  "source_sha256": {
+    "worldmap/src/wdm_player_ship.cpp": "93bd1bbdc8442de66137033829402e2888749152628b4534a13dc36b0ced9344",
+    "worldmap/src/wdm_enemy_ship.cpp": "0fa7b9b5011303216b076c03600f885a1bc21081053c8699179dfc31dddd908e",
+    "worldmap/src/wdm_ship.h": "899c0cc0f54c7baee89bf534d0f4302738486f411fc54162097a5cc5ca6d91b4"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+  "compile_argv": [
+    "/usr/bin/clang++",
+    "-std=c++20",
+    "-O2",
+    "$SCRATCH/baseline.cpp",
+    "-o",
+    "$SCRATCH/baseline"
+  ],
+  "probe_source_sha256": "edb5f9f9da1fb22f9570f551de8d78ff02a53fb5b03c54948ab000b386c8d76e",
+  "exit": 0,
+  "result": {
+    "failures": 0,
+    "manual_cases": 7,
+    "control_reads": 1800063,
+    "frames": 200000,
+    "ns_per_move_fixture": 90.474,
+    "checksum": 0.0
+  }
+}

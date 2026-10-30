@@ -1,0 +1,32 @@
+{
+  "mode": "treasurer",
+  "exit": 0,
+  "seconds": 0.3735503339994466,
+  "cpu_seconds": 0.22487199999999996,
+  "stdout": "Run=0\nscript_errors=0\n",
+  "stderr": "",
+  "scope": "actual PROGRAM and VM serializer; native entity/task/locator, fixed skills/perks and non-product log/XP seams; not physics/UI acceptance",
+  "seams": [
+    "Main",
+    "OnSave",
+    "OnLoad",
+    "WdmTrafficPortLocator",
+    "GetSummonSkillFromNameToOld",
+    "CheckOfficersPerk",
+    "Log_Info",
+    "AddCharacterExpToSkill",
+    "entity presence",
+    "locator resources",
+    "task message dispatch"
+  ],
+  "policy_sha256": "f06e24e6a2eb27a734efc4851b7ea49c757133e6116fc1c73324a7f789e0b73d",
+  "fixture_sha256": "a8ea7f5137901e3cdacea385129d1b9d8778adca142e78bd5fa7bf16f2444bf9",
+  "binary_sha256": "eb3909e6b9a7579bc1dab91d10026bcecda2d98eae8e804743f6b2f24c261fb4",
+  "sources": {
+    "PROGRAM/store/storeutilite.c": "d963b2051bed283aa3238a69bcfa6285e4899c403130c320ffd4dca9c702d39d",
+    "PROGRAM/characters/characterUtilite.c": "0045850723ab421788d9dedbcfaf69182c8b2fcb8e0e26f9fdb40ba51ee571a5"
+  },
+  "logs": {
+    "compile.log": "[2026-10-30 08:22:56.927] [compile] [trace] AUTOPILOT unchanged treasurer buy/sell ledger and batched time pass\n"
+  }
+}

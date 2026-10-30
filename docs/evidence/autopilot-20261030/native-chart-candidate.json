@@ -1,0 +1,14 @@
+{
+  "scope": "Exact native player Move/Collide and shared steering source, real CVECTOR/CMatrix; fixture state lookup, Controls, island route output, and recovery request. No actual island routing/physics/render/game acceptance.",
+  "source_sha256": {
+    "worldmap/src/wdm_player_ship.cpp": "2daa4eec9caef95e0a9096658e72cb2b5fa67dc92de0d027689b7aba7f2239bf",
+    "worldmap/src/wdm_enemy_ship.cpp": "86d30083f357d7444b0e213e65ff0b0476ddf11404ed2ba99005f9b67fa217ef",
+    "worldmap/src/wdm_ship.h": "294011eedc2bdd68dd560b921b5466d1ba311b7caba96dbd6668bd7e117c8fc0",
+    "worldmap/src/wdm_ship.cpp": "2752e50c21c7a167256d195f0da9ab737863510a99d5a334e70698c404167d70"
+  },
+  "baseline_oracle_sha256": "6c63bbcefeb257ad472428d81120085cbaf3f3c181887d849b01bed73b296250",
+  "probe_source_sha256": "87ba7bc97d3d4a527144622d6ca0bc5dd7cceff8d3a3f434efa1459b4c536938",
+  "exit": 0,
+  "stdout": "npc_steering_numeric_oracle_100000=pass\nmanual_idle=pass\nmanual_latch=pass\nmanual_coast=pass\nmanual_brake=pass\nmanual_left=pass\nmanual_right=pass\nmanual_brake_floor=pass\nautopilot_route_ignores_manual=pass\npaused_no_controller_work=pass\nidle_brakes=pass\ncollision_requests_existing_recovery=pass\nrecovery_owns_motion=pass\nnew_target_clears_old_recovery=pass\ninvalid_target_brakes=pass\noff_returns_manual_immediately=pass\nfailures=0 numeric_max_error=0 frames=200000 manual_ns_per_move_fixture=102.719 checksum=0.000\n",
+  "stderr": ""
+}

@@ -156,6 +156,7 @@ void DeleteSeaEnvironment()
 	StopMusic();
 	bSeaActive = false;
 	bSeaLoaded = false;
+	if (CheckAttribute(pchar, "Ship.Autopilot")) pchar.Ship.Autopilot.active = 0;
 	bSeaTsunamiEncounter = false;
 
 	sCurrentSeaExecute = EXECUTE;
@@ -1753,6 +1754,7 @@ void Sea_FirstInit()
 	}
 	Sea_DirectSailRestore();
 	SeaTraffic_Start();
+	SeaAutopilot_Bind();
 }
 
 void Sea_Reload()

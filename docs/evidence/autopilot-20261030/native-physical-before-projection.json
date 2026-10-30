@@ -1,0 +1,23 @@
+{
+  "scope": "One actual sea_fleet_fixture mounted Manowar1 with normal core/SHIP/SAIL/sea integration and actual individual AI controllers after core frame; hidden SDL component only. No game/Main script/SAVE/input/pose injection after mount; camera/whole AISea behavior not accepted.",
+  "inputs_sha256": {
+    "fixture": "2eea6cd256668963278d5f765921ca8e65dc10cf8a8221376844cdd99d49dbc4",
+    "ship-catalog": "82dc783d804692b19067d2655e43b54b578381a8c8c273852b365905e6495cbd",
+    "ship-lights": "74c4723efb08a4c032ead9a5a9910f23dd2e493fdfbd0395ab922a4506a41554",
+    "day": "4dd4a88adb31c2e73acd8735774316bb55b91a6fb3825b9accbd470a27cf119e",
+    "units": "c9b7b9e439b82e64d0cff057b2a6f33ac7ff9e9e6d214f62b0b724462688e09b",
+    "native-declarations": "6a0a84c982685d9c0246bf15f7ee72e20c653b1762cab70fdb7def07e5fd6bec",
+    "cannon-declarations": "28fc2dfa86bfb663c8b935a30b4e76ec7b6c92938ff86160fcf7819e0423b7d0"
+  },
+  "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+  "fixture_sha256": "cf62f13102416042343374328fdf0222b8ca32deb3ee7ec553f1e204aae59673",
+  "native_probe_sha256": "e375a615d8c00e385796e59026574307512c26f27b9bd6c1216e404f12e1ec9b",
+  "run": {
+    "exit": 1,
+    "seconds": 12.42034212499857,
+    "stdout": "mounted x=35.0000076 y=3.59446836 z=100.000061 yaw=0.100000001 knots=0.00720000034 sail=1 rotate=0 water=3.87941098 weight=78800 cargo=0\nactive16s x=36.5362701 y=3.40433335 z=115.311455 yaw=0.100000001 knots=2.72928047 sail=0.5 rotate=0.306724519 water=2.84644246 weight=78800 cargo=0\noff6_4s x=37.4657555 y=3.59835029 z=124.575249 yaw=0.100000001 knots=2.89646173 sail=0.5 rotate=0 water=3.07521677 weight=78800 cargo=0\nreal_hull_and_water_finite=pass\nmain_identity_retained=pass\nreal_hull_displacement_and_course_response=FAIL\noff_retains_real_momentum_and_manual_admission=pass\nsame_mounted_model_mass_cargo=pass\nno_post_mount_pose_jump=pass\nactive_displacement_m=15.3882713 active_yaw_delta_rad=0 off_displacement_m=9.3103075 maximum16ms_step_m=0.0238953531 hidden=1 frames=1400 simulated_seconds=22.4\nfailures=1\n",
+    "stderr": "[StormMetal] backend-opt-20260918: on\n[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1\n[StormMetal] water mode: original shader fidelity\n"
+  },
+  "libraries_unchanged": true,
+  "finding": "Existing diagnostic fixture omits Ship.MaxSpeedY/Z. SHIP::GetMaxSpeedY returns zero without the script-published attribute. Mount supplies authored State.fShipSpeedY=fTurnRate/444; native turn command was present but physical yaw authority was zero. This failed attempt is not a product defect."
+}

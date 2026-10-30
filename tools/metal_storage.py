@@ -31,6 +31,33 @@ BUILD_LIMIT = 8 * GIB
 ARCHIVES_LIMIT = 8 * GIB
 
 
+_waitid = getattr(os, "waitid", None)
+if _waitid is None and sys.platform == "darwin":
+    # CPython <3.13 hides waitid on Darwin, but libSystem supports WNOWAIT.
+    # Match Darwin's public siginfo_t ABI (sys/signal.h); never reap to poll.
+    import ctypes
+
+    class _DarwinSiginfo(ctypes.Structure):
+        _fields_ = [("si_signo", ctypes.c_int), ("si_errno", ctypes.c_int),
+                    ("si_code", ctypes.c_int), ("si_pid", ctypes.c_int),
+                    ("si_uid", ctypes.c_uint), ("si_status", ctypes.c_int),
+                    ("si_addr", ctypes.c_void_p), ("si_value", ctypes.c_void_p),
+                    ("si_band", ctypes.c_long), ("__pad", ctypes.c_ulong * 7)]
+
+    _libc_waitid = ctypes.CDLL(None, use_errno=True).waitid
+    _libc_waitid.argtypes = [ctypes.c_int, ctypes.c_uint,
+                            ctypes.POINTER(_DarwinSiginfo), ctypes.c_int]
+    _libc_waitid.restype = ctypes.c_int
+
+    def _waitid(idtype, pid, options):
+        status = _DarwinSiginfo()
+        while _libc_waitid(idtype, pid, ctypes.byref(status), options) != 0:
+            error = ctypes.get_errno()
+            if error != errno.EINTR:
+                raise OSError(error, os.strerror(error))
+        return status if status.si_pid else None
+
+
 def file_digest(path: Path) -> bytes:
     value = hashlib.sha256()
     with path.open("rb") as handle:
@@ -532,7 +559,7 @@ class ProcessBudget:
         if process.returncode is not None:
             return False
         try:
-            status = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            status = _waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
             # Darwin getpgid reports ESRCH for a zombie; WNOWAIT still proves
             # that this exact, unreaped child reserves its original group ID.
             return ((status is not None or os.getpgid(process.pid) == process.pid)
@@ -562,7 +589,7 @@ class ProcessBudget:
 
     def start(self, args, **kwargs):
         self.check()
-        if not hasattr(os, "waitid") or not hasattr(os, "WNOWAIT"):
+        if _waitid is None or not hasattr(os, "WNOWAIT"):
             raise RuntimeError("safe owned-session cleanup requires waitid/WNOWAIT")
         process = subprocess.Popen(args, start_new_session=True, **kwargs)
         self.processes.append(process)
@@ -575,8 +602,10 @@ class ProcessBudget:
     def wait(self, process, timeout):
         deadline = time.monotonic() + timeout
         while True:
-            status = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-            if status is not None:
+            status = _waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            # Darwin can report a stopped child even with only WEXITED set.
+            if status is not None and status.si_code in (os.CLD_EXITED, os.CLD_KILLED,
+                                                        os.CLD_DUMPED):
                 break
             self.check()
             if time.monotonic() >= deadline:

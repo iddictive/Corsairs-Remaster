@@ -1,0 +1,314 @@
+#include "seadogs.c"
+#include "store/initGoods.c"
+#include "scripts/sea_autopilot.c"
+void OnSave() {}
+void OnLoad() {}
+int FixtureTasks;
+int FixtureReleases;
+bool FixtureMissingLocator;
+bool FixtureInitialized;
+bool FixtureHasEntity;
+bool FixtureEncounterValid;
+int FixturePosts;
+int FixtureQueuedGeneration;
+int FixtureReloads;
+int FixtureLastEncounter;
+bool FixtureEntity(ref actor) { return FixtureHasEntity; }
+void FixturePost(int generation) { FixturePosts++; FixtureQueuedGeneration = generation; }
+bool FixtureEncounter(int index) { FixtureLastEncounter = index; return FixtureEncounterValid; }
+void FixtureReload() { FixtureReloads++; }
+bool FixtureResources() { return !FixtureMissingLocator; }
+bool FixtureLocator(ref endpoint, int port)
+{
+    if (FixtureMissingLocator) return false;
+    endpoint.x = port * 100.0; endpoint.z = 0.0; return true;
+}
+void FixtureTask() { FixtureTasks++; }
+void FixtureRelease() { FixtureReleases++; }
+float GetSummonSkillFromNameToOld(ref actor, string skill) { return 5.0; }
+bool CheckOfficersPerk(ref actor, string perk) { return false; }
+void Log_Info(string message) {}
+void AddCharacterExpToSkill(ref actor, string skill, float amount) {}
+string WdmTrafficPortLocator(int port)
+{
+    if (port < 0 || port > 1) return "";
+    return Colonies[port].id;
+}
+void FixtureSetup()
+{
+    nMainCharacterIndex = 0; pchar = &Characters[0]; pchar.Ship.Type = 0; pchar.Ship.Crew.Quantity = 20;
+    pchar.Ship.Cannons.Type = CANNON_TYPE_NONECANNON;
+    if (!FixtureInitialized) { CannonsInit(); InitGoods(); FixtureInitialized = true; }
+    Environment.time = 12.0; Environment.date.year = 1668; Environment.date.month = 12; Environment.date.day = 20;
+    bSeaActive = true; bSeaLoaded = true; bSeaReloadStarted = false; bAbordageStarted = false; InterfaceStates.Launched = 0;
+    nMainCharacterIndex = 0; pchar = &Characters[0]; DeleteAttribute(pchar, ""); pchar.id = "1"; pchar.index = 0; pchar.Money = 1000000;
+    pchar.Fellows.Passengers.treasurer = 35; Characters[35].index = 35; Characters[35].id = "35"; Characters[35].chr_ai.hp = 100;
+    for (int c = 1; c < COMPANION_MAX; c++) { string companion = "id" + c; pchar.Fellows.Companions.(companion) = -1; }
+    pchar.Fellows.Companions.id1 = 31; pchar.Fellows.Companions.id2 = 32;
+    Characters[31].Ship.Type = 1; Characters[32].Ship.Type = 2;
+    DeleteAttribute(&worldMap, ""); worldMap.zeroX = 0.0; worldMap.zeroZ = 0.0;
+    AISea.worldFrame.version = 1; AISea.worldFrame.zeroX = 0.0; AISea.worldFrame.zeroZ = 0.0; AISea.worldFrame.scale = 100;
+    for (c = 0; c < 3; c++)
+    {
+        int index = GetCompanionIndex(pchar, c);
+        ref actor = &Characters[index];
+        if (c != 0) { DeleteAttribute(actor, ""); actor.id = "" + index; actor.index = index; }
+        actor.chr_ai.hp = 100; actor.Ship.Type = c; actor.Ship.HP = 1000; actor.Ship.SP = 100; actor.Ship.Crew.Quantity = 20;
+        actor.Ship.Cannons.Type = CANNON_TYPE_NONECANNON; actor.Ship.Stopped = false;
+        actor.Ship.Pos.x = 0.0; actor.Ship.Pos.z = 0.0; actor.Ship.Ang.y = 0.3;
+        actor.SeaAI.Task = AITASK_NONE; actor.SeaAI.Group.Name = PLAYER_GROUP;
+        actor.Ship.Cannons.Borts.cannonf.LoadedCannons = 3; actor.Ship.Cannons.Borts.cannonf.Reload = 0.42;
+        ref hull = &RealShips[c]; DeleteAttribute(hull, ""); hull.name = "fixture" + c; hull.BaseType = c;
+        hull.Capacity = 1000; hull.HP = 1000; hull.SP = 100; hull.MinCrew = 20; hull.OptCrew = 100; hull.MaxCrew = 125;
+        hull.CannonsQuantity = 0; hull.Class = 5; hull.Cannon = CANNON_TYPE_NONECANNON;
+        for (int good = 0; good < GOODS_QUANTITY; good++) { string name = Goods[good].name; actor.Ship.Cargo.Goods.(name) = 0; }
+        SetCharacterGoods(actor, GOOD_FOOD, 1000);
+    }
+    DeleteAttribute(&AIGroups[0], ""); AIGroups[0].id = PLAYER_GROUP; AIGroups[0].MainCharacter = "1";
+    iNumShips = 3; Ships[0] = 0; Ships[1] = 31; Ships[2] = 32;
+    for (int s = 0; s < STORE_QUANTITY; s++) Stores[s].Colony = "none";
+    for (int port = 0; port < 2; port++)
+    {
+        DeleteAttribute(&Stores[port], ""); DeleteAttribute(&Colonies[port], "");
+        string city = "Bridgetown"; if (port == 1) city = "SanJuan";
+        Colonies[port].id = city; Colonies[port].nation = ENGLAND; Stores[port].Colony = city;
+        Colonies[port].island = "island" + port;
+        for (good = 0; good < GOODS_QUANTITY; good++)
+        {
+            name = Goods[good].name;
+            Stores[port].Goods.(name).Quantity = 0; Stores[port].Goods.(name).Norm = 1000;
+            Stores[port].Goods.(name).TradeType = TRADE_TYPE_NORMAL;
+            Stores[port].Goods.(name).RndPriceModify = 0.075;
+        }
+    }
+    NationsRelations2MainCharacter[ENGLAND] = RELATION_FRIEND;
+    Stores[0].Goods.Sugar.Quantity = 1000; Stores[0].Goods.Sugar.TradeType = TRADE_TYPE_EXPORT;
+    Stores[1].Goods.Sugar.TradeType = TRADE_TYPE_IMPORT;
+    Stores[1].Goods.Coffee.Quantity = 1000; Stores[1].Goods.Coffee.TradeType = TRADE_TYPE_EXPORT;
+    Stores[0].Goods.Coffee.TradeType = TRADE_TYPE_IMPORT;
+    FixtureTasks = 0; FixtureReleases = 0; FixtureMissingLocator = false;
+    FixtureHasEntity = true; FixtureEncounterValid = true; FixturePosts = 0; FixtureReloads = 0; FixtureLastEncounter = -1; wdmLockReload = false;
+}
+int RunTreasurer()
+{
+    FixtureSetup();
+    bool batch = Treasurer_BeginService();
+    pchar.TransferGoods.Sugar = 17;
+    int oldMoney = sti(pchar.Money);
+    int price = GetStoreGoodsPrice(&Stores[0], GOOD_SUGAR, PRICE_TYPE_BUY, pchar, 1);
+    int units = sti(Goods[GOOD_SUGAR].Units);
+    float exact = price * 17.0 / units;
+    int expected = makeint(exact); if (expected < exact) expected++;
+    int spent = Treasurer_TradeShip(pchar, &Stores[0], false);
+    if (spent != expected || sti(pchar.Money) != oldMoney - expected || GetCargoGoods(pchar, GOOD_SUGAR) != 17 || GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) != 983) return 81;
+    pchar.TransferGoods.SellRestriction = true; pchar.TransferGoods.Sugar = 7;
+    int beforeSale = sti(pchar.Money);
+    int proceeds = makeint(GetStoreGoodsPrice(&Stores[1], GOOD_SUGAR, PRICE_TYPE_SELL, pchar, 1) * 10.0 / units);
+    Treasurer_TradeShip(pchar, &Stores[1], true);
+    if (sti(pchar.Money) != beforeSale + proceeds || GetCargoGoods(pchar, GOOD_SUGAR) != 7 || GetStoreGoodsQuantity(&Stores[1], GOOD_SUGAR) != 10 || Treasurer_ServiceMinutes != 2) return 82;
+    Trace("AUTOPILOT unchanged treasurer buy/sell ledger and batched time pass");
+    return 0;
+}
+void FixtureArrive()
+{
+    pchar.Ship.Pos.x = Sea_LocalX(stf(pchar.Ship.Autopilot.targetX), stf(pchar.Ship.Autopilot.targetZ));
+    pchar.Ship.Pos.z = Sea_LocalZ(stf(pchar.Ship.Autopilot.targetX), stf(pchar.Ship.Autopilot.targetZ));
+    SeaAutopilot_Tick();
+}
+int Run()
+{
+    FixtureSetup();
+    if (SeaAutopilot_Mode() != 0) return 1;
+    SeaAutopilot_Tick(); if (FixtureTasks != 0 || CheckAttribute(pchar, "Ship.Autopilot.active")) return 2;
+    // Main and companions are the original actors; initial personal cargo stays.
+    SetCharacterGoods(pchar, GOOD_SUGAR, 7);
+    int beforeMoney = sti(pchar.Money);
+    SeaAutopilot_SetMode(1);
+    if (SeaAutopilot_Mode() != 1 || !sti(pchar.Ship.Autopilot.active) || sti(pchar.Ship.Autopilot.port) != 1 || FixtureTasks != 2) return 3;
+    int freight = GetCargoGoods(pchar, GOOD_SUGAR) - 7 + GetCargoGoods(&Characters[31], GOOD_SUGAR) + GetCargoGoods(&Characters[32], GOOD_SUGAR);
+    if (freight < 1 || GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) + freight != 1000) return 4;
+    int boughtCost = beforeMoney - sti(pchar.Money);
+    if (boughtCost < 1 || CheckAttribute(pchar, "trafficFleetID") || CheckAttribute(&Characters[31], "trafficFleetID")) return 5;
+    Trace("AUTOPILOT first load quantity=" + freight + " paid=" + boughtCost);
+    int settledMoney = sti(pchar.Money); int leg = sti(pchar.Ship.Autopilot.leg);
+    SeaAutopilot_Tick();
+    if (sti(pchar.Money) != settledMoney || sti(pchar.Ship.Autopilot.leg) != leg || FixtureTasks != 2) return 6;
+    int saleRevenue = 0;
+    for (int slot = 0; slot < 3; slot++)
+    {
+        int index = GetCompanionIndex(pchar, slot);
+        int quantity = GetCargoGoods(&Characters[index], GOOD_SUGAR); if (slot == 0) quantity -= 7;
+        saleRevenue += makeint(GetStoreGoodsPrice(&Stores[1], GOOD_SUGAR, PRICE_TYPE_SELL, pchar, 1) * 1.0 * quantity / sti(Goods[GOOD_SUGAR].Units));
+    }
+    FixtureArrive();
+    if (GetCargoGoods(pchar, GOOD_SUGAR) != 7 || GetStoreGoodsQuantity(&Stores[1], GOOD_SUGAR) != freight || sti(pchar.Ship.Autopilot.port) != 0 || GetCargoGoods(pchar, GOOD_COFFEE) < 1) return 7;
+    Trace("AUTOPILOT first delivery=" + GetStoreGoodsQuantity(&Stores[1], GOOD_SUGAR) + " next coffee=" + GetCargoGoods(pchar, GOOD_COFFEE) + " cash=" + pchar.Money);
+    int coffeeCost = 0;
+    for (slot = 0; slot < 3; slot++)
+    {
+        index = GetCompanionIndex(pchar, slot);
+        float exact = GetStoreGoodsPrice(&Stores[1], GOOD_COFFEE, PRICE_TYPE_BUY, pchar, 1) * 1.0 * GetCargoGoods(&Characters[index], GOOD_COFFEE) / sti(Goods[GOOD_COFFEE].Units);
+        int cost = makeint(exact); if (cost < exact) cost++;
+        coffeeCost += cost;
+    }
+    if (sti(pchar.Money) != settledMoney + saleRevenue - coffeeCost) return 28;
+    if (pchar.id != "1" || Characters[31].id != "31" || Characters[32].id != "32" || sti(pchar.Ship.Type) != 0 || stf(pchar.Ship.Cannons.Borts.cannonf.Reload) != 0.42) return 8;
+    // Recovery yields without replacing a task or transacting while interrupted.
+    settledMoney = sti(pchar.Money); int tasks = FixtureTasks;
+    bAbordageStarted = true; SeaAutopilot_Tick(); bAbordageStarted = false;
+    if (sti(pchar.Ship.Autopilot.active) || FixtureTasks != tasks || sti(pchar.Money) != settledMoney) return 9;
+    pchar.ShipTaskLock = true; SeaAutopilot_Tick(); DeleteAttribute(pchar, "ShipTaskLock");
+    if (sti(pchar.Ship.Autopilot.active) || FixtureTasks != tasks) return 10;
+    InterfaceStates.Launched = 1; SeaAutopilot_Tick(); InterfaceStates.Launched = 0;
+    if (sti(pchar.Ship.Autopilot.active)) return 11;
+    bSeaReloadStarted = true; SeaAutopilot_Tick(); bSeaReloadStarted = false;
+    if (sti(pchar.Ship.Autopilot.active)) return 12;
+    SeaAutopilot_Bind(); if (!sti(pchar.Ship.Autopilot.active) || FixtureTasks != tasks) return 13;
+    // Removing a companion cannot sell/recreate his hold or alter his actor.
+    int removedCargo = GetCargoGoods(&Characters[32], GOOD_COFFEE);
+    pchar.Fellows.Companions.id2 = -1;
+    FixtureArrive();
+    if (GetCargoGoods(&Characters[32], GOOD_COFFEE) != removedCargo || Characters[32].id != "32") return 14;
+    // Block new jobs at the next port and hold there for repeated-arrival/codec.
+    FixtureArrive();
+    pchar.Money = 0;
+    FixtureArrive();
+    settledMoney = sti(pchar.Money);
+    int inventory = GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) + GetStoreGoodsQuantity(&Stores[1], GOOD_SUGAR);
+    SeaAutopilot_Tick(); SeaAutopilot_Tick();
+    if (sti(pchar.Money) != settledMoney || GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) + GetStoreGoodsQuantity(&Stores[1], GOOD_SUGAR) != inventory) return 15;
+    // Finite cash/capacity and no-stock negatives use the exact transaction owner.
+    FixtureSetup();
+    if (Store_TradePlayerShip(pchar, &Stores[0], GOOD_SUGAR, 100, true, 1000000) != 0 || GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) != 1000) return 16;
+    RealShips[0].Capacity = GetCargoLoad(pchar);
+    if (Store_TradePlayerShip(pchar, &Stores[0], GOOD_SUGAR, 100, true, 0) != 0) return 17;
+    RealShips[0].Capacity = 1000;
+    if (Store_TradePlayerShip(pchar, &Stores[0], GOOD_COFFEE, 100, true, 0) != 0) return 18;
+    pchar.Money = 100;
+    int bounded = Store_TradePlayerShip(pchar, &Stores[0], GOOD_SUGAR, 100, true, 40);
+    if (bounded < 1 || GetCargoGoods(pchar, GOOD_SUGAR) != bounded || sti(pchar.Money) < 40 || GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) + bounded != 1000) return 29;
+    FixtureSetup();
+    // Invalid locator preserves cash/cargo. Legal access uses real player relation.
+    FixtureMissingLocator = true; SeaAutopilot_SetMode(1);
+    if (sti(pchar.Ship.Autopilot.active) || sti(pchar.Money) != 1000000 || GetCargoGoods(pchar, GOOD_SUGAR) != 0) return 19;
+    FixtureMissingLocator = false; NationsRelations2MainCharacter[ENGLAND] = RELATION_ENEMY;
+    if (SeaAutopilot_Port(0)) return 20;
+    NationsRelations2MainCharacter[ENGLAND] = RELATION_FRIEND;
+    SeaAutopilot_Tick();
+    // Manual handoff clears exactly our order; leaves foreign tasks intact.
+    tasks = FixtureTasks; SeaAutopilot_Stop();
+    if (SeaAutopilot_Mode() != 0 || sti(pchar.Ship.Autopilot.active) || FixtureReleases != 1 || sti(pchar.SeaAI.Task) != AITASK_NONE) return 21;
+    SeaAutopilot_SetMode(1); pchar.SeaAI.Task = AITASK_DEFEND; pchar.SeaAI.Task.Target = 31;
+    SeaAutopilot_Stop();
+    if (sti(pchar.SeaAI.Task) != AITASK_DEFEND || FixtureReleases != 1) return 22;
+    // Existing relations choose a real hostile actor; combat remains in place
+    // while policy yields, then its dead target releases the existing route.
+    FixtureSetup();
+    CopyAttributes(&Characters[34], pchar); Characters[34].id = "34"; Characters[34].index = 34;
+    Characters[34].SeaAI.Group.Name = "enemy"; Characters[34].Ship.Pos.x = 3000.0;
+    SetCharacterRelationBoth(0, 34, RELATION_ENEMY); iNumShips = 4; Ships[3] = 34;
+    SeaAutopilot_SetMode(2);
+    if (sti(pchar.SeaAI.Task) != AITASK_ATTACK || sti(pchar.SeaAI.Task.Target) != 34 || !sti(pchar.Ship.Autopilot.active)) return 23;
+    tasks = FixtureTasks; SeaAutopilot_Tick();
+    if (FixtureTasks != tasks || sti(pchar.SeaAI.Task.Target) != 34 || !sti(pchar.Ship.Autopilot.active)) return 24;
+    Characters[34].chr_ai.hp = 0; SeaAutopilot_Tick();
+    if (sti(pchar.SeaAI.Task) != AITASK_MOVE || sti(pchar.Ship.Autopilot.port) != 1) return 25;
+    // Paid provisions conserve exactly the same three physical holds + store.
+    FixtureSetup();
+    SetCharacterGoods(pchar, GOOD_FOOD, 0); SetCharacterGoods(&Characters[31], GOOD_FOOD, 0); SetCharacterGoods(&Characters[32], GOOD_FOOD, 0);
+    Stores[0].Goods.Food.Quantity = 50; beforeMoney = sti(pchar.Money);
+    SeaAutopilot_Resupply(0);
+    int provisions = GetCargoGoods(pchar, GOOD_FOOD) + GetCargoGoods(&Characters[31], GOOD_FOOD) + GetCargoGoods(&Characters[32], GOOD_FOOD);
+    if (provisions < 1 || provisions + GetStoreGoodsQuantity(&Stores[0], GOOD_FOOD) != 50 || sti(pchar.Money) >= beforeMoney) return 26;
+    for (int crewCase = 0; crewCase < 7; crewCase++)
+    {
+        int crew = crewCase * 5;
+        for (int passengerCase = 0; passengerCase < 5; passengerCase++)
+        {
+            int passengers = passengerCase * 5;
+            for (int slaveCase = 0; slaveCase < 5; slaveCase++)
+            {
+                int slaves = slaveCase * 20;
+                pchar.Fellows.Passengers.Quantity = passengers; SetCharacterGoods(pchar, GOOD_SLAVES, slaves);
+                int original = makeint((crew + 5.1) / FOOD_BY_CREW + passengers / FOOD_BY_PASSENGERS);
+                original += makeint((slaves + 6) / FOOD_BY_SLAVES); if (original == 0) original = 1;
+                if (GetShipDailyFood(pchar, crew) != original || GetCargoGoods(pchar, GOOD_SLAVES) != slaves) return 30;
+            }
+        }
+    }
+    // The shared quantity provisions passengers/slaves from real stock too.
+    pchar.Fellows.Passengers.Quantity = 20; SetCharacterGoods(pchar, GOOD_SLAVES, 80); SetCharacterGoods(pchar, GOOD_FOOD, 0);
+    SetCharacterGoods(&Characters[31], GOOD_FOOD, 1000); SetCharacterGoods(&Characters[32], GOOD_FOOD, 1000);
+    Stores[0].Goods.Food.Quantity = 1000; beforeMoney = sti(pchar.Money);
+    SeaAutopilot_Resupply(0);
+    if (GetCargoGoods(pchar, GOOD_FOOD) != 112 || GetStoreGoodsQuantity(&Stores[0], GOOD_FOOD) != 888 || sti(pchar.Money) >= beforeMoney) return 31;
+    // Corrupt persisted navigation cannot transact or turn stale targets on.
+    pchar.Ship.Autopilot.mode = 1; pchar.Ship.Autopilot.port = 0; pchar.Ship.Autopilot.leg = 1;
+    SeaAutopilot_Tick();
+    if (sti(pchar.Ship.Autopilot.active) || pchar.Ship.Autopilot.blocked != "invalid-saved-route") return 27;
+    // Ordinary Sea_Delete leaves Stopped=true and old physical tasks behind.
+    // Chart projection uses chart pose without clearing those authoritative flags.
+    FixtureSetup(); SeaAutopilot_SetMode(1); tasks = FixtureTasks;
+    bSeaActive = false; bSeaLoaded = false; pchar.Ship.Stopped = true;
+    pchar.SeaAI.Task = AITASK_ABORDAGE; pchar.Ship_SetTaskAbordage = true; AIGroups[0].Task.Lock = true;
+    worldMap.playerShipX = 40.0; worldMap.playerShipZ = 0.0;
+    SeaAutopilot_Tick();
+    if (!sti(pchar.Ship.Autopilot.active) || !sti(pchar.Ship.Stopped) || sti(pchar.SeaAI.Task) != AITASK_ABORDAGE || FixtureTasks != tasks) return 32;
+    bSeaActive = true; bSeaLoaded = true; SeaAutopilot_Tick();
+    if (sti(pchar.Ship.Autopilot.active) || FixtureTasks != tasks || !sti(pchar.Ship.Stopped)) return 33;
+    // Native encounter callbacks only enqueue. The actual deferred body admits
+    // the latest specific index once, outside the native map Update stack.
+    FixtureSetup(); bSeaActive = false; bSeaLoaded = false;
+    worldMap.playerShipX = 40.0; worldMap.playerShipZ = 0.0; worldMap.isLoaded = "true"; pchar.eshipIndex = 5;
+    if (SeaAutopilot_QueueEncounter(5) || FixturePosts != 0 || FixtureReloads != 0) return 34;
+    SeaAutopilot_SetMode(1);
+    if (!SeaAutopilot_QueueEncounter(5) || FixturePosts != 1 || FixtureReloads != 0) return 35;
+    if (!SeaAutopilot_QueueEncounter(5) || FixturePosts != 1) return 36;
+    pchar.eshipIndex = 6;
+    if (!SeaAutopilot_QueueEncounter(6) || FixturePosts != 1) return 37;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration);
+    if (FixtureReloads != 1 || FixtureLastEncounter != 6 || CheckAttribute(pchar, "Ship.Autopilot.pendingEncounter")) return 38;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); if (FixtureReloads != 1) return 39;
+    // Stop then enable cannot revive an older pending callback or cancel its
+    // newer replacement. Interface/reload/map loss take precedence at execution.
+    pchar.eshipIndex = 5; SeaAutopilot_QueueEncounter(5); int staleGeneration = FixtureQueuedGeneration;
+    SeaAutopilot_Stop(); SeaAutopilot_SetMode(1); SeaAutopilot_QueueEncounter(5);
+    SeaAutopilot_EnterEncounter(staleGeneration);
+    if (FixtureReloads != 1 || !CheckAttribute(pchar, "Ship.Autopilot.pendingEncounter")) return 40;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); if (FixtureReloads != 2) return 41;
+    int posts = FixturePosts; wdmLockReload = true;
+    if (SeaAutopilot_QueueEncounter(5) || FixturePosts != posts) return 42;
+    wdmLockReload = false; SeaAutopilot_QueueEncounter(5); wdmLockReload = true;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); wdmLockReload = false;
+    if (FixtureReloads != 2 || CheckAttribute(pchar, "Ship.Autopilot.pendingEncounter")) return 43;
+    SeaAutopilot_QueueEncounter(5); pchar.eshipIndex = 7;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); if (FixtureReloads != 2) return 44;
+    pchar.eshipIndex = 5; SeaAutopilot_QueueEncounter(5); FixtureHasEntity = false;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); FixtureHasEntity = true;
+    if (FixtureReloads != 2) return 45;
+    SeaAutopilot_QueueEncounter(5); InterfaceStates.Launched = 1;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); InterfaceStates.Launched = 0;
+    if (FixtureReloads != 2) return 46;
+    SeaAutopilot_QueueEncounter(5); FixtureEncounterValid = false;
+    SeaAutopilot_EnterEncounter(FixtureQueuedGeneration); FixtureEncounterValid = true;
+    if (FixtureReloads != 2 || pchar.Ship.Autopilot.blocked != "encounter-expired") return 47;
+    SeaAutopilot_QueueEncounter(5); SeaAutopilot_Bind(); SeaAutopilot_EnterEncounter(FixtureQueuedGeneration);
+    if (FixtureReloads != 2) return 48;
+    Trace("AUTOPILOT deferred encounter: no synchronous reload, latest index once, manual/stale/locked/expired/map/interface/save-bind negatives pass");
+    // Final valid voyage is seeded for four native serializer/rebind rounds.
+    FixtureSetup(); SeaAutopilot_SetMode(1);
+    pchar.Ship.Autopilot.fixtureMoney = pchar.Money;
+    pchar.Ship.Autopilot.fixtureSugar = GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR);
+    pchar.Ship.Autopilot.fixtureTasks = FixtureTasks;
+    Trace("AUTOPILOT two-port two-leg finite stock/cargo/cash, identity/loss, guards, locator/access, manual handoff pass");
+    return 0;
+}
+int AfterLoad()
+{
+    SeaAutopilot_Bind(); SeaAutopilot_Tick();
+    if (SeaAutopilot_Mode() != 1 || !sti(pchar.Ship.Autopilot.active) || sti(pchar.Money) != sti(pchar.Ship.Autopilot.fixtureMoney) ||
+        GetStoreGoodsQuantity(&Stores[0], GOOD_SUGAR) != sti(pchar.Ship.Autopilot.fixtureSugar) || FixtureTasks != sti(pchar.Ship.Autopilot.fixtureTasks)) return 70;
+    if (pchar.id != "1" || Characters[31].id != "31" || stf(pchar.Ship.Cannons.Borts.cannonf.Reload) != 0.42) return 71;
+    Trace("AUTOPILOT native VM codec rebind: same actors, route, cash, cargo and task receipt");
+    return 0;
+}

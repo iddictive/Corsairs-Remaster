@@ -106,6 +106,7 @@ ref SeaTraffic_SceneState()
 void SeaTraffic_Residency()
 {
     if (!bSeaActive || !bSeaLoaded || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return;
+    SeaAutopilot_Tick();
     SeaTraffic_LoginRegionGroups(pchar.location);
     SeaTraffic_ReportPositions();
     float playerX = stf(pchar.Ship.Pos.x);

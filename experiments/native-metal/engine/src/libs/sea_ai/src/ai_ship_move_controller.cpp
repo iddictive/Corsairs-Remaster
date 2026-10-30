@@ -36,7 +36,7 @@ bool AIShipMoveController::Init()
 bool AIShipMoveController::ExecuteTsunami(float fDeltaTime)
 {
     auto *ai = GetAIShip();
-    if (fDeltaTime <= 0.0f || isStopped() || ai->isMainCharacter() || ai->isDead())
+    if (fDeltaTime <= 0.0f || isStopped() || !ai->isAIControlled() || ai->isDead())
         return false;
     auto *ship = ai->GetShipBasePointer();
     if (!ship || !ship->CanNavigate())
@@ -101,7 +101,7 @@ void AIShipMoveController::Execute(float fDeltaTime)
 
     fMoveTime -= fDeltaTime;
 
-    if (isStopped() || GetAIShip()->isMainCharacter())
+    if (isStopped() || !GetAIShip()->isAIControlled())
         return;
     auto *pShip = static_cast<SHIP_BASE *>(GetAIShip()->GetShipPointer());
     Assert(pShip);

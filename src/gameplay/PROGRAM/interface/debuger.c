@@ -38,6 +38,8 @@ string DebugMenu_Label(string action, string label)
 		case "B_F14": state = globalSGMode; toggle = true; break;
 		case "PHONK": state = SeaPhonk_IsActive(); toggle = true; break;
 		case "PHONK_MUSIC": state = !SeaPhonk_IsMusicMuted(); toggle = true; break;
+		case "AUTOPILOT_TRADE": state = SeaAutopilot_Mode() == 1; toggle = true; break;
+		case "AUTOPILOT_HUNT": state = SeaAutopilot_Mode() == 2; toggle = true; break;
 		case "TSUNAMI_START":
 			if (IsEntity(&worldMap)) return "Цунами: дуга";
 			return label;
@@ -65,6 +67,8 @@ bool DebugMenu_Enabled(string action)
 		case "PHONK": return seaEffects; break;
 		case "PHONK_MUSIC": return seaEffects; break;
 		case "WHIRLPOOL": return seaEffects && !GreatRecipe_Locked(); break;
+		case "AUTOPILOT_TRADE": return seaEffects || IsEntity(&worldMap); break;
+		case "AUTOPILOT_HUNT": return seaEffects || IsEntity(&worldMap); break;
 	}
 	return true;
 }
@@ -120,8 +124,10 @@ void DebugMenu_SelectGroup(int group)
 		case 4: hint = "Погода, время, встречи и отношения наций. Для точного перехода введите: локация, группа, локатор."; break;
 		case 5: hint = "Состояние квестов и тестовый переход в истории проклятого идола."; break;
 		case 6: hint = "Камера, локаторы и интерфейс. Свободная камера требует включённых debug-клавиш в engine.ini."; break;
-		case 7: hint = "Логи, атрибуты, статистика читов и обновление данных."; break;
+		case 7: hint = "Автопилот эскадры, логи, атрибуты и обновление данных."; break;
 	}
+	if (group == 7 && !bSeaActive && !IsEntity(&worldMap))
+		hint = "Автопилот включается в море или на карте. Ручное управление можно вернуть всегда.";
 	SetFormatedText("SECTION_TITLE",title);
 	SetNodeUsing("DEBUGER_INFO",true);
 	SetNodeUsing("DEBUGER_SCROLL",true);
@@ -198,7 +204,7 @@ void DebugMenu_GivePerks()
 
 void DebugEffects_Run(string node)
 {
-	if (!DebugMenu_Enabled(node) || bAbordageStarted) return;
+	if (!DebugMenu_Enabled(node) || (bAbordageStarted && node != "AUTOPILOT_OFF")) return;
 	bool resume = false;
 	switch (node)
 	{
@@ -207,6 +213,9 @@ void DebugEffects_Run(string node)
 		case "PHONK": resume = SeaPhonk_Toggle(); break;
 		case "PHONK_MUSIC": SeaPhonk_ToggleMusic(); DebugMenu_Refresh(); break;
 		case "WHIRLPOOL": resume = DebugEffects_Whirlpool(); break;
+		case "AUTOPILOT_TRADE": SeaAutopilot_SetMode(1); resume = true; break;
+		case "AUTOPILOT_HUNT": SeaAutopilot_SetMode(2); resume = true; break;
+		case "AUTOPILOT_OFF": SeaAutopilot_Stop(); resume = true; break;
 	}
 	if (resume) IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
@@ -336,6 +345,9 @@ void CalculateInfoData()
 	DebugMenu_Add(7,"B_F26","Данные героя и корабля");
 	DebugMenu_Add(7,"B_F42","Обновить локации");
 	DebugMenu_Add(7,"DEBUG_STATS","Статистика читов");
+	DebugMenu_Add(7,"AUTOPILOT_TRADE","Автопилот: торговля");
+	DebugMenu_Add(7,"AUTOPILOT_HUNT","Автопилот: охота");
+	DebugMenu_Add(7,"AUTOPILOT_OFF","Ручное управление");
 }
 
 void ProcCommand()
@@ -371,7 +383,8 @@ void ProcCommand()
 		SetCurrentNode("DEBUGER_INFO_2");
 		return;
 	}
-	if (nodName == "TSUNAMI_START" || nodName == "TSUNAMI_RING" || nodName == "PHONK" || nodName == "PHONK_MUSIC" || nodName == "WHIRLPOOL")
+	if (nodName == "TSUNAMI_START" || nodName == "TSUNAMI_RING" || nodName == "PHONK" || nodName == "PHONK_MUSIC" || nodName == "WHIRLPOOL" ||
+		nodName == "AUTOPILOT_TRADE" || nodName == "AUTOPILOT_HUNT" || nodName == "AUTOPILOT_OFF")
 	{
 		DebugEffects_Run(nodName);
 		return;

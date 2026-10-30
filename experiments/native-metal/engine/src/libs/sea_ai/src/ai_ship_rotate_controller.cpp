@@ -23,7 +23,7 @@ bool AIShipRotateController::Init()
 
 void AIShipRotateController::Execute(float fDeltaTime)
 {
-    if (GetAIShip()->isMainCharacter())
+    if (!GetAIShip()->isAIControlled())
         return;
     fRotateTime += fDeltaTime;
     dwRotateNum++;

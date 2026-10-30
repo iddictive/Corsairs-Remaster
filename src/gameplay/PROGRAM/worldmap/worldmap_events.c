@@ -13,6 +13,7 @@ void wdmEvent_EncounterCreate()
 	worldMap.playerShipX = playerShipX;
 	worldMap.playerShipZ = playerShipZ;
 	worldMap.playerShipAY = playerShipAY;
+	SeaAutopilot_Tick();
 	if (wdmCheckHostileFortApproach()) return;
 	// Fort approach is physical admission, independent of random encounters.
 	if(CheckAttribute(worldMap, "noenc") != 0)
@@ -113,6 +114,7 @@ void wdmEvent_ShipEncounter()
 	if (CheckAttribute(pchar, "SkipEshipIndex") && pchar.SkipEshipIndex == eshipIndex) return; // boal
 	if (GreatRecipe_MapGuideSelected(eshipIndex)) return;
 	pchar.eshipIndex = eshipIndex;
+	if (SeaAutopilot_QueueEncounter(eshipIndex)) return;
 	LaunchMapScreen();
 
 }

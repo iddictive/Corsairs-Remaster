@@ -733,9 +733,7 @@ void DailyEatCrewUpdateForShip(ref rChar, bool IsCompanionTraveler) // IsCompani
 		}
 	}
 	// расчёт еды после Рома
-	iCrewQty = makeint((iCrewQty+5.1) / FOOD_BY_CREW + GetPassengersQuantity(rChar) / FOOD_BY_PASSENGERS); // eat ratio
-	iCrewQty = iCrewQty + makeint((GetCargoGoods(rChar, GOOD_SLAVES)+6)/ FOOD_BY_SLAVES);  // учет рабов
-	if(iCrewQty == 0) iCrewQty = 1;
+	iCrewQty = GetShipDailyFood(rChar, iCrewQty);
 	if(SquadReserve_Goods(rChar, GOOD_FOOD, IsCompanionTraveler) >= iCrewQty)
 	{
 		SquadReserve_Remove(rChar, GOOD_FOOD, iCrewQty, IsCompanionTraveler);

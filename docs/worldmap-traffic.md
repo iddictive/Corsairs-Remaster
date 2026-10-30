@@ -2140,3 +2140,10 @@ end. Baseline/candidate CPU loops took 84.63/76.07 seconds; differing world
 dynamics prevent interpreting this as a controlled FPS improvement. Existing
 logged errors occur in both runs. Actual mounted-sea arrival/service/retasking
 remains separate from this world-map simulation and is not yet accepted.
+
+## Player fleet autopilot
+
+The [player autopilot](sea-autopilot.md) adds trading, hunting and manual-return
+commands to Debug menu → Diagnostics. It controls the original flagship and
+reads its live companion roster, with real player cash and per-hull cargo.
+NPC traffic ownership, admission and release guards remain unchanged.

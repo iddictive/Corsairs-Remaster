@@ -330,51 +330,7 @@ void WdmEnemyShip::Move(float dltTime)
     // The resulting
     dx = 1.0f * mx + 2.0f * ix + 1.2f * sx;
     dz = 1.0f * mz + 2.0f * iz + 1.2f * sz;
-    const auto dl = dx * dx + dz * dz;
-    // Our direction
-    const auto vx = mtx.Vz().x;
-    const auto vz = mtx.Vz().z;
-    const auto vl = vx * vx + vz * vz;
-    // The sine of the angle between this pair of vectors
-    auto sn = vz * dx - vx * dz;
-    if (dl * vl > 0.0f)
-        sn /= sqrtf(dl * vl);
-    // If the player is behind, then make a full turn
-    const auto cs = vx * dx + vz * dz;
-    if (cs < 0.0f)
-    {
-        if (fabsf(sn) < 0.05f)
-            sn = (turnspd >= 0.0f ? 1.0f : -1.0f);
-        else if (sn < 0.0f)
-            sn = -1.0f;
-        else
-            sn = 1.0f;
-    }
-    // Turning reaction
-    turnspd += 2.0f * WDM_SHIP_TSPEED * sn * dltTime;
-    // Speed control
-    if (cs >= 0.0f)
-    {
-        speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
-    }
-    else
-    {
-        const float minManeuverSpeed = 0.35f * WDM_SHIP_SPEED * kMaxSpeed;
-        if (speed > minManeuverSpeed)
-        {
-            speed -= kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
-            if (speed < minManeuverSpeed)
-                speed = minManeuverSpeed;
-        }
-        else if (speed < minManeuverSpeed)
-        {
-            speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * dltTime;
-            if (speed > minManeuverSpeed)
-                speed = minManeuverSpeed;
-        }
-    }
-    speed *= slowingAlfa;
-    turnspd *= slowingAlfa;
+    SteerToDirection(CVECTOR(dx, 0.0f, dz), dltTime, slowingAlfa);
 }
 
 // Completion check

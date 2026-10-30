@@ -1,0 +1,110 @@
+{
+  "summary": {
+    "warmup_frames": 128,
+    "measured_frames": 112,
+    "percentiles": "nearest rank; median uses middle pair",
+    "cpu_core_wall_ms": {
+      "median": 8.03717,
+      "p95": 9.12367,
+      "p99": 9.17488,
+      "max": 9.188
+    },
+    "cpu_core_wall_mean_ms": 8.304001160714286,
+    "cpu_preparation_estimate_ms": {
+      "median": 2.2579134895,
+      "p95": 2.4928779920000004,
+      "p99": 2.6737549750000005,
+      "max": 9.027749003
+    },
+    "main_completion_cadence_mean_ms": 8.351064189195608,
+    "gpu_execution_union_ms": {
+      "median": 5.429458498838358,
+      "p95": 6.0508750029839575,
+      "p99": 6.2363750039367005,
+      "max": 6.2727500044275075
+    },
+    "required_pass_minima": {
+      "sails": 19,
+      "animated": 64,
+      "sea_draws": 1,
+      "sky_current": 1,
+      "shadow_cubes_complete": 7
+    },
+    "buffer_allocations": {
+      "median": 6.0,
+      "p95": 6.0,
+      "p99": 6.0,
+      "max": 56.0
+    },
+    "upload_bytes": {
+      "median": 7819588.0,
+      "p95": 7829220.0,
+      "p99": 7829220.0,
+      "max": 18165942.0
+    },
+    "draws": {
+      "median": 317.0,
+      "p95": 319.0,
+      "p99": 319.0,
+      "max": 319.0
+    },
+    "max_gpu_resource_bytes": 973488128,
+    "max_rss_bytes": 1579827200,
+    "workload_coverage_pass": true,
+    "performance_acceptance": false,
+    "instrumented": false
+  },
+  "manifest": {
+    "pilot": true,
+    "performance_acceptance": false,
+    "binary_sha256": "f7de6dea46c9bc195dbe659111625e74fb981ca222a678a6e82a27fba6351dbc",
+    "native_source_sha256": "5764b6c35ecadb3c3d1b8ed1ffa3d9b82554ad605a3bd890b16e12b01bc26a9a",
+    "inputs": {
+      "ship-catalog": "82dc783d804692b19067d2655e43b54b578381a8c8c273852b365905e6495cbd",
+      "ship-lights": "74c4723efb08a4c032ead9a5a9910f23dd2e493fdfbd0395ab922a4506a41554",
+      "day": "4dd4a88adb31c2e73acd8735774316bb55b91a6fb3825b9accbd470a27cf119e",
+      "units": "c9b7b9e439b82e64d0cff057b2a6f33ac7ff9e9e6d214f62b0b724462688e09b",
+      "native-declarations": "6a0a84c982685d9c0246bf15f7ee72e20c653b1762cab70fdb7def07e5fd6bec",
+      "cannon-declarations": "28fc2dfa86bfb663c8b935a30b4e76ec7b6c92938ff86160fcf7819e0423b7d0",
+      "fixture": "2eea6cd256668963278d5f765921ca8e65dc10cf8a8221376844cdd99d49dbc4"
+    },
+    "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+    "settings": {
+      "STORM_METAL_DYNAMIC_LIGHTING": "1",
+      "STORM_METAL_MODERN_WATER": "1",
+      "STORM_METAL_MODERN_LIGHTING": "1",
+      "STORM_METAL_CINEMATIC": "1",
+      "STORM_METAL_LIGHT_SHAFTS": "1",
+      "STORM_METAL_DYNAMIC_SKY": "1",
+      "STORM_METAL_ANTIALIASING": "1",
+      "STORM_METAL_SHADOW_QUALITY": "1",
+      "STORM_METAL_UPSCALING": "0",
+      "STORM_METAL_AA_MODE": "2",
+      "STORM_METAL_MODERN_EFFECTS": "1",
+      "STORM_METAL_PROFILE": "1"
+    },
+    "backend_environment": {
+      "STORM_METAL_AA_MODE": "2",
+      "STORM_METAL_ANTIALIASING": "1",
+      "STORM_METAL_CINEMATIC": "1",
+      "STORM_METAL_DYNAMIC_LIGHTING": "1",
+      "STORM_METAL_DYNAMIC_SKY": "1",
+      "STORM_METAL_FRAME_TRACE": "<repo>/experiments/native-metal/.cache/diagnostics/sea-fleet-benchmark/20261030-080813/renderer-frames.csv",
+      "STORM_METAL_LIGHT_SHAFTS": "1",
+      "STORM_METAL_MODERN_EFFECTS": "1",
+      "STORM_METAL_MODERN_LIGHTING": "1",
+      "STORM_METAL_MODERN_WATER": "1",
+      "STORM_METAL_PROFILE": "1",
+      "STORM_METAL_SHADOW_QUALITY": "1",
+      "STORM_METAL_UPSCALING": "0"
+    },
+    "resolution": [
+      640,
+      480
+    ],
+    "frames": 240,
+    "ships": 1,
+    "instrumented": false
+  },
+  "scene_sha256": "69328f5cc54f79e82c95daef6038089b399255184ce48ab86b3aae287853b827"
+}

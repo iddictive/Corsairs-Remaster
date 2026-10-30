@@ -22,7 +22,7 @@ bool AIShipSpeedController::Init()
 
 void AIShipSpeedController::Execute(float fDeltaTime)
 {
-    if (GetAIShip()->isMainCharacter())
+    if (!GetAIShip()->isAIControlled())
         return;
 
     fSpeedTime += fDeltaTime;

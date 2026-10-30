@@ -556,6 +556,16 @@ float GetHullPercentWithModifier(ref _refCharacter, int iModifier)
 	return fphp;
 }
 
+// One daily quantity for ordinary consumption and finite voyage provisioning.
+// Keep rounding each term in the same order as DailyEatCrewUpdateForShip.
+int GetShipDailyFood(ref captain, int crew)
+{
+    int quantity = makeint((crew + 5.1) / FOOD_BY_CREW + GetPassengersQuantity(captain) / FOOD_BY_PASSENGERS);
+    quantity += makeint((GetCargoGoods(captain, GOOD_SLAVES) + 6) / FOOD_BY_SLAVES);
+    if (quantity == 0) quantity = 1;
+    return quantity;
+}
+
 // Port services use exactly the normal active removable squad.
 bool FleetService_IsShip(ref captain)
 {
@@ -3755,46 +3765,20 @@ int Treasurer_TradeShip(ref captain, ref store, bool sellExcess)
         if (sellExcess && CheckAttribute(captain, "TransferGoods.SellRestriction") && current > target)
         {
             if (tradeType == TRADE_TYPE_CONTRABAND || tradeType == TRADE_TYPE_CANNONS) continue;
-            int salePrice = GetStoreGoodsPrice(store, index, PRICE_TYPE_SELL, pchar, 1);
-            int saleQuantity = current - target;
-            int saleCost = makeint(salePrice * 1.0 * saleQuantity / units);
-            if (saleCost <= 0 || saleCost > 2000000000 - sti(pchar.Money)) continue;
-            if (!RemoveCharacterGoodsSelf(captain, index, saleQuantity)) continue;
-            AddStoreGoods(store, index, saleQuantity);
-            AddMoneyToCharacter(pchar, saleCost);
-            earned += saleCost;
+            int beforeSale = sti(pchar.Money);
+            if (Store_TradePlayerShip(captain, store, index, current - target, false, 0) < 1) continue;
+            earned += sti(pchar.Money) - beforeSale;
             Treasurer_ChargeTime(1);
             continue;
         }
         if (current >= target) continue;
         if (tradeType == TRADE_TYPE_CANNONS) continue;
         if (tradeType == TRADE_TYPE_CONTRABAND && !CheckAttribute(captain, "TransferGoods.BuyContraband")) continue;
-        int packPrice = GetStoreGoodsPrice(store, index, PRICE_TYPE_BUY, pchar, 1);
-        if (packPrice < 1) continue;
-        int quantity = target - current;
-        int stock = GetStoreGoodsQuantity(store, index);
-        if (quantity > stock) quantity = stock;
-        int room = GetGoodQuantityByWeight(index, GetCargoFreeSpace(captain));
-        if (quantity > room) quantity = room;
-        int budget = sti(pchar.Money) - Treasurer_Setting("ReserveGold", 0, 0, 100000000);
-        if (budget <= 0) continue;
-        int affordable = makeint(budget * 1.0 * units / packPrice);
-        if (quantity > affordable) quantity = affordable;
-        if (quantity < 1) continue;
-        // Round payment upwards: buying part of a cheap ammunition pack is not free.
-        float exactCost = packPrice * 1.0 * quantity / units;
-        int cost = makeint(exactCost);
-        if (cost < exactCost) cost++;
-        if (cost < 1 || cost > budget) continue;
-        AddCharacterGoodsSimple(captain, index, quantity);
-        if (GetCargoGoods(captain, index) != current + quantity)
-        {
-            SetCharacterGoods(captain, index, current);
-            continue;
-        }
-        RemoveStoreGoods(store, index, quantity);
-        AddMoneyToCharacter(pchar, -cost);
-        spent += cost;
+        int beforeBuy = sti(pchar.Money);
+        int bought = Store_TradePlayerShip(captain, store, index, target - current, true,
+            Treasurer_Setting("ReserveGold", 0, 0, 100000000));
+        if (bought < 1) continue;
+        spent += beforeBuy - sti(pchar.Money);
         Treasurer_ChargeTime(1);
     }
     if (spent > 0 || earned > 0)

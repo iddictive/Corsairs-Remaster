@@ -11,6 +11,7 @@
 #include "ship_base.h"
 #include "ai_flow_graph.h"
 #include "ai_helper.h"
+#include "shared/sea_ai/player_autopilot.hpp"
 
 enum AI_OBJTYPE
 {
@@ -64,6 +65,11 @@ class VAI_INNEROBJ : public AIAttributesHolder
     {
         return GetACharacter()->GetAttributeAsDword("MainCharacter") != 0;
     };
+
+    bool isAIControlled()
+    {
+        return !isMainCharacter() || storm::ship::autopilot::Active(GetACharacter());
+    }
 
     virtual bool isFriend(ATTRIBUTES *pAOtherCharacter) const
     {

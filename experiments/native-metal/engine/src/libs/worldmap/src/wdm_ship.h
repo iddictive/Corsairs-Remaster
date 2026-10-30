@@ -76,6 +76,7 @@ class WdmShip : public WdmRenderModel
     float recoveryRetry = 0.0f;
     CVECTOR collisionEscapeDirection = 0.0f;
     bool BeginRouteRecovery(const CVECTOR &goal, float arrival);
+    void SteerToDirection(const CVECTOR &direction, float seconds, float slowing = 1.0f);
     void CancelRouteRecovery()
     {
         recovering = false;

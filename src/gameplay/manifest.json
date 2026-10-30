@@ -529,6 +529,10 @@
         "025f53ce8aaee34cba175bdea34bd742d9a9d6c76f5cfafb68cc0baa2fb24004"
       ]
     },
+    "PROGRAM/scripts/sea_autopilot.c": {
+      "encoding": "utf-8",
+      "legacy": []
+    },
     "PROGRAM/scripts/sea_phonk.c": {
       "encoding": "utf-8",
       "legacy": [

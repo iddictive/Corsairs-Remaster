@@ -1,0 +1,59 @@
+{
+  "scope": "Exact save/load method bodies and camera-ownership/execute source branch compared with HEAD; proves native byte layout code unchanged, not loaded private SAVE/game replay.",
+  "base_commit": "60984eef27ca52717cdba9cac88a4ebd848d0b47",
+  "checks": {
+    "AIShip::Save": {
+      "unchanged": true,
+      "sha256": "b918de698b5d123c18e34737b20ebdca2079e51e53dd45dd8a6b2bdb8fda23af"
+    },
+    "AIShip::Load": {
+      "unchanged": true,
+      "sha256": "678b9756097bf4d9e9142297d4b545d8ef6c2cdd7605b6a6f72262be5fe9ca1e"
+    },
+    "AIShipMoveController::Save": {
+      "unchanged": true,
+      "sha256": "9a74a71ad40e2cdb6dea1904a28bb76f20288fcd2a210baf9bbab6cb51297aa1"
+    },
+    "AIShipMoveController::Load": {
+      "unchanged": true,
+      "sha256": "c8b7b8362f5be7d4f509eae4472109402bca1351f431a8fa1ecb3623da9e7cf5"
+    },
+    "AIShipRotateController::Save": {
+      "unchanged": true,
+      "sha256": "5a1458535fd60c8b0fa61f2a5b34c0f8732344afb2705f43b766c8e033f18d53"
+    },
+    "AIShipRotateController::Load": {
+      "unchanged": true,
+      "sha256": "6d2dce0c5c67c5e43856f5b81b51f8c4fe85549fdf8826c6284c36913f17cb7f"
+    },
+    "AIShipSpeedController::Save": {
+      "unchanged": true,
+      "sha256": "8f47bf06320d08a6992b5896c76ca4c0bbb6d4a29c46e706e04c75f018191dff"
+    },
+    "AIShipSpeedController::Load": {
+      "unchanged": true,
+      "sha256": "f4f7091b279ed5b1b44bb2e29e701fc9d4e5108365aedfc1eaa3cc1c16d4c50a"
+    },
+    "AIShipTouchController::Save": {
+      "unchanged": true,
+      "sha256": "433ae422d3df21e151cf614a7c40343ac6f599f2332812e87a599a2aa2677920"
+    },
+    "AIShipTouchController::Load": {
+      "unchanged": true,
+      "sha256": "dc8754db085d8945d4a56e696d181ee5e8961c2c022ff7cd251b53ad2bfe6920"
+    },
+    "SHIP::Save": {
+      "unchanged": true,
+      "sha256": "083329621cc91f72b0667fc3227b591c0ca02549bb7ba2293c50d7a22a9e5923"
+    },
+    "SHIP::Load": {
+      "unchanged": true,
+      "sha256": "d16346eda31e7e2c3eb446e8ddb75f9af1bc94498e87b0ff1c05fa5f15a2a2cd"
+    },
+    "AIShip camera ownership/execute branch": {
+      "unchanged": true,
+      "sha256": "9dc2b269e46ee1e67c614b8685facf972c498d0faf07179f4c15e45e53e1835a"
+    }
+  },
+  "all_unchanged": true
+}

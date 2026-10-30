@@ -120,7 +120,7 @@ void AIShipTouchController::Execute(float fDeltaTime)
     CMatrix m;
     CVECTOR vBoxSize; // , v[4];
 
-    if (GetAIShip()->isMainCharacter())
+    if (!GetAIShip()->isAIControlled())
         return;
 
     auto *pShip = static_cast<SHIP_BASE *>(GetAIShip()->GetShipPointer());

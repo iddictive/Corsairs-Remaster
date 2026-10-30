@@ -184,6 +184,54 @@ int GetStoreGoodsPrice(ref _refStore, int _Goods, int _PriceType, ref chref, int
     return WdmRecoveryQuote(refGoods, basePrice, tradeModify, skillModify, _qty);
 }
 
+// Finite per-hull player ledger shared by fleet orders and observer freight.
+// The caller owns eligibility/contraband policy, statistics and elapsed time.
+int Store_TradePlayerShip(ref captain, ref store, int good, int quantity, bool buy, int reserve)
+{
+    if (quantity < 1 || good < 0 || good >= GOODS_QUANTITY) return 0;
+    int units = sti(Goods[good].Units);
+    if (units < 1 || stf(Goods[good].Weight) <= 0.0) return 0;
+    int current = GetCargoGoods(captain, good);
+    int priceType = PRICE_TYPE_SELL;
+    if (buy) priceType = PRICE_TYPE_BUY;
+    int price = GetStoreGoodsPrice(store, good, priceType, pchar, 1);
+    if (price < 1) return 0;
+    if (!buy)
+    {
+        if (quantity > current) quantity = current;
+        float exactProceeds = price * 1.0 * quantity / units;
+        if (exactProceeds < 1.0 || exactProceeds >= 2000000001.0 - sti(pchar.Money)) return 0;
+        int proceeds = makeint(exactProceeds);
+        if (!RemoveCharacterGoodsSelf(captain, good, quantity)) return 0;
+        AddStoreGoods(store, good, quantity);
+        AddMoneyToCharacter(pchar, proceeds);
+        return quantity;
+    }
+    int stock = GetStoreGoodsQuantity(store, good);
+    if (quantity > stock) quantity = stock;
+    int room = GetGoodQuantityByWeight(good, GetCargoFreeSpace(captain));
+    if (quantity > room) quantity = room;
+    int budget = sti(pchar.Money) - reserve;
+    if (budget <= 0) return 0;
+    if (price * 1.0 * quantity / units > budget)
+        quantity = makeint(budget * 1.0 * units / price);
+    if (quantity < 1) return 0;
+    float exactCost = price * 1.0 * quantity / units;
+    int cost = makeint(exactCost);
+    if (cost < exactCost) cost++;
+    if (cost < 1 || cost > budget) return 0;
+    AddCharacterGoodsSimple(captain, good, quantity);
+    if (GetCargoGoods(captain, good) != current + quantity)
+    {
+        SetCharacterGoods(captain, good, current);
+        Trace("Store_TradePlayerShip: cargo rejected; cash and store retained");
+        return 0;
+    }
+    RemoveStoreGoods(store, good, quantity);
+    AddMoneyToCharacter(pchar, -cost);
+    return quantity;
+}
+
 // обратное преобразование цены в RndPriceModify
 float GetStoreGoodsRndPriceModify(ref _refStore, int _Goods, int _PriceType, ref chref, int _price)
 {

@@ -1,0 +1,30 @@
+{
+  "mode": "control",
+  "exit": 0,
+  "seconds": 0.37462408299325034,
+  "cpu_seconds": 0.230336,
+  "stdout": "Run=0\nscript_errors=0\n",
+  "stderr": "",
+  "scope": "actual PROGRAM and VM serializer; native entity/task/locator, fixed skills/perks and non-product log/XP seams; not physics/UI acceptance",
+  "seams": [
+    "Main",
+    "OnSave",
+    "OnLoad",
+    "WdmTrafficPortLocator",
+    "GetSummonSkillFromNameToOld",
+    "CheckOfficersPerk",
+    "Log_Info",
+    "AddCharacterExpToSkill",
+    "entity presence",
+    "locator resources",
+    "task message dispatch"
+  ],
+  "policy_sha256": "f06e24e6a2eb27a734efc4851b7ea49c757133e6116fc1c73324a7f789e0b73d",
+  "fixture_sha256": "9e4a2089274f9342a272a9894c978f66bbd289008394224346781a989af950a2",
+  "binary_sha256": "eb3909e6b9a7579bc1dab91d10026bcecda2d98eae8e804743f6b2f24c261fb4",
+  "sources": {
+    "PROGRAM/store/storeutilite.c": "d963b2051bed283aa3238a69bcfa6285e4899c403130c320ffd4dca9c702d39d",
+    "PROGRAM/characters/characterUtilite.c": "0045850723ab421788d9dedbcfaf69182c8b2fcb8e0e26f9fdb40ba51ee571a5"
+  },
+  "logs": {}
+}

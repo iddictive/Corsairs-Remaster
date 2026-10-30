@@ -120,6 +120,41 @@ void WdmShip::Update(float dltTime)
 }
 
 // Calculations
+void WdmShip::SteerToDirection(const CVECTOR &direction, float seconds, float slowing)
+{
+    const auto dl = direction.x * direction.x + direction.z * direction.z;
+    const auto vx = mtx.Vz().x;
+    const auto vz = mtx.Vz().z;
+    const auto vl = vx * vx + vz * vz;
+    auto sn = vz * direction.x - vx * direction.z;
+    if (dl * vl > 0.0f) sn /= sqrtf(dl * vl);
+    const auto cs = vx * direction.x + vz * direction.z;
+    if (cs < 0.0f)
+    {
+        if (fabsf(sn) < 0.05f) sn = turnspd >= 0.0f ? 1.0f : -1.0f;
+        else sn = sn < 0.0f ? -1.0f : 1.0f;
+    }
+    turnspd += 2.0f * WDM_SHIP_TSPEED * sn * seconds;
+    if (cs >= 0.0f)
+        speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * seconds;
+    else
+    {
+        const float minimum = 0.35f * WDM_SHIP_SPEED * kMaxSpeed;
+        if (speed > minimum)
+        {
+            speed -= kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * seconds;
+            if (speed < minimum) speed = minimum;
+        }
+        else if (speed < minimum)
+        {
+            speed += kMaxSpeed * WDM_SHIP_INER_ST * WDM_SHIP_SPEED * seconds;
+            if (speed > minimum) speed = minimum;
+        }
+    }
+    speed *= slowing;
+    turnspd *= slowing;
+}
+
 bool WdmShip::BeginRouteRecovery(const CVECTOR &goal,float arrival)
 {
     if (!wdmObjects->islands) return false;

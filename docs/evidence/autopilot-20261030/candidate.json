@@ -1,0 +1,35 @@
+{
+  "mode": "candidate",
+  "exit": 0,
+  "seconds": 1.1015504999959376,
+  "cpu_seconds": 0.887438,
+  "stdout": "Run=0\nAfterLoad=0\nAfterLoad=0\nAfterLoad=0\nAfterLoad=0\nscript_errors=0\n",
+  "stderr": "",
+  "scope": "actual PROGRAM and VM serializer; native entity/task/locator, fixed skills/perks and non-product log/XP seams; not physics/UI acceptance",
+  "seams": [
+    "Main",
+    "OnSave",
+    "OnLoad",
+    "WdmTrafficPortLocator",
+    "GetSummonSkillFromNameToOld",
+    "CheckOfficersPerk",
+    "Log_Info",
+    "AddCharacterExpToSkill",
+    "entity presence",
+    "locator resources",
+    "task message dispatch",
+    "PostEvent scheduling",
+    "native encounter index validation",
+    "sea reload entry"
+  ],
+  "policy_sha256": "b050beb16e45997ed7b4e813cd16c33f49d93e3d35f9a3a6d3c55b6b99d8113c",
+  "fixture_sha256": "c1cc85118036f77bb00c82d66ea443e2bcc31027315c95b7f9f30dc6c45e67ec",
+  "binary_sha256": "eb3909e6b9a7579bc1dab91d10026bcecda2d98eae8e804743f6b2f24c261fb4",
+  "sources": {
+    "PROGRAM/store/storeutilite.c": "d963b2051bed283aa3238a69bcfa6285e4899c403130c320ffd4dca9c702d39d",
+    "PROGRAM/characters/characterUtilite.c": "0045850723ab421788d9dedbcfaf69182c8b2fcb8e0e26f9fdb40ba51ee571a5"
+  },
+  "logs": {
+    "compile.log": "[2026-10-30 08:29:51.852] [compile] [trace] SeaAutopilot mode=1 leg=2 port=1 status=sailing reason=\n[2026-10-30 08:29:51.852] [compile] [trace] AUTOPILOT first load quantity=850 paid=12750\n[2026-10-30 08:29:51.854] [compile] [trace] AUTOPILOT first delivery=850 next coffee=308 cash=935400\n[2026-10-30 08:29:51.854] [compile] [trace] SeaAutopilot mode=1 leg=3 port=0 status=yielded reason=runtime-or-orders\n[2026-10-30 08:29:51.854] [compile] [trace] SeaAutopilot mode=1 leg=3 port=0 status=sailing reason=\n[2026-10-30 08:29:51.854] [compile] [trace] SeaAutopilot mode=1 leg=3 port=0 status=waiting reason=market-or-cash\n[2026-10-30 08:29:51.855] [compile] [trace] SeaAutopilot mode=1 leg=3 port=0 status=waiting reason=market\n[2026-10-30 08:29:51.855] [compile] [trace] SeaAutopilot mode=1 leg=0 port=-1 status=waiting reason=no-port\n[2026-10-30 08:29:51.857] [compile] [trace] SeaAutopilot mode=1 leg=2 port=1 status=sailing reason=\n[2026-10-30 08:29:51.857] [compile] [trace] SeaAutopilot mode=0 leg=2 port=1 status=manual reason=\n[2026-10-30 08:29:51.858] [compile] [trace] SeaAutopilot mode=1 leg=4 port=1 status=sailing reason=\n[2026-10-30 08:29:51.858] [compile] [trace] SeaAutopilot mode=0 leg=4 port=1 status=manual reason=\n[2026-10-30 08:29:51.859] [compile] [trace] SeaAutopilot mode=2 leg=0 port=-1 status=hunting reason=\n[2026-10-30 08:29:51.859] [compile] [trace] SeaAutopilot mode=2 leg=0 port=-1 status=combat reason=\n[2026-10-30 08:29:51.859] [compile] [trace] SeaAutopilot mode=2 leg=2 port=1 status=sailing reason=\n[2026-10-30 08:29:51.871] [compile] [trace] SeaAutopilot mode=1 leg=1 port=-1 status=waiting reason=invalid-saved-route\n[2026-10-30 08:29:51.872] [compile] [trace] SeaAutopilot mode=1 leg=2 port=1 status=sailing reason=\n[2026-10-30 08:29:51.872] [compile] [trace] SeaAutopilot mode=1 leg=2 port=1 status=yielded reason=runtime-or-orders\n[2026-10-30 08:29:51.873] [compile] [trace] SeaAutopilot mode=1 leg=1 port=0 status=sailing reason=\n[2026-10-30 08:29:51.873] [compile] [trace] SeaAutopilot mode=0 leg=1 port=0 status=manual reason=\n[2026-10-30 08:29:51.873] [compile] [trace] SeaAutopilot mode=1 leg=2 port=0 status=sailing reason=\n[2026-10-30 08:29:51.873] [compile] [trace] SeaAutopilot mode=1 leg=2 port=0 status=waiting reason=encounter-expired\n[2026-10-30 08:29:51.873] [compile] [trace] SeaAutopilot mode=1 leg=2 port=0 status=sailing reason=\n[2026-10-30 08:29:51.873] [compile] [trace] AUTOPILOT deferred encounter: no synchronous reload, latest index once, manual/stale/locked/expired/map/interface/save-bind negatives pass\n[2026-10-30 08:29:51.875] [compile] [trace] SeaAutopilot mode=1 leg=2 port=1 status=sailing reason=\n[2026-10-30 08:29:51.875] [compile] [trace] AUTOPILOT two-port two-leg finite stock/cargo/cash, identity/loss, guards, locator/access, manual handoff pass\n[2026-10-30 08:29:52.043] [compile] [trace] AUTOPILOT native VM codec rebind: same actors, route, cash, cargo and task receipt\n[2026-10-30 08:29:52.204] [compile] [trace] AUTOPILOT native VM codec rebind: same actors, route, cash, cargo and task receipt\n[2026-10-30 08:29:52.363] [compile] [trace] AUTOPILOT native VM codec rebind: same actors, route, cash, cargo and task receipt\n[2026-10-30 08:29:52.521] [compile] [trace] AUTOPILOT native VM codec rebind: same actors, route, cash, cargo and task receipt\n"
+  }
+}

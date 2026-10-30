@@ -55,6 +55,9 @@ class WdmPlayerShip : public WdmShip
     std::unique_ptr<storm_map_player::ShipVisual> playerVisual;
     uint64_t failedPlayerVisualSignature = 0;
     void RefreshPlayerVisual();
+    ATTRIBUTES *AutopilotState() const;
+    bool autopilotHadControl = false;
+    CVECTOR autopilotTarget = 0.0f;
     bool goForward;
     float actionRadius;
     float stormEventTime;

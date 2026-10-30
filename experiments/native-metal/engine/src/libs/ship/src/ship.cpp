@@ -6,6 +6,7 @@
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_auxiliary_detail.h"
 #include "metal_world_effect_bridge.h"
+#include "shared/sea_ai/player_autopilot.hpp"
 #include "../../touch/src/ship_contact.hpp"
 #include "../../touch/src/ship_shore_contact.hpp"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
@@ -318,7 +319,7 @@ bool SHIP::PhonkMotionAllowed()
 {
     // Grounding constrains the proposed movement, not the controls needed to
     // leave it. Sail controls stay mode-owned while Phonk is active.
-    if (!PhonkActive() || bSetFixed)
+    if (!PhonkActive() || bSetFixed || storm::ship::autopilot::Active(GetACharacter()))
         return false;
     auto *character = GetACharacter();
     const auto *stopped = character->FindAClass(character, "Ship.Stopped");
@@ -2442,7 +2443,8 @@ void SHIP::Execute(uint32_t DeltaTime)
     // key states
     Strength[STRENGTH_MAIN].vRotate.y = 0.0f;
 
-    if (bMainCharacter && (!pAShipStopped || pAShipStopped->GetAttributeAsDword() == 0))
+    if (bMainCharacter && !storm::ship::autopilot::Active(GetACharacter()) &&
+        (!pAShipStopped || pAShipStopped->GetAttributeAsDword() == 0))
     {
         CONTROL_STATE cs, cs1;
         core.Controls->GetControlState("Ship_TurnLeft", cs);

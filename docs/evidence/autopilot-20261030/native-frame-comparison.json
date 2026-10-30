@@ -1,0 +1,17 @@
+{
+  "scope": "Same native sea consumer with autopilot absent/off: 1 Manowar1, 640x480, 240frames,128warmup;112measured. Component pilot, not gameFPS or pixel identity. Both preserve required sail/animated/sea/sky/shadow coverage.",
+  "command": "PATH=<repo>/experiments/native-metal/inputs/toolchain/bin:<project-python>:$PATH python3 tools/run_sea_benchmark.py --ships 1 --width 640 --height 480 --warmup 128 --frames 240",
+  "platform": "macOS27.2 arm64,Appleclang21,SDK27,C++20,Python3.12.14",
+  "runs": {
+    "before": {
+      "record": "native-frame-before.json",
+      "cpu": "native-before-cpu-frames.csv",
+      "renderer": "native-before-renderer-frames.csv"
+    },
+    "after": {
+      "record": "native-frame-after.json",
+      "cpu": "native-after-cpu-frames.csv",
+      "renderer": "native-after-renderer-frames.csv"
+    }
+  }
+}
