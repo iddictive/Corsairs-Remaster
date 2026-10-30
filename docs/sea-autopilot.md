@@ -78,6 +78,51 @@ No new permanent test target or separate world simulator is part of this change.
 
 ## Current evidence
 
+### Reopened fleet economics contract
+
+The newer player run disproved economic acceptance: the old route score reused
+the full cash and hold budget independently for each good, bought in enum order,
+and ignored travel, food and wages. A source-authored five-Fleut control also
+departed with tiny cargo on one hull. Finite bookkeeping alone is insufficient.
+
+The admitted repair adapts the existing player price/unit/cargo/store ledger
+into one feasible decision-local fleet plan, shared by route scoring and
+execution. It considers all eligible hulls, shared cash, protected stocks,
+legal player shop inventory and finite destination opportunity; NPC EXPORT-only
+stock reservations do not govern player purchases. Existing cargo sales and new
+purchases may share the same stop and departing leg. The general OR-Tools
+multiple-knapsack solver is a maintained alternative, but adds an absent native
+dependency/binding; a bounded commodity/fleet/port planner fits this owner without
+claiming global optimality.
+
+Route viability must include source-owned food and wage costs and a context-bound
+travel estimate. `WdmStaticResources` produces `AutopilotSpeedProfile` only when
+queried, returning native `mapMaxSpeed` and `knotsToMeters`; the policy consumes
+it once per route decision. There is no new startup service, poll or cache.
+An older native installation without that query must wait with a retrievable
+`navigation-profile` reason and remain manually recoverable. Chart wind/clock,
+physical sea frame/speed/clock and observed elapsed legs retain their own owners;
+the estimate is not a future wind or complete island-path oracle.
+
+Acceptance requires a finite monthly replay through existing calendar/store/
+consumption owners: a properly equipped merchant fleet earns a substantial
+surplus (roughly twice upkeep in trading margin is a benchmark), while a heavily
+crewed battlefleet may correctly have no profitable route. A route that cannot
+cover its estimated costs must wait with diagnostics, not sail empty or create
+funds. Per-leg transactions, old saved waiting state, protected cargo and manual
+Off remain binding. Actual cash, remaining inventory value, food and wage
+liabilities must be distinguished. No wage/price reduction, free provisions,
+companion-count change or second upkeep clock is admitted by this repair.
+
+Performance baseline uses the same actual saved five-hull state and VM producer:
+one old route/ledger decision took about50ms, including VM invocation overhead;
+merchant/battle authored controls took about69ms. The candidate may add bounded
+joint planning at arrival/dated retry only. It must reuse decision-local quotes
+and stock projections, preserve idle Tick cadence and report comparable decision
+timings; no pricing/allocation work may move into rendered frames. These are
+script-policy measurements, not whole-game FPS evidence. Final acceptance is
+pending the candidate and monthly replay.
+
 The [native and real PROGRAM replays](evidence/autopilot-20261030/README.md)
 retain finite two-port trade, cash/cargo conservation, four VM serializer rounds,
 ordinary treasurer/daily-food parity, deferred encounter admission, native control

@@ -9,6 +9,8 @@
 #include "vma.hpp"
 #include "wdm_objects.h"
 #include "wdm_islands.h"
+#include "wdm_ship.h"
+#include "math_inlines.h"
 #include "world_map.h"
 #include "world_map_player_model.hpp"
 #include "sea_atlas.hpp"
@@ -327,9 +329,15 @@ class WdmStaticResources final : public Entity
     uint64_t ProcessMessage(MESSAGE &message) override
     {
         const auto command = message.String();
-        if (command != "IslandOrigins" && command != "SeaAtlas" && command != "SeaAtlasFrame" && command != "SeaRoute" && command != "SeaLocator" && command != "LegacySeaGeometry") return 0;
+        if (command != "IslandOrigins" && command != "SeaAtlas" && command != "SeaAtlasFrame" && command != "SeaRoute" && command != "SeaLocator" && command != "AutopilotSpeedProfile" && command != "LegacySeaGeometry") return 0;
         auto *target = message.AttributePointer();
         if (!target) return 0;
+        if (command == "AutopilotSpeedProfile")
+        {
+            target->SetAttributeUseFloat("mapMaxSpeed", WDM_SHIP_MAX_SPEED);
+            target->SetAttributeUseFloat("knotsToMeters", KNOTS2METERS(1.0f));
+            return 1;
+        }
         if (command == "LegacySeaGeometry")
             return geometry->ConfigureLegacySeaGeometry(target);
         if (command == "SeaLocator")

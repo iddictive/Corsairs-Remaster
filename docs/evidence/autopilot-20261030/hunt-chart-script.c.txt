@@ -1,0 +1,44 @@
+#include "resource\shared\sea_ai\script_defines.h"
+#include "resource\shared\messages.h"
+#define MAX_ENCOUNTER_TYPES 22
+#define MAX_NATIONS 5
+#define ENCOUNTER_TYPE_ALONE 19
+object worldMap, SeaTraffic, InterfaceStates;
+object SpeedProfile;
+ref pchar;
+int nMainCharacterIndex=1;
+int SavedRelations[5];
+bool bSeaActive=false,bSeaLoaded=false;
+int QueuedEncounters=0,UnexpectedRoute=0;
+#event_handler("SeaTraffic_WorldState","HuntWorldState");
+#event_handler("HuntChartSelect","HuntChartSelect");
+#event_handler("HuntSpeedProfile","HuntSpeedProfile");
+ref HuntWorldState(){return &worldMap;}
+float Sea_MapX(float x,float z){return x;}
+float Sea_MapZ(float x,float z){return z;}
+int GetNationRelation2MainCharacter(int iNation)
+{
+ if (iNation < 0 || iNation >= 5) { return RELATION_NEUTRAL; }
+ return SavedRelations[iNation];
+}
+bool GreatRecipe_MapImportBlocked(string id){return false;}
+bool SeaAutopilot_Route(int port){UnexpectedRoute++;return false;}
+bool SeaAutopilot_QueueEncounter(int index){QueuedEncounters++;return false;}
+void InitialiseHuntChart()
+{
+ Characters[0].MainCharacter=0;Characters[1].MainCharacter=1;
+ pchar=&Characters[1];pchar.Ship.Autopilot.mode=2;pchar.Ship.Autopilot.active=0;
+ worldMap.date.sec=0;worldMap.date.min=0;worldMap.date.hour=12;
+ worldMap.date.day=20;worldMap.date.month=12;worldMap.date.year=1668;
+ worldMap.encounters="";
+ // PRIVATE_CATALOG_PROJECTION
+ SeaTraffic.execute=2;
+ CreateEntity(&SeaTraffic,"WorldMapSeaTraffic");
+}
+int HuntChartSelect(){return SeaAutopilot_HuntMap();}
+int HuntSpeedProfile()
+{
+ aref resources;
+ if (!GetEntity(&resources, "WdmStaticResources")) { return 0; }
+ return SendMessage(resources, "sa", "AutopilotSpeedProfile", &SpeedProfile);
+}

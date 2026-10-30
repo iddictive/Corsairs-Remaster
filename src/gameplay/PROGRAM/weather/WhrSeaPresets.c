@@ -369,7 +369,7 @@ void WhrFillSeaPreset(ref Whr, string sPreset, float fWind)
 		        Whr.Sea2.MoveSpeed2 = "12.0, 0.0, 0.0";
 
 				Whr.Sea2.BumpScale = 0.1; //Ю?О†ї? ђЭОНЯ
-				Whr.Sea2.PosShift = 4.25;//остроконечность волн
+				Whr.Sea2.PosShift = 2.0;//остроконечность волн (сглаживание рывков у берега)
                 Whr.Sea2.LodScale = 0.5;
 				Whr.Sea2.GridStep = 0.05;
 

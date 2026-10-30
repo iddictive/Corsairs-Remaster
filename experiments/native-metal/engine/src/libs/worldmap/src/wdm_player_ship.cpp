@@ -26,6 +26,15 @@
 #include <cmath>
 #include <cstring>
 
+namespace
+{
+bool AutopilotNavigates(const ATTRIBUTES &state)
+{
+    const char *status = state.GetAttribute("status");
+    return status && (std::strcmp(status, "sailing") == 0 || std::strcmp(status, "hunting") == 0);
+}
+}
+
 namespace storm_map_player
 {
 std::unique_ptr<ShipVisual> &seaPlayerVisual()
@@ -462,9 +471,8 @@ void WdmPlayerShip::Move(float dltTime)
         autopilotHadControl = true;
         autopilotTarget = target;
         if (dltTime <= 0.0f || wdmObjects->isPause) return;
-        const char *status = autopilot->GetAttribute("status");
         const CVECTOR displacement(target.x - mtx.Pos().x, 0.0f, target.z - mtx.Pos().z);
-        if (!status || std::strcmp(status, "sailing") || !std::isfinite(target.x) ||
+        if (!AutopilotNavigates(*autopilot) || !std::isfinite(target.x) ||
             !std::isfinite(target.z) || ~displacement <= 144.0f)
         {
             CancelRouteRecovery();
@@ -537,10 +545,9 @@ void WdmPlayerShip::Collide()
     goForward = false;
     if (auto *autopilot = AutopilotState())
     {
-        const char *status = autopilot->GetAttribute("status");
         const CVECTOR target(autopilot->GetAttributeAsFloat("targetX"), 0.0f,
                              autopilot->GetAttributeAsFloat("targetZ"));
-        if (status && std::strcmp(status, "sailing") == 0 &&
+        if (AutopilotNavigates(*autopilot) &&
             std::isfinite(target.x) && std::isfinite(target.z))
             BeginRouteRecovery(target, 12.0f);
     }

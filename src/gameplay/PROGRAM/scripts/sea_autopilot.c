@@ -152,6 +152,7 @@ void SeaAutopilot_SetMode(int mode)
         DeleteAttribute(pchar, "Ship.Autopilot.salePort");
         DeleteAttribute(pchar, "Ship.Autopilot.saleFloor");
     }
+    pchar.Ship.Stopped = false;
     SeaAutopilot_Tick();
 }
 
@@ -161,6 +162,7 @@ void SeaAutopilot_Bind()
     SeaAutopilot_CancelEncounter();
     if (CheckAttribute(pchar, "Ship.Autopilot")) pchar.Ship.Autopilot.active = 0;
     if (SeaAutopilot_Mode() == 0) return;
+    pchar.Ship.Stopped = false;
     SeaAutopilot_Tick();
 }
 
@@ -174,7 +176,7 @@ bool SeaAutopilot_Eligible()
     if (CheckAttribute(pchar, "ShipTaskLock") || CheckAttribute(pchar, "SeaSurrender") ||
         CheckAttribute(pchar, "Surrendered")) return false;
     if (bSeaActive && CheckAttribute(pchar, "Ship_SetTaskAbordage")) return false;
-    if (bSeaActive && CheckAttribute(pchar, "Ship.Stopped") && sti(pchar.Ship.Stopped)) return false;
+    if (bSeaActive && CheckAttribute(pchar, "Ship.Stopped") && sti(pchar.Ship.Stopped)) pchar.Ship.Stopped = false;
     if (bSeaActive && CheckAttribute(pchar, "SeaAI.Task") && (sti(pchar.SeaAI.Task) == AITASK_ABORDAGE ||
         sti(pchar.SeaAI.Task) == AITASK_BRANDER)) return false;
     int group = Group_FindGroup(PLAYER_GROUP);
@@ -242,56 +244,263 @@ int SeaAutopilot_Free(int good)
     return room;
 }
 
+bool SeaAutopilot_Profile(ref profile)
+{
+    aref resources;
+    if (!GetEntity(&resources, "WdmStaticResources")) return false;
+    if (!SendMessage(resources, "sa", "AutopilotSpeedProfile", profile)) return false;
+    return CheckAttribute(profile, "mapMaxSpeed") && stf(profile.mapMaxSpeed) > 0.0 &&
+        CheckAttribute(profile, "knotsToMeters") && stf(profile.knotsToMeters) > 0.0;
+}
+
+float SeaAutopilot_Days(ref origin, ref target, ref profile)
+{
+    float dx = stf(target.x) - stf(origin.x); float dz = stf(target.z) - stf(origin.z);
+    float distance = sqrt(dx * dx + dz * dz);
+    if (distance <= 12.0) return -1.0;
+    float hours;
+    string context = "map";
+    if (bSeaActive)
+    {
+        context = "sea";
+        if (!CheckAttribute(&Weather, "Time.speed") || stf(Weather.Time.speed) <= 0.0) return -1.0;
+        float speed = 1000000.0;
+        for (int slot = 0; slot < COMPANION_MAX; slot++)
+        {
+            int index = GetCompanionIndex(pchar, slot);
+            if (index < 0 || !SeaAutopilot_Ship(&Characters[index])) continue;
+            ref captain = &Characters[index];
+            float available = FindShipSpeed(captain);
+            if (CheckAttribute(captain, "Ship.MaxSpeedZ") && stf(captain.Ship.MaxSpeedZ) > 0.0)
+                available = stf(captain.Ship.MaxSpeedZ);
+            if (available < speed) speed = available;
+        }
+        if (speed <= 0.0 || speed == 1000000.0) return -1.0;
+        dx = Sea_LocalX(stf(target.x), stf(target.z)) - Sea_LocalX(stf(origin.x), stf(origin.z));
+        dz = Sea_LocalZ(stf(target.x), stf(target.z)) - Sea_LocalZ(stf(origin.x), stf(origin.z));
+        hours = sqrt(dx * dx + dz * dz) / (speed * stf(profile.knotsToMeters)) * stf(Weather.Time.speed) / 3600.0;
+    }
+    else
+    {
+        if (!CheckAttribute(&worldMap, "date.hourPerSec") || stf(worldMap.date.hourPerSec) <= 0.0 ||
+            !CheckAttribute(&worldMap, "shipSpeedOppositeWind") || !CheckAttribute(&worldMap, "shipSpeedOverWind")) return -1.0;
+        float wind = stf(worldMap.shipSpeedOppositeWind);
+        if (stf(worldMap.shipSpeedOverWind) < wind) wind = stf(worldMap.shipSpeedOverWind);
+        if (wind <= 0.0) return -1.0;
+        hours = distance / (stf(profile.mapMaxSpeed) * wind) * stf(worldMap.date.hourPerSec);
+    }
+    // Observed slower legs may raise a forecast, never counterfeit faster travel.
+    string observation = context + "HoursPerUnit";
+    if (CheckAttribute(pchar, "Ship.Autopilot.economy." + observation))
+    {
+        float observed = stf(pchar.Ship.Autopilot.economy.(observation)) * distance;
+        if (observed > hours) hours = observed;
+    }
+    if (hours < 1.0) hours = 1.0;
+    return hours / 24.0;
+}
+
+// Forecast only: the ordinary calendar/debt owner still accrues and pays wages.
+void SeaAutopilot_Liabilities(float days, int monthly, ref result)
+{
+    result.wages = 0.0;
+    result.reserve = CrewDebt_GetTotal("overdue");
+    int month = GetDataMonth();
+    if (!CheckAttribute(&NullCharacter, "SalayPayMonth") || sti(NullCharacter.SalayPayMonth) != month)
+        result.reserve = sti(result.reserve) + monthly + CrewDebt_GetTotal("current");
+    float left = GetMonthDays(month) - GetDataDay() + 1.0 - GetTime() / 24.0;
+    bool first = true;
+    while (days > 0.0)
+    {
+        float used = days;
+        if (used > left) used = left;
+        result.wages = stf(result.wages) + monthly * used / GetMonthDays(month);
+        days -= used;
+        if (days <= 0.0) break;
+        result.reserve = sti(result.reserve) + monthly;
+        if (first) result.reserve = sti(result.reserve) + CrewDebt_GetTotal("current");
+        first = false;
+        if (stf(result.reserve) >= sti(pchar.Money)) return;
+        month++; if (month > 12) month = 1;
+        left = GetMonthDays(month);
+    }
+}
+
+bool SeaAutopilot_Plan(int origin, int destination, ref market, ref stock, ref profile, int monthly, int food, ref plan)
+{
+    DeleteAttribute(plan, "");
+    object from, to;
+    if (!SeaAutopilot_Endpoint(origin, &from) || !SeaAutopilot_Endpoint(destination, &to)) { plan.failStep = 1; return false; }
+    float days = SeaAutopilot_Days(&from, &to, profile);
+    if (days <= 0.0) { plan.failStep = 2; return false; }
+    int seller = FindStore(Colonies[origin].id); int buyer = FindStore(Colonies[destination].id);
+    object liabilities; SeaAutopilot_Liabilities(days, monthly, &liabilities);
+    int reserve = SeaAutopilot_Reserve() + sti(liabilities.reserve);
+    int budget = sti(pchar.Money) - reserve;
+    if (budget <= 0) { plan.failStep = 3; plan.budget = budget; plan.reserve = reserve; return false; }
+    plan.origin = origin; plan.destination = destination; plan.days = days; plan.reserve = reserve;
+    plan.cost = 0; plan.revenue = 0.0; plan.advantage = 0.0;
+    plan.upkeep = stf(liabilities.wages) + days * food * stf(stock.foodPrice) / sti(Goods[GOOD_FOOD].Units);
+    for (int slot = 0; slot < COMPANION_MAX; slot++)
+    {
+        int index = GetCompanionIndex(pchar, slot);
+        if (index < 0 || !SeaAutopilot_Ship(&Characters[index])) continue;
+        ref captain = &Characters[index]; string hull = "ship" + slot;
+        plan.(hull).index = index; plan.(hull).id = captain.id; plan.(hull).type = captain.Ship.Type;
+        plan.(hull).room = GetCargoMaxSpace(captain) - GetCargoLoad(captain);
+        // Reserve hold capacity and cash for voyage food replenishment
+        int neededFood = makeint((days + 5.0) * GetShipDailyFood(captain, GetCrewQuantity(captain)));
+        int heldFood = GetCargoGoods(captain, GOOD_FOOD);
+        if (heldFood < neededFood)
+        {
+            int extraFood = neededFood - heldFood;
+            int foodWeight = GetGoodWeightByType(GOOD_FOOD, extraFood);
+            if (foodWeight > sti(plan.(hull).room)) return false;
+            int foodCost = makeint(extraFood * 1.0 * stf(stock.foodPrice) / sti(Goods[GOOD_FOOD].Units));
+            plan.(hull).room = sti(plan.(hull).room) - foodWeight;
+            budget -= foodCost;
+            if (budget <= 0) return false;
+        }
+    }
+    object quotes;
+    for (int good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
+    {
+        string name = Goods[good].name;
+        if (good == GOOD_RUM || !SeaAutopilot_Good(&Stores[seller], good) || !WdmTrafficStoreGood(&Stores[buyer], good)) continue;
+        quotes.(name).buy = stock.(name).buy;
+        quotes.(name).sell = GetStoreGoodsPrice(&Stores[buyer], good, PRICE_TYPE_SELL, pchar, 1);
+        quotes.(name).quantity = sti(stock.(name).quantity);
+        int improvement = sti(quotes.(name).sell) - sti(stock.(name).sell);
+        if (improvement > 0)
+        {
+            for (slot = 0; slot < COMPANION_MAX; slot++)
+            {
+                index = GetCompanionIndex(pchar, slot);
+                if (index < 0 || !SeaAutopilot_Ship(&Characters[index])) continue;
+                plan.advantage = stf(plan.advantage) + improvement * 1.0 * SeaAutopilot_SaleQuantity(&Characters[index], good) / sti(Goods[good].Units);
+            }
+        }
+    }
+    // Bounded margin-per-weight packing; every debit consumes the SAME budget,
+    // per-hull room and source stock. This is a feasible plan, not a global solver.
+    for (int rank = GOOD_CHOCOLATE; rank <= GOOD_SILVER; rank++)
+    {
+        int selected = -1; float density = 0.0;
+        for (good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
+        {
+            name = Goods[good].name;
+            if (!CheckAttribute(quotes, name + ".buy") || CheckAttribute(quotes, name + ".used") || sti(quotes.(name).quantity) < 1) continue;
+            float margin = (sti(quotes.(name).sell) - sti(quotes.(name).buy)) / stf(Goods[good].Weight);
+            if (sti(quotes.(name).buy) <= 0 || margin <= density) continue;
+            density = margin; selected = good;
+        }
+        if (selected < 0) break;
+        good = selected; name = Goods[good].name; quotes.(name).used = 1;
+        for (slot = 0; slot < COMPANION_MAX; slot++)
+        {
+            hull = "ship" + slot;
+            if (!CheckAttribute(plan, hull + ".index")) continue;
+            captain = &Characters[sti(plan.(hull).index)];
+            if (!SeaAutopilot_TradeCargo(captain, good)) continue;
+            int quantity = GetGoodQuantityByWeight(good, sti(plan.(hull).room));
+            if (quantity > sti(quotes.(name).quantity)) quantity = sti(quotes.(name).quantity);
+            int price = sti(quotes.(name).buy); int units = sti(Goods[good].Units);
+            if (price * 1.0 * quantity / units > budget) quantity = makeint(budget * 1.0 * units / price);
+            if (quantity < 1) continue;
+            float exact = price * 1.0 * quantity / units;
+            int cost = makeint(exact); if (cost < exact) cost++;
+            if (cost < 1 || cost > budget) continue;
+            plan.(hull).goods.(name) = quantity;
+            plan.(hull).room = sti(plan.(hull).room) - GetGoodWeightByType(good, quantity);
+            budget -= cost; plan.cost = sti(plan.cost) + cost;
+            plan.revenue = stf(plan.revenue) + makeint(sti(quotes.(name).sell) * 1.0 * quantity / units);
+            quotes.(name).quantity = sti(quotes.(name).quantity) - quantity;
+        }
+    }
+    plan.grossTradeProfit = stf(plan.revenue) - sti(plan.cost) + stf(plan.advantage);
+    plan.net = plan.grossTradeProfit - stf(plan.upkeep);
+    if (stf(plan.net) > 0.0)
+        plan.score = stf(plan.net) / days;
+    else
+        plan.score = (stf(plan.grossTradeProfit) - days * food * stf(stock.foodPrice) / sti(Goods[GOOD_FOOD].Units)) / (days * 10.0) - 1000.0;
+    return stf(plan.grossTradeProfit) > 0.0;
+}
+
 int SeaAutopilot_NextPort(int origin)
 {
+    object profile;
+    if (!SeaAutopilot_Profile(&profile))
+    { pchar.Ship.Autopilot.plan.blocked = "navigation-profile"; return -1; }
     int seller = FindStore(Colonies[origin].id);
     object market; WdmTrafficBuildMarket(&market);
-    object space;
-    for (int cargo = GOOD_CHOCOLATE; cargo <= GOOD_SILVER; cargo++)
+    object stock;
+    stock.foodPrice = GetStoreGoodsPrice(&Stores[seller], GOOD_FOOD, PRICE_TYPE_BUY, pchar, 1);
+    int monthly = 0; int food = 0;
+    for (int slot = 0; slot < COMPANION_MAX; slot++)
     {
-        string cargoName = Goods[cargo].name;
-        space.(cargoName) = SeaAutopilot_Free(cargo);
+        int index = GetCompanionIndex(pchar, slot);
+        if (index < 0 || !SeaAutopilot_Ship(&Characters[index])) continue;
+        monthly += GetSalaryForShip(&Characters[index]);
+        food += GetShipDailyFood(&Characters[index], GetCrewQuantity(&Characters[index]));
     }
-    int selected = -1; int total = 0;
+    for (int good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
+    {
+        string name = Goods[good].name;
+        stock.(name).buy = GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_BUY, pchar, 1);
+        stock.(name).sell = GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_SELL, pchar, 1);
+        stock.(name).quantity = GetStoreGoodsQuantity(&Stores[seller], good);
+    }
+    int selected = -1; float bestScore = -10000000.0;
+    int selectedNet = -1; float bestNetScore = 0.0;
+    aref saved;
+    DeleteAttribute(pchar, "Ship.Autopilot.plan");
+    pchar.Ship.Autopilot.plan.blocked = "no-affordable-profitable-route";
     for (int port = 0; port < MAX_COLONIES; port++)
     {
         if (port == origin || !SeaAutopilot_Port(port)) continue;
-        int buyer = FindStore(Colonies[port].id);
-        float profit = 0.0;
-        for (int good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
+        object plan;
+        if (!SeaAutopilot_Plan(origin, port, &market, &stock, &profile, monthly, food, &plan)) continue;
+        if (stf(plan.net) > 0.0)
         {
-            if (good == GOOD_RUM) continue;
-            if (!SeaAutopilot_Good(&Stores[seller], good) || !WdmTrafficStoreGood(&Stores[buyer], good)) continue;
-            int buy = GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_BUY, pchar, 1);
-            int sell = GetStoreGoodsPrice(&Stores[buyer], good, PRICE_TYPE_SELL, pchar, 1);
-            if (buy <= 0 || sell <= buy) continue;
-            int quantity = WdmTrafficTradeSupply(&Stores[seller], good, WdmTrafficMarketDemand(&market, buyer, good));
-            string name = Goods[good].name;
-            int room = sti(space.(name));
-            if (quantity > room) quantity = room;
-            int budget = sti(pchar.Money) - SeaAutopilot_Reserve();
-            if (buy * 1.0 * quantity / sti(Goods[good].Units) > budget)
-                quantity = makeint(budget * 1.0 * sti(Goods[good].Units) / buy);
-            if (quantity > 0) profit += (sell - buy) * 1.0 * quantity / sti(Goods[good].Units);
+            if (stf(plan.score) > bestNetScore)
+            {
+                bestNetScore = stf(plan.score);
+                selectedNet = port;
+                makearef(saved, pchar.Ship.Autopilot.plan); CopyAttributes(saved, &plan);
+            }
         }
-        if (profit <= 0.0) continue;
-        if (profit > 100000.0) profit = 100000.0;
-        int weight = makeint(WdmTrafficRouteWeight(origin, port, 1) * (1.0 + profit / 100.0));
-        if (weight < 1) continue;
-        total += weight;
-        if (rand(total - 1) < weight) selected = port;
+        else
+        {
+            if (stf(plan.score) > bestScore)
+            {
+                bestScore = stf(plan.score);
+                if (selectedNet < 0)
+                {
+                    selected = port;
+                    makearef(saved, pchar.Ship.Autopilot.plan); CopyAttributes(saved, &plan);
+                }
+            }
+        }
     }
+    if (selectedNet >= 0) return selectedNet;
     return selected;
 }
 
 // Cargo commodities only. Delivery flags apply across the player's fleet;
 // configured per-hull stocks and crew supplies remain aboard.
-int SeaAutopilot_SaleQuantity(ref captain, int good)
+bool SeaAutopilot_TradeCargo(ref captain, int good)
 {
-    if (good < GOOD_CHOCOLATE || good > GOOD_SILVER || good == GOOD_RUM) return 0;
+    if (good < GOOD_CHOCOLATE || good > GOOD_SILVER || good == GOOD_RUM) return false;
     string name = Goods[good].name;
     if (CheckAttribute(captain, "Ship.Cargo.Goods." + name + ".isquest") ||
-        CheckAttribute(pchar, "Ship.Cargo.Goods." + name + ".isquest")) return 0;
+        CheckAttribute(pchar, "Ship.Cargo.Goods." + name + ".isquest")) return false;
+    return true;
+}
+
+int SeaAutopilot_SaleQuantity(ref captain, int good)
+{
+    if (!SeaAutopilot_TradeCargo(captain, good)) return 0;
+    string name = Goods[good].name;
     int quantity = GetCargoGoods(captain, good);
     if (CheckAttribute(captain, "TransferGoods." + name))
     {
@@ -365,6 +574,7 @@ void SeaAutopilot_Sell(int port)
     if (SeaAutopilot_Mode() != 1 || !CheckAttribute(pchar, "Ship.Autopilot.salePort") ||
         sti(pchar.Ship.Autopilot.salePort) != port) return;
     int store = FindStore(Colonies[port].id);
+    if (store < 0 || store == SHIP_STORE) return;
     for (int slot = 0; slot < COMPANION_MAX; slot++)
     {
         int index = GetCompanionIndex(pchar, slot);
@@ -375,9 +585,9 @@ void SeaAutopilot_Sell(int port)
         {
             string name = Goods[good].name;
             if (!WdmTrafficStoreGood(&Stores[store], good)) continue;
-            if (CheckAttribute(pchar, "Ship.Autopilot.saleFloor." + name) &&
-                GetStoreGoodsPrice(&Stores[store], good, PRICE_TYPE_SELL, pchar, 1) < sti(pchar.Ship.Autopilot.saleFloor.(name))) continue;
-            Store_TradePlayerShip(captain, &Stores[store], good, SeaAutopilot_SaleQuantity(captain, good), false, 0);
+            int qty = SeaAutopilot_SaleQuantity(captain, good);
+            if (qty > 0)
+                Store_TradePlayerShip(captain, &Stores[store], good, qty, false, 0);
         }
     }
     DeleteAttribute(pchar, "Ship.Autopilot.salePort");
@@ -386,32 +596,32 @@ void SeaAutopilot_Sell(int port)
 
 void SeaAutopilot_Buy(int origin, int destination)
 {
+    if (!CheckAttribute(pchar, "Ship.Autopilot.plan.origin") ||
+        sti(pchar.Ship.Autopilot.plan.origin) != origin || sti(pchar.Ship.Autopilot.plan.destination) != destination ||
+        CheckAttribute(pchar, "Ship.Autopilot.plan.executed")) return;
+    aref plan; makearef(plan, pchar.Ship.Autopilot.plan);
     int seller = FindStore(Colonies[origin].id);
-    int buyer = FindStore(Colonies[destination].id);
-    object market; WdmTrafficBuildMarket(&market);
-    for (int good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
+    int before = sti(pchar.Money); int total = 0;
+    for (int slot = 0; slot < COMPANION_MAX; slot++)
     {
-        if (good == GOOD_RUM) continue;
-        if (!SeaAutopilot_Good(&Stores[seller], good) || !WdmTrafficStoreGood(&Stores[buyer], good)) continue;
-        if (GetStoreGoodsPrice(&Stores[buyer], good, PRICE_TYPE_SELL, pchar, 1) <=
-            GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_BUY, pchar, 1)) continue;
-        int remaining = WdmTrafficTradeSupply(&Stores[seller], good, WdmTrafficMarketDemand(&market, buyer, good));
-        for (int slot = 0; slot < COMPANION_MAX; slot++)
+        string hull = "ship" + slot;
+        if (!CheckAttribute(plan, hull + ".index")) continue;
+        int index = GetCompanionIndex(pchar, slot);
+        if (index < 0 || index != sti(plan.(hull).index)) continue;
+        ref captain = &Characters[index];
+        if (!SeaAutopilot_Ship(captain) || captain.id != plan.(hull).id || sti(captain.Ship.Type) != sti(plan.(hull).type)) continue;
+        for (int good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
         {
-            if (remaining < 1) break;
-            int index = GetCompanionIndex(pchar, slot);
-            if (index < 0) continue;
-            ref captain = &Characters[index];
-            if (!SeaAutopilot_Ship(captain)) continue;
-            int weight = GetCargoMaxSpace(captain) - GetCargoLoad(captain);
-            int quantity = 0;
-            if (weight > 0) quantity = GetGoodQuantityByWeight(good, weight);
-            if (quantity > remaining) quantity = remaining;
-            int bought = Store_TradePlayerShip(captain, &Stores[seller], good, quantity, true, SeaAutopilot_Reserve());
-            if (bought < 1) continue;
-            remaining -= bought;
+            string name = Goods[good].name;
+            if (!CheckAttribute(plan, hull + ".goods." + name) || !SeaAutopilot_TradeCargo(captain, good) ||
+                !SeaAutopilot_Good(&Stores[seller], good)) continue;
+            int quantity = sti(plan.(hull).goods.(name));
+            int bought = Store_TradePlayerShip(captain, &Stores[seller], good, quantity, true, sti(plan.reserve));
+            total += bought;
+            if (bought != quantity) plan.changed = 1;
         }
     }
+    plan.actualCost = before - sti(pchar.Money); plan.bought = total; plan.executed = 1;
 }
 
 // Replenishment is an ordinary finite purchase, not NPC service or a second
@@ -419,16 +629,17 @@ void SeaAutopilot_Buy(int origin, int destination)
 void SeaAutopilot_Resupply(int port)
 {
     int store = FindStore(Colonies[port].id);
+    if (store < 0 || store == SHIP_STORE) return;
     for (int slot = 0; slot < COMPANION_MAX; slot++)
     {
         int index = GetCompanionIndex(pchar, slot);
         if (index < 0) continue;
         ref captain = &Characters[index];
         if (!SeaAutopilot_Ship(captain)) continue;
-        int food = 14 * GetShipDailyFood(captain, GetCrewQuantity(captain));
+        int food = 30 * GetShipDailyFood(captain, GetCrewQuantity(captain));
         if (SeaAutopilot_Good(&Stores[store], GOOD_FOOD))
             Store_TradePlayerShip(captain, &Stores[store], GOOD_FOOD, food - GetCargoGoods(captain, GOOD_FOOD), true, SeaAutopilot_Reserve());
-        int shot = Ship_GetCompanionAmmoMinimum(captain) * 4;
+        int shot = Ship_GetCompanionAmmoMinimum(captain) * 6;
         if (shot < 1) continue;
         if (SeaAutopilot_Good(&Stores[store], GOOD_BALLS))
             Store_TradePlayerShip(captain, &Stores[store], GOOD_BALLS, shot - GetCargoGoods(captain, GOOD_BALLS), true, SeaAutopilot_Reserve());
@@ -577,6 +788,8 @@ void SeaAutopilot_Tick()
         {
             pchar.Ship.Autopilot.order = AITASK_ATTACK; pchar.Ship.Autopilot.enemy = enemy;
             Ship_SetTaskAttack(PRIMARY_TASK, nMainCharacterIndex, enemy);
+            string enemyGroup = Ship_GetGroupID(&Characters[enemy]);
+            if (enemyGroup != "") Group_SetTaskAttack(PLAYER_GROUP, enemyGroup);
             pchar.Ship.Autopilot.active = 1; SeaAutopilot_Status("hunting", ""); return;
         }
     }
@@ -615,16 +828,15 @@ void SeaAutopilot_Tick()
     int destination = -1;
     if (SeaAutopilot_Mode() == 1)
     {
-        destination = SeaAutopilot_SalePort(port);
-        if (destination >= 0)
+        // Do not leave on a separate tiny sale-only leg while paid freight fits.
+        // Existing best-local cargo may be sold here; remaining cargo joins the
+        // same destination plan as new purchases.
+        if (SeaAutopilot_SalePort(port) < 0)
         {
-            SeaAutopilot_PlanSale(port, destination);
-            if (!SeaAutopilot_Route(destination)) return;
-            pchar.Ship.Autopilot.active = 1; SeaAutopilot_Course(); SeaAutopilot_Status("sailing", ""); return;
+            SeaAutopilot_PlanSale(port, port);
+            SeaAutopilot_Sell(port);
+            SeaAutopilot_Resupply(port);
         }
-        SeaAutopilot_PlanSale(port, port);
-        SeaAutopilot_Sell(port);
-        SeaAutopilot_Resupply(port);
         destination = SeaAutopilot_NextPort(port);
     }
     else
@@ -642,6 +854,7 @@ void SeaAutopilot_Tick()
     {
         string reason = "market-or-cash";
         if (SeaAutopilot_Mode() == 1 && SeaAutopilot_Free(GOOD_SUGAR) == 0) reason = "cargo-reserved-or-unsaleable";
+        if (SeaAutopilot_Mode() == 1 && CheckAttribute(pchar, "Ship.Autopilot.plan.blocked")) reason = pchar.Ship.Autopilot.plan.blocked;
         SeaAutopilot_Status("waiting", reason); return;
     }
     object endpoint;

@@ -1328,6 +1328,7 @@ void SEA::UpdateWeatherWaveProfile(float wind, float storm, float seconds)
     };
     for (const auto &profile : weatherWaveProfiles) append(profile);
     append(stormWaveProfile);
+    fPosShift = std::min(fPosShift, 2.2f);
     const float sum = _fAmp1 + _fAmp2;
     const float allowed = sum > 0.f ? std::min(1.f, std::max(0.f, fMaxSeaHeight) / sum) : 0.f;
     if (initialize || allowed < weatherWaveHeightGain) weatherWaveHeightGain = allowed;
@@ -2346,7 +2347,7 @@ uint32_t SEA::AttributeChanged(ATTRIBUTES *pAttribute)
 
         if (*pAttribute == "PosShift")
         {
-            fPosShift = pAttribute->GetAttributeAsFloat();
+            fPosShift = std::min(pAttribute->GetAttributeAsFloat(), 2.2f);
             return 0;
         }
 

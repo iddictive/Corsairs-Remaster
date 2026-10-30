@@ -5,6 +5,7 @@ Set AUTOPILOT_SAVE to an existing native SAVE and use codex-run-scratch with
 is suppressed; native presence/locator/task dispatch are explicit seams.
 """
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -54,9 +55,10 @@ for before, after in (
     ('IsEntity(pchar)', 'FixtureEntity(pchar)'),
     ('GetEntity(&resources, "WdmStaticResources")', 'FixtureResources()'),
     ('SendMessage(resources, "sas", "SeaLocator", endpoint, WdmTrafficPortLocator(port))', 'FixtureLocator(endpoint, port)'),
+    ('SendMessage(resources, "sa", "AutopilotSpeedProfile", profile)', 'FixtureProfile(profile)'),
     ('SendMessage(&AISea, "llla", AI_MESSAGE_SHIP_SET_TASK, AITASK_NONE, PRIMARY_TASK, pchar)', 'FixtureRelease()'),
 ):
-    assert body.count(before) == 1, before
+    assert body.count(before) == (2 if before.startswith('GetEntity(') else 1), before
     body = body.replace(before, after)
 policy.write_text(body)
 if os.environ.get('AUTOPILOT_PROBE') in ('hunt-after', 'trade-tick'):
@@ -203,7 +205,7 @@ int Run(){
  pchar=GetMainCharacter();pchar.Ship.Autopilot.mode=1;
  int origin=sti(pchar.Ship.Autopilot.port);
  DiagEligible=SeaAutopilot_Free(GOOD_SUGAR);
- int sale=SeaAutopilot_SalePort(origin);if(sale<0)return 1;
+ int sale=SeaAutopilot_SalePort(origin);if(sale<0)sale=origin;
  // Fill only disposable derived holds with the commodity already eligible for sale.
  int selected=-1;
  for(int good=GOOD_CHOCOLATE;good<=GOOD_SILVER;good++){
@@ -280,6 +282,103 @@ int Run(){
  return 0;
 }
 '''
+if os.environ.get('AUTOPILOT_PROBE') == 'ports':
+    cases = cases[:cases.index('int Run(){')] + r'''
+int Run(){pchar=GetMainCharacter();DiagStatus="{";for(int port=0;port<MAX_COLONIES;port++){string locator=WdmTrafficPortLocator(port);if(locator=="")continue;if(DiagPorts>0)DiagStatus+=",";DiagStatus+="\""+Colonies[port].id+"\":\""+locator+"\"";DiagPorts++;}DiagStatus+="}";return 0;}
+'''
+if os.environ.get('AUTOPILOT_PROBE') == 'economics':
+    # Actual installed configuration, without STRSERVICE's renderer bootstrap.
+    config = Path('/Applications/Corsairs Iddictive Remaster.app/Contents/Resources/RESOURCE/INI/texts/russian/Mods_On_Off_File.txt').read_bytes()
+    values = re.findall(rb'^SalaryComplex_Coeff\s*\{([0-9.]+)\}', config, re.M)
+    assert len(values) == 1
+    coefficient = float(values[0])
+    print('salary_config', coefficient, hashlib.sha256(config).hexdigest(), flush=True)
+    crew = program / 'scripts/Crew.c'
+    crew_body = crew.read_bytes()
+    needle = b'return stf(GetConvertStr(_param, KVL_MODS_FILE));'
+    assert crew_body.count(needle) == 1
+    crew.write_bytes(crew_body.replace(needle, b'return FixtureSalarySetting(_param);'))
+    cases = cases[:cases.index('int Run(){')] + r'''
+float FixtureSalarySetting(string param){if(param != "SalaryComplex_Coeff"){DiagTasks=-999;return -99999.0;}return COEFFICIENT;}
+int Run(){
+ pchar=GetMainCharacter();int origin=sti(pchar.Ship.Autopilot.port);int store=FindStore(Colonies[origin].id);
+ float wages=0.0;int food=0;DiagStatus="origin="+Colonies[origin].id;
+ for(int slot=0;slot<COMPANION_MAX;slot++){
+  int index=GetCompanionIndex(pchar,slot);if(index<0)continue;ref captain=&Characters[index];
+  if(!SeaAutopilot_Ship(captain))continue;DiagShip++;
+  int daily=GetShipDailyFood(captain,GetCrewQuantity(captain));food+=daily;wages+=GetSalaryForShip(captain);if(DiagTasks == -999)return 99;
+  int saleable=0;for(int good=GOOD_CHOCOLATE;good<=GOOD_SILVER;good++)saleable+=SeaAutopilot_SaleQuantity(captain,good);
+  DiagStatus+=" ["+slot+":load="+GetCargoLoad(captain)+"/"+GetCargoMaxSpace(captain)+",trade="+saleable+",foodDay="+daily+"]";
+ }
+ DiagX=wages/30.0+food*1.0*GetStoreGoodsPrice(&Stores[store],GOOD_FOOD,PRICE_TYPE_BUY,pchar,1)/sti(Goods[GOOD_FOOD].Units);
+ int cash=sti(pchar.Money);SeaAutopilot_Sell(origin);int sale=sti(pchar.Money)-cash;
+ cash=sti(pchar.Money);SeaAutopilot_Resupply(origin);int replenish=cash-sti(pchar.Money);
+ int destination=SeaAutopilot_NextPort(origin);DiagPorts=destination;
+ string blk = ""; if(CheckAttribute(pchar, "Ship.Autopilot.plan.blocked")) blk = pchar.Ship.Autopilot.plan.blocked;
+ DiagReason="arrivalSale="+sale+",resupply="+replenish+",monthlyWages="+wages+",foodDay="+food;
+ if(destination<0)return 1;
+ object before;
+ for(good=GOOD_CHOCOLATE;good<=GOOD_SILVER;good++){
+  string name=Goods[good].name;before.(name)=0;
+  for(slot=0;slot<COMPANION_MAX;slot++){index=GetCompanionIndex(pchar,slot);if(index>=0)before.(name)=sti(before.(name))+GetCargoGoods(&Characters[index],good);}
+ }
+ cash=sti(pchar.Money);SeaAutopilot_Buy(origin,destination);int spent=cash-sti(pchar.Money);
+ float revenue=0.0;int buyer=FindStore(Colonies[destination].id);DiagReason+=",next="+Colonies[destination].id+",bought:";
+ for(good=GOOD_CHOCOLATE;good<=GOOD_SILVER;good++){
+  name=Goods[good].name;int quantity=0;
+  for(slot=0;slot<COMPANION_MAX;slot++){index=GetCompanionIndex(pchar,slot);if(index>=0)quantity+=GetCargoGoods(&Characters[index],good);}
+  quantity-=sti(before.(name));if(quantity<1)continue;DiagEligible+=quantity;
+  revenue+=quantity*1.0*GetStoreGoodsPrice(&Stores[buyer],good,PRICE_TYPE_SELL,pchar,1)/sti(Goods[good].Units);DiagReason+=" "+name+"="+quantity;
+ }
+ DiagZ=revenue-spent;DiagReason+=",spend="+spent+",quoteRevenue="+revenue;
+ for(slot=0;slot<COMPANION_MAX;slot++){
+  index=GetCompanionIndex(pchar,slot);if(index<0)continue;captain=&Characters[index];int after=0;
+  for(good=GOOD_CHOCOLATE;good<=GOOD_SILVER;good++)after+=SeaAutopilot_SaleQuantity(captain,good);
+  DiagReason+=" ["+slot+":load="+GetCargoLoad(captain)+",trade="+after+"]";
+ }
+ return 0;
+}
+'''
+    cases = cases.replace('COEFFICIENT', repr(coefficient))
+    fleet = os.environ.get('AUTOPILOT_FLEET', 'actual')
+    assert fleet in ('actual', 'merchant', 'battle')
+    if fleet != 'actual':
+        authored = r'''
+ for(int hullSlot=0;hullSlot<COMPANION_MAX;hullSlot++){
+  int hullIndex=GetCompanionIndex(pchar,hullSlot);if(hullIndex<0)continue;
+  ref actor=&Characters[hullIndex];
+  actor.Ship.Type=CreateBaseShip(CONTROL_HULL);
+  DeleteAttribute(actor,"Ship.Cannons");SetBaseShipData(actor);
+  SetCrewQuantity(actor,GetOptCrewQuantity(actor));
+  DeleteAttribute(actor,"Ship.Cargo");DeleteAttribute(actor,"TransferGoods");
+  for(int clearGood=0;clearGood<GOODS_QUANTITY;clearGood++)SetCharacterGoods(actor,clearGood,0);
+ }
+'''.replace('CONTROL_HULL', 'SHIP_FLEUT' if fleet == 'merchant' else 'SHIP_MANOWAR')
+        cases = cases.replace(' float wages=0.0;', authored + '\n float wages=0.0;', 1)
+ship_header = (NATIVE / 'engine/src/libs/worldmap/src/wdm_ship.h').read_text()
+speed = re.findall(r'#define WDM_SHIP_MAX_SPEED ([0-9.]+)f', ship_header)
+units_header = (NATIVE / 'engine/src/libs/math/include/math_inlines.h').read_text()
+units = re.findall(r'#define KNOTS2METERS\(x\) \(\(x\)\*([0-9.]+)f / ([0-9.]+)f\)', units_header)
+assert len(speed) == len(units) == 1
+profile = 'bool FixtureProfile(ref profile){profile.mapMaxSpeed=' + speed[0] + ';profile.knotsToMeters=' + repr(float(units[0][0])/float(units[0][1])) + ';return true;}\n'
+cases = cases.replace('int Run(){', profile + 'int Run(){', 1)
+if os.environ.get('AUTOPILOT_PROBE') == 'economics':
+    old = 'bool FixtureLocator(ref point,int port){point.x=SeaAutopilot_X()+100.0;point.z=SeaAutopilot_Z()+100.0;return true;}'
+    assert cases.count(old) == 1
+    endpoint_file = os.environ.get('AUTOPILOT_ENDPOINTS')
+    if endpoint_file:
+        endpoints = json.loads(Path(endpoint_file).read_text())
+        lines = ['bool FixtureLocator(ref point,int port){string id=Colonies[port].id;']
+        for name, point in endpoints.items():
+            assert re.fullmatch(r'[A-Za-z0-9_]+', name)
+            lines.append('if(id==' + json.dumps(name) + '){point.x=' + repr(float(point['x'])) + ';point.z=' + repr(float(point['z'])) + ';return true;}')
+        lines.append('return false;}')
+        cases = cases.replace(old, '\n'.join(lines))
+        print('endpoint_seam', hashlib.sha256(Path(endpoint_file).read_bytes()).hexdigest(), flush=True)
+    else:
+        assert os.environ.get('AUTOPILOT_APPROX_ENDPOINTS') == '1', 'Exact native endpoint snapshot is required'
+        cases = cases.replace(old, 'bool FixtureLocator(ref point,int port){string isl=Colonies[port].island;if(!CheckAttribute(&worldMap,"islands."+isl+".position.x"))return false;point.x=worldMap.islands.(isl).position.x;point.z=worldMap.islands.(isl).position.z;return true;}')
+        print('endpoint_seam=APPROXIMATE saved label centres; not native route acceptance', flush=True)
 cases = re.sub(r'(\|\||&&|==|!=|<=|>=|<|>)', r' \1 ', cases)
 (program / 'cases.c').write_text(cases)
 (WORK / 'cases.c').write_text('// Probe entry validation; the loaded program owns cases.c.\n')
