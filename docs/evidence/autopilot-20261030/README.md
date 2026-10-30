@@ -87,3 +87,56 @@ timeout, stopped child, exited leader with live descendant, non-child ECHILD
 and unrelated-session preservation were checked; the original native benchmark
 then completed normally. See [CPython's upstream fix](https://github.com/python/cpython/pull/113542)
 and [Apple's ABI owner](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/signal.h).
+
+## Reopened saved-state defects
+
+The newer player snapshots contradicted the earlier fixture acceptance. Trade
+was stopped with `waiting/market`: all five holds exceeded the NPC 75% freight
+limit although real capacity remained. Hunt was `sailing` among ports with no
+enemy target despite 23 eligible hostile fleets among 62 saved descriptors.
+The earlier seven-unit private-cargo assertion described the old implementation;
+the user subsequently authorized trading existing ordinary cargo as well.
+
+The current policy uses actual free hold space and plans an existing-cargo sale
+before a purchase route. Destination bids are compared with the current local
+bid using the existing distance-weighted route policy, without inventing an
+acquisition cost or a global maximum-profit optimizer. Cargo is sold only at its
+planned destination, or locally when no eligible destination improves the local
+bid. Food, ammunition, repair supplies, weapons, medicine, Rum, cannon goods,
+inventory items, canonical commodity `isquest` flags and configured
+`TransferGoods` target quantities remain outside automatic commodity sales.
+Purchases and sales use the same finite player/store ledger.
+
+Hunt selects an existing hostile ordinary fleet through the native encounter
+catalog and descriptor policy. The stable fleet ID is authoritative; the cached
+index is revalidated before reuse. Live positions drive the chart course, then
+the existing deferred encounter queue admits a fleet within the ordinary
+25-unit radius. Quest, friendly, retired, expired, sinking, port-service and
+skipped encounters are excluded. Enemy coordinates discard port settlement
+authority. Manual Off still cancels control and pending encounter admission.
+
+`save-policy-replay.py` is a read-only one-off replay producer. Supply an
+original player snapshot via `AUTOPILOT_SAVE` and select `AUTOPILOT_PROBE`:
+`trade` inspects the saved route admission, `hunt` inspects the saved missing
+target, `trade-after` proves full derived holds, planned finite sale, paid next
+purchase and protected-cargo negatives, `trade-tick` replays normal dated-retry
+and arrival callbacks, and `hunt-after` proves pursuit, admission and Off.
+Run through the existing managed scratch runner with 2 GiB, 20,000 entries,
+180 seconds and a 10 GiB free-space reserve; use one producer at a time.
+
+The producer copies the original saved script state into scratch, suppresses
+`OnLoad`/game scenes and leaves the original untouched. Entity/locator/task
+dispatch and the native encounter catalog are explicit seams; fleet identity,
+relations, eligibility, actual stores/cash/holds and policy run in the real VM.
+The full-hold case adds commodities only to the disposable derived holds.
+Private snapshots and personal values remain outside this repository.
+`behavior-repair.json` retains the nonprivate raw results and their conditions.
+
+Performance remains source-bounded: no new rendered-frame loop, no new polling
+cadence, native catalog acquisition/reacquisition is linear in live fleet count,
+and a valid cached target needs one selector plus policy validation per Tick.
+Port pricing occurs at arrival or the existing dated retry; per-good hold and
+sale quantities are computed once per decision. The recorded VM invocation
+times include startup/resumed script work and multiple callbacks, so they do
+not establish whole-game FPS or per-frame latency. Native gameplay and installed
+activation remain the root integration owner's separate delivery boundary.

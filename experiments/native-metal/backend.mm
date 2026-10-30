@@ -789,9 +789,9 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   completeSceneScale();
  }
  void begin(bool clear=false,uint32_t flags=0,uint32_t c=0,float z=1){prepareSceneFrame();target->gpuDirty=true;if(!command)command=[queue commandBuffer];if(encoder)return;auto p=[MTLRenderPassDescriptor renderPassDescriptor];p.colorAttachments[0].texture=renderColor();p.colorAttachments[0].slice=target->slice;p.colorAttachments[0].level=target->mip;p.colorAttachments[0].loadAction=(clear&&(flags&storm_render::clear::color))?MTLLoadActionClear:MTLLoadActionLoad;p.colorAttachments[0].storeAction=MTLStoreActionStore;auto cc=color(c);p.colorAttachments[0].clearColor=MTLClearColorMake(cc.x,cc.y,cc.z,cc.w);if(zbuffer&&renderDepth().width==renderColor().width&&renderDepth().height==renderColor().height){p.depthAttachment.texture=renderDepth();p.depthAttachment.loadAction=(clear&&(flags&storm_render::clear::depth))?MTLLoadActionClear:MTLLoadActionLoad;p.depthAttachment.storeAction=MTLStoreActionStore;p.depthAttachment.clearDepth=z;}encoderSamples=1;
- // Water's base pass captures single-sample depth/identity. Keep its foam and
- // solar overlays in that same domain; a min-MSAA resolve changes wave depth.
- if(storm_metal::antialiasingSampleCount(antialiasingMode)&&msaaSamples&&target==back&&zbuffer==depth&&!landShadow.prepass.inPass&&!aimDirectPass&&!(aimModelScope.water&&aimModelScope.captured)&&!hudSceneSnapshotReady&&!metalFXSceneClosed&&sceneAA().prepare(metal,renderColor(),renderDepth(),msaaSamples)&&sceneAA().attach(command,p))encoderSamples=msaaSamples;
+ // Main color keeps its sample coverage across the complete water pass.
+ // Single-sample receiver metadata is stamped separately when MSAA is active.
+ if(storm_metal::antialiasingSampleCount(antialiasingMode)&&msaaSamples&&target==back&&zbuffer==depth&&!landShadow.prepass.inPass&&!aimDirectPass&&!hudSceneSnapshotReady&&!metalFXSceneClosed&&sceneAA().prepare(metal,renderColor(),renderDepth(),msaaSamples)&&sceneAA().attach(command,p))encoderSamples=msaaSamples;
  else if(target==back&&zbuffer==depth)sceneAA().invalidate();
  if(aimDirectPass)aimVolume.attachModelTargets(p);encoder=[command renderCommandEncoderWithDescriptor:p];encoder.label=landShadow.prepass.inPass?@"Authored shadow caster":target->gpu.textureType==MTLTextureTypeCube?@"Sea reflection geometry":@"Scene geometry";}
  bool canApplyGraphicsSettings(uint32_t flags,unsigned shadowQuality)const{return metal&&!landShadow.prepass.inPass&&!skinningPoseActive&&(flags&~storm_metal::knownGraphicsFlags)==0&&shadowQuality<=2;}
@@ -985,7 +985,7 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
   const bool specialize=ffpSpecialization.active()&&fixedFunctionMaterial;
   const auto stamp=aimReceiverStamp();
   const bool direct=aimModelScope.captured&&aimReceiverTarget()&&std::memcmp(&stamp,&aimModelScope.stamp,sizeof(stamp))==0&&rs[storm_render::RenderDepthTest]&&rs[storm_render::RenderDepthWrite]&&
-      ((aimModelScope.water&&shaderLibrary==seaLibrary&&([pixelName isEqualToString:@"sea2_fs"]||[pixelName isEqualToString:@"sea3_fs"]||[pixelName isEqualToString:@"sea2_modern_fs"]||[pixelName isEqualToString:@"sea3_modern_fs"]))||
+      ((aimModelScope.water&&!separateWaterReceiver()&&shaderLibrary==seaLibrary&&([pixelName isEqualToString:@"sea2_fs"]||[pixelName isEqualToString:@"sea3_fs"]||[pixelName isEqualToString:@"sea2_modern_fs"]||[pixelName isEqualToString:@"sea3_modern_fs"]))||
        (!aimModelScope.water&&materialLibrary&&([pixelName isEqualToString:@"fs"]||[pixelName isEqualToString:@"fs_landlit"]||[pixelName isEqualToString:@"bridge_advanced_fs"])));
   if(encoder&&aimDirectPass!=direct)finish();
   // Select once here: raw, compact, cached and bridge draws share the same fog.
@@ -1088,6 +1088,28 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
   }}
   return drawn;
  }
+ bool separateWaterReceiver()const{return aimModelScope.water&&aimModelScope.captured&&storm_metal::antialiasingSampleCount(antialiasingMode)&&msaaSamples;}
+ template<class Draw> bool stampSeaReceiver(SeaShaderKind kind,id<MTLBuffer>vertices,NSUInteger vertexOffset,id<MTLBuffer>constants,NSUInteger constantOffset,Draw draw){
+  // A min-resolved foreground depth cannot represent uncovered MSAA samples.
+  // Keep the visible draw multisampled; this cheap pass touches metadata only.
+  finish();if(!command)command=[queue commandBuffer];
+  const uint64_t key=0x7365610000000000ull|uint64_t(kind);auto pipeline=pipelines[key];
+  if(!pipeline){auto p=[MTLRenderPipelineDescriptor new];p.vertexFunction=[seaLibrary newFunctionWithName:[NSString stringWithUTF8String:seaVertexFunction(kind)]];p.fragmentFunction=[seaLibrary newFunctionWithName:@"sea_identity_fs"];
+   p.colorAttachments[0].pixelFormat=renderColor().pixelFormat;p.colorAttachments[0].writeMask=MTLColorWriteMaskNone;
+   p.colorAttachments[1].pixelFormat=MTLPixelFormatR32Float;p.colorAttachments[2].pixelFormat=MTLPixelFormatRG32Uint;p.depthAttachmentPixelFormat=renderDepth().pixelFormat;
+   NSError*error=nil;pipeline=[metal newRenderPipelineStateWithDescriptor:p error:&error];if(!pipeline){fprintf(stderr,"[StormMetal] sea receiver pipeline: %s\n",error.localizedDescription.UTF8String);return false;}pipelines[key]=pipeline;
+  }
+  auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=renderColor();pass.colorAttachments[0].loadAction=MTLLoadActionLoad;pass.colorAttachments[0].storeAction=MTLStoreActionStore;
+  pass.depthAttachment.texture=renderDepth();pass.depthAttachment.loadAction=MTLLoadActionLoad;pass.depthAttachment.storeAction=MTLStoreActionStore;aimVolume.attachModelTargets(pass);
+  auto e=[command renderCommandEncoderWithDescriptor:pass];if(!e)return false;e.label=@"Water receiver identity";
+  [e setRenderPipelineState:pipeline];const uint64_t depthKey=rs[storm_render::RenderDepthTest]|uint64_t(rs[storm_render::RenderDepthCompare])<<16;auto depthState=depths[depthKey];
+  if(!depthState){auto d=[MTLDepthStencilDescriptor new];d.depthCompareFunction=rs[storm_render::RenderDepthTest]?(MTLCompareFunction)(rs[storm_render::RenderDepthCompare]-1):MTLCompareFunctionAlways;d.depthWriteEnabled=false;depthState=[metal newDepthStencilStateWithDescriptor:d];depths[depthKey]=depthState;}
+  [e setDepthStencilState:depthState];[e setFrontFacingWinding:MTLWindingClockwise];[e setCullMode:rs[storm_render::RenderCullMode]==storm_render::CullNone?MTLCullModeNone:rs[storm_render::RenderCullMode]==storm_render::CullClockwise?MTLCullModeFront:MTLCullModeBack];
+  float bias=0,slope=0;memcpy(&bias,&rs[storm_render::RenderDepthBias],4);memcpy(&slope,&rs[storm_render::RenderSlopeScaleDepthBias],4);[e setDepthBias:bias slopeScale:slope clamp:0];[e setViewport:rasterViewport(MTLViewport{double(vp.X),double(vp.Y),double(vp.Width),double(vp.Height),vp.MinZ,vp.MaxZ})];
+  [e setVertexBuffer:vertices offset:vertexOffset atIndex:0];[e setVertexBuffer:constants offset:constantOffset atIndex:1];const auto identity=aimVolume.modelIdentity();[e setFragmentBytes:&identity length:sizeof(identity) atIndex:7];draw(e);[e endEncoding];
+  // Neither resolved scene attachment changed, so retain its MSAA samples.
+  return true;
+ }
  bool prepareSeaScene(SeaUniform& u){
   prepareSceneFrame();memcpy(&u.projection,&matrices[storm_render::TransformProjection],64);memcpy(&u.viewMatrix,&matrices[storm_render::TransformView],64);u.viewport=screenViewport();
   if(target!=back||!sceneDepthReady||!zbuffer||zbuffer->gpu.pixelFormat!=MTLPixelFormatDepth32Float||target->gpu.sampleCount!=1||zbuffer->gpu.sampleCount!=1||target->desc.Width!=zbuffer->desc.Width||target->desc.Height!=zbuffer->desc.Height||vp.MinZ!=0||vp.MaxZ!=1)return false;
@@ -1134,7 +1156,12 @@ storm_render::Result applyStateLegacy(uint64_t shaderKey,id<MTLLibrary> shaderLi
  bindMaterialTexture(volume?volume->gpu():nil,8);bindMaterialTexture(cube?cube->gpu():nil,9);bindMaterialTexture(uniforms.depthRefractionEnabled?sceneColorSnapshot:nil,10);bindMaterialTexture(uniforms.depthRefractionEnabled?sceneDepthSnapshot:nil,11);
  bindMaterialTexture(volumetricSky.clouds[volumetricSky.from],12);bindMaterialTexture(volumetricSky.clouds[volumetricSky.to],13);
  bindMaterialTexture(uniforms.reflectionCameraOffset.w>0?cube->reflectionDepth:nil,14);bindMaterialTexture(uniforms.reflectionCameraOffset.w>0?cube->reflectionBackground:nil,15);
-	 if(indexData){uint32_t indexCount=primitives*3;auto indices=submissionBuffer(indexData,size_t(indexCount)*(indexFormat==storm_render::IndexFormat::UInt32?4:2));if(!indices.buffer)return storm_render::result::outOfMemory;[encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexFormat==storm_render::IndexFormat::UInt32?MTLIndexTypeUInt32:MTLIndexTypeUInt16 indexBuffer:indices.buffer indexBufferOffset:indices.offset instanceCount:1 baseVertex:base baseInstance:0];}else [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:primitives*3];
+	 decltype(vertices) indices{};if(indexData){indices=submissionBuffer(indexData,size_t(primitives)*3*(indexFormat==storm_render::IndexFormat::UInt32?4:2));if(!indices.buffer)return storm_render::result::outOfMemory;}
+ auto draw=[&](id<MTLRenderCommandEncoder>e){if(indexData)[e drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:primitives*3 indexType:indexFormat==storm_render::IndexFormat::UInt32?MTLIndexTypeUInt32:MTLIndexTypeUInt16 indexBuffer:indices.buffer indexBufferOffset:indices.offset instanceCount:1 baseVertex:base baseInstance:0];else [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:primitives*3];};draw(encoder);
+ if(primitives&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3)&&separateWaterReceiver()){
+  if(!stampSeaReceiver(kind,vertices.buffer,vertices.offset,constants.buffer,constants.offset,draw))return storm_render::result::failure;
+  if(profile.enabled){++profile.draws;profile.vertices+=primitives*3;}
+ }
  const bool mainSeaDraw=!interfaceBackSceneActive&&target==back&&primitives&&(kind==SeaShaderKind::Sea2||kind==SeaShaderKind::Sea3);
  if(mainSeaDraw){if(!gpuCapture.path.empty())gpuCapture.seaDrawn=true;if(profile.trace.output)++profile.traceSea;}
  return storm_render::result::ok;

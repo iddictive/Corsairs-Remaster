@@ -1,0 +1,63 @@
+"""Frozen one-off native replay; no game loop, GUI control or shared builds.
+
+Usage: CODEX_SCRATCH_DIR=<existing disposable directory> python3 replay.py.txt <repo>
+Requires the configured canonical native build and its existing dependencies.
+"""
+import json
+import os
+import pathlib
+import shlex
+import subprocess
+import sys
+
+root = pathlib.Path(sys.argv[1]).resolve()
+archive = pathlib.Path(__file__).resolve().parent
+scratch = pathlib.Path(os.environ['CODEX_SCRATCH_DIR']).resolve()
+build = root / 'experiments/native-metal/.cache/build'
+native = root / 'experiments/native-metal'
+assert scratch.is_dir() and scratch != root
+
+def replace_once(source, before, after):
+    assert source.count(before) == 1, before
+    return source.replace(before, after)
+
+header = (native / 'aim_volume.hpp').read_text()
+needle = '  simd_uint2 modelIdentity()const{return model_.identityValue;}'
+header = replace_once(header, needle, needle + (archive / 'receiver-readback-method.cpp.txt').read_text())
+(scratch / 'aim_volume.hpp').write_text(header)
+backend = (native / 'backend.mm').read_text()
+needle = 'extern "C" void StormMetalLandLocation(void*pointer,bool active);'
+backend = replace_once(backend, needle, needle + '\nstatic bool outlineProbeLegacy=false;')
+backend = replace_once(backend, 'bool separateWaterReceiver()const{return aimModelScope.water',
+                       'bool separateWaterReceiver()const{return !outlineProbeLegacy&&aimModelScope.water')
+backend = replace_once(backend, '&&!aimDirectPass&&!hudSceneSnapshotReady',
+                       '&&!aimDirectPass&&!(outlineProbeLegacy&&aimModelScope.water&&aimModelScope.captured)&&!hudSceneSnapshotReady')
+backend += '''
+extern "C" void StormMetalOutlineProbeLegacy(bool legacy){outlineProbeLegacy=legacy;}
+extern "C" void StormMetalOutlineProbeReceiver(void*pointer,unsigned x,unsigned y,uint32_t*out){auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));d->aimVolume.outlineProbeRead(d->metal,d->queue,x,y,out);}
+'''
+backend_path = scratch / 'backend-instrumented.mm'
+backend_path.write_text(backend)
+commands = subprocess.check_output([str(native / 'inputs/toolchain/bin/ninja'), '-t', 'commands', 'depth_water-probe'], cwd=build, text=True).splitlines()
+compile_backend = shlex.split(next(x for x in commands if ' -c ' in x and 'backend.mm' in x))
+compile_backend[compile_backend.index('-c') + 1] = str(backend_path)
+compile_backend[compile_backend.index('-o') + 1] = str(scratch / 'backend-instrumented.o')
+compile_backend[compile_backend.index('-MF') + 1] = str(scratch / 'backend-instrumented.d')
+subprocess.run(compile_backend, cwd=scratch, check=True)
+compile_probe = shlex.split(next(x for x in commands if ' -c ' in x and 'depth_water_probe.cpp' in x))
+link_probe = shlex.split(commands[-1].removeprefix(': && ').removesuffix(' && :'))
+for name in ['receiver', 'timing-paired']:
+    source = scratch / (name + '.cpp')
+    source.write_text((archive / (name + '.cpp.txt')).read_text())
+    compile_args = list(compile_probe)
+    compile_args[compile_args.index('-c') + 1] = str(source)
+    compile_args[compile_args.index('-o') + 1] = str(scratch / (name + '.o'))
+    subprocess.run(compile_args, cwd=scratch, check=True)
+    link_args = [str(scratch / (name + '.o')) if x == 'CMakeFiles/depth_water-probe.dir/depth_water_probe.cpp.o' else x for x in link_probe]
+    link_args.insert(link_args.index('libstorm_metal.a'), str(scratch / 'backend-instrumented.o'))
+    link_args[link_args.index('-o') + 1] = str(scratch / name)
+    subprocess.run(link_args, cwd=build, check=True)
+techniques = native / '.cache/runtime/RESOURCE/techniques'
+for mode in ['0', '2']:
+    subprocess.run([str(scratch / 'receiver'), str(techniques)], env=os.environ | {'STORM_METAL_AA_MODE': mode}, check=True)
+subprocess.run([str(scratch / 'timing-paired'), str(techniques)], env=os.environ | {'STORM_METAL_AA_MODE': '2', 'STORM_METAL_PROFILE': '1', 'STORM_METAL_FRAME_TRACE': str(scratch / 'paired.csv')}, check=True)

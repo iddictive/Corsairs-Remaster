@@ -6,6 +6,14 @@ when changing the Metal backend. Current source owners below were checked at
 fixtures below. They are not current player FPS or
 stability guarantees.
 
+## Preserve MSAA coverage across water receiver capture
+
+The October30 receiver-scope replay reproduces bright sky fringes when water
+switches from MSAA foreground geometry to single-sample metadata. Keep visible
+water multisampled and stamp its identity without writing scene color/depth.
+[Native pixels, receiver readback and component timing](evidence/object-outline-20261030/README.md)
+preserve the regression trigger and the measured cost of restoring coverage.
+
 ## Scene LUT stays before HUD
 
 The October23 candidate shares `FXAAPass` with a 32³ color LUT under the existing

@@ -1,0 +1,366 @@
+{
+  "source_commit": "a7f9f9ca85c3e3543854ea69518e527bb9fb61a3",
+  "source_status_at_archive": "",
+  "archiving_only_no_replay": true,
+  "original_execution_date": "2026-10-30",
+  "python_at_archive": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+  "sources": [
+    {
+      "path": "experiments/native-metal/engine/src/libs/sea/src/sea.cpp",
+      "bytes": 99816,
+      "sha256": "6b99ddb0412c8f5848bcebca80188b8272eed9ae276dae0002096268ba061510"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/island/src/foam.cpp",
+      "bytes": 36449,
+      "sha256": "c7c415656a6215bdd56c0617dd718677ec8ff40fa5019a7320b0f01a16f66ed7"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/techniques/weather/CoastFoam.fx",
+      "bytes": 478,
+      "sha256": "1e4e98181e96de7cad0e7facd58a1a55072251ea5ee9af409cdaa781ef4db04f"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/math/include/math3d.h",
+      "bytes": 3604,
+      "sha256": "9486fa8d28e8492e6165b1d0900fed7b90539a61af386e7f5b06f8107a393da2"
+    },
+    {
+      "path": "experiments/native-metal/engine/src/libs/math/include/math3d/vector.h",
+      "bytes": 26463,
+      "sha256": "e6b2bf6164b39e4e416e73523d92177465e893945a98a275460f916485f6cfb0"
+    },
+    {
+      "path": "src/gameplay/PROGRAM/weather/WhrSeaPresets.c",
+      "bytes": 17938,
+      "sha256": "555dc0706272fac14ba8839d6293bb7d1a51072bc4866c6c830dad87b326d76e"
+    }
+  ],
+  "runtime_input_owner": "experiments/native-metal/.cache/runtime/RESOURCE/Sea",
+  "runtime_inputs_in_git": false,
+  "inputs": [
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0000.tga",
+      "bytes": 65554,
+      "sha256": "cf7503021b94a8ef68f58905d14c477ff729b8c8ae863ea861e9dfcb37432197"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0001.tga",
+      "bytes": 65554,
+      "sha256": "67fe27b71cf162be0f01e3740cbbc673e33e987b9cd655c7270fec758fe3b09e"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0002.tga",
+      "bytes": 65554,
+      "sha256": "f38991aefc31ef246b7f591d717dd7c3cc902baf6dc57edebb53171fa6481a72"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0003.tga",
+      "bytes": 65554,
+      "sha256": "6cf1bb773c2afedd1ad78b45a3d4474450ffcfdab4a705d83f3c7e78fabc8954"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0004.tga",
+      "bytes": 65554,
+      "sha256": "00f335e47ff6cb0c361a9adbc61d9bcffe26ed8f29e8af8fd34d440a174ab959"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0005.tga",
+      "bytes": 65554,
+      "sha256": "b59bdc3f813a4166b11e825b35a79f1b26f14f0ef34cfb3130eaf0475ab3c634"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0006.tga",
+      "bytes": 65554,
+      "sha256": "919b8d56287605f05a06040d41c1b8d2977cd1bf192dc26ce85152831f7f93c7"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0007.tga",
+      "bytes": 65554,
+      "sha256": "79e1b11bf0090b6730a7e3df4aaf53d621cffd88c47b168dd56a2503ac68ffa0"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0008.tga",
+      "bytes": 65554,
+      "sha256": "916506eebcf0b4256c368799adfeca9ad70fd92a2f0ba021df704af294dc1d9b"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0009.tga",
+      "bytes": 65554,
+      "sha256": "d92fde143b14a3d05c88612013e5c2efef31471584a9eea118f62580fbccc40f"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0010.tga",
+      "bytes": 65554,
+      "sha256": "154eb033b2a6907b5c39a9eb59eb9601216b3cb7f7656dc6eb6d05b199e03235"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0011.tga",
+      "bytes": 65554,
+      "sha256": "ae3c0abeb05ebba72f87a427923b448c1c7c41547cb9aacb2e6b91b1ea366df3"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0012.tga",
+      "bytes": 65554,
+      "sha256": "1f549b312cb61c459d32fcc5d05857fd769a12b4d752c568ce241b171e021066"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0013.tga",
+      "bytes": 65554,
+      "sha256": "bf5f74f0a348c932ee080ac003daf52ba5635dc1460459eeba9c09f2ce22f669"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0014.tga",
+      "bytes": 65554,
+      "sha256": "b477f1e784d7a17aca0d3c20d746d0d42e3134156e442e77977f109ad15eba63"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0015.tga",
+      "bytes": 65554,
+      "sha256": "12c19dc4195b84264baed6a8029b7d94774d127fda43ba2552fe41d22fc2a3f5"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0016.tga",
+      "bytes": 65554,
+      "sha256": "9ce4db36f96a4ebc11bc901ccb76e4f2d553f2dc51452d53a72003902e1d0ae7"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0017.tga",
+      "bytes": 65554,
+      "sha256": "be63aec89256322970198e726daf6c1a2e059e916430ed65e4eb14f08bd2bc56"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0018.tga",
+      "bytes": 65554,
+      "sha256": "dba83d98e9514d46f19cc61cf32527aff365c26ac9a5b3de3b14dd0d55dcd4f5"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0019.tga",
+      "bytes": 65554,
+      "sha256": "fee92f68bb42f80e5c03263648fa1d779bb1339ce67cb36b930ca5b7b67518a7"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0020.tga",
+      "bytes": 65554,
+      "sha256": "e3e41d650fbe283f294b690bebb5742ffbfef2ee44d5e23a8cbe108f28d8bcb7"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0021.tga",
+      "bytes": 65554,
+      "sha256": "1aa03e9b81f05865b8b5e8c5677ed995ea853176b379ee1fbf04279f17e3b6b9"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0022.tga",
+      "bytes": 65554,
+      "sha256": "7f4d1e6791a82787531554a4396943d643febf3a67c89819dbeb890a2701c7ae"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0023.tga",
+      "bytes": 65554,
+      "sha256": "f356b16c16d86ec3d1c8d9efbbdd199efdfd60cd3a83a4f7727d3b4670e1ec79"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0024.tga",
+      "bytes": 65554,
+      "sha256": "7ef3be45310e617d3610e0c362a3eaca96d46bb6c9eff3c6a2663f0fac606e47"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0025.tga",
+      "bytes": 65554,
+      "sha256": "678f081dc7f4465d5cfb85cfc4d61b0516a63080a76331bbede120bde38aa2fe"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0026.tga",
+      "bytes": 65554,
+      "sha256": "f8680675ac3093668b6a764500ee3dc9fa5b22bcbe86cdde8806a4200331f418"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0027.tga",
+      "bytes": 65554,
+      "sha256": "aa4920039b5500204bcba6e8574bb50887faf228154442f4edf7b7faa6b9e33b"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0028.tga",
+      "bytes": 65554,
+      "sha256": "284afbc8b85b633c737009edab97196fbd1c89c41a6cc126cbed8410121926c8"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0029.tga",
+      "bytes": 65554,
+      "sha256": "0ac79d073cbcfca49205d5fd684888ebcf2d9e750b1aba55d19d0352d73c5ef7"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0030.tga",
+      "bytes": 65554,
+      "sha256": "5ac0d9424173cd4728617d4be5dfedd73e85ee9cbd0f7424433e19f299b9d0a0"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0031.tga",
+      "bytes": 65554,
+      "sha256": "e7f60ac5492bd8460f42445a42ed2768a046f8b0766501eed3ba91740b6f3f8e"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0032.tga",
+      "bytes": 65554,
+      "sha256": "39c431446cdd3ac7aef65291a60188289257b277236fb4aa7e8f4af87408a67d"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0033.tga",
+      "bytes": 65554,
+      "sha256": "9eae87db9c11fe21588ac8e841da2d1d857c038675d1a3e32b3857ce6862ff0f"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0034.tga",
+      "bytes": 65554,
+      "sha256": "75a602f663e1cf65be655df023568b81e81a1da9a6dcafaa30f0c1ce408828b8"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0035.tga",
+      "bytes": 65554,
+      "sha256": "92745fbfa431fde03ef5a9e1e58547423f607d953cc153aa90bdcdf39a5852f9"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0036.tga",
+      "bytes": 65554,
+      "sha256": "7544257b25fe664c6bdb3c74b020c9105c246535d5910ee1bdc764f36e459bbc"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0037.tga",
+      "bytes": 65554,
+      "sha256": "adf6551afb9e32bb65ee485c077df9db851c130ac25c7f05ee63ce87a495da68"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0038.tga",
+      "bytes": 65554,
+      "sha256": "150641f2819a1d97f279dd7e94d711e8e99e69c88fad4f0a448f925e71f0f51b"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0039.tga",
+      "bytes": 65554,
+      "sha256": "37903178aad6b37159f5cc0d35f6f01a5c1434c073a5167b7aefcc32571538ba"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0040.tga",
+      "bytes": 65554,
+      "sha256": "88b444e89cbcb476a0a8b6e5db52d6d1f8ab3d3156ee20062a6274be407ac66a"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0041.tga",
+      "bytes": 65554,
+      "sha256": "7190dd7593d795a6192472a80ba54fc2358913484cc237a854306703fed37d53"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0042.tga",
+      "bytes": 65554,
+      "sha256": "9a48113f0d800d0c752947e733c0f6bf37f3bebe0e63eb6be5d2f9087655391a"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0043.tga",
+      "bytes": 65554,
+      "sha256": "fd9ea2601f1dcfe5013b44de1d5a74accf6a900327849b71129a450727d6cabf"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0044.tga",
+      "bytes": 65554,
+      "sha256": "e940bbe76d8be8df31dafa75097c9a9ff2c0e466b5e359b0c22103dd0f62c32c"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0045.tga",
+      "bytes": 65554,
+      "sha256": "fd66aa93dcd849215f45745a6eea93a1e825669c7323a6ab875166f21877b86a"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0046.tga",
+      "bytes": 65554,
+      "sha256": "833187e43ba5c6c73fb14b7bb4c4e113c58996f7a520b7b9141232a7dd4032a7"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0047.tga",
+      "bytes": 65554,
+      "sha256": "9a5fbd8d3b73671150f064a93983f3b9b96e6738c996a9c14d5b3e57b7fc5189"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0048.tga",
+      "bytes": 65554,
+      "sha256": "8e5baa23524a8d7e4eaa983f65ce5903b45c1326b5872b800e2f2f4a1999f122"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0049.tga",
+      "bytes": 65554,
+      "sha256": "2b7c88c4588ca1e520ed9e7aa49dd15530680a5e0622aa4eff59dc29777f2896"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0050.tga",
+      "bytes": 65554,
+      "sha256": "c55a008d2bb1b615c0dcc2b1f0bfecbdf98c9fcf16c0159290e53832f4e01449"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0051.tga",
+      "bytes": 65554,
+      "sha256": "04477ebfe4f8515af2573deac2bc5506afd13ced554d23f535579cf38e5178a3"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0052.tga",
+      "bytes": 65554,
+      "sha256": "a640e184c05b966b021ac9492ef533b8a7bb2f22646f4a9737ca7dc1d5eb7377"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0053.tga",
+      "bytes": 65554,
+      "sha256": "50eb244cc46fa5b7c2f3b076c30b0b4a04d62dc766fbcf50efeadf8a703d3c46"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0054.tga",
+      "bytes": 65554,
+      "sha256": "72cd36e8fe19aac6aad1459a94540dcd0f487a56075c6bec4f3073b31fed06f9"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0055.tga",
+      "bytes": 65554,
+      "sha256": "d4d613fbbb8287674709d16699333db3692a0483b3b5ab6001c46f3077f4b249"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0056.tga",
+      "bytes": 65554,
+      "sha256": "42322e65cfbb3196b5797b9c1c9c8bef78d6101200daa4e95ea5fee1efa165c5"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0057.tga",
+      "bytes": 65554,
+      "sha256": "be3b038d16a5c2c5869f7b669523366da55359be2e190711132aa54df024adb3"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0058.tga",
+      "bytes": 65554,
+      "sha256": "ee8a946cdd30bf20a9d1f5bae9f715f4d37990f363074c635d52abf904587ed1"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0059.tga",
+      "bytes": 65554,
+      "sha256": "fcce13529bd421d3bc4f56f7d2b3aabbb6f0e5bdb53002292e14101fca9f4956"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0060.tga",
+      "bytes": 65554,
+      "sha256": "40dacd1ebcb9b85678765393445b08189041fce5f39c5d98291881e155441991"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0061.tga",
+      "bytes": 65554,
+      "sha256": "2bb2a3bec6c9d298198f126bf46e3dbde67d99811b8c240bc03ec48b657680b4"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0062.tga",
+      "bytes": 65554,
+      "sha256": "d42232b5d07b0947354d98d2c98840108321c4fc7b004204fef9715be603dad6"
+    },
+    {
+      "path": "experiments/native-metal/.cache/runtime/RESOURCE/Sea/sea0063.tga",
+      "bytes": 65554,
+      "sha256": "97f8f6c51f2b2543d09085b7c9c802518181357fae862f853112970b65df3657"
+    }
+  ],
+  "original_per_sample_rows_retained": false,
+  "original_aggregate_retained": "contact-result.json",
+  "procedure": "contact-replay.py"
+}

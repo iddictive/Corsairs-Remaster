@@ -1,0 +1,44 @@
+{
+  "base_revision": "a7f9f9ca85c3e3543854ea69518e527bb9fb61a3",
+  "policy": "src/gameplay/PROGRAM/scripts/sea_autopilot.c",
+  "policy_sha256": "b6b266e8eaf0059c51ee0201376b1bc245d8a489dcb5440668b38094e55fe530",
+  "producer": "docs/evidence/autopilot-20261030/save-policy-replay.py",
+  "producer_sha256": "dea8a6aa4382ce891a4051282704cede121196a8e59c6a6b3b2d1a4b34a1b591",
+  "input_contract": "AUTOPILOT_SAVE selects the original user-owned native SAVE; originals are read-only. Newer Trade and Hunt snapshots remain with their private SAVE data owner, outside Git.",
+  "execution": "Run AUTOPILOT_PROBE=<mode> AUTOPILOT_SAVE=<original> through codex-run-scratch run --max-bytes 2147483648 --max-files 20000 --seconds 180 --reserve-bytes 10737418240 -- <prepared Python> docs/evidence/autopilot-20261030/save-policy-replay.py",
+  "conditions": "Actual native VM LoadState and canonical PROGRAM projection. OnLoad suppressed. Entity presence, locator/task dispatch and native encounter catalog are seams. Full-hold quantities mutate a disposable derived snapshot only. No game launch, UI, original SAVE mutation, installation or shared build.",
+  "results": [
+    {
+      "mode": "trade",
+      "condition": "Before repair, actual saved waiting/market state with the NPC 75-percent freight ceiling.",
+      "raw_stdout": "Run=0\nDiagShip=1\nDiagEligible=0\nDiagActive=-1\nDiagPorts=15\nDiagTasks=0\nDiagStatus=waiting\nDiagReason=market\nDiagX=0\nDiagZ=0\nscript_errors=0\n"
+    },
+    {
+      "mode": "trade",
+      "condition": "Same saved state after real free capacity replaced the NPC ceiling, before expanded existing-cargo sale behavior. DiagEligible is sugar-unit free capacity; DiagActive is selected colony index.",
+      "raw_stdout": "Run=0\nDiagShip=1\nDiagEligible=1184\nDiagActive=22\nDiagPorts=15\nDiagTasks=0\nDiagStatus=waiting\nDiagReason=market\nDiagX=0\nDiagZ=0\nscript_errors=0\n"
+    },
+    {
+      "mode": "hunt",
+      "condition": "Actual saved mode2 state before pursuit repair. DiagPorts is descriptor count, DiagEligible is ordinary hostile live-voyage count, DiagActive is presence of a hunt target.",
+      "raw_stdout": "Run=0\nDiagShip=2\nDiagEligible=23\nDiagActive=0\nDiagPorts=62\nDiagTasks=0\nDiagStatus=sailing\nDiagReason=\nDiagX=0\nDiagZ=0\nscript_errors=0\n"
+    },
+    {
+      "mode": "hunt-after",
+      "condition": "Final policy. Existing hostile target, moved-position follow, retained stable ID, quest/retired/expired/friendly exclusion, near-range deferred admission and manual Off cancellation. Native catalog is an explicit seam over the loaded saved descriptors.",
+      "raw_stdout": "run_us=109815\nRun=0\nDiagShip=1\nDiagEligible=1\nDiagActive=1\nDiagPorts=1\nDiagTasks=0\nDiagStatus=hunt-follow-admit-off\nDiagReason=\nDiagX=0\nDiagZ=0\nscript_errors=0\n"
+    },
+    {
+      "mode": "trade-after",
+      "condition": "Final policy. Derived full cargo holds select existing-cargo sale route; unplanned local sale rejected; planned sale conserves matching store/physical quantities and increases cash; next paid buy conserves quantities and decreases cash; food/Rum/balls, canonical quest flags and TransferGoods targets retained.",
+      "raw_stdout": "run_us=74768\nRun=0\nDiagShip=1\nDiagEligible=1184\nDiagActive=1\nDiagPorts=1\nDiagTasks=1\nDiagStatus=full-hold-sale-paid-buy-protected\nDiagReason=\nDiagX=0\nDiagZ=0\nscript_errors=0\n"
+    },
+    {
+      "mode": "trade-tick",
+      "condition": "Final trade policy through normal Tick, saved review made due only in disposable state: waiting at original route destination -> sale route without premature sale -> arrival and continued sailing -> Off. Later Hunt-only membership changes do not affect this path.",
+      "raw_stdout": "run_us=83402\nRun=0\nDiagShip=1\nDiagEligible=0\nDiagActive=1\nDiagPorts=0\nDiagTasks=0\nDiagStatus=sailing\nDiagReason=\nDiagX=0\nDiagZ=0\nscript_errors=0\n"
+    }
+  ],
+  "performance": "Times cover complete VM Run invocation, including resumed script/startup work and multiple callbacks; they are not frame-time/FPS evidence. Pricing and market projection run at route transitions or the existing dated retry. Holds and sale quantities are read once per decision. Hunt reacquisition is O(native live encounter count); retained target uses one revalidated catalog selector. No added rendered-frame loop or changed callback cadence.",
+  "limits": "This proves script policy and finite ledger behavior on the saved state with explicit native seams. Root-owned native lifecycle/delivery evidence remains necessary for installed activation, motion and actual gameplay. Unknown prior cargo acquisition costs cannot establish absolute profit. Canonical quest flags are respected; no new quest cargo inference system is introduced."
+}

@@ -1,0 +1,71 @@
+#include "resource\shared\sea_ai\script_defines.h"
+#define MAX_COLONIES 1
+#define MAX_NATIONS 7
+#define REAL_SHIPS_QUANTITY 1
+#define SHIP_STORE 3
+#define PLAYER_GROUP "OurGroup"
+object worldMap, AISea, SeaTraffic, InterfaceStates, Colonies[2], AIGroups[2], Environment;
+ref pchar;
+int nMainCharacterIndex = 1;
+bool bSeaActive=true, bSeaLoaded=true, bSeaReloadStarted=false, bAbordageStarted=false;
+int NativeCallbacks=0, UnexpectedEconomy=0;
+#event_handler("SeaTraffic_WorldState", "ProbeWorldState");
+#event_handler("SeaTraffic_SceneState", "SeaTraffic_SceneState");
+#event_handler("SeaTraffic_Residency", "ProbeResidency");
+#event_handler("ProbeEnableTrade", "ProbeEnableTrade");
+#event_handler("ProbeEnableHunt", "ProbeEnableHunt");
+#event_handler("ProbeCloseUI", "ProbeCloseUI");
+#event_handler("ProbeOff", "ProbeOff");
+ref ProbeWorldState(){return &worldMap;}
+void ProbeResidency(){NativeCallbacks++;SeaTraffic_Residency();}
+void ProbeEnableTrade(){InterfaceStates.Launched=1;SeaAutopilot_SetMode(1);}
+void ProbeEnableHunt(){InterfaceStates.Launched=1;SeaAutopilot_SetMode(2);}
+void ProbeCloseUI(){InterfaceStates.Launched=0;}
+void ProbeOff(){SeaAutopilot_Stop();}
+bool FleetService_IsShip(ref captain){return true;}
+bool LAi_IsDead(ref captain){return false;}
+int GetCharacterShipType(ref captain){return sti(captain.Ship.Type);}
+int FindStore(string id){return 0;}
+int GetNationRelation2MainCharacter(int nation){return RELATION_FRIEND;}
+string WdmTrafficPortLocator(int port){return "Bridgetown";}
+int Group_FindGroup(string group){return -1;}
+ref GetCharacter(int index){return &Characters[index];}
+float Sea_MapX(float x,float z){return x/100.0;}
+float Sea_MapZ(float x,float z){return z/100.0;}
+float Sea_MapHeading(float value){return value;}
+float Sea_LocalX(float x,float z){return x*100.0;}
+float Sea_LocalZ(float x,float z){return z*100.0;}
+void SeaAutopilot_CancelEncounter(){}
+bool SeaAutopilot_Combat(){return false;}
+int SeaAutopilot_Enemy(){return -1;}
+void SeaAutopilot_Sell(int port){UnexpectedEconomy++;}
+void SeaAutopilot_Resupply(int port){UnexpectedEconomy++;}
+void SeaAutopilot_Buy(int port,int destination){UnexpectedEconomy++;}
+int SeaAutopilot_NextPort(int port){UnexpectedEconomy++;return -1;}
+float WdmTrafficElapsed(aref stamp,string unit){return 0.0;}
+void WdmTrafficStamp(aref stamp){}
+float WdmTrafficRouteWeight(int origin,int destination,int role){return 1.0;}
+void SeaTraffic_LoginRegionGroups(string region){}
+void SeaTraffic_ReportPositions(){}
+void SeaTraffic_Notify(string path){}
+bool WdmTrafficIsOrdinary(aref descriptor){return false;}
+bool SeaTraffic_CanRelease(string group){return false;}
+void SeaTraffic_Admit(aref descriptor){}
+float GetTime(){return 12.0;}
+void InitialiseLifecycle()
+{
+ Characters[0].MainCharacter=0;Characters[1].MainCharacter=1;
+ pchar=&Characters[1];pchar.Ship.Type=0;pchar.location="Barbados";
+ pchar.SeaAI.Task=AITASK_NONE;
+ pchar.Ship.Stopped=0;InterfaceStates.Launched=0;
+ Colonies[0].id="Bridgetown";Colonies[0].nation=0;
+ Environment.date.sec=0;Environment.date.min=0;Environment.date.hour=12;
+ Environment.date.day=20;Environment.date.month=12;Environment.date.year=1668;
+ worldMap.playerShipX=0;worldMap.playerShipZ=1;worldMap.playerShipAY=0;
+ worldMap.date.sec=0;worldMap.date.min=0;worldMap.date.hour=12;
+ worldMap.date.day=20;worldMap.date.month=12;worldMap.date.year=1668;
+ worldMap.encounters="";
+ CreateEntity(&AISea,"sea_ai");
+ SeaTraffic.execute=2;
+ CreateEntity(&SeaTraffic,"WorldMapSeaTraffic");
+}

@@ -1,0 +1,8 @@
+
+  void outlineProbeRead(id<MTLDevice>device,id<MTLCommandQueue>queue,unsigned x,unsigned y,uint32_t*out){
+    auto result=[device newBufferWithLength:512 options:MTLResourceStorageModeShared];auto command=[queue commandBuffer];auto blit=[command blitCommandEncoder];
+    [blit copyFromTexture:model_.depth sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(x,y,0) sourceSize:MTLSizeMake(1,1,1) toBuffer:result destinationOffset:0 destinationBytesPerRow:256 destinationBytesPerImage:256];
+    [blit copyFromTexture:model_.identity sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(x,y,0) sourceSize:MTLSizeMake(1,1,1) toBuffer:result destinationOffset:256 destinationBytesPerRow:256 destinationBytesPerImage:256];
+    [blit endEncoding];[command commit];[command waitUntilCompleted];memcpy(out,result.contents,4);memcpy(out+1,(char*)result.contents+256,8);
+  }
+

@@ -1,0 +1,57 @@
+{
+  "source_base": "a7f9f9ca85c3e3543854ea69518e527bb9fb61a3",
+  "device": "Apple M5 Max",
+  "backbuffer": [
+    2056,
+    1329
+  ],
+  "AA_mode": 2,
+  "paired_gpu_timing": {
+    "old_receiver": {
+      "n": 60,
+      "median_gpu_ms": 0.5443959962576628,
+      "p95_gpu_ms": 1.7867499846033752
+    },
+    "normal_msaa": {
+      "n": 60,
+      "median_gpu_ms": 0.7232499920064583,
+      "p95_gpu_ms": 2.133125002728775
+    },
+    "candidate_receiver": {
+      "n": 60,
+      "median_gpu_ms": 0.7749164942651987,
+      "p95_gpu_ms": 2.408875006949529
+    }
+  },
+  "edge_rgba_msaa4": {
+    "old_receiver": [
+      "00000000",
+      "ffbfbfbf",
+      "ff808080",
+      "ff404040"
+    ],
+    "candidate_receiver": [
+      "00000000",
+      "40000000",
+      "80000000",
+      "bf000000"
+    ],
+    "normal_msaa": [
+      "00000000",
+      "40000000",
+      "80000000",
+      "bf000000"
+    ]
+  },
+  "receiver": {
+    "water_depth_bits": "3f41f07c",
+    "water_token": "20000000",
+    "water_color": "00000000",
+    "foreground_depth_bits": "3f800000",
+    "foreground_token": "00000000",
+    "mixed_silhouette_token": "00000000"
+  },
+  "AA_off_old_and_candidate_identical": true,
+  "existing_depth_water_fixture_AA_0_and_2": "PASS",
+  "scope": "isolated native Metal component, not player FPS or full game"
+}
