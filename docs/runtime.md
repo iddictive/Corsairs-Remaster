@@ -14184,7 +14184,9 @@ altitude, recentres sky/fog/sun including reflected views, and draws the plume
 after the sea through a binding-safe world-colour bridge. Native lifecycle,
 camera translation, Metal sky/reflection and ordered-water checks are retained
 in the [reactive flight evidence](evidence/phonk-reactive-flight-20261029/README.md).
-The actual saved Manowar1 ground replay remains slow: 40.90ms mean Execute,
-42.39ms during contact over the installed 27-region scene. This supersedes any
-inference that the earlier Brig1 timing fixed the player's ground FPS report.
+The saved Manowar1 ground control measures 40.90ms mean Execute, 42.39ms during
+contact, but lacks canonical legacy-geometry activation: matching the installed
+resource directory did not enable its projected geometry. This is an unconfigured
+27-region control, not installed-scene timing. Neither it nor the earlier Brig1
+timing closes the player's ground FPS report.
 Ground performance remains open; final gameplay feel and appearance are user-tested.

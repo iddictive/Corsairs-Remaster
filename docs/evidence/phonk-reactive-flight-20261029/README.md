@@ -19,9 +19,13 @@ optional `JET_PRIVATE_SAVE` projects an immutable private input without loading
 gameplay. Its generated attributes and regional layout remain outside Git.
 
 The latest private saved ship is Manowar1, not the earlier representative Brig1.
-Its actual installed-resource, 27-region ground baseline retains 42,898 collision
-parts and measures 40.90ms mean native Execute time, 42.39ms during ground contact
-(`manowar-installed-27-ground-baseline-sailing-transition-output.txt`). This is a
+The 27-region ground control retains 42,898 collision parts and measures 40.90ms
+mean native Execute time, 42.39ms during ground contact
+(`manowar-installed-27-ground-baseline-sailing-transition-output.txt`). Despite
+that historical filename, it does not establish installed-scene cost: it binds
+the installed resource directory but omits the canonical
+`GEOMETRY::ConfigureLegacySeaGeometry(frame)` activation and therefore loads
+original GMs. Retain it as an unconfigured geometry control. It is also a
 contact/sliding fixture, not proof of quiet resting contact or whole-game FPS.
 **Ground-contact performance remains unresolved.** The older 7.60/7.73ms Brig1
 results below do not close this report. Bootstrap and rehydrated trials with
@@ -175,7 +179,14 @@ changing the collider or solver:
    vertices and cut gaps: matching plane supports alone admitted the rejected
    coarse cover. Treat solver cadence as a separate measured accuracy/cost
    choice, retaining all elapsed time and reporting trajectory differences.
-4. Replay the same native consumer with intact and damaged material, slow-frame
+4. Before timing terrain, activate the saved world frame through
+   `GEOMETRY::ConfigureLegacySeaGeometry(frame)` and verify the resulting projected
+   geometry in the actual collision consumer. A matching resource directory or
+   asset hash does not establish that runtime activation occurred. Count the
+   existing Jolt indexed/sanitized mesh before adding duplicate-removal work;
+   its pinned mesh constructor already welds vertices and removes same-winding
+   duplicate faces.
+5. Replay the same native consumer with intact and damaged material, slow-frame
    recovery, prediction, codec and original-volume water checks. Compare full
    step costs and retained output, then deliver through the normal installer.
    Samples dominated by rendering or ordinary non-jet sailing select their own
