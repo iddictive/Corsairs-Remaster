@@ -377,12 +377,9 @@ string Sea_FindNearColony()
 	return sColony;
 }
 // boal <--
-void Sea_LandLoad()
+bool Sea_LandColonyAccess()
 {
-    if (GreatRecipe_Locked()) return;	
-	pchar.shipx = pchar.ship.pos.x;
-	pchar.shipz = pchar.ship.pos.z;
-	ClearAllLogStrings();
+    if (GreatRecipe_Locked()) return false;
 	string sColony = Sea_FindNearColony(); // boal
 	int iColony = FindColony(sColony);
 	if(iColony != -1)
@@ -394,7 +391,7 @@ void Sea_LandLoad()
 				if (Colonies[iColony].disease != "1" && sti(Colonies[iColony].nation) != PIRATE)
 				{
 					// LaunchDiseaseAlert(DISEASE_ON_SHIP);
-					return;
+					return false;
 				}
 			}
 		}
@@ -403,10 +400,19 @@ void Sea_LandLoad()
 			if(sti(Colonies[iColony].disease.time > 0))
 			{
 				// LaunchDiseaseAlert(DISEASE_ON_COLONY);  // to_do
-				return;
+				return false;
 			}
 		}
 	}
+	return true;
+}
+
+void Sea_LandLoad()
+{
+    if (!Sea_LandColonyAccess()) return;
+	pchar.shipx = pchar.ship.pos.x;
+	pchar.shipz = pchar.ship.pos.z;
+	ClearAllLogStrings();
 	pchar.CheckEnemyCompanionType = "Sea_LandLoad"; // откуда вход
     if (!CheckEnemyCompanionDistance2GoAway(true)) return; // && !bBettaTestMode  табличка выхода из боя
     
@@ -1710,6 +1716,7 @@ void Sea_LoginGroupAdmission(string sGroupID, bool retained)
 
 void Sea_FirstInit()
 { 
+	SeaPortService_Reset();
 	SeaPhonk_Reset(false);
 	trace("Sea_FirstInit");
 	bSeaLoaded = true;

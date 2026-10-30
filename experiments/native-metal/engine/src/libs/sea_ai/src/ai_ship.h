@@ -257,6 +257,7 @@ class AIShip : public VAI_INNEROBJ
 
     // AI section
     void SwapShips(AIShip *pOtherShip);
+    bool RefreshHull(ATTRIBUTES *ship, int oldCharge);
 
     bool isAttack(ATTRIBUTES *pAOtherCharacter) const;
     void CheckSituation();

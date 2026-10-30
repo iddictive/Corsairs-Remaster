@@ -10737,7 +10737,9 @@ void WdmHarbourSetAccess(int colony, string operation, bool accessible)
 
 string WdmHarbourEmbarkLocator(ref captain)
 {
-	if (!WdmHarbourAshore() || LAi_boarding_process || LAi_grp_alarmactive || chrDisableReloadToLocation || bDisableMapEnter) return "";
+	// A town alarm does not close the actual ship berth; naval control and
+	// explicit reload locks below still own access to the moored hull.
+	if (!WdmHarbourAshore() || LAi_boarding_process || chrDisableReloadToLocation || bDisableMapEnter) return "";
 	string berth = WdmHarbourHullBerth(captain);
 	// Selection must occur at the real quay/shore. An available map path is not
 	// permission to teleport the hero out of an interior, jungle or held town.

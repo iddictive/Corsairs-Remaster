@@ -398,6 +398,12 @@ ref BI_CommandEndChecking()
 	case "BI_Moor":
 		BI_retComValue = 0;
 		break;
+	case "BI_PortStore":
+		BI_retComValue = 0;
+		break;
+	case "BI_PortShipyard":
+		BI_retComValue = 0;
+		break;
 	case "BI_SailTo":
 		int iIsland = FindIsland(pchar.location);
 		if(iIsland > 0 && !sti(Islands[iIsland].reload_enable))
@@ -650,6 +656,12 @@ void BI_LaunchCommand()
 		break;
 	case "BI_Moor":
 		Sea_LandLoad();
+		break;
+	case "BI_PortStore":
+		if (charIdx == GetMainCharacterIndex()) SeaPortService_Start(0);
+		break;
+	case "BI_PortShipyard":
+		if (charIdx == GetMainCharacterIndex()) SeaPortService_Start(1);
 		break;
 	case "BI_Board":
 		Sea_AbordageLoad(SHIP_ABORDAGE,true);
@@ -1094,6 +1106,7 @@ void BI_SetPossibleCommands()
     BI_MastRepairRefresh(mainIdx, chIdx);
     BI_FireModeRefresh(mainIdx, chIdx);
     BI_FireFightingRefresh(mainIdx, chIdx);
+    SeaPortService_Refresh(mainIdx, chIdx);
 }
 
 void BI_FireFightingRefresh(int mainIndex, int selectedIndex)
@@ -1174,6 +1187,18 @@ void BI_InitializeCommands()
 	BattleInterface.Commands.Moor.texNum			= BI_ICONS_TEXTURE_COMMAND;
 	BattleInterface.Commands.Moor.event				= "BI_Moor";
 	BattleInterface.Commands.Moor.note				= LanguageConvertString(idLngFile, "sea_Moor");
+	BattleInterface.Commands.PortStore.enable = false;
+	BattleInterface.Commands.PortStore.picNum = 16;
+	BattleInterface.Commands.PortStore.selPicNum = 0;
+	BattleInterface.Commands.PortStore.texNum = 7;
+	BattleInterface.Commands.PortStore.event = "BI_PortStore";
+	BattleInterface.Commands.PortStore.note = LanguageConvertString(idLngFile, "go_store");
+	BattleInterface.Commands.PortShipyard.enable = false;
+	BattleInterface.Commands.PortShipyard.picNum = 17;
+	BattleInterface.Commands.PortShipyard.selPicNum = 1;
+	BattleInterface.Commands.PortShipyard.texNum = 7;
+	BattleInterface.Commands.PortShipyard.event = "BI_PortShipyard";
+	BattleInterface.Commands.PortShipyard.note = LanguageConvertString(idLngFile, "go_shipyard");
 	//
 	BattleInterface.Commands.SailTo.enable			= false;
 	BattleInterface.Commands.SailTo.picNum			= 16;
@@ -1686,6 +1711,10 @@ void SetParameterData()
     BattleInterface.CommandTextures.list.t6.name = "battle_interface\fire_mode.tga.tx";
     BattleInterface.CommandTextures.list.t6.xsize = 2;
     BattleInterface.CommandTextures.list.t6.ysize = 2;
+
+    BattleInterface.CommandTextures.list.t7.name = "battle_interface\LandTarget_SLB.tga.tx";
+    BattleInterface.CommandTextures.list.t7.xsize = 16;
+    BattleInterface.CommandTextures.list.t7.ysize = 2;
 
 	BattleInterface.charge.charge1.picNum = 19; // balls
 	BattleInterface.charge.charge1.selPicNum = 3;

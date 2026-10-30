@@ -86,6 +86,7 @@
 #define MSG_SHIP_RELEASE 50316 // "li", ship entity - Detach physical consumers without death effects
 #define MSG_SHIP_GET_SAIL_STATE 50325
 #define MSG_SHIP_REPAIR_MASTS 50326 // "l", returns restored main-mast count
+#define MSG_SHIP_REPLACED 50327 // "l", detach old hull without deleting its replacement's same-index HUD entry
 #define MSG_SHIP_CURVES 50400
 #define MSG_SHIP_LIGHTSRESET 50402 // ugeen 25.12.19
 #define MSG_SHIP_DO_FAKE_FIRE 50403

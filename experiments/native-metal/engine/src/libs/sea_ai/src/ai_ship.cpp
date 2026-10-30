@@ -2,6 +2,10 @@
 #include "sailing_floor.h"
 #include "ai_fort.h"
 #include "math_inlines.h"
+#include "file_service.h"
+#include "shared/messages.h"
+#include "ai_sea_goods.h"
+#include <memory>
 
 std::vector<AIShip *> AIShip::AIShips;
 std::vector<AIShip::can_fire_t> AIShip::aShipFire;
@@ -638,6 +642,74 @@ void AIShip::SwapShips(AIShip *pOtherShip)
 
     // GetAIObjShipPointer()->SetACharacter(GetACharacter());
     // pOtherShip->GetAIObjShipPointer()->SetACharacter(pOtherShip->GetACharacter());
+}
+
+bool AIShip::RefreshHull(ATTRIBUTES *ship, int oldCharge)
+{
+    const char *name = ship ? ship->GetAttribute("Name") : nullptr;
+    if (!name || !name[0] || !ship->GetAttributeClass("Cannons") ||
+        !GetACharacter()->FindAClass(GetACharacter(), "Ship.Cannons.Borts") ||
+        GetCannonController()->HasPendingFire()) return false;
+    const std::string model = std::string("resource\\models\\ships\\") + name + "\\" + name + ".gm";
+    if (!fio->_FileOrDirectoryExists(model.c_str())) return false;
+    auto *old = GetShipBasePointer();
+    if (!old) return false;
+    const auto oldId = eidShip;
+    const auto position = old->GetPos(), angles = old->GetAng();
+    const auto speed = old->State.vSpeed, rotation = old->State.vRotate;
+    const float sail = old->GetSailState(), helm = old->GetRotate();
+    const auto nextId = core.CreateEntity("Ship");
+    auto *next = static_cast<SHIP_BASE *>(core.GetEntityPointer(nextId));
+    if (!next) return false;
+    auto cannons = std::make_unique<AIShipCannonController>(this);
+    eidShip = nextId;
+    try
+    {
+        next->SetACharacter(GetACharacter());
+        if (!next->Mount(ship) || !cannons->Init(ship, false)) throw std::runtime_error("hull mount rejected");
+    }
+    catch (const std::exception &error)
+    {
+        core.Trace("SeaAI hull refresh rejected character=%u: %s", GetIndex(GetACharacter()), error.what());
+        core.Send_Message(nextId, "l", MSG_SHIP_REPLACED);
+        core.EraseEntity(nextId);
+        eidShip = oldId;
+        old->SetACharacter(GetACharacter());
+        old->PublishShipPose();
+        return false;
+    }
+    // Mount owns new geometry/mass, while the physical actor owns retained pose.
+    next->SetPos(position);
+    next->State.vPos.y = position.y;
+    next->State.vAng = angles;
+    next->State.vSpeed = speed;
+    next->State.vRotate = rotation;
+    next->SetSailState(sail);
+    next->SetRotate(helm);
+    *next->GetMatrix() = CMatrix(angles, next->GetPos());
+    next->PublishShipPose();
+    pAShipBase = ship;
+    // Loaded rounds belong to the player economy. Return the old battery's
+    // contents before priming the new geometry, only after preparation passed.
+    pCannonController->Unload(oldCharge);
+    STORM_DELETE(pCannonController);
+    pCannonController = cannons.release();
+    pCannonController->PrimeCannons();
+    STORM_DELETE(pMoveController);
+    STORM_DELETE(pTouchController);
+    STORM_DELETE(pRotateController);
+    STORM_DELETE(pSpeedController);
+    pMoveController = new AIShipMoveController(this);
+    pTouchController = new AIShipTouchController(this);
+    pRotateController = new AIShipRotateController(this);
+    pSpeedController = new AIShipSpeedController(this);
+    pMoveController->Init(); pTouchController->Init();
+    pRotateController->Init(); pSpeedController->Init();
+    if (auto *goods = static_cast<AISeaGoods *>(core.GetEntityPointer(core.GetEntityId("AISeaGoods"))))
+        goods->ForgetShip(old);
+    core.Send_Message(oldId, "l", MSG_SHIP_REPLACED);
+    core.EraseEntity(oldId);
+    return true;
 }
 
 // static members

@@ -113,9 +113,11 @@ void DeleteShipEnvironment()
 		SendMessage(&Characters[Ships[i]], "l", MSG_SHIP_SAFE_DELETE); 
 
 		// delete sounds from ship
-		if (CheckAttribute(&Characters[Ships[i]], "Ship.Sounds.WaterID")) 	ReleaseSound(sti(Characters[Ships[i]].Ship.Sounds.WaterID));
-		if (CheckAttribute(&Characters[Ships[i]], "Ship.Sounds.SailsID"))   ReleaseSound(sti(Characters[Ships[i]].Ship.Sounds.SailsID));
-		if (CheckAttribute(&Characters[Ships[i]], "Ship.Sounds.TurnID"))   ReleaseSound(sti(Characters[Ships[i]].Ship.Sounds.TurnID));
+		if (CheckAttribute(&Characters[Ships[i]], "Ship.Sounds"))
+		{
+			aref sounds; makearef(sounds, Characters[Ships[i]].Ship.Sounds);
+			Ship_ReleaseStaticSounds(sounds);
+		}
 	}
 
 	// scan characters for delete snd id's
@@ -1692,6 +1694,13 @@ void Ship_Add2Sea(int iCharacterIndex, bool bFromCoast, string sFantomType, bool
 void Ship_RecreateStaticSounds()
 {
 	for (int i=0; i<iNumShips; i++) { Ship_CreateStaticSounds(&Characters[Ships[i]]); }
+}
+
+void Ship_ReleaseStaticSounds(aref sounds)
+{
+    if (CheckAttribute(sounds, "WaterID")) ReleaseSound(sti(sounds.WaterID));
+    if (CheckAttribute(sounds, "SailsID")) ReleaseSound(sti(sounds.SailsID));
+    if (CheckAttribute(sounds, "TurnID")) ReleaseSound(sti(sounds.TurnID));
 }
 
 void Ship_CreateStaticSounds(ref rCharacter)

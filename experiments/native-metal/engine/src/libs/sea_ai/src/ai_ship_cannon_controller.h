@@ -100,7 +100,7 @@ class AIShipCannonController
     // update borts parameters
     bool UpdateParameters();
 
-    bool ScanShipForCannons();
+    bool ScanShipForCannons(bool prime);
 
     bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true,
                        const MANUAL_AIM_SOLUTION *manual = nullptr, AIShip *targetShip = nullptr,
@@ -150,7 +150,7 @@ class AIShipCannonController
     bool Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir, ATTRIBUTES **manualTarget = nullptr); // manual fire
 
     // reload section
-    void Unload(); // unload cannons
+    void Unload(int charge = -1); // unload cannons; explicit pre-service charge for hull replacement
     void Reload(); // set flag to reload
     
     // Cannon boom check
@@ -167,7 +167,8 @@ class AIShipCannonController
     [[nodiscard]] uint32_t GetManualAimColor() const {return manualAimColor;}
 
     // init section
-    bool Init(ATTRIBUTES *_pAShip);
+    bool Init(ATTRIBUTES *_pAShip, bool prime = true);
+    void PrimeCannons();
 
     void SetAIShip(AIShip *pShip)
     {

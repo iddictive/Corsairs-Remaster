@@ -83,6 +83,34 @@ bool AIGroup::ReleaseResidents(const std::vector<std::string> &names)
     return true;
 }
 
+bool AIGroup::RefreshPlayerShip(ATTRIBUTES *character, ATTRIBUTES *ship, int oldCharge)
+{
+    if (!character || !ship) return false;
+    auto *group = FindGroup(character);
+    auto *actor = AIShip::FindShip(character);
+    if (!group || group != FindMainGroup() || !actor || actor->GetCannonController()->HasPendingFire()) return false;
+    if (const char *name = ship->GetAttribute("Name"); name && name[0]) return actor->RefreshHull(ship, oldCharge);
+    if (actor->isMainCharacter()) return false;
+    // A sold companion's character remains alive, but cannot remain a sea target.
+    for (auto *other : AIShip::AIShips)
+    {
+        if (other == actor) continue;
+        other->ReleasePoint(actor);
+        other->GetTaskController()->ForgetCharacter(character);
+        if (auto *camera = other->GetCameraController()) camera->ForgetCharacter(character);
+    }
+    if (auto *goods = static_cast<AISeaGoods *>(core.GetEntityPointer(core.GetEntityId("AISeaGoods"))))
+        goods->ForgetShip(actor->GetShipBasePointer());
+    actor->GetCannonController()->Unload(oldCharge);
+    core.Send_Message(actor->GetShipEID(), "l", MSG_SHIP_SAFE_DELETE);
+    group->ExtractShip(character);
+    std::erase(AIShip::AIShips, actor);
+    Helper.RemoveCharacter(character);
+    delete actor;
+    Helper.CalculateRelations();
+    return true;
+}
+
 void AIGroup::AddShip(entid_t eidShip, ATTRIBUTES *pACharacter, ATTRIBUTES *pAShip)
 {
     AIShip *pShip = nullptr;

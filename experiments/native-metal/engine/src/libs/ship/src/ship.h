@@ -177,6 +177,7 @@ class SHIP : public SHIP_BASE
     std::vector<hull_t> pHulls;
     bool bShip2Strand;
     bool bGroundMoveBlocked = false; // transient; not part of the save layout
+    bool replacedHull = false; // transient; the character still owns a live replacement
     bool bLandContact = false; // terrain support; reconstructed from the saved pose
     bool bGroundSupported = false, bGroundFalling = false; // reconstructed; velocity stays in State
     bool bGroundRestorePending = false;

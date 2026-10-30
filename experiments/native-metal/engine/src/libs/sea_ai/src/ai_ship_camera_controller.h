@@ -1,4 +1,5 @@
 #pragma once
+#include "shared/sea_ai/script_defines.h"
 
 class AIShip;
 
@@ -25,6 +26,10 @@ class AIShipCameraController
 
   public:
     bool References(ATTRIBUTES *character) const { return pTargetAPointer == character; }
+    void ForgetCharacter(ATTRIBUTES *character)
+    {
+        if (pTargetAPointer == character) { pTargetAPointer = nullptr; dwTarget = RELATION_UNKNOWN; }
+    }
     void Realize(float fDeltaTime);
     void Execute(float fDeltaTime);
 

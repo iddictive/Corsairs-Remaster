@@ -1,0 +1,9 @@
+{
+  "exit": 0,
+  "stdout": "Run=0\nscript_errors=0\n",
+  "stderr": "",
+  "script_errors": "",
+  "service_sha256": "c25db3961f25b48909193db3a2805420513e19390d8b3003f959af42147ea882",
+  "fixture_sha256": "b1a20dfc148d87b18ad4dd7493f09489aea9ac988bf3e36c5ee60f0fcdc59713",
+  "probe_sha256": "eb3909e6b9a7579bc1dab91d10026bcecda2d98eae8e804743f6b2f24c261fb4"
+}

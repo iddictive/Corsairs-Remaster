@@ -113,7 +113,7 @@ SHIP::~SHIP()
     for (const char *consumer : {"Seafoam", "Sailors", "Touch", "ShipPointer"})
         if (const auto entity = core.GetEntityId(consumer))
             core.Send_Message(entity, "li", MSG_SHIP_RELEASE, GetId());
-    if (const auto character = GetACharacter())
+    if (const auto character = GetACharacter(); character && !replacedHull)
         if (const auto battle = core.GetEntityId("BATTLE_INTERFACE"))
             core.Send_Message(battle, "ll", BI_IN_DELETE_SHIP,
                 static_cast<int32_t>(character->GetAttributeAsDword("index", uint32_t(-1))));
@@ -3085,6 +3085,10 @@ uint64_t SHIP::ProcessMessage(MESSAGE &message)
     {
     case MSG_SHIP_REPAIR_MASTS:
         return RepairMasts();
+    case MSG_SHIP_REPLACED:
+        replacedHull = true;
+        aFirePlaces.clear();
+        return true;
     case MSG_SEA_REFLECTION_DRAW:
         if (IsAuxiliaryDetailVisible())
         {

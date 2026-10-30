@@ -1,0 +1,19 @@
+{
+  "phase": "after",
+  "probe_sha256": "eb3909e6b9a7579bc1dab91d10026bcecda2d98eae8e804743f6b2f24c261fb4",
+  "worldmap_sha256": "77b799bd24ab715ed60cf9c0e01fb3fbcc89b6ad168a8c2d5569f79dfca9e3fa",
+  "reload_sha256": "7986a9371219357b2cc68bc3b7f12ae7af03437c237fbbe7534d7172f2f4a525",
+  "checks_sha256": "43ff05177432079c43950ba1bb6456075c472ea4f36ff92bbc1cb9b6c8d1c08c",
+  "boundary": {
+    "exit": 0,
+    "stdout": "Run=0\nscript_errors=0\n",
+    "stderr": "",
+    "script_errors": ""
+  },
+  "canonical_program": {
+    "exit": 0,
+    "stdout": "Run=0\nscript_errors=0\n",
+    "stderr": "",
+    "script_errors": ""
+  }
+}

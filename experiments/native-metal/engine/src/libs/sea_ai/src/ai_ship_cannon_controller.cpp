@@ -1956,7 +1956,7 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
 }
 
 
-bool AIShipCannonController::Init(ATTRIBUTES *_pAShip)
+bool AIShipCannonController::Init(ATTRIBUTES *_pAShip, bool prime)
 {
     pAShip = _pAShip;
 
@@ -1994,10 +1994,10 @@ bool AIShipCannonController::Init(ATTRIBUTES *_pAShip)
         pABorts->CreateSubAClass(pABorts, buf);
     }
 
-    return ScanShipForCannons();
+    return ScanShipForCannons(prime);
 }
 
-bool AIShipCannonController::ScanShipForCannons()
+bool AIShipCannonController::ScanShipForCannons(bool prime)
 {
 
     ATTRIBUTES *pACharacter = GetAIShip()->GetACharacter();
@@ -2051,14 +2051,9 @@ bool AIShipCannonController::ScanShipForCannons()
         {
             bort.fOurBortFireHeight /= static_cast<float>(bort.aCannons.size());
 
-            const bool bHaveEnoughBalls = isHaveEnoughBallsForBort(bort);
-            if (!bHaveEnoughBalls)
-                bNotEnoughBalls = true;
-
-            for (auto &aCannon : bort.aCannons)
-                aCannon.QuickRecharge(bHaveEnoughBalls);
         }
     }
+    if (prime) PrimeCannons();
 
     // TEST !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
     /*core.Trace("NumBorts = %d",aShipBorts.size());
@@ -2066,6 +2061,17 @@ bool AIShipCannonController::ScanShipForCannons()
       core.Trace("Bort = %s, Num cannons = %d",aShipBorts[i].sName.c_str(),aShipBorts[i].aCannons.size());*/
     // TEST !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
     return true;
+}
+
+void AIShipCannonController::PrimeCannons()
+{
+    for (auto &bort : aShipBorts)
+    {
+        if (bort.aCannons.empty()) continue;
+        const bool enough = isHaveEnoughBallsForBort(bort);
+        if (!enough) bNotEnoughBalls = true;
+        for (auto &cannon : bort.aCannons) cannon.QuickRecharge(enough);
+    }
 }
 
 uint32_t AIShipCannonController::GetCannonsNum() const
@@ -2105,8 +2111,13 @@ bool AIShipCannonController::isHaveEnoughBallsForBort(const AISHIP_BORT &bort) c
     return true;
 }
 
-void AIShipCannonController::Unload()
+void AIShipCannonController::Unload(int charge)
 {
+    auto *character = GetAIShip()->GetACharacter();
+    auto *type = character->FindAClass(character, "Ship.Cannons.Charge.Type");
+    const bool restore = charge >= 0 && type;
+    const std::string desired = restore ? type->GetValue() : std::string{};
+    if (restore) type->SetValue(std::to_string(charge));
     for (auto &bort : aShipBorts)
     {
         for (auto &aCannon : bort.aCannons)
@@ -2116,6 +2127,7 @@ void AIShipCannonController::Unload()
                 pC->Unload();
         }
     }
+    if (restore) type->SetValue(desired);
 }
 
 void AIShipCannonController::Reload()

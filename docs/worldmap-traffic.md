@@ -2143,6 +2143,10 @@ remains separate from this world-map simulation and is not yet accepted.
 
 ## Player fleet autopilot
 
+Direct player Store/Shipyard commands at an accessible quay are documented with
+their admission and mounted-hull evidence in
+[the port-service replay](evidence/harbour-services-20261030/README.md).
+
 The [player autopilot](sea-autopilot.md) adds trading, hunting and manual-return
 commands to Debug menu → Diagnostics. It controls the original flagship and
 reads its live companion roster, with real player cash and per-hull cargo.

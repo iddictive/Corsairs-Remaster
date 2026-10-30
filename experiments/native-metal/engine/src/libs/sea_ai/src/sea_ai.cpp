@@ -99,6 +99,12 @@ uint64_t SEA_AI::ProcessMessage(MESSAGE &message)
     auto iCode = message.Long();
     switch (iCode)
     {
+    case AI_MESSAGE_REFRESH_SHIP: {
+        auto *character = message.AttributePointer();
+        auto *ship = message.AttributePointer();
+        const int oldCharge = message.Long();
+        return AIGroup::RefreshPlayerShip(character, ship, oldCharge);
+    }
     case AI_MESSAGE_RELOCATE_GROUP: {
         const auto &name = message.String();
         const float x = message.Float(), z = message.Float(), heading = message.Float();

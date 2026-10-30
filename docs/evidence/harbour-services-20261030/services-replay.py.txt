@@ -1,0 +1,211 @@
+"""One-off actual script-VM service admission and dispatch replay.
+
+Run from repository root through codex-run-scratch (1 GiB, 180 seconds).
+Native UI launch is a receipt seam; actual path, door, clock, menu registry,
+landing admission and service policy execute from their owning source.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+
+ROOT = Path.cwd()
+WORK = Path(os.environ['CODEX_SCRATCH_DIR'])
+STAGE = ROOT / 'experiments/native-metal/.cache/runtime'
+OUT = ROOT / 'docs/evidence/harbour-services-20261030'
+
+
+def extract(text, name):
+    match = re.search(r'(?m)^(?:void|int|float|bool|string)\s+' + name + r'\([^;\n]*\)\s*\{', text)
+    assert match, name
+    start = text.index('{', match.start())
+    masked = re.sub(r'//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"', lambda m: ' ' * len(m[0]), text[start:])
+    depth, end = 1, 1
+    while depth:
+        depth += (masked[end] == '{') - (masked[end] == '}')
+        end += 1
+    return text[match.start():start + end]
+
+
+production = ROOT / 'src/gameplay/PROGRAM'
+service = (production / 'scripts/sea_port_services.c').read_text()
+sea = (production / 'sea_ai/sea.c').read_text()
+menu = (production / 'battle_interface/BattleInterface.c').read_text()
+paths = (STAGE / 'PROGRAM/battle_interface/reload_tables.c').read_text()
+checks = (STAGE / 'PROGRAM/characters/characters_reload_check.c').read_text()
+login = (STAGE / 'PROGRAM/Loc_ai/LAi_login.c').read_text()
+functions = service.replace('IsEntity(', 'FixtureEntity(').replace('SendMessage(&AISea,', 'FixtureRefresh(&AISea,')
+functions = functions.replace('GetEntity(fader, "fader")', 'FixtureFader(fader, "fader")').replace('LayerFreeze(', 'FixtureFreeze(')
+functions += '\n' + extract(sea, 'Sea_LandColonyAccess')
+for name in ('GetNextLocationForPath', 'CheckFastJump', 'IsEnableLocToLocReload'):
+    functions += '\n' + extract(paths, name)
+functions += '\n' + extract(checks, 'chrCheckReload')
+functions += '\n' + extract(login, 'LAi_login_CheckTime')
+functions += '\n' + extract(menu, 'BI_InitializeCommands')
+fixture = r'''
+#define BI_ICONS_TEXTURE_COMMAND 0
+#define BI_ICONS_TEXTURE_SHIP1 1
+#define BI_ICONS_TEXTURE_ABILITY 2
+#define PIRATE 2
+#define RELATION_ENEMY 1
+#define COMPANION_MAX 4
+#define SHIP_NOTUSED -1
+#define PLAYER_GROUP "OurGroup"
+#define PRIMARY_TASK 0
+#define AI_MESSAGE_REFRESH_SHIP 51053
+#define SHIP_UPDATE_PARAMETERS "Shp_UpdParams"
+#define SEA_EXECUTE 10
+object Characters[4], Locations[4], Colonies[2], Islands[2], BattleInterface;
+object objFastReloadTable, InterfaceStates, AISea, RealShips[16];
+ref pchar;
+bool LAi_boarding_process, LAi_grp_alarmactive, chrDisableReloadToLocation;
+bool bDisableFastReload, dialogRun, bSeaActive, bCanEnterToLand, bSeaReloadStarted, bDisableMapEnter;
+bool bAbordageStarted, refreshAllowed;
+bool faderActive, seaFrozen;
+bool globalReload, localReload, recipeLock, travelAllowed;
+string sIslandID, sIslandLocator;
+float clock;
+int launchStoreCount, launchYardCount, lastStore, lastMerchant, relation;
+int roster[4], Ships[8], iNumShips, refreshCount, admittedCount, shoreCount, soundCount;
+bool FixtureEntity(ref character){return CheckAttribute(character,"fixtureEntity") && sti(character.fixtureEntity);}
+bool FixtureFader(aref fader,string name){return faderActive;}
+void FixtureFreeze(int layer,bool frozen){seaFrozen=frozen;}
+bool FixtureRefresh(ref ai,string format,int message,ref captain,ref ship,int oldCharge){refreshCount++;return refreshAllowed;}
+int GetCompanionIndex(ref captain,int slot){return roster[slot];}
+int GetCharacterShipType(ref captain){if(!CheckAttribute(captain,"Ship.Type"))return -1;return sti(captain.Ship.Type);}
+void Group_DelCharacter(string group,string id){}
+void Group_AddCharacter(string group,string id){}
+void Group_SetXZ_AY(string group,float x,float z,float ay){}
+void CharacterUpdateShipFromBaseShip(int index){}
+void Ship_CreateStaticSounds(ref captain){soundCount++;}
+void Ship_ReleaseStaticSounds(aref sounds){}
+float Ship_GetSailState(ref captain){return 1.0;}
+void Ship_Add2Sea(int index,bool coast,string type,bool offline){admittedCount++;Characters[index].fixtureEntity=1;Ships[iNumShips]=index;iNumShips++;}
+void Ship_SetTaskDefend(int priority,int index,int target){}
+void SeaCameras_UpdateCamera(){}
+void UpdateRelations(){}
+void RefreshBattleInterface(){}
+void SeaAutopilot_Bind(){}
+void Sea_LandLoad(){shoreCount++;bSeaActive=false;}
+void Log_Info(string message){}
+float GetTime(){return clock;}
+bool IsLocationCaptured(string id){return false;}
+bool GreatRecipe_Locked(){return recipeLock;}
+bool IsEnableFastTravel(){return travelAllowed;}
+bool Island_isReloadEnableGlobal(string id){return globalReload;}
+bool Island_isReloadEnableLocal(string id,string locator){return localReload;}
+string Sea_FindNearColony(){return "Port";}
+// NativeFindLocation resolves authored location identifiers case-insensitively.
+int FindLocation(string id){if(id=="Store"){id="store";}for(int i=0;i<4;i++){if(CheckAttribute(&Locations[i],"id") && Locations[i].id==id){return i;}}return -1;}
+int FindIsland(string id){if(id=="Island")return 0;return -1;}
+int FindColony(string id){if(id=="Port")return 0;return -1;}
+int GetCharacterIndex(string id){for(int i=0;i<4;i++){if(CheckAttribute(&Characters[i],"id") && Characters[i].id==id){return i;}}return -1;}
+ref GetCharacter(int index){return &Characters[index];}
+bool LAi_IsDead(ref character){return CheckAttribute(character,"dead") && sti(character.dead);}
+int GetNationRelation2MainCharacter(int nation){return relation;}
+int GetRelation2BaseNation(int nation){return relation;}
+void LaunchStore(int index){launchStoreCount++;lastStore=index;InterfaceStates.Launched=true;}
+void LaunchShipyard(ref merchant){launchYardCount++;lastMerchant=sti(merchant.index);InterfaceStates.Launched=true;}
+int LanguageOpenFile(string file){return 1;}
+string LanguageConvertString(int file,string key){return key;}
+void LanguageCloseFile(int file){}
+string GetConvertStr(string key,string file){return key;}
+int GetMainCharacterIndex(){return 0;}
+void BI_FireModeRefresh(int mainIndex,int selectedIndex){}
+void BI_FireFightingRefresh(int mainIndex,int selectedIndex){}
+void Setup(){
+ for(int i=0;i<4;i++){DeleteAttribute(&Characters[i],"");DeleteAttribute(&Locations[i],"");}
+ DeleteAttribute(&Islands[0],"");DeleteAttribute(&Colonies[0],"");DeleteAttribute(&objFastReloadTable,"");
+ DeleteAttribute(&SeaPortService,"");DeleteAttribute(&InterfaceStates,"");
+ pchar=&Characters[0];pchar.id="Hero";pchar.index=0;pchar.location="Island";
+ pchar.Ship.Type=7;pchar.Ship.Pos.x=350;pchar.Ship.Pos.z=450;pchar.Ship.Ang.y=0;
+ pchar.Ship.HP=100;pchar.Ship.SP=100;pchar.Ship.Cannons.Type=1;pchar.Ship.Cannons.Charge.Type=0;pchar.fixtureEntity=1;
+ pchar.money=12345;pchar.Ship.Cargo.Goods.sugar=77;
+ Characters[1].id="Port_trader";Characters[1].index=1;Characters[1].location="Store";Characters[1].City="Port";
+ Characters[2].id="Port_shipyarder";Characters[2].index=2;Characters[2].location="Yard";Characters[2].City="Port";
+ Characters[2].location.stime=6;Characters[2].location.etime=21.99;
+ Characters[3].id="Companion";Characters[3].index=3;Characters[3].fixtureEntity=1;
+ Characters[3].Ship.Type=7;Characters[3].Ship.HP=100;Characters[3].Ship.SP=100;Characters[3].Ship.Cannons.Type=1;Characters[3].Ship.Cannons.Charge.Type=0;
+ roster[0]=0;roster[1]=3;roster[2]=-1;roster[3]=-1;Ships[0]=0;Ships[1]=3;iNumShips=2;
+ refreshAllowed=true;bAbordageStarted=false;refreshCount=0;admittedCount=0;shoreCount=0;soundCount=0;faderActive=false;seaFrozen=false;
+ Locations[0].id="Quay";Locations[0].fastreload="Port";
+ Locations[0].reload.store.name="storeDoor";Locations[0].reload.store.go="Store";Locations[0].reload.store.open_for_day=1;
+ Locations[0].reload.yard.name="yardDoor";Locations[0].reload.yard.go="Yard";Locations[0].reload.yard.open_for_day=1;
+ Locations[1].id="store";Locations[2].id="Yard";Locations[3].id="OtherQuay";
+ Colonies[0].id="Port";Colonies[0].index=0;Colonies[0].nation=0;Colonies[0].StoreNum=17;Colonies[0].disease=0;
+ Islands[0].id="Island";Islands[0].reload.port.name="port";Islands[0].reload.port.go="Quay";
+ objFastReloadTable.table.Port.store.pic=0;objFastReloadTable.table.Port.store.tex=0;objFastReloadTable.table.Port.store.location="store";
+ objFastReloadTable.table.Port.yard.pic=1;objFastReloadTable.table.Port.yard.tex=0;objFastReloadTable.table.Port.yard.location="Yard";
+ objFastReloadTable.Paths.table.Quay=0;objFastReloadTable.Paths.table.Store=1;objFastReloadTable.Paths.table.Yard=2;
+ objFastReloadTable.Paths.table.Quay.Store="store";objFastReloadTable.Paths.table.Quay.Store.outLocator="storeDoor";
+ objFastReloadTable.Paths.table.Quay.Yard="Yard";objFastReloadTable.Paths.table.Quay.Yard.outLocator="yardDoor";
+ InterfaceStates.Launched=false;clock=12;relation=0;launchStoreCount=0;launchYardCount=0;
+ globalReload=true;localReload=true;recipeLock=false;travelAllowed=true;
+ bSeaActive=true;bCanEnterToLand=true;bSeaReloadStarted=false;bDisableMapEnter=false;
+ LAi_boarding_process=false;LAi_grp_alarmactive=false;chrDisableReloadToLocation=false;bDisableFastReload=false;dialogRun=false;
+ sIslandID="Island";sIslandLocator="port";
+}
+bool Both(){SeaPortService_Refresh(0,0);return sti(BattleInterface.Commands.PortStore.enable) && sti(BattleInterface.Commands.PortShipyard.enable);}
+int Run(){
+ Setup();BI_InitializeCommands();
+ if(GetCharacterIndex("Port_trader")!=1)return 301;
+ aref commands;makearef(commands,BattleInterface.Commands);
+ if(GetAttributeName(GetAttributeN(commands,1))!="Moor" || GetAttributeName(GetAttributeN(commands,2))!="PortStore" || GetAttributeName(GetAttributeN(commands,3))!="PortShipyard")return 1;
+ if(SeaPortService_Berth()!="Quay")return 201;
+ if(SeaPortService_Merchant("Quay",0)<0)return -SeaPortService_Merchant("Quay",0);
+ if(SeaPortService_Merchant("Quay",1)<0)return 203;
+ if(!Both())return 2;
+ SeaPortService_Start(0);if(launchStoreCount!=1 || lastStore!=17 || pchar.location!="Island" || !bSeaActive || sti(pchar.Ship.Type)!=7 || sti(pchar.Money)!=12345 || sti(pchar.Ship.Cargo.Goods.sugar)!=77)return 3;
+ SeaPortService_Start(1);if(launchYardCount!=0)return 4;
+ InterfaceStates.Launched=false;SeaPortService_Start(1);if(launchYardCount!=1 || lastMerchant!=2 || pchar.location!="Island" || !bSeaActive)return 5;
+ Setup();clock=23;if(Both())return 6;SeaPortService_Start(0);if(launchStoreCount!=0)return 7;
+ Setup();Locations[0].reload.store.disable=1;SeaPortService_Refresh(0,0);if(sti(BattleInterface.Commands.PortStore.enable) || !sti(BattleInterface.Commands.PortShipyard.enable))return 8;
+ Setup();LAi_grp_alarmactive=true;if(Both())return 9;
+ Setup();bCanEnterToLand=false;if(Both())return 10;
+ Setup();localReload=false;if(Both())return 11;
+ Setup();sIslandLocator="missing";if(Both())return 12;
+ Setup();Islands[0].reload.port.go="OtherQuay";if(Both())return 13;
+ Setup();Colonies[0].trafficHarbour.held=1;if(Both())return 14;
+ Setup();chrDisableReloadToLocation=true;if(Both())return 15;
+ Setup();bDisableFastReload=true;if(Both())return 16;
+ Setup();recipeLock=true;if(Both())return 17;
+ Setup();travelAllowed=false;if(Both())return 18;
+ Setup();relation=1;if(Both())return 19;
+ Setup();Characters[1].dead=1;SeaPortService_Start(0);if(launchStoreCount!=0)return 20;
+ Setup();Characters[1].chr_ai.disableDlg=1;SeaPortService_Start(0);if(launchStoreCount!=0)return 21;
+ Setup();Characters[2].location="OtherQuay";SeaPortService_Start(1);if(launchYardCount!=0)return 22;
+ Setup();pchar.Ship.Crew.disease=1;if(Both())return 23;
+ Setup();Colonies[0].disease.time=1;if(Both())return 24;
+ Setup();SeaPortService_Refresh(0,1);if(sti(BattleInterface.Commands.PortStore.enable) || sti(BattleInterface.Commands.PortShipyard.enable))return 25;
+ Setup();SeaPortService_Start(5);if(launchStoreCount!=0 || launchYardCount!=0)return 26;
+ Setup();SeaPortService_Start(1);InterfaceStates.Launched=false;SeaPortService_Closed();if(refreshCount!=0 || shoreCount!=0 || pchar.location!="Island")return 27;
+ Setup();SeaPortService_Start(1);pchar.Ship.HP=110;InterfaceStates.Launched=false;SeaPortService_Closed();if(refreshCount!=1 || soundCount!=1 || shoreCount!=0 || stf(pchar.Ship.Pos.x)!=350.0)return 28;
+ Setup();SeaPortService_Start(1);Characters[3].Ship.Type=-1;roster[1]=-1;InterfaceStates.Launched=false;SeaPortService_Closed();if(refreshCount!=1 || iNumShips!=1 || Ships[0]!=0 || shoreCount!=0)return 29;
+ Setup();roster[1]=-1;Characters[3].fixtureEntity=0;iNumShips=1;SeaPortService_Start(1);roster[1]=3;InterfaceStates.Launched=false;SeaPortService_Closed();if(admittedCount!=1 || iNumShips!=2 || shoreCount!=0)return 30;
+ Setup();SeaPortService_Start(1);pchar.Ship.Type=-1;InterfaceStates.Launched=false;SeaPortService_Closed();if(refreshCount!=0 || shoreCount!=1 || bSeaActive)return 31;
+ Setup();SeaPortService_Start(1);pchar.Ship.HP=110;refreshAllowed=false;InterfaceStates.Launched=false;SeaPortService_Closed();if(refreshCount!=1 || shoreCount!=1)return 32;
+ Setup();SeaPortService_Start(1);pchar.Ship.HP=110;InterfaceStates.Launched=false;faderActive=true;SeaPortService_Closed();if(refreshCount!=0 || !seaFrozen || !CheckAttribute(&SeaPortService,"closing"))return 33;
+ faderActive=false;SeaPortService_Closed();if(refreshCount!=1 || seaFrozen || CheckAttribute(&SeaPortService,"berth"))return 34;
+ Setup();SeaPortService.berth="Quay";SeaPortService.closing=true;SeaPortService_Reset();SeaPortService_Closed();if(CheckAttribute(&SeaPortService,"berth") || refreshCount!=0)return 35;
+ return 0;
+}
+'''
+directory = WORK / 'services'
+directory.mkdir()
+(directory / 'cases.c').write_text(fixture + '\n' + functions)
+binary = WORK / 'script-vm-probe'
+shutil.copy2(ROOT / 'experiments/native-metal/.cache/build/bin/script-vm-probe', binary)
+shutil.copytree(STAGE / 'resource/shared', WORK / 'resource/shared')
+result = subprocess.run([str(binary), str(directory), 'Run', '0'], capture_output=True, text=True, timeout=90)
+error = directory / '.vm-userdata/Logs/error.log'
+record = {'exit': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr,
+          'script_errors': error.read_text(errors='replace') if error.exists() else '',
+          'service_sha256': hashlib.sha256(service.encode()).hexdigest(),
+          'fixture_sha256': hashlib.sha256(fixture.encode()).hexdigest(),
+          'probe_sha256': hashlib.sha256(binary.read_bytes()).hexdigest()}
+(OUT / 'services-result.json').write_text(json.dumps(record, indent=2) + '\n')
+print(json.dumps(record, indent=2))
+assert result.returncode == 0 and not record['script_errors'] and 'Run=0' in result.stdout, record

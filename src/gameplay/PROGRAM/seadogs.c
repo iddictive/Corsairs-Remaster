@@ -7,6 +7,7 @@
 #include "sea_ai\sea.c"
 #include "scripts\sea_phonk.c"
 #include "scripts\sea_autopilot.c"
+#include "scripts\sea_port_services.c"
 #include "ships\ships.c"
 #include "scripts\sail_capacity.c"
 #include "Encounters\Encounters.c"
@@ -541,6 +542,7 @@ void InterfaceDoExit()
 		}
 		DeleteAttribute(&GameInterface,"");
 	}
+	SeaPortService_Closed();
 	switch(interfaceResultCommand)
 	{
 		case RC_INTERFACE_FORTCAPTURE_EXIT:
@@ -741,6 +743,7 @@ int actLoadFlag = 0;
 
 void OnLoad()
 {
+    SeaPortService_Reset();
     GreatRecipe_PreLoadActors();
     if (LoadSegment("store\\initGoods.c"))
     {

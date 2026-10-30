@@ -533,6 +533,10 @@
       "encoding": "utf-8",
       "legacy": []
     },
+    "PROGRAM/scripts/sea_port_services.c": {
+      "encoding": "utf-8",
+      "legacy": []
+    },
     "PROGRAM/scripts/sea_phonk.c": {
       "encoding": "utf-8",
       "legacy": [

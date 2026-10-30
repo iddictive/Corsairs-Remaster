@@ -181,6 +181,7 @@
 #define AI_MESSAGE_RESEARCH_CANNONS 51050
 #define AI_MESSAGE_RELEASE_GROUP 51051 // "ls", queue ordinary group removal at Execute boundary
 #define AI_MESSAGE_RELOCATE_GROUP 51052 // "lsfff", rigidly move live group to x, z, heading without remounting
+#define AI_MESSAGE_REFRESH_SHIP 51053 // "laal", player Character + current RealShip + pre-service charge; empty RealShip retires a sold companion
 
 // cameras
 #define AI_CAMERAS_ADD_CAMERA 55000

@@ -106,6 +106,11 @@ class AIShipTaskController
         return (Primary.isActive() && Primary.pATaskCharacter == character) ||
                (Secondary.isActive() && Secondary.pATaskCharacter == character);
     }
+    void ForgetCharacter(ATTRIBUTES *character)
+    {
+        for (auto *task : {&Primary, &Secondary})
+            if (task->pATaskCharacter == character) *task = AITask{};
+    }
 
     void SetNewTask(uint32_t dwPriority, uint32_t dwNewTaskType, CVECTOR &vPnt);
     void SetNewTask(uint32_t dwPriority, uint32_t dwNewTaskType, ATTRIBUTES *_pATaskCharacter);

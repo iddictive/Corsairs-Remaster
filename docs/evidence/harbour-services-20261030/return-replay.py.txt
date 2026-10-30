@@ -1,0 +1,155 @@
+"""One-off source/VM evidence for boarding an existing ship after town combat.
+
+Run from repository root through codex-run-scratch (1 GiB, 180 s). Requires
+CODEX_SCRATCH_DIR and the existing script-vm-probe. Pass before or after.
+The fixture executes the exact harbour access functions, chrCheckReload and
+Reload's complete pre-fader boundary; native fader/scene startup is excluded.
+No game, real SAVE, installed runtime or shared build is modified.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+ROOT = Path.cwd()
+OUT = ROOT / 'docs/evidence/harbour-services-20261030'
+SCRATCH = Path(os.environ['CODEX_SCRATCH_DIR'])
+PHASE = sys.argv[1]
+assert PHASE in ('before', 'after')
+sys.path.insert(0, str(ROOT / 'tools'))
+import gameplay_sources
+
+
+def extract(text, name):
+    match = re.search(r'(?m)^(?:void|int|float|bool|string)\s+' + name + r'\([^;\n]*\)\s*\{', text)
+    assert match, name
+    start = text.index('{', match.start())
+    masked = re.sub(r'//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"', lambda m: ' ' * len(m[0]), text[start:])
+    depth, end = 1, 1
+    while depth:
+        depth += (masked[end] == '{') - (masked[end] == '}')
+        end += 1
+    return text[match.start():start + end]
+
+
+stage = ROOT / 'experiments/native-metal/.cache/runtime'
+source_probe = ROOT / 'experiments/native-metal/.cache/build/bin/script-vm-probe'
+probe_dir = SCRATCH / 'probe'
+probe_dir.mkdir()
+probe = probe_dir / 'script-vm-probe'
+shutil.copy2(source_probe, probe)
+shutil.copytree(ROOT / 'experiments/native-metal/engine/src/libs/shared_headers/include/shared', probe_dir / 'resource/shared')
+sources, _ = gameplay_sources.read()
+worldmap = gameplay_sources.source_bytes('PROGRAM/worldmap/worldmap_encgen.c', sources['PROGRAM/worldmap/worldmap_encgen.c'][0], sources['PROGRAM/worldmap/worldmap_encgen.c'][2]).decode()
+reload = gameplay_sources.source_bytes('PROGRAM/reload.c', sources['PROGRAM/reload.c'][0], sources['PROGRAM/reload.c'][2]).decode()
+checks = (stage / 'PROGRAM/characters/characters_reload_check.c').read_text(encoding='cp1251')
+functions = '\n'.join(extract(worldmap, name) for name in (
+    'WdmHarbourHull', 'WdmHarbourBerthIsland', 'WdmHarbourLandLocation',
+    'WdmHarbourAshore', 'WdmHarbourHullBerth', 'WdmHarbourEmbarkLocator',
+    'WdmHarbourEmbarkAccess', 'WdmHarbourPrepareEmbark'))
+functions += '\n' + extract(checks, 'chrCheckReload')
+prefix = extract(reload, 'Reload').split('//Start fader')[0] + '\nreturn 71;\n}\n'
+fixture = r'''
+#define MAX_ISLANDS 2
+#define MAX_COLONIES 2
+#define REAL_SHIPS_QUANTITY 10
+#define SHIP_NOTUSED -1
+#define COMPANION_MAX 4
+object Characters[4], Locations[4], Islands[2], Colonies[2], worldMap;
+object reload_xaddress;
+ref pchar;
+bool bSeaActive, LAi_boarding_process, LAi_grp_alarmactive;
+bool chrDisableReloadToLocation, bDisableMapEnter, dialogDisable;
+string lockedReloadLocator, LastLog;
+aref reload_locator_ref;
+int reload_cur_island_index, reload_cur_location_index, reload_island_index, reload_location_index;
+int GetCharacterShipType(ref captain){if(!CheckAttribute(captain,"Ship.Type")) return -1; return sti(captain.Ship.Type);}
+int FindLocation(string id){for(int i=0;i<4;i++) if(CheckAttribute(&Locations[i],"id") && Locations[i].id==id) return i; return -1;}
+int FindIsland(string id){for(int i=0;i<2;i++) if(CheckAttribute(&Islands[i],"id") && Islands[i].id==id) return i; return -1;}
+bool isShipInside(string id){return id=="Cabin";}
+bool IsLocationCaptured(string id){return false;}
+float GetTime(){return 12.0;}
+ref GetMainCharacter(){return &Characters[0];}
+void WdmHarbourRecoverOfficers(){}
+bool WdmHarbourPromote(int index){return false;}
+int GetCompanionIndex(ref captain, int slot){return -1;}
+void Log_Info(string value){LastLog=value;}
+void SetReloadNextTipsImage(){}
+void Setup(){
+ for(int i=0;i<4;i++){DeleteAttribute(&Characters[i],"");DeleteAttribute(&Locations[i],"");}
+ for(int j=0;j<2;j++){DeleteAttribute(&Islands[j],"");DeleteAttribute(&Colonies[j],"");}
+ pchar=&Characters[0]; pchar.Ship.Type=1; pchar.Ship.HP=100; pchar.Ship.trafficBerth="Quay";
+ pchar.location="Quay";pchar.location.from_sea="Quay";
+ Locations[0].id="Quay";Locations[0].islandId="Island";Locations[0].type="town";
+ Locations[0].reload.sea.name="boat";Locations[0].reload.sea.go="Island";Locations[0].reload.sea.emerge="port";
+ Locations[1].id="OtherQuay";Locations[1].islandId="Island";Locations[1].type="town";
+ Locations[2].id="Interior";Locations[2].islandId="Island";Locations[2].type="house";
+ Islands[0].id="Island";Islands[0].reload.port.name="port";Islands[0].reload.port.go="Quay";
+ Colonies[0].from_sea="Quay";
+ bSeaActive=false;LAi_boarding_process=false;LAi_grp_alarmactive=false;
+ chrDisableReloadToLocation=false;bDisableMapEnter=false;lockedReloadLocator="";LastLog="";
+}
+int Attempt(){aref exits;makearef(exits,Locations[0].reload);return Reload(exits,"boat",pchar.location);}
+int Run(){
+ Setup();if(WdmHarbourEmbarkLocator(pchar)!="boat" || Attempt()!=71) return 1;
+ // Start from the same already-moored hull, then activate town combat alarm.
+ LAi_grp_alarmactive=true;
+ if(EXPECT_ALARM_ALLOWED){if(WdmHarbourEmbarkLocator(pchar)!="boat" || Attempt()!=71) return 2;}
+ else {if(WdmHarbourEmbarkLocator(pchar)!="" || Attempt()!=-1 || LastLog!="Нет доступного корабля у этого причала.") return 3;}
+ Setup();LAi_grp_alarmactive=true;Colonies[0].trafficHarbour.held=1;if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 4;
+ Setup();LAi_grp_alarmactive=true;pchar.Ship.trafficBerth="OtherQuay";if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 5;
+ Setup();LAi_grp_alarmactive=true;Locations[0].reload.sea.disable=1;if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 6;
+ Setup();LAi_grp_alarmactive=true;chrDisableReloadToLocation=true;if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 7;
+ Setup();LAi_grp_alarmactive=true;LAi_boarding_process=true;if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 8;
+ Setup();LAi_grp_alarmactive=true;bDisableMapEnter=true;if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 9;
+ Setup();LAi_grp_alarmactive=true;pchar.Ship.Type=-1;if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 10;
+ Setup();LAi_grp_alarmactive=true;pchar.location="Interior";if(WdmHarbourEmbarkAccess(pchar)) return 11;
+ Setup();LAi_grp_alarmactive=true;Locations[0].reload.sea.emerge="WrongEntry";if(WdmHarbourEmbarkAccess(pchar) || Attempt()!=-1) return 12;
+ Setup();DeleteAttribute(pchar,"Ship.trafficBerth");if(WdmHarbourEmbarkLocator(pchar)!="boat" || Attempt()!=71) return 13;
+ Setup();Colonies[0].trafficHarbour.held=0;if(WdmHarbourEmbarkLocator(pchar)!="boat" || Attempt()!=71) return 14;
+ return 0;
+}
+'''.replace('EXPECT_ALARM_ALLOWED', 'true' if PHASE == 'after' else 'false')
+fixture_dir = SCRATCH / 'return-boundary'
+fixture_dir.mkdir()
+(fixture_dir / 'cases.c').write_bytes((fixture + functions + prefix).encode('cp1251'))
+
+
+def run(directory, prelude=None):
+    args = [str(probe), str(directory), 'Run', '0']
+    if prelude:
+        args += ['Run', prelude]
+    result = subprocess.run(args, capture_output=True, text=True, timeout=90)
+    errors = directory / '.vm-userdata/Logs/error.log'
+    record = {'exit': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr,
+              'script_errors': errors.read_text(errors='replace') if errors.exists() else ''}
+    assert result.returncode == 0 and not record['script_errors'], record
+    return record
+
+
+results = {'phase': PHASE, 'probe_sha256': hashlib.sha256(source_probe.read_bytes()).hexdigest(),
+           'worldmap_sha256': hashlib.sha256(worldmap.encode()).hexdigest(),
+           'reload_sha256': hashlib.sha256(reload.encode()).hexdigest(),
+           'checks_sha256': hashlib.sha256(checks.encode()).hexdigest(),
+           'boundary': run(fixture_dir)}
+if PHASE == 'after':
+    full = SCRATCH / 'canonical-program'
+    shutil.copytree(stage / 'PROGRAM', full)
+    for name, (data, _, _) in sources.items():
+        if name.startswith('PROGRAM/'):
+            path = full / Path(name).relative_to('PROGRAM')
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+    main = full / 'seadogs.c'
+    data = main.read_bytes()
+    assert len(re.findall(rb'void\s+Main\s*\(', data)) == 1
+    main.write_bytes(re.sub(rb'void\s+Main\s*\(', b'void GameMainNotExecuted(', data, count=1))
+    (full / 'cases.c').write_text('int Run(){return 0;}\n')
+    results['canonical_program'] = run(full, 'seadogs.c')
+OUT.mkdir(parents=True, exist_ok=True)
+(OUT / ('return-' + PHASE + '.json')).write_text(json.dumps(results, indent=2) + '\n')
+print(json.dumps(results, indent=2))
