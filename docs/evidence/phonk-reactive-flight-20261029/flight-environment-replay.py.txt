@@ -1,0 +1,74 @@
+"""One-off real SKY component replay; no game script/SAVE or visible window."""
+from pathlib import Path
+import os,subprocess,sys,shutil,shlex,json
+root=Path(sys.argv[1]).resolve();work=Path(os.environ['CODEX_SCRATCH_DIR']).resolve()
+native=root/'experiments/native-metal';evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
+shutil.copy2(root/'docs/evidence/particle-tracer-capacity-20261029/engine.ini.txt',work/'engine.ini')
+shutil.copy2(evidence/'native-fixture.c.txt',work/'fixture.c')
+(work/'RESOURCE').mkdir()
+for entry in (native/'.cache/runtime/RESOURCE').iterdir():
+ if entry.name.casefold()!='shared':(work/'RESOURCE'/entry.name).symlink_to(entry)
+shutil.copytree(native/'engine/src/libs/shared_headers/include/shared',work/'resource/shared')
+prefix=(root/'docs/evidence/particle-tracer-capacity-20261029/native-probe.cpp.txt').read_text()
+prefix=prefix[:prefix.index(' auto *service=')]
+prefix=prefix.replace('int main(int argc,char **argv) {',(evidence/'flight-environment-native.cpp.txt').read_text()+'\nint main(int argc,char **argv) {')
+body=r'''
+ setbuf(stdout,nullptr);puts("sky_fixture_begin");
+ ATTRIBUTES attributes(core_internal.Compiler->GetVSC());
+ const auto id=core.CreateEntity("sky",&attributes);check(bool(id),"actual sky entity");
+ puts("sky_entity_created");
+ attr(id,attributes,"Color","4294967295");attr(id,attributes,"RotateSpeed","0");
+ attr(id,attributes,"Angle","0");attr(id,attributes,"Size","2048");
+ attributes.SetAttribute("FogHeight","200");
+ puts("sky_fields_set");
+ auto *dir=attributes.CreateSubAClass(&attributes,"dir");dir->SetValue("0");dir->SetAttribute("d0","weather\\skies\\09\\");core.Entity_AttributeChanged(id,dir);
+ puts("sky_dir_set");
+ auto *done=attributes.CreateSubAClass(&attributes,"isDone");done->SetValue("");core.Entity_AttributeChanged(id,done);
+ puts("sky_generated");
+ auto *sky=static_cast<SKY*>(core.GetEntityPointer(id));
+ for(int reflection:{0,1})for(float height:{10.f,110.f,200.f,201.f,400.f,600.f,999.f,1000.f,1001.f,2010.f,3010.f,6010.f,30010.f,-3010.f})renderSky(rs,device,target,readback,sky,height,reflection);
+ readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}
+'''
+(work/'probe.cpp').write_text(prefix+body)
+if os.environ.get('FLIGHT_ENV_CAMERA_POSES')=='1':
+ poses=json.loads((evidence/'flight-camera-after.json').read_text())['pose_fixture']
+ calls=[]
+ for label,pose in poses['matrices'].items():
+  values=lambda data:','.join(format(float(v),'.9g')+'f' if '.' in format(float(v),'.9g') or 'e' in format(float(v),'.9g') else format(float(v),'.9g')+'.f' for v in data)
+  calls.append('{const float view[]={'+values(pose['view_after'])+'},projection[]={'+values(pose['projection_modern'])+'};fixtureView=view;fixtureProjection=projection;for(int reflection:{0,1})renderSky(rs,device,target,readback,sky,0.f,reflection);}')
+ old='for(int reflection:{0,1})for(float height:{10.f,110.f,200.f,201.f,400.f,600.f,999.f,1000.f,1001.f,2010.f,3010.f,6010.f,30010.f,-3010.f})renderSky(rs,device,target,readback,sky,height,reflection);'
+ assert body.count(old)==1
+ (work/'probe.cpp').write_text(prefix+body.replace(old,'\n'.join(calls)))
+driver=(root/'docs/evidence/particle-tracer-capacity-20261029/build-probe.py.txt').read_text()
+needle="compile+=['-I'+str(root/'engine/src/libs/particles/src')]"
+assert driver.count(needle)==1
+driver=driver.replace(needle,needle+";compile+=['-I'+str(root/'engine/src/libs/weather/src')]")
+if os.environ.get('FLIGHT_ENV_CURRENT_SKY')=='1':
+ build=native/'.cache/build'
+ commands=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','lib/libweather.a'],text=True).splitlines()
+ args=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/weather/src/sky.cpp'))
+ archive=work/'libweather.a';shutil.copy2(build/'lib/libweather.a',archive)
+ print('weather_archive_snapshot_ready',flush=True)
+ obj=work/'sky.cpp.o'
+ for flag,value in [('-o',obj),('-MF',work/'sky.cpp.d'),('-MT',obj)]:
+  if flag in args:args[args.index(flag)+1]=str(value)
+ result=subprocess.run([x for x in args if x!='-v'],cwd=build,capture_output=True,text=True,timeout=90)
+ if result.returncode:raise RuntimeError((result.stdout+result.stderr)[-6000:])
+ subprocess.run(['/usr/bin/ar','r',str(archive),str(obj)],check=True,capture_output=True)
+ marker='for command in [compile,link]:'
+ assert driver.count(marker)==1
+ driver=driver.replace(marker,"link=[str(work/'libweather.a') if x.endswith('lib/libweather.a') else x for x in link]\n"+marker)
+(work/'build.py').write_text(driver)
+r=subprocess.run([sys.executable,str(work/'build.py'),str(root),str(work)],capture_output=True,text=True,timeout=150)
+if r.returncode:print((r.stdout+r.stderr)[-6000:]);raise SystemExit(r.returncode)
+env=dict(os.environ,STORM_METAL_DYNAMIC_SKY='0',STORM_METAL_MODERN_LIGHTING='1')
+r=subprocess.run([str(work/'probe'),str(work)],capture_output=True,text=True,env=env,timeout=60)
+out=r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n'
+if r.returncode<0:
+ d=subprocess.run(['/usr/bin/lldb','--batch','-o','run','-o','bt','--',str(work/'probe'),str(work)],capture_output=True,text=True,env=env,timeout=45)
+ out+='\n'+d.stdout+d.stderr
+output=out.replace(str(root),'<repo>').replace(str(work),'<scratch>')
+name=os.environ.get('FLIGHT_ENV_RESULT','flight-environment-before.txt')
+if not name.startswith('flight-environment-') or '/' in name:raise ValueError('result owner')
+(evidence/name).write_text(output);print(output[-7000:]);raise SystemExit(r.returncode)

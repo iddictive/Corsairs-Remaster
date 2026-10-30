@@ -651,6 +651,12 @@ bool ReactiveWorld::ImpulseNeighbor(uint64_t key, ReactiveBody &body, const CVEC
     return true;
 }
 
+void ReactiveWorld::ClearNeighbors()
+{
+    impl_->neighborShapes.clear();
+    impl_->neighborMass.clear();
+}
+
 bool ReactiveWorld::SetStaticTriangles(const std::vector<CVECTOR> &triangles)
 {
     if (triangles.empty()) { impl_->Remove(impl_->terrain); return true; }
@@ -690,14 +696,32 @@ float ReactiveWorld::SubmergedFraction(float localWaterHeight) const
     return impl_->submergedFraction;
 }
 
+CVECTOR ReactiveWorld::CenterOfMass() const
+{
+    if (!impl_->hull) return CVECTOR(0.f);
+    const auto c = impl_->hull->GetCenterOfMass();
+    return CVECTOR(c.GetX(), c.GetY(), c.GetZ());
+}
+
+CVECTOR ReactiveWorld::AngularTorque(const CVECTOR &localAcceleration, float mass) const
+{
+    if (!impl_->hull || !(mass > 0.f)) return CVECTOR(0.f);
+    auto properties = impl_->hullMass;
+    properties.ScaleToMass(mass);
+    const auto torque = properties.mInertia.Multiply3x3(Vec(localAcceleration));
+    return CVECTOR(torque.GetX(), torque.GetY(), torque.GetZ());
+}
+
 bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &forces,
                          const ReactiveFluid &fluid, float seconds,
-                         std::vector<ReactiveNeighbor> *neighbors)
+                         std::vector<ReactiveNeighbor> *neighbors, const ReactiveDrive &drive)
 {
     impl_->updateError = JPH::EPhysicsUpdateError::None;
     if (!impl_->hull || !Finite(state.pose) || !Finite(state.velocity) ||
         !Finite(state.angularVelocity) || !std::isfinite(seconds) || seconds <= 0.f ||
-        !std::isfinite(state.mass) || state.mass <= 0.f) return false;
+        !std::isfinite(state.mass) || state.mass <= 0.f ||
+        !Finite(drive.airForce) || !Finite(drive.waterForce) ||
+        !std::isfinite(drive.referenceSubmerged) || drive.referenceSubmerged <= 0.f) return false;
     auto &w = *impl_;
     auto &bodies = w.physics.GetBodyInterface();
     // Rehydration also makes TOUCH prediction read-only for native state.
@@ -736,7 +760,8 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
             force += f;
             torque += (q * (Vec(jet.point) - w.hull->GetCenterOfMass())).Cross(f);
         }
-        bodies.AddForceAndTorque(w.moving, force, torque, JPH::EActivation::Activate);
+        force += Vec(drive.airForce);
+        float waterWeight = 0.f;
         const auto surface = JPH::RVec3(state.pose.v.pos.x, fluid.height, state.pose.v.pos.z);
         const auto normal = Vec(fluid.normal);
         // Transform the entire retained bound, including attitude, each step.
@@ -760,12 +785,26 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
                     , body.GetCenterOfMassPosition()
 #endif
                 );
+                waterWeight = total > 0.f && drive.referenceSubmerged > 0.f ?
+                    std::clamp(submerged / (total*drive.referenceSubmerged), 0.f, 1.f) : 0.f;
+                auto dragReference = Vec(fluid.velocity);
+                if (drive.nativeHorizontal)
+                {
+                    // Selective drag adapter, not a physical fluid velocity:
+                    // native sailing owns translational XZ resistance once.
+                    // Jolt retains vertical/rotational water response.
+                    const auto atBuoyancy = body.GetLinearVelocity() + body.GetAngularVelocity().Cross(center);
+                    dragReference.SetX(atBuoyancy.GetX()); dragReference.SetZ(atBuoyancy.GetZ());
+                }
                 applied = body.ApplyBuoyancyImpulse(total, submerged, center, fluid.buoyancy,
-                    .5f, .1f, Vec(fluid.velocity), w.physics.GetGravity(), dt);
+                    .5f, .1f, dragReference, w.physics.GetGravity(), dt);
             }
             if (applied) bodies.ActivateBody(w.moving);
             w.wet |= applied;
         }
+        force += waterWeight * Vec(drive.waterForce);
+        if (force.LengthSq() > 0.f || torque.LengthSq() > 0.f)
+            bodies.AddForceAndTorque(w.moving, force, torque, JPH::EActivation::Activate);
         w.updateError = w.physics.Update(dt, 1, &w.allocator, &w.jobs);
         if (w.updateError != JPH::EPhysicsUpdateError::None) return false;
     }

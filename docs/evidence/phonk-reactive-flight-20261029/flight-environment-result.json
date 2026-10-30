@@ -1,0 +1,162 @@
+{
+  "scope": "Actual native SKY entity and mirrored active-view compatibility; no game launch or UI",
+  "baseline_commit": "67d05f5d04e79f26053606ee66b2279dedff6b16",
+  "source_sha256": {
+    "experiments/native-metal/authored_sky.hpp": "b3da1ec8e660b2e8713ce0117ba708ff9fea5767ad6c480a21d916de90ada7f1",
+    "experiments/native-metal/engine/src/libs/weather/src/sky.cpp": "07e229aa5c3ad8c7d59ca491013d8b05bb2d86a28dbfb26548ee7fdf2c41ff83"
+  },
+  "inputs": {
+    "renderer": "Apple M5 Max native Metal",
+    "viewport": [
+      640,
+      480
+    ],
+    "samples": 1,
+    "dynamic_sky": false,
+    "modern_lighting": true,
+    "sky_asset_directory": "weather/skies/09",
+    "sky_size": 2048,
+    "fog_radius": 2000,
+    "camera_pose_source": "flight-camera-after.json:pose_fixture.matrices[].view_after/projection_modern"
+  },
+  "evidence_sha256": {
+    "flight-environment-after.txt": "e6124995f43aa91ded24efe3ce72af6e9e0cbf286c4f67d1a7502bd92eb3b966",
+    "flight-environment-before.txt": "d2ee6bc95da7dd41facee7928d01c7ee4cbda951c35b08b1322b6423938f2471",
+    "flight-environment-camera-pose-after.txt": "bc3f66b458fa8b77c21dfcf6a23f01fa39973180799e73a33e7145f4bf29e205",
+    "flight-environment-mirror-after.txt": "881eb6203084c5204b65db89c43b4918fa789ce7a4e10c31702b4038c9125570",
+    "flight-environment-mirror-before.txt": "2806044077365b81b50da4ce64788382a2085b10062c0a7f31709c1f0b831f99",
+    "flight-environment-solar-after.txt": "f97667a91327f0b07a7d6cd57a492cea3c494f8b4e0368edff267c14175bce22",
+    "flight-environment-solar-before.txt": "b4aef52d9935e7d0e3dc4ae9fb66a9b9c7cdb05accf3a34d82e1055442b11510"
+  },
+  "procedure_sources_sha256": {
+    "flight-environment-replay.py.txt": "86c8d88098948ca830c5133828890c3e4378f7f01cc23a09c82d571a190cf21e",
+    "flight-environment-native.cpp.txt": "7bbea0e297addd1caf3ef0b1865dd932868398435d5c851badfd3aa8337d8f44",
+    "native-fixture.c.txt": "87d157ff94a3d52fdc2074c92f89909eafcd169017a947a317a671050a956bd2",
+    "flight-camera-after.json": "702ce0af924418aa60b089adb6403eef69e2075415964ce5f456941ab3fb6dfd"
+  },
+  "findings": {
+    "original_main_3010": {
+      "black": 219520,
+      "top_black": 76800,
+      "bottom_black": 0,
+      "center": "ff000000",
+      "hash": "0866da065ea0169f"
+    },
+    "original_main_6010": {
+      "black": 307200,
+      "top_black": 76800,
+      "bottom_black": 76800,
+      "center": "ff000000",
+      "hash": "bbbb18dffe854383"
+    },
+    "intermediate_reflection_3010": {
+      "black": 307200,
+      "top_black": 76800,
+      "bottom_black": 76800,
+      "center": "ff000000",
+      "hash": "bbbb18dffe854383"
+    },
+    "final_3010_main": {
+      "black": 423,
+      "top_black": 0,
+      "bottom_black": 0,
+      "center": "ff262f33",
+      "hash": "ffdd835524fb3180"
+    },
+    "final_3010_reflection": {
+      "black": 423,
+      "top_black": 0,
+      "bottom_black": 0,
+      "center": "ff262f33",
+      "hash": "ffdd835524fb3180"
+    }
+  },
+  "acceptance": {
+    "native_exit": 0,
+    "main_and_actual_mirrored_cases": 28,
+    "all_cases_top_quarter_black_pixels": 0,
+    "sea_level_exact_pixel_hashes": [
+      {
+        "height": 10.0,
+        "reflection": false,
+        "hash": "cf4f76a1108b78e7"
+      },
+      {
+        "height": 10.0,
+        "reflection": true,
+        "hash": "961da7ef46fdc0a7"
+      },
+      {
+        "height": 110.0,
+        "reflection": false,
+        "hash": "0e83de53c19c7424"
+      },
+      {
+        "height": 110.0,
+        "reflection": true,
+        "hash": "9d10af47ea2f92f1"
+      },
+      {
+        "height": 200.0,
+        "reflection": false,
+        "hash": "319f26b0e35339a2"
+      },
+      {
+        "height": 200.0,
+        "reflection": true,
+        "hash": "12c5d86b4d94a8f2"
+      }
+    ],
+    "high_altitude_main_and_mirror_hash": "ffdd835524fb3180",
+    "centred_altitudes": [
+      1000,
+      1001,
+      2010,
+      3010,
+      6010,
+      30010,
+      -3010
+    ],
+    "transition_cases": [
+      200,
+      201,
+      400,
+      600,
+      999,
+      1000,
+      1001
+    ],
+    "native_camera_pose_main_and_mirror_cases": 6,
+    "native_camera_pose_all_top_quarter_black_pixels": 0,
+    "view_and_cached_camera": "Bit-exact restoration asserted after every final SKY::Realize"
+  },
+  "solar": {
+    "high_altitude_vector": [
+      3588.778076,
+      1689.241943,
+      -3044.196777
+    ],
+    "gain": 0.818143,
+    "opacity": 0.113725,
+    "source": "flight-environment-mirror-after.txt"
+  },
+  "cost": {
+    "new_passes": 0,
+    "new_draws": 0,
+    "new_allocations": 0,
+    "new_sampling": 0,
+    "resolution_change": false,
+    "cpu": "Scalar frame computation; mismatched active-view background at transition/high altitude adds one affine view inverse, translation multiply and two SetView calls. Ordinary low-altitude branch emits no SetView calls."
+  },
+  "limits": [
+    "Component renders actual SKY textures/fog and native active views, not a complete gameplay scene or SEA material screenshot.",
+    "423 remaining black pixels in centred generic fixture are asset transparency/horizon gaps with astronomy absent; top quarter is entirely covered.",
+    "No full-game FPS acceptance claimed. Restored sky coverage does more fragment work than the broken all-black result.",
+    "Optional dynamic-cloud mode preserved by source, not separately replayed."
+  ],
+  "replay": {
+    "current": "FLIGHT_ENV_CURRENT_SKY=1 FLIGHT_ENV_RESULT=flight-environment-mirror-after.txt; run flight-environment-replay.py.txt with repository root through codex-run-scratch (1 GiB / 240 files / 240 s / 8 GiB reserve).",
+    "camera_poses": "Same command with FLIGHT_ENV_CAMERA_POSES=1 and FLIGHT_ENV_RESULT=flight-environment-camera-pose-after.txt.",
+    "baseline": "Original source at baseline_commit uses canonical baseline libweather.a; omit FLIGHT_ENV_CURRENT_SKY. Intermediate mirror-before is the initial frame helper before SkyViewScope; retained as rejection evidence."
+  }
+}

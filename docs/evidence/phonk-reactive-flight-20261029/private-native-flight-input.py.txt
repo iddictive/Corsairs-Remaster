@@ -1,0 +1,58 @@
+"""Extract only native ship physics/material and regional poses from an immutable SAVE.
+
+Output is private, regeneratable task input. Never copy it into the repository.
+The canonical SAVE reader owns parsing; this projection does not load the game.
+"""
+from pathlib import Path
+import runpy,struct,sys,math,json
+root=Path(__file__).resolve().parents[3]
+def extract(source,destination):
+ codec=runpy.run_path(str(root/'tools/compact_native_save.py'))
+ save=codec['Save'](Path(source).read_bytes())
+ def variable(name,kind):
+  marker=codec['vd'](len(name)+1)+name.encode()+b'\0'+struct.pack('<I',kind)
+  at=save.raw.find(marker)
+  if at<0 or save.raw.find(marker,at+1)>=0:raise ValueError('ambiguous variable '+name)
+  save.at=at+len(marker);return save.read('<I')[0]
+ def scalar(node):
+  if node is None or node.value is None:raise ValueError('missing numeric input')
+  value=float(node.value)
+  if not math.isfinite(value):raise ValueError('nonfinite input')
+  return value
+ variable('nMainCharacterIndex',6);index=save.read('<I')[0]
+ count=variable('Characters',9)
+ if index>=count:raise ValueError('main index')
+ for i in range(index+1):save.take(8);character=save.attr(i==index)
+ ship=character.child(b'ship');ship_type=int(scalar(ship.child(b'type')))
+ count=variable('RealShips',9)
+ if not 0<=ship_type<count:raise ValueError('real ship index')
+ for i in range(ship_type+1):save.take(8);native_type=save.attr(i==ship_type)
+ if variable('AISea',9)!=1:raise ValueError('sea population')
+ save.take(8);sea=save.attr(True);frame=sea.child(b'worldframe')
+ regions=frame.child(b'regions');zero_x=scalar(frame.child(b'zerox'));zero_z=scalar(frame.child(b'zeroz'));scale=scalar(frame.child(b'scale'))
+ layout=[]
+ for region in regions.children:
+  if region.child(b'id') is None:continue
+  name=region.scalar(b'id').decode('ascii')
+  if not name.replace('_','').isalnum():raise ValueError('region identity')
+  layout.append({'id':name,'offset':[(scalar(region.child(b'mapx'))-zero_x)*scale,(scalar(region.child(b'mapz'))-zero_z)*scale]})
+ if len(layout)!=27:raise ValueError('expected complete27region scene')
+ def encode(node,children=None):
+  name=node.name;value=codec['unpack'](node.value);children=node.children if children is None else children
+  return struct.pack('<I',len(name))+name+struct.pack('<I',0xffffffff if value is None else len(value))+(value or b'')+struct.pack('<I',len(children))+b''.join(encode(child) for child in children)
+ destination=Path(destination)
+ (destination/'native-type.bin').write_bytes(encode(native_type))
+ allowed={b'hullmaterial',b'immersion',b'cargo',b'hp',b'sp',b'masts',b'hulls',b'sails',b'cannons',b'maxspeedz',b'maxspeedy',b'stopped',b'crew'}
+ selected=[]
+ for child in ship.children:
+  if child.name not in allowed:continue
+  if child.name==b'cargo':
+   child=codec['Node'](0,0,0,None,b'cargo',[x for x in child.children if x.name==b'load'])
+  selected.append(child)
+ (destination/'native-ship.bin').write_bytes(encode(ship,selected))
+ position=ship.child(b'pos')
+ x=scalar(position.child(b'x'));z=scalar(position.child(b'z'))
+ selected=min(layout,key=lambda region:(region['offset'][0]-x)**2+(region['offset'][1]-z)**2)['id']
+ (destination/'native-regions.json').write_text(json.dumps({'regions':layout,'selected_region':selected}))
+ return {'model':native_type.scalar(b'name').decode('ascii'),'regions':len(layout),'weight_cwt':scalar(native_type.child(b'weight')),'material_present':ship.child(b'hullmaterial') is not None}
+if __name__=='__main__':print(extract(sys.argv[1],sys.argv[2]))

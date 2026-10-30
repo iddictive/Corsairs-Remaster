@@ -1,0 +1,74 @@
+// Disposable real native SEA/SAIL/SHIP lifecycle probe; no game/SAVE/UI.
+#include "ship.h"
+#include "controls.h"
+#include "ship_contact_material.hpp"
+#include <unordered_set>
+#include <thread>
+class TransitionKeys final : public CONTROLS {
+public:
+    std::unordered_set<std::string> held;
+    bool GetControlState(const char *name, CONTROL_STATE &state) override {
+        state={}; state.state=held.count(name)?CST_ACTIVE:CST_INACTIVE; return true;
+    }
+};
+class TransitionAccess : public SHIP {
+public:
+    static bool active(SHIP &s) { return (s.*(&TransitionAccess::PhonkActive))(); }
+    static bool allowed(SHIP &s) { return (s.*(&TransitionAccess::PhonkMotionAllowed))(); }
+    static bool ready(SHIP &s) { return (s.*(&TransitionAccess::EnsureHullMaterial))(); }
+    static bool prepare(SHIP &s) { return (s.*(&TransitionAccess::PreparePhonkJetWorld))(); }
+    static void terrain(ISLAND_BASE *island) { pIsland=island; }
+};
+#include "native-ground-transition.cpp.txt"
+int main(int argc,char **argv) {
+    if(argc!=2)return 64;
+    const auto cwd=std::filesystem::canonical(argv[1]);
+    std::filesystem::current_path(cwd);
+    std::filesystem::create_directories(cwd/"userdata/Logs");
+    setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1);
+    setenv("STORM_QUIET_CLIENT","1",1);
+    spdlog::set_level(spdlog::level::off);
+    if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO)!=0)return 65;
+    steamapi::SteamApi::getInstance(true);
+    auto window=storm::OSWindow::Create(640,480,0,false,false);
+    if(!window || (SDL_GetWindowFlags(static_cast<SDL_Window*>(window->OSHandle()))&SDL_WINDOW_SHOWN))return 66;
+    core_internal.Init();core_internal.SetWindow(window);core_internal.InitBase();core_internal.SetDeltaTime(16);
+    if(!core_internal.Run())return 67;
+    TransitionKeys keys;auto *previous=core.Controls;core.Controls=&keys;
+    auto *ship=dynamic_cast<SHIP*>(contactShip(0));
+    if(!ship||!ship->GetModel())return 68;
+    const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(20);
+    while(!TransitionAccess::ready(*ship)) {
+        if(std::chrono::steady_clock::now()>deadline)return 69;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    printf("prepared_reactive=%d\n",TransitionAccess::prepare(*ship));
+    HULL_CONTACT_MATERIAL material;
+    if(!ship->GetHullContactMaterial(material)||!material.prepared)return 70;
+    printf("native_retained_original_parts=%zu retained_mass_fraction=%.8f\n",storm::ship::contact::materialRoot(*material.prepared).pieces.size(),material.retainedMassFraction);
+    auto *sea=core.Entity_GetAttributePointer(core.GetEntityId("sea"));
+    auto *mode=sea->CreateSubAClass(sea,"Phonk");
+    ship->SetSailState(1.f);
+    if(std::getenv("JET_GROUND")) {
+        const int result=groundTransition(*ship,keys,*mode);
+        core.Controls=previous;core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return result;
+    }
+    printf("model_native_weight=%.6f capacity_actual_mass_cwt=%.6f\n",ship->State.fWeight,ship->GetHullContactMass());
+    puts("frame,phase,rigid,x,y,z,pitch,roll,vx,vy,vz,wx,wy,wz,cpu_ms");
+    for(int frame=0;frame<900;++frame) {
+        const char *phase=frame<125?"sailing":frame<188?"phonk_sailing":frame<238?"lift":"release";
+        mode->SetAttributeUseDword("Active",frame>=125);
+        keys.held.clear();
+        if(frame>=125&&frame<188)keys.held.insert("Ship_SailUp");
+        if(frame>=188&&frame<238)keys.held.insert("Phonk_Jet");
+        if(frame==188)printf("admission main=%u mode=%u active=%d allowed=%d stopped=%u dead=%d\n",ship->GetACharacter()->GetAttributeAsDword("MainCharacter"),mode->GetAttributeAsDword("Active"),TransitionAccess::active(*ship),TransitionAccess::allowed(*ship),ship->GetACharacter()->FindAClass(ship->GetACharacter(),"Ship.Stopped")?1:0,static_cast<SHIP_BASE*>(ship)->isDead());
+        const auto begin=std::chrono::steady_clock::now();
+        core_internal.ProcessExecute();
+        const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
+        const auto &s=ship->State;
+        printf("%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.5f\n",frame,phase,ship->HasRigidFlight(),s.vPos.x,s.vPos.y,s.vPos.z,s.vAng.x,s.vAng.z,s.vSpeed.x,s.vSpeed.y,s.vSpeed.z,s.vRotate.x,s.vRotate.y,s.vRotate.z,ms);
+        if(frame%50==0)fflush(stdout);
+    }
+    core.Controls=previous;
+    core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}

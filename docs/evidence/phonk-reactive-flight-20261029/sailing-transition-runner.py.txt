@@ -1,0 +1,90 @@
+"""Real native consumers; copied immutable inputs, one compiler, no shared builds."""
+from pathlib import Path
+import os,re,runpy,subprocess,sys,json,hashlib,shlex
+root=Path(__file__).resolve().parents[3]
+native=root/'experiments/native-metal'; evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
+work=Path(sys.argv[1]).resolve()
+if os.environ.get('JET_ISOLATED_SAILING')=='1':
+ sailing=(native/'engine/src/libs/ship/src/ship.cpp').read_text()
+ if os.environ.get('JET_FROZEN_GLOW')=='1':
+  def function_span(text,signature):
+   start=text.index(signature);opening=text.index('{',start);depth=1;at=opening+1
+   while depth:
+    depth+=(text[at]=='{')-(text[at]=='}');at+=1
+   return start,at
+  frozen=subprocess.check_output(['git','show','67d05f5d04e79f26053606ee66b2279dedff6b16:experiments/native-metal/engine/src/libs/ship/src/ship.cpp'],cwd=root,text=True)
+  signature='void SHIP::DrawPhonkGlow(uint32_t'
+  a,b=function_span(sailing,signature);c,d=function_span(frozen,signature)
+  sailing=sailing[:a]+frozen[c:d]+sailing[b:]
+  print('physics_probe_seam=DrawPhonkGlow_only_from_67d05f5')
+ (work/'ship-sailing.cpp').write_text(sailing)
+sys.path.insert(0,str(root/'tools'))
+helpers=runpy.run_path(str(root/'tools/run_sea_benchmark.py'))
+read=helpers['read'];function=helpers['function']
+resources=native/'.cache/runtime'
+if os.environ.get('JET_PRIVATE_SAVE'):
+ private=runpy.run_path(str(evidence/'private-native-flight-input.py.txt'))
+ print('private_input',private['extract'](os.environ['JET_PRIVATE_SAVE'],work))
+texts={name:read(resources/path) for name,path in {
+ 'catalog':'PROGRAM/ships/ships_init.c','units':'PROGRAM/utils.c',
+ 'natives':'PROGRAM/seadogs.c','cannons':'PROGRAM/cannons/cannons.h',
+ 'lights':'PROGRAM/SEA_AI/ShipLights.c','day':'PROGRAM/Weather/Init/Day.c'}.items()}
+marker='makeref(refShip,ShipsTypes[SHIP_MANOWAR]);'
+start=texts['catalog'].index(marker)+len(marker)
+end=texts['catalog'].index('makeref(refShip,ShipsTypes[',start)
+ship=re.sub(r'\brefship\b','ShipType',texts['catalog'][start:end],flags=re.I)
+cannon=re.findall(r'^#define CANNON_TYPE_CANNON_LBS42\s+[0-9]+',texts['cannons'],re.M)
+assert len(cannon)==1
+(work/'ship-type.c').write_text(cannon[0]+'\n'+function(texts['units'],'int Tonnes2CWT(int iTonnes)')+'void InitShipType(){\n'+ship+'\nShipType.Name="Manowar1";\n}\n')
+declarations=re.findall(r'^native [^\n]+;',texts['natives'],re.M);assert len(declarations)==11
+fixture=read(native/'sea_fleet_fixture.c').replace('#include "native-declarations.c"','\n'.join(declarations)).replace('int FleetCount = 8;','int FleetCount = 1;').replace('Sea.MaxSeaHeight = 200.0;','Sea.MaxSeaHeight = 0.0;')
+marker='Fleet[i].ship.Crew.Quantity = 830;';assert fixture.count(marker)==1
+fixture=fixture.replace(marker,marker+'\nFleet[i].Ship.MaxSpeedZ=ShipType.SpeedRate;\nFleet[i].Ship.MaxSpeedY=ShipType.TurnRate;\nFleet[i].Tmp.fShipSpeedIdeal=ShipType.SpeedRate;')
+(work/'fixture.c').write_text(fixture)
+(work/'ship-lights.c').write_text(function(texts['lights'],'void InitShipLights()'))
+(work/'day.c').write_text(texts['day'])
+(work/'RESOURCE').symlink_to(Path(os.environ.get('JET_RESOURCE_ROOT',str(resources/'RESOURCE'))),target_is_directory=True)
+(work/'engine.ini').write_text((root/'docs/evidence/particle-tracer-capacity-20261029/engine.ini.txt').read_text())
+prefix=read(native/'sea_fleet_benchmark.cpp').split('int main(int argc, char **argv)')[0]
+prefix=prefix.replace('class SeaBenchmarkLibrary :','void RestorePrivateFixture();\nclass SeaBenchmarkLibrary :').replace('std::srand(static_cast<unsigned>(seed->GetInt()));','std::srand(static_cast<unsigned>(seed->GetInt())); RestorePrivateFixture();')
+component=(evidence/'native-consumer-component.cpp.txt').read_text()
+surface=component[component.index('class SurfaceIsland'):component.index('class Keys')]
+ground=(evidence/'native-ground-transition.cpp.txt').read_text()
+if os.environ.get('JET_GROUND'):
+ layout=json.loads((work/'native-regions.json').read_text());chunks=[]
+ for region in layout['regions']:
+  name=region['id'];dx,dz=region['offset'];asset='islands\\'+name+'\\'+name
+  chunks.append('{auto id=core.CreateEntity("MODELR"); if(!core.Send_Message(id,"ls",MSG_MODEL_LOAD_GEO,'+json.dumps(asset)+'))return 78;auto *model=static_cast<MODEL*>(core.GetEntityPointer(id));auto *bed=model->FindNode("seabed");CMatrix pose;pose.Pos()=CVECTOR('+repr(dx)+'f,0.f,'+repr(dz)+'f);surfaces.push_back({id,pose});if(!first)first=id;if(bed){auto separate=bed->Unlink2Model();if(separate)surfaces.push_back({separate,pose});}}')
+  if name==layout['selected_region']:chunks.append('center=CVECTOR('+repr(dx)+'f,0.f,'+repr(dz)+'f);')
+ ground=ground.replace('// PRIVATE_REGION_INPUTS','\n'.join(chunks))
+ assert ground.count('{')==ground.count('}')
+(work/'native-ground-transition.cpp.txt').write_text(ground)
+(work/'probe.cpp').write_text(prefix+'\n#include "ship.h"\n#include "modelr.h"\n#include "shared/messages.h"\n'+surface+(evidence/'private-native-flight-attributes.cpp.txt').read_text()+(evidence/'sailing-transition.cpp.txt').read_text())
+driver=(root/'docs/evidence/particle-tracer-capacity-20261029/build-probe.py.txt').read_text()
+driver=driver.replace("compile+=['-I'+str(root/'engine/src/libs/particles/src')]","compile+=['-I'+str(root/'engine/src/libs/particles/src'),'-I'+str(root/'engine/src/libs/ship/src'),'-I'+str(root/'engine/src/libs/model/src'),'-DSTORM_METAL_SHIP_FIRE=1']")
+if os.environ.get('JET_ISOLATED_REACTIVE')=='1':
+ subprocess.run([sys.executable,str(evidence/'isolated-reactive-build.py.txt'),str(root),str(work)],check=True,timeout=100)
+ if os.environ.get('JET_ISOLATED_SAILING')=='1':
+  build=native/'.cache/build'
+  commands=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','lib/libship.a'],text=True).splitlines()
+  command=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/engine/src/libs/ship/src/ship.cpp'))
+  command[command.index('-c')+1]=str(work/'ship-sailing.cpp')
+  for flag,value in [('-o',work/'ship.cpp.o'),('-MF',work/'ship.cpp.d'),('-MT',work/'ship.cpp.o')]:
+   if flag in command:command[command.index(flag)+1]=str(value)
+  command+=['-iquote',str(native/'engine/src/libs/ship/src')]
+  compiled=subprocess.run([x for x in command if x!='-v'],cwd=build,capture_output=True,text=True,timeout=90)
+  if compiled.returncode:
+   output=compiled.stdout+compiled.stderr
+   print('\n'.join(line for line in output.splitlines() if 'error:' in line));print(output[-1800:]);raise SystemExit(compiled.returncode)
+  subprocess.run(['/usr/bin/ar','r',str(work/'libship.a'),str(work/'ship.cpp.o')],check=True,capture_output=True)
+ driver=driver.replace('for command in [compile,link]:',"link=[str(work/'libroundhouse_ragdoll.a') if x.endswith('libroundhouse_ragdoll.a') else str(work/'libship.a') if x.endswith('lib/libship.a') else x for x in link]\nfor command in [compile,link]:")
+(work/'build.py').write_text(driver)
+r=subprocess.run([sys.executable,str(work/'build.py'),str(root),str(work)],capture_output=True,text=True,timeout=100)
+if r.returncode:print((r.stdout+r.stderr)[-7000:]);raise SystemExit(r.returncode)
+r=subprocess.run([str(work/'probe'),str(work)],capture_output=True,text=True,timeout=100)
+result=(r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n').replace(str(root),'<repo>').replace(str(work),'<scratch>')
+name=os.environ.get('JET_RESULT_PREFIX','baseline')
+assert re.fullmatch('[a-z0-9-]+',name)
+(evidence/(name+'-sailing-transition-output.txt')).write_text(result)
+rows=[x for x in r.stdout.splitlines() if re.match(r'^\d+,',x)]
+print('\n'.join(rows[::50]));print(result[-1200:]);raise SystemExit(r.returncode)

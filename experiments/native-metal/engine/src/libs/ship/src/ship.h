@@ -233,6 +233,10 @@ class SHIP : public SHIP_BASE
     // executed functions
     CVECTOR ShipRocking(float fDeltaTime, float *surfaceHeight = nullptr, CVECTOR *surfaceAngle = nullptr);
     BOOL ApplyStrength(float dtime, BOOL bCollision);
+    void SailingInertia(float seconds, const CVECTOR &targetSpeed, const CVECTOR &targetRotate,
+                        CVECTOR &speed, CVECTOR &rotate) const;
+    void GatherStrengthImpulses(CVECTOR &speed, CVECTOR &rotate, float &angularImpulse,
+                               float &linearImpulse, bool consume);
     bool PhonkActive();
     bool PhonkMotionAllowed();
     bool AdvancePhonkJet(uint32_t milliseconds, bool prediction);

@@ -1,5 +1,53 @@
 # Reactive ship flight, 2026-10-29
 
+## Current installed successor
+
+Engine `f0a0d3f910fee9582ab1dc4a7d09726d8a6647c8c861b0bc46e7576c0cec8529`
+is installed with a verified bundle signature; the preceding `170fa6c1` engine
+is retained by the installer for recovery. The source reuses native sailing
+inertia and queued impulses during wet contact, trims nozzle forces around the
+retained centre of mass, damps angular rate at the current attitude, and clears
+transient neighbours when control returns to sailing. Gravity, tilt and momentum
+remain physical; there is no automatic levelling or height target.
+
+The real SEA/SAIL/SHIP lifecycle baseline and candidate are
+`baseline-material-ready-sailing-transition-output.txt` and
+`native-drive-trim-sailing-transition-output.txt`. The candidate preserves wet
+forward motion and returns control to ordinary sailing after release. The frozen
+`sailing-transition-runner.py.txt` and companion C++ files replay that consumer;
+optional `JET_PRIVATE_SAVE` projects an immutable private input without loading
+gameplay. Its generated attributes and regional layout remain outside Git.
+
+The latest private saved ship is Manowar1, not the earlier representative Brig1.
+Its actual installed-resource, 27-region ground baseline retains 42,898 collision
+parts and measures 40.90ms mean native Execute time, 42.39ms during ground contact
+(`manowar-installed-27-ground-baseline-sailing-transition-output.txt`). This is a
+contact/sliding fixture, not proof of quiet resting contact or whole-game FPS.
+**Ground-contact performance remains unresolved.** The older 7.60/7.73ms Brig1
+results below do not close this report. Bootstrap and rehydrated trials with
+invalid lifecycle setup are excluded from acceptance.
+
+`flight-camera-replay.py.txt` retains the native before/after framing check:
+the camera uses the actual ship altitude as its orbit reference while retaining
+sea collision clearance. At 100m the mast top moves from NDC 1.345 to 0.692;
+ordinary sailing, manual orbit and zoom remain unchanged. Translation checks
+cover 0–2000m with maximum NDC difference 1.15e-6.
+
+The environment successor recentres the existing sky/fog/sun frame smoothly at
+altitude and handles the active reflected view independently of the cached main
+camera. Native Metal readbacks remove black top pixels at 3010m and above,
+preserve six ordinary main/reflection frames exactly, and restore the incoming
+view and cached camera. `flight-environment-result.json`, the before/after raw
+outputs and the frozen replay/native sources retain these component checks.
+
+The plume now draws through the existing late ship-effects owner after the sea.
+A typed world-colour bridge temporarily selects the existing compact draw path
+and restores the sea's shader/declaration bindings. The real native water replay
+previously rejected the late draw (`late_admitted=0`); it now admits it and changes
+the water pixel while preserving submerged and foreground occlusion. See
+`exhaust-water-order-{before,after}.json` and its replay. This covers modern-water
+mode 1, not every water material or the player's final appearance/FPS judgement.
+
 ## Reopened installed-runtime acceptance
 
 The installed experimental batch reproduced the user's severe jet/falling FPS
@@ -8,8 +56,8 @@ thread samples in `AdvancePhonkJet -> ReactiveWorld::Step`: 901 in contact
 collision work and 627 in continuous collision casts. Raw process evidence is
 private in application diagnostics `performance-20261029/installed-fps-sample.txt`.
 This confirms the known contact limitation affects gameplay; successful component
-physics checks did not establish usable flight performance. The repaired native
-consumer now measures7.60ms intact and7.73ms after a real canonical material cut.
+physics checks did not establish usable flight performance. The earlier Brig1 native
+consumer measures7.60ms intact and7.73ms after a real canonical material cut.
 `certified-cover-60hz-native-consumer-output.txt` and its damaged counterpart
 retain controls, codec, prediction, death and terrain-pose checks. Retained-time
 recovery measures96/48/16ms input at31.61/15.66/5.59ms CPU; no time is discarded.

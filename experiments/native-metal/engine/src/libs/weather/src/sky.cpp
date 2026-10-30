@@ -496,11 +496,11 @@ void SKY::PrepareVisualSun(uint32_t deltaTime)
     if(authoredSunGain<=0.f || ~direction<1.e-8f || fSkySize<=0.f) {
         authoredSunGain=0.f;authoredSunDirection=CVECTOR(0.f,-5000.f,0.f);return;
     }
-    // Match the finite authored cube, whose center follows cameraY/6.
+    // Use the same finite-panorama frame as the sky/fog draws and opacity UVs.
     direction=direction*(fSkySize/std::max({std::abs(direction.x),std::abs(direction.y),std::abs(direction.z)}));
     float fov;CVECTOR camera,angles;
     pRS->GetCamera(camera,angles,fov);
-    direction.y-=camera.y*(5.f/6.f);
+    direction.y-=storm_metal::authoredSkyFrame(camera.y,fSkySize,kR).cameraOffsetY;
     CMatrix rotation;rotation.BuildRotateY(fAngleY+fSkyAngle);
     authoredSunDirection=!(rotation*direction)*5000.f;
 }
@@ -547,7 +547,7 @@ void SKY::PublishFogEnvironment(float cameraY)
     const float blend=aSkyDirArray.size()>1?std::clamp(fTimeFactor-std::floor(fTimeFactor),0.f,1.f):0.f;
     StormMetalSetAuthoredSkyFog(pRS->GetNativeDevice(),textures,blend,stormTextureBlend,
                               stormTexturesReady?stormAmount:0.f,fAngleY+fSkyAngle,
-                              fSkySize>0.f?cameraY*(5.f/6.f)/fSkySize:0.f);
+                              fSkySize>0.f?storm_metal::authoredSkyFrame(cameraY,fSkySize,kR).cameraOffsetY/fSkySize:0.f);
 }
 #endif
 
@@ -574,7 +574,31 @@ void SKY::Realize(uint32_t Delta_Time)
 
     pRS->GetCamera(vPos, vAng, fFov);
 
-    pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
+    const auto skyFrame = storm_metal::authoredSkyFrame(vPos.y, fSkySize, kR);
+    struct SkyViewScope
+    {
+        VDX9RENDER *renderer;
+        CMatrix previous;
+        bool changed = false;
+        SkyViewScope(VDX9RENDER *rs, const CVECTOR &camera, float centering) : renderer(rs)
+        {
+            if (!(centering > 0.f)) return;
+            previous = renderer->GetView();
+            auto inverse = previous;
+            inverse.Transposition();
+            const auto delta = (camera - inverse.Pos()) * centering;
+            if (~delta <= 1.e-10f) return;
+            CMatrix shift;
+            shift.BuildPosition(-delta.x, -delta.y, -delta.z);
+            renderer->SetView(shift * previous);
+            changed = true;
+        }
+        ~SkyViewScope() { if (changed) renderer->SetView(previous); }
+    } skyViewScope(pRS, vPos, skyFrame.cameraCentering);
+    // Reflection passes change the active view without changing GetCamera().
+    // Sky, stars and sun discs share this background-only translation scope;
+    // its orientation stays intact, and main camera/weather state is untouched.
+    pMatTranslate.BuildPosition(vPos.x, skyFrame.centerY, vPos.z);
     pMatWorld = pMatWorld * pMatTranslate;
     pMatRotate.BuildRotateY(fAngleY + fSkyAngle);
     pMatWorld = pMatRotate * pMatWorld;
@@ -697,7 +721,7 @@ void SKY::Realize(uint32_t Delta_Time)
     }
 
     pMatWorld.SetIdentity();
-    pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
+    pMatTranslate.BuildPosition(vPos.x, skyFrame.centerY, vPos.z);
     pMatWorld = pMatWorld * pMatTranslate;
     pRS->SetTransform(storm_render::TransformWorld, pMatWorld);
 #ifdef STORM_METAL_DYNAMIC_SKY_BRIDGE
@@ -889,7 +913,7 @@ float SKY::CalculateAlphaForSun(const CVECTOR &vSunPos, float fSunSize)
 
     CMatrix mtxWorld;
     mtxWorld.BuildRotateY(fAngleY + fSkyAngle);
-    mtxWorld.Move(vPos.x, vPos.y / 6.0f, vPos.z);
+    mtxWorld.Move(vPos.x, storm_metal::authoredSkyFrame(vPos.y,fSkySize,kR).centerY, vPos.z);
 
     CVECTOR vLocalSunPos;
     mtxWorld.MulToInv(vSunPos, vLocalSunPos);

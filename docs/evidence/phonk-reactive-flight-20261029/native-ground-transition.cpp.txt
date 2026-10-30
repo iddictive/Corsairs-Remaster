@@ -1,0 +1,42 @@
+// The production island owner exposes each native model and unlinked seabed.
+// This fixture passes that same value projection to the real SHIP consumer.
+static int groundTransition(SHIP &ship,TransitionKeys &keys,ATTRIBUTES &mode)
+{
+    std::vector<ISLAND_BASE::WorldSurface> surfaces;
+    CVECTOR center(0.f);
+    entid_t first=0;
+    // PRIVATE_REGION_INPUTS
+    if(surfaces.size()<27||!first)return 76;
+    SurfaceIsland island(first,static_cast<MODEL*>(core.GetEntityPointer(first)));
+    island.surfaces=surfaces;
+    TransitionAccess::terrain(&island);
+    float floor=-5000.f;
+    for(const auto &surface:surfaces) {
+        auto *model=static_cast<MODEL*>(core.GetEntityPointer(surface.model));
+        model->mtx=surface.authored;model->Update();
+        const float hit=model->Trace(center+CVECTOR(0.f,5000.f,0.f),center+CVECTOR(0.f,-5000.f,0.f));
+        if(hit>=0.f&&hit<=1.f)floor=std::max(floor,5000.f-10000.f*hit);
+    }
+    if(floor<=0.f)return 77;
+    printf("GROUND surfaces=%zu native_floor_y=%.6f\n",surfaces.size(),floor);
+    ship.SetPos(center+CVECTOR(0.f,floor+30.f,0.f));
+    // Native SetPos deliberately projects to water; this fixture explicitly
+    // seeds an authored airborne start after that normal placement operation.
+    ship.State.vPos.y=floor+30.f;
+    if(std::abs(ship.State.vPos.y-floor-30.f)>.001f)return 80;
+    ship.State.vAng=ship.State.vRotate=ship.State.vSpeed=CVECTOR(0.f);
+    mode.SetAttributeUseDword("Active",1);
+    keys.held={"Phonk_Jet"};
+    puts("frame,phase,rigid,x,y,z,pitch,roll,vx,vy,vz,wx,wy,wz,cpu_ms");
+    for(int frame=0;frame<360;++frame) {
+        if(frame)keys.held.clear();
+        const auto begin=std::chrono::steady_clock::now();
+        core_internal.ProcessExecute();
+        const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
+        const auto &s=ship.State;
+        printf("%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.5f\n",frame,frame<160?"fall_window":"ground_window",ship.HasRigidFlight(),s.vPos.x-center.x,s.vPos.y-floor,s.vPos.z-center.z,s.vAng.x,s.vAng.z,s.vSpeed.x,s.vSpeed.y,s.vSpeed.z,s.vRotate.x,s.vRotate.y,s.vRotate.z,ms);
+        if(frame%30==0)fflush(stdout);
+    }
+    TransitionAccess::terrain(nullptr);
+    return 0;
+}

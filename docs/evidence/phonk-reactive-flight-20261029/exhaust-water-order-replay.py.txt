@@ -1,0 +1,105 @@
+"""One-off native water/effect ordering and binding replay; no game loop/UI.
+
+Usage: python3 <file> <repo> <empty-scratch> [candidate]
+Reuses the maintained native depth-water fixture setup and configured toolchain.
+"""
+import json
+import os
+import pathlib
+import shlex
+import shutil
+import subprocess
+import sys
+
+root = pathlib.Path(sys.argv[1]).resolve()
+work = pathlib.Path(sys.argv[2]).resolve()
+build = root / "experiments/native-metal/.cache/build"
+candidate = len(sys.argv) > 3 and sys.argv[3] == "candidate"
+base = (root / "experiments/native-metal/depth_water_probe.cpp").read_text()
+marker = " start();geometry(5,0xffffffff);water();"
+assert base.count(marker) == 1
+src = base.split(marker)[0]
+src = src.replace("int main(int argc,char**argv){", '''
+#include "engine/src/libs/renderer/include/metal_world_effect_bridge.h"
+extern "C" bool StormMetalDrawCompactPrimitive(void*,uint32_t,uint32_t,uint32_t,const void*,uint32_t);
+int main(int argc,char**argv){''')
+src = src.replace("struct V{float x,y,z;uint32_t color;};", "using V=StormMetalWorldColorVertex;")
+src += r'''
+ storm_render::VertexLayout*layout=nullptr;
+ const storm_render::VertexElement elements[]={
+  {0,0,storm_render::VertexComponent::Float3,storm_render::VertexMethod::Default,storm_render::VertexSemantic::Position,0},
+  {0,12,storm_render::VertexComponent::Float3,storm_render::VertexMethod::Default,storm_render::VertexSemantic::Normal,0},
+  {0,24,storm_render::VertexComponent::Float2,storm_render::VertexMethod::Default,storm_render::VertexSemantic::TexCoord,0},
+  {0,32,storm_render::VertexComponent::Float2,storm_render::VertexMethod::Default,storm_render::VertexSemantic::TexCoord,1},
+  storm_render::vertexLayoutTerminator()};
+ require(storm_render::succeeded(d->CreateVertexDeclaration(elements,&layout)),"actual sea declaration");
+ auto effect=[&](float z){
+  V vertices[]={{-.5f*z,-.5f*z,z,0xe0be52ff},{.5f*z,-.5f*z,z,0xe0be52ff},{.5f*z,.5f*z,z,0xe0be52ff},
+                {-.5f*z,-.5f*z,z,0xe0be52ff},{.5f*z,.5f*z,z,0xe0be52ff},{-.5f*z,.5f*z,z,0xe0be52ff}};
+  d->SetRenderState(storm_render::RenderDepthWrite,false);d->SetRenderState(storm_render::RenderBlend,true);
+  d->SetRenderState(storm_render::RenderSourceBlend,storm_render::BlendSourceAlpha);d->SetRenderState(storm_render::RenderDestinationBlend,storm_render::BlendInverseSourceAlpha);
+  d->SetTextureStageState(0,storm_render::StageColorOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageColorArg1,storm_render::textureArg::diffuse);
+  d->SetTextureStageState(0,storm_render::StageAlphaOp,storm_render::TextureOpSelectArg1);d->SetTextureStageState(0,storm_render::StageAlphaArg1,storm_render::textureArg::diffuse);
+  d->SetTextureStageState(1,storm_render::StageColorOp,storm_render::TextureOpDisable);
+#ifdef CANDIDATE
+  return StormMetalDrawWorldColorTriangles(d,vertices,6);
+#else
+  return StormMetalDrawCompactPrimitive(d,storm_render::PrimitiveTriangleList,storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse,2,vertices,sizeof(V));
+#endif
+ };
+ start();geometry(20,0xffffffff);water();unsigned plain=finish();
+ start();geometry(20,0xffffffff);require(effect(2),"early effect draw");d->SetRenderState(storm_render::RenderDepthWrite,true);water();unsigned early=finish();
+ start();geometry(20,0xffffffff);water();d->SetVertexDeclaration(layout);bool admitted=effect(2);unsigned late=finish();
+ printf("native_water plain=%08x early_effect=%08x late_effect=%08x late_admitted=%d\n",plain,early,late,int(admitted));
+#ifdef CANDIDATE
+ require(admitted,"post-sea effect accepts inherited native bindings");
+ require(late!=plain&&late!=early,"post-sea plume retains independent colour");
+ storm_render::Program*savedVS=nullptr,*savedPS=nullptr;d->GetVertexProgram(&savedVS);d->GetFragmentProgram(&savedPS);
+ require(savedVS==vs&&savedPS==ps,"water programs restored");savedVS->Release();savedPS->Release();
+ d->BindVertexProgram(nullptr);d->BindFragmentProgram(nullptr);
+ V dummy[]={{0,0,2,0xffffffff},{1,0,2,0xffffffff},{0,1,2,0xffffffff}};
+ require(!StormMetalDrawCompactPrimitive(d,storm_render::PrimitiveTriangleList,storm_render::vertexFormat::xyz|storm_render::vertexFormat::diffuse,1,dummy,sizeof(V)),"water declaration restored");
+ start();geometry(20,0xffffffff);water();d->SetVertexDeclaration(layout);require(effect(8),"submerged effect accepted");unsigned submerged=finish();require(submerged==plain,"sea depth still occludes submerged plume");
+ start();geometry(20,0xffffffff);geometry(2,0xffff0000,-.2f,.2f);water();d->SetVertexDeclaration(layout);require(effect(3),"occluded effect accepted");unsigned occluded=finish();require((occluded&0xffffff)==0xff0000,"ship/island depth remains authoritative");
+ printf("depth_negative submerged=%08x foreground=%08x\n",submerged,occluded);
+#else
+ require(!admitted&&late==plain,"baseline post-sea compact draw rejects sea bindings");
+#endif
+ d->SetVertexDeclaration(nullptr);layout->Release();originalDepth->Release();target->Release();read->Release();bump->Release();cube->Release();vs->Release();ps->Release();d->Release();SDL_DestroyWindow(w);SDL_Quit();
+ puts("EXHAUST_WATER_ORDER_PASS");
+}
+'''
+source = work / "exhaust-water.cpp"
+source.write_text(src)
+commands = subprocess.check_output([str(root / "experiments/native-metal/inputs/toolchain/bin/ninja"), "-t", "commands", "gpu-skinning-offscreen-probe"], cwd=build, text=True).splitlines()
+compile = shlex.split(next(x for x in commands if " -c " in x and x.endswith("/gpu_skinning_offscreen_probe.cpp")))
+compile[compile.index("-o") + 1] = str(work / "probe.o")
+compile[compile.index("-c") + 1] = str(source)
+if "-MF" in compile:
+    compile[compile.index("-MF") + 1] = str(work / "probe.d")
+if candidate:
+    compile.append("-DCANDIDATE=1")
+subprocess.run(compile, cwd=work, check=True)
+link = shlex.split(commands[-1])
+assert link[:2] == [":", "&&"] and link[-2:] == ["&&", ":"]
+link = link[2:-2]
+old = next(x for x in link if x.endswith("/gpu_skinning_offscreen_probe.cpp.o"))
+link[link.index(old)] = str(work / "probe.o")
+link[link.index("-o") + 1] = str(work / "probe")
+if candidate and os.environ.get("PHONK_PRIVATE_RENDERER") == "1":
+    backend_commands = subprocess.check_output([str(root / "experiments/native-metal/inputs/toolchain/bin/ninja"), "-t", "commands", "storm_metal"], cwd=build, text=True).splitlines()
+    backend = shlex.split(next(x for x in backend_commands if " -c " in x and x.endswith("/backend.mm")))
+    backend[backend.index("-o") + 1] = str(work / "backend.mm.o")
+    if "-MF" in backend:
+        backend[backend.index("-MF") + 1] = str(work / "backend.d")
+    subprocess.run(backend, cwd=build, check=True)
+    archive = work / "libstorm_metal.a"
+    shutil.copy2(build / "libstorm_metal.a", archive)
+    subprocess.run(["/usr/bin/ar", "r", str(archive), str(work / "backend.mm.o")], check=True)
+    matches = [i for i, part in enumerate(link) if part.endswith("libstorm_metal.a")]
+    assert len(matches) == 1
+    link[matches[0]] = str(archive)
+subprocess.run(link, cwd=build, check=True)
+result = subprocess.run([str(work / "probe"), str(root / "experiments/native-metal/.cache/runtime/RESOURCE/techniques")], capture_output=True, text=True, timeout=30)
+print(json.dumps({"candidate": candidate, "exit": result.returncode, "stdout": result.stdout, "stderr": result.stderr}))
+sys.exit(result.returncode)

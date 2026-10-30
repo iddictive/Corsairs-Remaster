@@ -1,0 +1,145 @@
+"""Frozen native camera mechanism replay; no game loop, window or player data.
+
+Run: python3 <this-file> <repository> <existing-empty-scratch> [--verify]
+Compiles the actual SHIP_CAMERA::Move bodies with native vector/matrix math.
+Scene, controls, collisions and renderer are explicit fixture seams.
+"""
+from pathlib import Path
+import hashlib
+import json
+import subprocess
+import sys
+
+root = Path(sys.argv[1]).resolve()
+work = Path(sys.argv[2]).resolve()
+relative = "experiments/native-metal/engine/src/libs/sea_cameras/src/ship_camera.cpp"
+source = (root / relative).read_text()
+baseline = subprocess.check_output(
+    ["git", "show", "67d05f5d04e79f26053606ee66b2279dedff6b16:" + relative], cwd=root, text=True)
+
+def method(text, name):
+    start = text.index("void SHIP_CAMERA::Move(float fDeltaTime)")
+    end = text.index("void SHIP_CAMERA::SetCharacter", start)
+    return text[start:end].replace("SHIP_CAMERA::", name + "::")
+
+stub = r'''
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <map>
+#include <string>
+#include "matrix.h"
+constexpr float PI=3.14159265358979323846f;
+constexpr float SCMR_BOXSCALE_X=1.6f,SCMR_BOXSCALE_Y=1.3f,SCMR_BOXSCALE_Z=1.4f;
+constexpr int CST_ACTIVE=1,CST_ACTIVATED=2;
+struct CONTROL_STATE { int state=0; float fValue=0; };
+struct Controls {
+ std::map<std::string,CONTROL_STATE> values;
+ void GetControlState(const char*key,CONTROL_STATE&v){v=values[key];}
+};
+struct Core { ::Controls input; ::Controls*Controls=&input; } core;
+struct Sea {
+ float height=0; struct Sample{float height;};
+ Sample GetWhirlpoolSample(float,float){return {height};}
+ float WaveXZ(float,float){return height;}
+};
+struct VAI_OBJBASE {
+ virtual ~VAI_OBJBASE()=default;
+ CMatrix matrix; CVECTOR box{10.f,8.f,36.f},realBox{10.f,38.f,36.f},waterline{0.f};
+ CMatrix*GetMatrix(){return &matrix;}
+ CVECTOR GetPos()const{return waterline;}
+ CVECTOR GetBoxsize(){return box;}
+ CVECTOR GetRealBoxsize(){return realBox;}
+};
+struct SHIP_BASE:VAI_OBJBASE {bool flying=false;bool HasRigidFlight()const{return flying;}};
+struct Renderer {
+ CVECTOR position{0.f},target{0.f},up{0.f};float perspective=0;
+ void SetCamera(CVECTOR p,CVECTOR t,CVECTOR u){position=p;target=t;up=u;}
+ void SetPerspective(float p){perspective=p;}
+};
+struct CameraFixture {
+ float fDistanceDlt=0,fDistanceInertia=15,fAngleXDlt=0,fAngleXInertia=12,fAngleYDlt=0,fAngleYInertia=10;
+ float fDistance=.5f,fSensivityDistance=3,fInvertMouseX=1,fInvertMouseY=1,fSensivityAzimuthAngle=1,fSensivityHeightAngle=1;
+ float fMinAngleX=-1.4f,fMaxAngleX=.3f,fModelAy=.3f,fMinHeightOnSea=1;
+ CVECTOR vAng{-.2f,.4f,0.f},vCenter{0.f};float a=0,b=0,c=0;
+ Sea*pSea=nullptr;Renderer*pRS=nullptr;VAI_OBJBASE*ship=nullptr;
+ bool active=true;float collisionRaise=0;int shipCollisionCalls=0,islandCollisionCalls=0;
+ bool isActive(){return active;}VAI_OBJBASE*GetAIObj(){return ship;}float GetPerspective(){return 1.285f;}
+ void ShipsCollision(CVECTOR&p){shipCollisionCalls++;p.y+=collisionRaise;}
+ bool IslandCollision(CVECTOR&){islandCollisionCalls++;return false;}
+};
+struct BaselineCamera:CameraFixture{void Move(float);};
+struct CandidateCamera:CameraFixture{void Move(float);};
+'''
+
+test = r'''
+static void need(bool ok,const char*what){if(!ok){fprintf(stderr,"FAIL %s\n",what);exit(1);}}
+static double distance(CVECTOR a,CVECTOR b){return std::sqrt(~(a-b));}
+struct Result {CVECTOR camera,target,radii,angles;float zoom;int ships,islands;};
+template<class Camera>Result run(float altitude,bool flight,int input=0,float seaHeight=0,float collisionRaise=0){
+ core.input.values.clear();if(input){core.input.values["ShipCamera_Turn_H"]={CST_ACTIVE,2};core.input.values["ShipCamera_Turn_V"]={CST_ACTIVE,-1};core.input.values["ShipCamera_Forward"]={CST_ACTIVE,0};}
+ SHIP_BASE ship;ship.flying=flight;ship.waterline=CVECTOR(0,altitude,0);ship.matrix=CMatrix(CVECTOR(.3f,.3f,.2f),CVECTOR(0,altitude-3,0));
+ Sea sea;sea.height=seaHeight;Renderer renderer;Camera camera;camera.ship=&ship;camera.pSea=&sea;camera.pRS=&renderer;camera.vCenter=ship.matrix.Pos();camera.collisionRaise=collisionRaise;camera.Move(.016f);
+ need(renderer.up.x==0&&renderer.up.y==1&&renderer.up.z==0,"world horizon");
+ return {renderer.position,renderer.target,{camera.a,camera.b,camera.c},camera.vAng,camera.fDistance,camera.shipCollisionCalls,camera.islandCollisionCalls};
+}
+static double projection(CVECTOR point,const Result&r){
+ const auto forward=!(r.target-r.camera);const auto right=!(forward^CVECTOR(0.f,1.f,0.f));const auto up=right^forward;const auto d=point-r.camera;
+ return double(d|up)/(double(d|forward)*std::tan(1.285/2)/1.6);
+}
+static void matrixJson(const CMatrix&m){putchar('[');for(int i=0;i<16;++i)printf("%s%.9g",i?",":"",m.matrix[i]);putchar(']');}
+static void poseJson(float altitude,CMatrix&model,const Result&before,const Result&after){
+ CMatrix viewBefore,viewAfter,legacy,modern;viewBefore.BuildViewMatrix(before.camera,before.target,CVECTOR(0.f,1.f,0.f));viewAfter.BuildViewMatrix(after.camera,after.target,CVECTOR(0.f,1.f,0.f));
+ legacy.BuildProjectionMatrix(1.285f,1600.f,1000.f,.1f,4000.f);modern=legacy;modern.m[1][1]=1.f/(std::tan(1.285f*.5f)*.625f);
+ printf("POSE {\"altitude\":%.0f,\"world\":",altitude);matrixJson(model);printf(",\"view_before\":");matrixJson(viewBefore);printf(",\"view_after\":");matrixJson(viewAfter);printf(",\"projection_legacy\":");matrixJson(legacy);printf(",\"projection_modern\":");matrixJson(modern);printf("}\n");
+}
+int main(int argc,char**){
+ const bool verify=argc>1;double maximum=0,normal=0,ndcError=0,orbitError=0;
+ for(int input:{0,1}){
+  const auto zero=run<CandidateCamera>(0,true,input);const auto oldZero=run<BaselineCamera>(0,false,input);
+  normal=std::max({normal,distance(zero.camera,oldZero.camera),distance(zero.target,oldZero.target)});
+  for(float height:{0.f,1.f,10.f,100.f,500.f,2000.f,100.f,0.f}){
+   auto before=run<BaselineCamera>(height,true,input),after=run<CandidateCamera>(height,true,input);CVECTOR lift(0,height,0);
+   const auto error=std::max({distance(after.camera,zero.camera+lift),distance(after.target,zero.target+lift),distance(after.radii,zero.radii)});
+   maximum=std::max(maximum,error);const double ndc=projection(CVECTOR(0.f,height+15.f,0.f),after),ref=projection(CVECTOR(0.f,15.f,0.f),zero);
+   ndcError=std::max(ndcError,std::abs(ndc-ref));orbitError=std::max({orbitError,distance(after.angles,zero.angles),double(std::abs(after.zoom-zero.zoom))});
+   double oldTop=-INFINITY,newTop=-INFINITY;CMatrix pose(CVECTOR(.3f,.3f,.2f),CVECTOR(0.f,height-3.f,0.f));
+   for(float x:{-5.f,5.f})for(float y:{-4.f,34.f})for(float z:{-18.f,18.f}){const auto p=pose*CVECTOR(x,y,z);oldTop=std::max(oldTop,projection(p,before));newTop=std::max(newTop,projection(p,after));}
+   if(input==0&&(height==0||height==100||height==2000))poseJson(height,pose,before,after);
+   printf("input=%d altitude=%.0f old_projection_y=%.6f new_projection_y=%.6f old_top_ndc=%.6f new_top_ndc=%.6f translation_error_m=%.8g\n",input,height,projection(CVECTOR(0,height+15,0),before),ndc,oldTop,newTop,error);
+  }
+ }
+ for(int input:{0,1})for(float tide:{0.f,15.f,100.f}){
+  const auto old=run<BaselineCamera>(tide,false,input,tide),now=run<CandidateCamera>(tide,false,input,tide);
+  normal=std::max({normal,distance(old.camera,now.camera),distance(old.target,now.target),distance(old.radii,now.radii),distance(old.angles,now.angles),double(std::abs(old.zoom-now.zoom))});
+  need(old.ships==now.ships&&old.islands==now.islands,"ordinary collision calls");
+ }
+ const auto noCollision=run<CandidateCamera>(100,true),raised=run<CandidateCamera>(100,true,0,0,2);
+ need(std::abs((raised.camera.y-noCollision.camera.y)-2)<.0001f&&std::abs((raised.target.y-noCollision.target.y)-2)<.0001f,"collision adjustment retained");
+ const auto manual=run<CandidateCamera>(100,true,1),still=run<CandidateCamera>(100,true);
+ need(manual.zoom<still.zoom&&manual.angles.y>still.angles.y,"manual orbit and zoom active");
+ printf("max_translation_error_m=%.9g max_projection_delta=%.9g ordinary_difference=%.9g orbit_zoom_difference=%.9g\n",maximum,ndcError,normal,orbitError);
+ if(verify){need(maximum<.0003&&ndcError<.00001&&normal==0&&orbitError==0,"rigid-flight translation and ordinary negative");puts("CAMERA_PASS");}
+}
+'''
+generated = work / "camera.cpp"
+generated.write_text(stub + method(baseline, "BaselineCamera") + method(source, "CandidateCamera") + test)
+native = root / "experiments/native-metal"
+compiled = subprocess.run(["/usr/bin/c++", "-std=c++20", "-O3", "-I" + str(native / "engine/src/libs/math/include"),
+                           "-I" + str(native), str(generated), "-o", str(work / "camera")], capture_output=True, text=True)
+if compiled.returncode:
+    print(compiled.stderr.replace(str(root), "<repo>").replace(str(work), "<scratch>")[-3000:])
+    sys.exit(compiled.returncode)
+command = [str(work / "camera")]
+if "--verify" in sys.argv[3:]:
+    command.append("verify")
+result = subprocess.run(command, capture_output=True, text=True, check=False)
+poses = {str(int(json.loads(line[5:])["altitude"])): json.loads(line[5:])
+         for line in result.stdout.splitlines() if line.startswith("POSE ")}
+print(json.dumps({"source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+                  "exit": result.returncode, "stdout": result.stdout, "stderr": result.stderr,
+                  "pose_fixture": {"horizontal_fov": 1.285, "width": 1600, "height": 1000,
+                                   "near": .1, "far": 4000, "matrices": poses}}))
+sys.exit(result.returncode)

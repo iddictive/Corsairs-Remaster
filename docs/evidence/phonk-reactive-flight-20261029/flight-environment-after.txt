@@ -1,0 +1,38 @@
+sky_fixture_begin
+sky_entity_created
+sky_fields_set
+sky_dir_set
+sky_generated
+sky height=10.0 reflection=0 black=70 top_black=0 bottom_black=0 center=f8010102 hash=cf4f76a1108b78e7
+sky height=110.0 reflection=0 black=308 top_black=0 bottom_black=0 center=c011171c hash=0e83de53c19c7424
+sky height=200.0 reflection=0 black=314 top_black=0 bottom_black=0 center=da233541 hash=319f26b0e35339a2
+sky height=201.0 reflection=0 black=316 top_black=0 bottom_black=0 center=da243642 hash=435544145a79d238
+sky height=400.0 reflection=0 black=322 top_black=0 bottom_black=0 center=ff334d5c hash=43fb796c8cd160a3
+sky height=600.0 reflection=0 black=326 top_black=0 bottom_black=0 center=ff2e4c59 hash=250f61573317bd78
+sky height=999.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=df6e7b61095a102a
+sky height=1000.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=1001.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=2010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=3010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=6010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=30010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=-3010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=10.0 reflection=1 black=70 top_black=0 bottom_black=0 center=f8010102 hash=cf4f76a1108b78e7
+sky height=110.0 reflection=1 black=308 top_black=0 bottom_black=0 center=c011171c hash=0e83de53c19c7424
+sky height=200.0 reflection=1 black=314 top_black=0 bottom_black=0 center=da233541 hash=319f26b0e35339a2
+sky height=201.0 reflection=1 black=316 top_black=0 bottom_black=0 center=da243642 hash=435544145a79d238
+sky height=400.0 reflection=1 black=322 top_black=0 bottom_black=0 center=ff334d5c hash=43fb796c8cd160a3
+sky height=600.0 reflection=1 black=326 top_black=0 bottom_black=0 center=ff2e4c59 hash=250f61573317bd78
+sky height=999.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=df6e7b61095a102a
+sky height=1000.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=1001.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=2010.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=3010.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=6010.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=30010.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+sky height=-3010.0 reflection=1 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

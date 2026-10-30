@@ -1,6 +1,7 @@
 #include "core.h"
 #include "save_load.h"
 #include "ship_camera.h"
+#include "ship_base.h"
 
 #include "math_inlines.h"
 
@@ -127,8 +128,12 @@ void SHIP_CAMERA::Move(float fDeltaTime)
     // Physical field translation must not change the camera's hull dimensions.
     // Ordinary wave/immersion framing retains its inherited zero-field behavior.
     const float seaReference = pSea->GetWhirlpoolSample(modelMtx->v.pos.x, modelMtx->v.pos.z).height;
+    const auto *ship = dynamic_cast<const SHIP_BASE *>(GetAIObj());
+    // Rigid flight translates the camera with the ship's waterline frame;
+    // altitude is not an increase in hull size or a sea-level look target.
+    const float framingReference = ship && ship->HasRigidFlight() ? ship->GetPos().y : seaReference;
     // Recalculate box size: (box size + immersion) * hand-fitted scale
-    boxSize.y += modelMtx->v.pos.y - seaReference;
+    boxSize.y += modelMtx->v.pos.y - framingReference;
     boxSize *= CVECTOR(SCMR_BOXSCALE_X * 0.5f, SCMR_BOXSCALE_Y * 0.5f, SCMR_BOXSCALE_Z * 0.5f);
     // Project real height (with masts)
     const auto realBoxSize = GetAIObj()->GetRealBoxsize();
@@ -159,7 +164,7 @@ void SHIP_CAMERA::Move(float fDeltaTime)
     }
     vPos = CMatrix(CVECTOR(0.0f, fModelAy, 0.0f), vCenter) * vPos;
     vCenter.y += fDistance * 2.0f * boxSize.y;
-    vCenter.y = std::min(vCenter.y, seaReference + boxSize.y);
+    vCenter.y = std::min(vCenter.y, framingReference + boxSize.y);
     if (vAng.x > 0.0f)
         vCenter.y += realBoxSize.y * vAng.x * 6.0f;
     // Limit the height from the bottom

@@ -1,0 +1,38 @@
+sky_fixture_begin
+sky_entity_created
+sky_fields_set
+sky_dir_set
+sky_generated
+sky height=10.0 reflection=0 black=70 top_black=0 bottom_black=0 center=f8010102 hash=cf4f76a1108b78e7 sun=(3592.309082,1676.286865,-3047.191895) gain=0.818143 alpha=0.113725
+sky height=110.0 reflection=0 black=308 top_black=0 bottom_black=0 center=c011171c hash=0e83de53c19c7424 sun=(3626.463135,1544.663208,-3076.163330) gain=0.818143 alpha=0.090196
+sky height=200.0 reflection=0 black=314 top_black=0 bottom_black=0 center=da233541 hash=319f26b0e35339a2 sun=(3655.281006,1423.077637,-3100.608398) gain=0.818143 alpha=0.105882
+sky height=201.0 reflection=0 black=316 top_black=0 bottom_black=0 center=da243642 hash=435544145a79d238 sun=(3655.590088,1421.711792,-3100.870361) gain=0.818143 alpha=0.105882
+sky height=400.0 reflection=0 black=322 top_black=0 bottom_black=0 center=ff334d5c hash=43fb796c8cd160a3 sun=(3695.427490,1231.952271,-3134.662598) gain=0.818143 alpha=0.141176
+sky height=600.0 reflection=0 black=326 top_black=0 bottom_black=0 center=ff2e4c59 hash=250f61573317bd78 sun=(3684.968750,1284.693726,-3125.791016) gain=0.818143 alpha=0.164706
+sky height=999.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=df6e7b61095a102a sun=(3588.779785,1689.235962,-3044.198242) gain=0.818143 alpha=0.113725
+sky height=1000.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=1001.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=2010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=3010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=6010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=30010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=-3010.0 reflection=0 black=423 top_black=0 bottom_black=0 center=ff262f33 hash=ffdd835524fb3180 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=10.0 reflection=1 black=385 top_black=0 bottom_black=0 center=ff262f36 hash=961da7ef46fdc0a7 sun=(3592.309082,1676.286865,-3047.191895) gain=0.818143 alpha=0.113725
+sky height=110.0 reflection=1 black=313 top_black=0 bottom_black=0 center=ff293b49 hash=9d10af47ea2f92f1 sun=(3626.463135,1544.663208,-3076.163330) gain=0.818143 alpha=0.090196
+sky height=200.0 reflection=1 black=302 top_black=0 bottom_black=0 center=ff2e4a5a hash=12c5d86b4d94a8f2 sun=(3655.281006,1423.077637,-3100.608398) gain=0.818143 alpha=0.105882
+sky height=201.0 reflection=1 black=315 top_black=0 bottom_black=0 center=ff2e4a5a hash=d283d4df44608544 sun=(3655.590088,1421.711792,-3100.870361) gain=0.818143 alpha=0.105882
+sky height=400.0 reflection=1 black=277 top_black=269 bottom_black=0 center=ff2b6084 hash=2a5a24c35b971023 sun=(3695.427490,1231.952271,-3134.662598) gain=0.818143 alpha=0.141176
+sky height=600.0 reflection=1 black=86 top_black=86 bottom_black=0 center=ff4c585b hash=ee94f1228524b644 sun=(3684.968750,1284.693726,-3125.791016) gain=0.818143 alpha=0.164706
+sky height=999.0 reflection=1 black=0 top_black=0 bottom_black=0 center=ff385269 hash=170f90a08970ab0e sun=(3588.779785,1689.235962,-3044.198242) gain=0.818143 alpha=0.113725
+sky height=1000.0 reflection=1 black=0 top_black=0 bottom_black=0 center=ff385268 hash=857b08594a51a036 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=1001.0 reflection=1 black=0 top_black=0 bottom_black=0 center=ff385268 hash=daec42706cf41dfa sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=2010.0 reflection=1 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=3010.0 reflection=1 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=6010.0 reflection=1 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=30010.0 reflection=1 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=-3010.0 reflection=1 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

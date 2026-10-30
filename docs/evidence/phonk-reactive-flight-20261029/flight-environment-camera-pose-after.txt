@@ -1,0 +1,16 @@
+sky_fixture_begin
+sky_entity_created
+sky_fields_set
+sky_dir_set
+sky_generated
+sky height=6.1 reflection=0 black=290 top_black=0 bottom_black=0 center=ff29363e hash=1bb349a2f86f1a32 sun=(3590.921143,1681.392334,-3046.014648) gain=0.818143 alpha=0.101961
+sky height=6.1 reflection=1 black=497 top_black=0 bottom_black=0 center=ff2b383f hash=77849b64fd61d115 sun=(3590.921143,1681.392334,-3046.014648) gain=0.818143 alpha=0.101961
+sky height=106.1 reflection=0 black=347 top_black=0 bottom_black=0 center=fa010101 hash=2f96d555df712739 sun=(3625.159668,1549.915771,-3075.057617) gain=0.818143 alpha=0.105882
+sky height=106.1 reflection=1 black=362 top_black=0 bottom_black=0 center=ff3f4a4a hash=6aec707f83f2276b sun=(3625.159668,1549.915771,-3075.057617) gain=0.818143 alpha=0.105882
+sky height=2006.1 reflection=0 black=640 top_black=0 bottom_black=0 center=ff2a373e hash=ea5d6d5deaafcbd5 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+sky height=2006.1 reflection=1 black=640 top_black=0 bottom_black=0 center=ff2a373e hash=e7edb93dbce05d72 sun=(3588.778076,1689.241943,-3044.196777) gain=0.818143 alpha=0.113725
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

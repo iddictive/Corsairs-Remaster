@@ -1,0 +1,22 @@
+sky_fixture_begin
+sky_entity_created
+sky_fields_set
+sky_dir_set
+sky_generated
+sky height=10.0 reflection=0 black=70 top_black=0 bottom_black=0 center=f8010102 hash=cf4f76a1108b78e7
+sky height=110.0 reflection=0 black=308 top_black=0 bottom_black=0 center=c011171c hash=0e83de53c19c7424
+sky height=2010.0 reflection=0 black=0 top_black=0 bottom_black=0 center=ff405366 hash=5749585cfde36d6c
+sky height=3010.0 reflection=0 black=219520 top_black=76800 bottom_black=0 center=ff000000 hash=0866da065ea0169f
+sky height=6010.0 reflection=0 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383
+sky height=-3010.0 reflection=0 black=219520 top_black=0 bottom_black=76800 center=ff000000 hash=40c64f6bdc3df2b5
+sky height=10.0 reflection=1 black=70 top_black=0 bottom_black=0 center=f8010102 hash=cf4f76a1108b78e7
+sky height=110.0 reflection=1 black=308 top_black=0 bottom_black=0 center=c011171c hash=0e83de53c19c7424
+sky height=2010.0 reflection=1 black=0 top_black=0 bottom_black=0 center=ff405366 hash=5749585cfde36d6c
+sky height=3010.0 reflection=1 black=219520 top_black=76800 bottom_black=0 center=ff000000 hash=0866da065ea0169f
+sky height=6010.0 reflection=1 black=307200 top_black=76800 bottom_black=76800 center=ff000000 hash=bbbb18dffe854383
+sky height=-3010.0 reflection=1 black=219520 top_black=0 bottom_black=76800 center=ff000000 hash=40c64f6bdc3df2b5
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

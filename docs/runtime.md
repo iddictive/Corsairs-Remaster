@@ -14173,3 +14173,18 @@ the certified collider,60Hz integration tradeoffs, cold373ms admission and
 contrasting exhaust readbacks are retained in
 [reactive flight evidence](evidence/phonk-reactive-flight-20261029/README.md).
 Installed FPS and gameplay appearance remain the user's verification.
+
+### Reactive flight, camera and environment successor — October 29
+
+Engine `f0a0d3f910fee9582ab1dc4a7d09726d8a6647c8c861b0bc46e7576c0cec8529`
+is installed with a verified bundle signature and the preceding `170fa6c1`
+engine retained for recovery. This batch restores wet native sailing ownership
+and release handoff, trims thrust around retained COM, follows actual flight
+altitude, recentres sky/fog/sun including reflected views, and draws the plume
+after the sea through a binding-safe world-colour bridge. Native lifecycle,
+camera translation, Metal sky/reflection and ordered-water checks are retained
+in the [reactive flight evidence](evidence/phonk-reactive-flight-20261029/README.md).
+The actual saved Manowar1 ground replay remains slow: 40.90ms mean Execute,
+42.39ms during contact over the installed 27-region scene. This supersedes any
+inference that the earlier Brig1 timing fixed the player's ground FPS report.
+Ground performance remains open; final gameplay feel and appearance are user-tested.

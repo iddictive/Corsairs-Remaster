@@ -5,6 +5,7 @@
 #include "ship_hull_hit_admission.hpp"
 #include "ship_hull_damage_bridge.hpp"
 #include "ship_auxiliary_detail.h"
+#include "metal_world_effect_bridge.h"
 #include "../../touch/src/ship_contact.hpp"
 #include "../../touch/src/ship_shore_contact.hpp"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
@@ -445,33 +446,57 @@ BOOL SHIP::CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool include
     return true;
 }
 
-BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
+void SHIP::SailingInertia(float dtime, const CVECTOR &targetSpeed, const CVECTOR &targetRotate,
+                         CVECTOR &speed, CVECTOR &rotate) const
 {
-    float sign, fK;
-    int32_t i;
-    const float previousCollisionYaw = collisionYaw;
-    State.vRotate.y -= previousCollisionYaw;
-    float angularImpulse = 0.f, linearImpulse = 0.f;
+    const auto nonzero = [](float value) { return fabsf(value - .00001f) > .00001f; };
+    for (int i = 0; i < 3; ++i)
+    {
+        const float fK = dtime * State.fMassInertia;
+        if (i == 0 || i == 2)
+        {
+            const float force = targetSpeed.v[i] - speed.v[i];
+            if (nonzero(targetSpeed.v[i])) speed.v[i] += fK * force * State.vInertiaAccel.v[i];
+            else speed.v[i] += fK * -speed.v[i] * State.vInertiaBrake.v[i];
+        }
+        if (i == 1)
+        {
+            const float force = targetRotate.y - rotate.y;
+            if (nonzero(targetRotate.y)) rotate.y += fK * force * State.vInertiaAccel.y;
+            else rotate.y += fK * -rotate.y * State.vInertiaBrake.y;
+        }
+    }
+}
 
-    // apply impulse strength
-    for (i = RESERVED_STRENGTH; i < MAX_STRENGTH; i++)
+void SHIP::GatherStrengthImpulses(CVECTOR &speed, CVECTOR &rotate, float &angularImpulse,
+                                  float &linearImpulse, bool consume)
+{
+    for (int i = RESERVED_STRENGTH; i < MAX_STRENGTH; ++i)
         if (Strength[i].bUse && !Strength[i].bInertia)
         {
-            // State.vRotate.x += Strength[i].vSpeed.z * 1.3f;
-            State.vSpeed += Strength[i].vSpeed;
-            State.vRotate += Strength[i].vRotate;
+            speed += Strength[i].vSpeed;
+            rotate += Strength[i].vRotate;
             if (collisionStrength[i])
             {
                 angularImpulse += Strength[i].vRotate.y;
-                State.vRotate.y -= Strength[i].vRotate.y;
+                rotate.y -= Strength[i].vRotate.y;
                 linearImpulse += std::hypot(Strength[i].vSpeed.x, Strength[i].vSpeed.z);
             }
-            if (!bCollision)
+            if (consume)
             {
                 Strength[i].bUse = false;
                 collisionStrength[i] = false;
             }
         }
+}
+
+BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
+{
+    const float previousCollisionYaw = collisionYaw;
+    State.vRotate.y -= previousCollisionYaw;
+    float angularImpulse = 0.f, linearImpulse = 0.f;
+
+    GatherStrengthImpulses(State.vSpeed, State.vRotate, angularImpulse, linearImpulse, !bCollision);
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // !                   Limitation  Section                      !
@@ -549,46 +574,9 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
     phonkFlight.reset();
 
 #define SMALL_DELTA(x) (fabsf((x)-0.00001f) > 0.00001f)
-    for (i = 0; i < 3; i++)
-    {
-        fK = dtime * State.fMassInertia;
-        if (i == 0) // x moving
-        {
-            const auto force = new_speed.v[i] - State.vSpeed.v[i];
-            if (SMALL_DELTA(new_speed.v[i]))
-                State.vSpeed.v[i] += fK * force * State.vInertiaAccel.x;
-            else
-                State.vSpeed.v[i] += fK * -(State.vSpeed.v[i]) * State.vInertiaBrake.x;
-        }
-        if (i == 2) // z moving
-        {
-            vSpeedAccel.z = State.vSpeed.v[i];
-
-            const auto force = new_speed.v[i] - State.vSpeed.v[i];
-            if (SMALL_DELTA(new_speed.v[i]))
-                State.vSpeed.v[i] += fK * force * State.vInertiaAccel.z;
-            else
-            {
-                State.vSpeed.v[i] += fK * -(State.vSpeed.v[i]) * State.vInertiaBrake.z;
-            }
-            // apply water resistance
-
-            /*State.vSpeed.v[i] += dtime * State.fMassInertia * State.vWaterResis.x * force;*/
-            vSpeedAccel.z -= State.vSpeed.v[i];
-        }
-
-        sign = SIGNZ(new_rotate.v[i]);
-        if (i == 1) // y rotating
-        {
-            auto prev_rot = State.vRotate.v[i];
-            const auto force = new_rotate.v[i] - State.vRotate.v[i];
-
-            if (SMALL_DELTA(new_rotate.v[i]))
-                State.vRotate.v[i] += fK * force * State.vInertiaAccel.y;
-            else
-                State.vRotate.v[i] += fK * -State.vRotate.v[i] * State.vInertiaBrake.y;
-        }
-    }
+    vSpeedAccel.z = State.vSpeed.z;
+    SailingInertia(dtime, new_speed, new_rotate, State.vSpeed, State.vRotate);
+    vSpeedAccel.z -= State.vSpeed.z;
 
     // Track only the admitted contact contribution through the SAME native
     // yaw damping; unrelated script impulses retain their original response.
@@ -2809,7 +2797,7 @@ void SHIP::DrawPhonkGlow(uint32_t)
 {
 #ifdef STORM_METAL_RENDERER_CONSUMERS
     if ((!PhonkActive() && !phonkJet.active) || !bVisible || !pSea) return;
-    struct Vertex { float x, y, z; uint32_t color; };
+    using Vertex = StormMetalWorldColorVertex;
     constexpr unsigned segments = 32, rings = 8;
     std::array<Vertex, segments * (rings * 2 - 1) * 3 + 4 * 16 * 12> vertices{};
     std::array<Vertex, (rings + 1) * segments> points{};
@@ -2893,15 +2881,13 @@ void SHIP::DrawPhonkGlow(uint32_t)
     pRS->GetTransform(storm_render::TransformWorld, world);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     if (haloVertices)
-        StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
-                                       haloVertices / 3, vertices.data(), sizeof(Vertex));
+        StormMetalDrawWorldColorTriangles(device, vertices.data(), haloVertices);
     if (at > haloVertices)
     {
         // Additive exhaust saturates to white over sunlit water. Keep the
         // luminous water halo additive, but retain the dense plume's colour.
         device->SetRenderState(storm_render::RenderDestinationBlend, storm_render::BlendInverseSourceAlpha);
-        StormMetalDrawCompactPrimitive(device, storm_render::PrimitiveTriangleList, storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
-                                       (at - haloVertices) / 3, vertices.data() + haloVertices, sizeof(Vertex));
+        StormMetalDrawWorldColorTriangles(device, vertices.data() + haloVertices, at - haloVertices);
     }
     pRS->SetTransform(storm_render::TransformWorld, world);
     for (const auto &s : stages) device->SetTextureStageState(s.stage, s.type, s.previous);
@@ -3006,7 +2992,6 @@ void SHIP::Realize(uint32_t dtime)
     StormMetalDrawShipFire(pRS->GetNativeDevice(),&pM->mtx.m[0][0],fireVolumes.data(),uint32_t(fireVolumes.size()),
                           &fireWind.x,fireVisualSeconds);
 #endif
-    DrawPhonkGlow(dtime);
     if (bMassaShow)
     {
         pRS->Print(0, 120, "Massa: %.2f", GetAShip()->GetAttributeAsFloat("Massa"));
@@ -3100,7 +3085,10 @@ uint64_t SHIP::ProcessMessage(MESSAGE &message)
         return RepairMasts();
     case MSG_SEA_REFLECTION_DRAW:
         if (IsAuxiliaryDetailVisible())
+        {
             Realize(0);
+            DrawPhonkGlow(0);
+        }
         break;
     case AI_MESSAGE_SET_LAYERS:
         ExecuteLayer = message.Long();

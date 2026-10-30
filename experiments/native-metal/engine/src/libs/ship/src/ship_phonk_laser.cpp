@@ -97,9 +97,9 @@ class SHIP_CUT_FRAGMENTS final : public Entity
     }
     void ProcessStage(Stage stage, uint32_t delta) override
     {
-        if ((stage != Stage::execute && stage != Stage::realize) || !delta) return;
+        if ((stage != Stage::execute && stage != Stage::realize) || (!delta && stage == Stage::execute)) return;
         const auto ships = core.GetEntityIds("ship");
-        if (ships.empty() && orphans.empty() && !future.valid()) { core.EraseEntity(GetId()); return; }
+        if (delta && ships.empty() && orphans.empty() && !future.valid()) { core.EraseEntity(GetId()); return; }
         // One late-frame owner advances the entire fleet together. A per-ship
         // pass cannot resolve reciprocal debris contact from coherent poses.
         if(stage==Stage::execute){
@@ -115,11 +115,17 @@ class SHIP_CUT_FRAGMENTS final : public Entity
             {
                 if (std::find(visible.begin(), visible.end(), id) != visible.end())
                 {
-                    ship->DrawPhonkLaser();
-                    ship->DrawPhonkOrdnance();
+                    // Sea is priority 65530. Translucent world effects must
+                    // follow it, without writing depth over the water/hull.
+                    ship->DrawPhonkGlow(delta);
+                    if (delta)
+                    {
+                        ship->DrawPhonkLaser();
+                        ship->DrawPhonkOrdnance();
+                    }
                 }
             }
-        DrawOrphans();
+        if (delta) DrawOrphans();
     }
 };
 CREATE_CLASS(SHIP_CUT_FRAGMENTS)

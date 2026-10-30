@@ -1,0 +1,30 @@
+#include "sky.h"
+static const float *fixtureView=nullptr,*fixtureProjection=nullptr;
+static void check(bool ok,const char *message){if(!ok)throw std::runtime_error(message);}
+static void attr(entid_t id,ATTRIBUTES &root,const char *name,const char *value){
+ root.SetAttribute(name,value);core.Entity_AttributeChanged(id,root.FindAClass(&root,name));
+}
+static void renderSky(VDX9RENDER *rs,storm_render::Device *device,storm_render::Surface *target,
+                      storm_render::Surface *readback,SKY *sky,float height,int reflection){
+ CVECTOR eye(0.f,height,-20.f);
+ if(fixtureView){CMatrix view;memcpy(view.matrix,fixtureView,sizeof(view));auto inverse=view;inverse.Transposition();eye=inverse.Pos();rs->SetCamera(eye,eye+inverse.Vz(),inverse.Vy());rs->SetView(view);height=eye.y;}
+ else rs->SetCamera(eye,eye+CVECTOR(0.f,0.f,120.f),CVECTOR(0.f,1.f,0.f));
+ rs->SetPerspective(1.285f);
+ if(fixtureProjection){CMatrix projection;memcpy(projection.matrix,fixtureProjection,sizeof(projection));rs->SetProjection(projection);}
+ if(reflection){CMatrix shift;shift.BuildPosition(0.f,2.f*eye.y,0.f);rs->SetView(shift*rs->GetView());}
+ sky->PrepareVisualSun(0);CVECTOR sun;const float gain=sky->GetAuthoredSun(sun);
+ const float alpha=sky->CalculateAlphaForSun(sun+eye,1.f);
+ device->Clear(storm_render::clear::color|storm_render::clear::depth,0xff000000,1.f);
+ const CMatrix beforeView=rs->GetView();CVECTOR cachedPosition,cachedAngles;float cachedFov;rs->GetCamera(cachedPosition,cachedAngles,cachedFov);
+ device->BeginScene();sky->Realize(reflection?0:16);device->EndScene();
+ const CMatrix afterView=rs->GetView();CVECTOR afterPosition,afterAngles;float afterFov;rs->GetCamera(afterPosition,afterAngles,afterFov);
+ check(!memcmp(&beforeView,&afterView,sizeof(beforeView)),"sky must restore active view");
+ check(!memcmp(&cachedPosition,&afterPosition,sizeof(cachedPosition))&&!memcmp(&cachedAngles,&afterAngles,sizeof(cachedAngles))&&cachedFov==afterFov,"sky must preserve cached main camera");
+ check(storm_render::succeeded(device->GetRenderTargetData(target,readback)),"sky readback");
+ storm_render::LockedRect locked{};check(storm_render::succeeded(readback->LockRect(&locked,nullptr,storm_render::lock::readOnly)),"sky lock");
+ unsigned black=0,topBlack=0,bottomBlack=0;uint64_t hash=1469598103934665603ULL;
+ for(int y=0;y<480;++y)for(int x=0;x<640;++x){uint32_t pixel;memcpy(&pixel,(char*)locked.pBits+y*locked.Pitch+x*4,4);hash=(hash^(pixel&0xffffff))*1099511628211ULL;
+  if(!(pixel&0xffffff)){++black;if(y<120)++topBlack;if(y>=360)++bottomBlack;}}
+ uint32_t center;memcpy(&center,(char*)locked.pBits+240*locked.Pitch+320*4,4);readback->UnlockRect();
+ printf("sky height=%.1f reflection=%d black=%u top_black=%u bottom_black=%u center=%08x hash=%016llx sun=(%.6f,%.6f,%.6f) gain=%.6f alpha=%.6f\n",height,reflection,black,topBlack,bottomBlack,center,(unsigned long long)hash,sun.x,sun.y,sun.z,gain,alpha);
+}

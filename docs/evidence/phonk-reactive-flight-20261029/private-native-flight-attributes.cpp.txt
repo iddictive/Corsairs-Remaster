@@ -1,0 +1,39 @@
+// Private copied attribute projection is merged before the real native Mount.
+// The existing game material codec performs restore and damage validation.
+static uint32_t attributeWord(std::istream &input)
+{
+    uint32_t value=0;input.read(reinterpret_cast<char*>(&value),4);
+    if(!input)throw std::runtime_error("private attribute input truncated");
+    return value;
+}
+static std::string attributeString(std::istream &input,uint32_t bytes)
+{
+    if(bytes>128*1024*1024)throw std::runtime_error("private attribute size");
+    std::string result(bytes,'\0');input.read(result.data(),bytes);
+    if(!input)throw std::runtime_error("private attribute payload truncated");
+    return result;
+}
+static void mergeAttribute(std::istream &input,ATTRIBUTES &parent,bool skipRoot=false,unsigned depth=0)
+{
+    if(depth>64)throw std::runtime_error("private attribute depth");
+    const auto name=attributeString(input,attributeWord(input));
+    const auto valueSize=attributeWord(input);
+    const auto value=valueSize==0xffffffff?std::string():attributeString(input,valueSize);
+    auto &target=skipRoot?parent:*parent.VerifyAttributeClass(name);
+    if(valueSize!=0xffffffff)target.SetValue(std::string_view(value));
+    const auto children=attributeWord(input);
+    if(children>1000000)throw std::runtime_error("private attribute population");
+    for(uint32_t i=0;i<children;++i)mergeAttribute(input,target,false,depth+1);
+}
+void RestorePrivateFixture()
+{
+    std::ifstream type("native-type.bin",std::ios::binary);
+    if(!type)return;
+    auto *native=static_cast<VDATA*>(core.GetScriptVariable("ShipType"));
+    auto *fleet=static_cast<VDATA*>(core.GetScriptVariable("Fleet"));
+    if(!native||!fleet)throw std::runtime_error("private native owner absent");
+    mergeAttribute(type,*native->GetAClass(),true);
+    std::ifstream ship("native-ship.bin",std::ios::binary);
+    if(!ship)throw std::runtime_error("private ship projection absent");
+    mergeAttribute(ship,*fleet->GetAClass(0));
+}

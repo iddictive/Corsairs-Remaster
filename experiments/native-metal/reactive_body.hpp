@@ -30,6 +30,12 @@ struct ReactiveFluid
     float height = 0.f, buoyancy = 1.f;
     CVECTOR normal = CVECTOR(0.f, 1.f, 0.f), velocity = CVECTOR(0.f);
 };
+struct ReactiveDrive
+{
+    CVECTOR airForce = CVECTOR(0.f), waterForce = CVECTOR(0.f); // world newtons
+    float referenceSubmerged = 1.f;
+    bool nativeHorizontal = false;
+};
 
 class ReactiveWorld
 {
@@ -46,13 +52,17 @@ class ReactiveWorld
     bool SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts,
                          const std::vector<std::vector<ReactivePoint>> &collisionParts);
     bool ImpulseNeighbor(uint64_t key, ReactiveBody &body, const CVECTOR &impulse, const CVECTOR &worldPoint);
+    void ClearNeighbors();
     bool SetStaticTriangles(const std::vector<CVECTOR> &triangles);
     // Returns the native reference-pose submerged fraction used to preserve
     // the ordinary ship's displacement, including its load and retained shape.
     float SubmergedFraction(float localWaterHeight) const;
+    CVECTOR CenterOfMass() const;
+    CVECTOR AngularTorque(const CVECTOR &localAcceleration, float mass) const;
     bool Step(ReactiveBody &body, const std::vector<ReactiveForce> &forces,
               const ReactiveFluid &fluid, float seconds,
-              std::vector<ReactiveNeighbor> *neighbors = nullptr);
+              std::vector<ReactiveNeighbor> *neighbors = nullptr,
+              const ReactiveDrive &drive = {});
     bool Wet() const;
     uint32_t UpdateError() const; // pinned Jolt capacity bits from the last step
 
