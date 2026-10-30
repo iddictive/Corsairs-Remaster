@@ -5,6 +5,16 @@ static int groundTransition(SHIP &ship,TransitionKeys &keys,ATTRIBUTES &mode)
     std::vector<ISLAND_BASE::WorldSurface> surfaces;
     CVECTOR center(0.f);
     entid_t first=0;
+    if(std::getenv("JET_COUNT_ONLY")||std::getenv("JET_CANONICAL_TERRAIN")) {
+        ATTRIBUTES frame(core_internal.Compiler->GetVSC());
+        std::ifstream input("native-world-frame.bin",std::ios::binary);
+        if(!input)return 81;
+        mergeAttribute(input,frame,true);
+        auto *geometry=static_cast<VGEOMETRY*>(core.GetService("geometry"));
+        const bool activated=geometry->ConfigureLegacySeaGeometry(&frame);
+        printf("canonical_legacy_projection_activated=%d exposure_pairs=%zu\n",activated,geometry->LegacySeaExposures().size());
+        // Failed admission is the canonical fallback, not permission to force it.
+    }
     // PRIVATE_REGION_INPUTS
     if(surfaces.size()<27||!first)return 76;
     SurfaceIsland island(first,static_cast<MODEL*>(core.GetEntityPointer(first)));
@@ -25,18 +35,42 @@ static int groundTransition(SHIP &ship,TransitionKeys &keys,ATTRIBUTES &mode)
     ship.State.vPos.y=floor+30.f;
     if(std::abs(ship.State.vPos.y-floor-30.f)>.001f)return 80;
     ship.State.vAng=ship.State.vRotate=ship.State.vSpeed=CVECTOR(0.f);
+    if(std::getenv("JET_COUNT_ONLY")) {
+        const bool prepared=TransitionAccess::prepare(ship);
+        printf("count_only_terrain_prepare=%d physics_steps=0\n",prepared);
+        TransitionAccess::terrain(nullptr);return prepared?0:82;
+    }
     mode.SetAttributeUseDword("Active",1);
     keys.held={"Phonk_Jet"};
-    puts("frame,phase,rigid,x,y,z,pitch,roll,vx,vy,vz,wx,wy,wz,cpu_ms");
-    for(int frame=0;frame<360;++frame) {
+    HULL_CONTACT_MATERIAL material;if(!ship.GetHullContactMaterial(material)||!material.prepared)return 83;
+    double radius2=0.f;
+    for(const auto &piece:storm::ship::contact::materialRoot(*material.prepared).pieces) {
+        const double y=std::max(std::abs(piece.lowerY),std::abs(piece.upperY));
+        for(const auto &p:piece.hull.points)radius2=std::max(radius2,p.x*p.x+p.z*p.z+y*y);
+    }
+    const double radius=std::sqrt(radius2);
+    const int frames=std::getenv("JET_GROUND_FRAMES")?std::stoi(std::getenv("JET_GROUND_FRAMES")):360;
+    if(frames<1||frames>1200)return 84;
+    double quietSeconds=0.,longestQuiet=0.;CVECTOR quietOrigin(0.f);CMatrix quietFrame;
+    puts("frame,phase,rigid,x,y,z,pitch,roll,vx,vy,vz,wx,wy,wz,point_speed_bound_mps,quiet_seconds,cpu_ms");
+    for(int frame=0;frame<frames;++frame) {
         if(frame)keys.held.clear();
         const auto begin=std::chrono::steady_clock::now();
         core_internal.ProcessExecute();
         const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
         const auto &s=ship.State;
-        printf("%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.5f\n",frame,frame<160?"fall_window":"ground_window",ship.HasRigidFlight(),s.vPos.x-center.x,s.vPos.y-floor,s.vPos.z-center.z,s.vAng.x,s.vAng.z,s.vSpeed.x,s.vSpeed.y,s.vSpeed.z,s.vRotate.x,s.vRotate.y,s.vRotate.z,ms);
+        const double speed=std::hypot(std::hypot(KNOTS2METERS(s.vSpeed.x),KNOTS2METERS(s.vSpeed.z)),s.vSpeed.y)+radius*std::sqrt(~s.vRotate);
+        const CMatrix pose(s.vAng,CVECTOR(0.f));
+        if(speed<=.03) {
+            if(quietSeconds==0.){quietOrigin=s.vPos;quietFrame=pose;}
+            double rotation2=0.;for(int a=0;a<3;++a)for(int b=0;b<3;++b){const double d=pose.m[a][b]-quietFrame.m[a][b];rotation2+=d*d;}
+            if(std::sqrt(~(s.vPos-quietOrigin))+radius*std::sqrt(rotation2)>.015){quietSeconds=0.;quietOrigin=s.vPos;quietFrame=pose;}
+            quietSeconds+=.016;longestQuiet=std::max(longestQuiet,quietSeconds);
+        }else quietSeconds=0.;
+        printf("%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.5f,%.5f,%.5f\n",frame,frame<160?"fall_window":frame<360?"contact_window":"quiet_observation_window",ship.HasRigidFlight(),s.vPos.x-center.x,s.vPos.y-floor,s.vPos.z-center.z,s.vAng.x,s.vAng.z,s.vSpeed.x,s.vSpeed.y,s.vSpeed.z,s.vRotate.x,s.vRotate.y,s.vRotate.z,speed,quietSeconds,ms);
         if(frame%30==0)fflush(stdout);
     }
+    printf("GROUND_QUIET longest_seconds=%.6f required_seconds=0.5 point_speed_bound_mps=0.03 pose_span_m=0.015 reached=%d\n",longestQuiet,longestQuiet>=.5);
     TransitionAccess::terrain(nullptr);
     return 0;
 }

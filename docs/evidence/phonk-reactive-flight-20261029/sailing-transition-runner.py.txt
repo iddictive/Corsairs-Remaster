@@ -1,9 +1,10 @@
 """Real native consumers; copied immutable inputs, one compiler, no shared builds."""
 from pathlib import Path
-import os,re,runpy,subprocess,sys,json,hashlib,shlex
+import os,re,runpy,subprocess,sys,json,hashlib,shlex,time,shutil
 root=Path(__file__).resolve().parents[3]
 native=root/'experiments/native-metal'; evidence=root/'docs/evidence/phonk-reactive-flight-20261029'
 work=Path(sys.argv[1]).resolve()
+started=time.monotonic()
 if os.environ.get('JET_ISOLATED_SAILING')=='1':
  sailing=(native/'engine/src/libs/ship/src/ship.cpp').read_text()
  if os.environ.get('JET_FROZEN_GLOW')=='1':
@@ -59,9 +60,12 @@ if os.environ.get('JET_GROUND'):
  ground=ground.replace('// PRIVATE_REGION_INPUTS','\n'.join(chunks))
  assert ground.count('{')==ground.count('}')
 (work/'native-ground-transition.cpp.txt').write_text(ground)
-(work/'probe.cpp').write_text(prefix+'\n#include "ship.h"\n#include "modelr.h"\n#include "shared/messages.h"\n'+surface+(evidence/'private-native-flight-attributes.cpp.txt').read_text()+(evidence/'sailing-transition.cpp.txt').read_text())
+(work/'probe.cpp').write_text(prefix+'\n#include "compiler.h"\n#include "ship.h"\n#include "modelr.h"\n#include "shared/messages.h"\n'+surface+(evidence/'private-native-flight-attributes.cpp.txt').read_text()+(evidence/'sailing-transition.cpp.txt').read_text())
 driver=(root/'docs/evidence/particle-tracer-capacity-20261029/build-probe.py.txt').read_text()
 driver=driver.replace("compile+=['-I'+str(root/'engine/src/libs/particles/src')]","compile+=['-I'+str(root/'engine/src/libs/particles/src'),'-I'+str(root/'engine/src/libs/ship/src'),'-I'+str(root/'engine/src/libs/model/src'),'-DSTORM_METAL_SHIP_FIRE=1']")
+if os.environ.get('JET_COUNT_ONLY') or os.environ.get('JET_CONTACT_TIMING'):
+ runpy.run_path(str(evidence/'terrain-count-instrument.py.txt'))['build'](root,work,contacts=bool(os.environ.get('JET_CONTACT_TIMING')))
+ driver=driver.replace('for command in [compile,link]:',"link=[str(work/'libroundhouse_ragdoll.a') if x.endswith('libroundhouse_ragdoll.a') else x for x in link]\nfor command in [compile,link]:")
 if os.environ.get('JET_ISOLATED_REACTIVE')=='1':
  subprocess.run([sys.executable,str(evidence/'isolated-reactive-build.py.txt'),str(root),str(work)],check=True,timeout=100)
  if os.environ.get('JET_ISOLATED_SAILING')=='1':
@@ -81,10 +85,25 @@ if os.environ.get('JET_ISOLATED_REACTIVE')=='1':
 (work/'build.py').write_text(driver)
 r=subprocess.run([sys.executable,str(work/'build.py'),str(root),str(work)],capture_output=True,text=True,timeout=100)
 if r.returncode:print((r.stdout+r.stderr)[-7000:]);raise SystemExit(r.returncode)
-r=subprocess.run([str(work/'probe'),str(work)],capture_output=True,text=True,timeout=100)
+r=subprocess.run(['/usr/bin/time','-l',str(work/'probe'),str(work)],capture_output=True,text=True,timeout=100)
 result=(r.stdout+r.stderr+'\nEXIT '+str(r.returncode)+'\n').replace(str(root),'<repo>').replace(str(work),'<scratch>')
 name=os.environ.get('JET_RESULT_PREFIX','baseline')
 assert re.fullmatch('[a-z0-9-]+',name)
-(evidence/(name+'-sailing-transition-output.txt')).write_text(result)
+if os.environ.get('JET_COUNT_ONLY') or os.environ.get('JET_CONTACT_TIMING'):
+ destination=Path(os.environ['JET_PRIVATE_EVIDENCE']);destination.mkdir(exist_ok=True)
+ (destination/('count-output.txt' if os.environ.get('JET_COUNT_ONLY') else 'contact-output.txt')).write_text(result+'\nrunner_wall_seconds='+str(time.monotonic()-started)+'\n')
+ names=['native-type.bin','native-ship.bin','native-world-frame.bin','native-regions.json','terrain-input.triangles','probe.cpp','native-ground-transition.cpp.txt','roundhouse-count.cpp','fixture.c','ship-type.c','ship-lights.c','day.c','engine.ini']
+ hashes={}
+ for filename in names:
+  source=work/filename
+  if not source.is_file():continue
+  target=destination/filename;digest=hashlib.sha256(source.read_bytes()).hexdigest()
+  reuse=Path(os.environ.get('JET_PRIVATE_INPUT_REUSE',''))/filename
+  if reuse.is_file() and hashlib.sha256(reuse.read_bytes()).hexdigest()==digest:
+   target.symlink_to(os.path.relpath(reuse,destination))
+  else:shutil.copy2(source,target)
+  assert hashlib.sha256(target.read_bytes()).hexdigest()==digest;hashes[filename]=digest
+ (destination/'input-hashes.json').write_text(json.dumps(hashes,indent=2)+'\n')
+else:(evidence/(name+'-sailing-transition-output.txt')).write_text(result)
 rows=[x for x in r.stdout.splitlines() if re.match(r'^\d+,',x)]
 print('\n'.join(rows[::50]));print(result[-1200:]);raise SystemExit(r.returncode)

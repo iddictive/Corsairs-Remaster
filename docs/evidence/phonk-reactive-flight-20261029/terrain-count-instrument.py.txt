@@ -1,0 +1,83 @@
+"""Scratch-only native mesh intake instrumentation. No PhysicsSystem::Update."""
+from pathlib import Path
+import subprocess,shlex,shutil
+def build(root,work,contacts=False):
+ native=root/'experiments/native-metal';build=native/'.cache/build'
+ source=(native/'roundhouse_ragdoll.cpp').read_text()
+ old='    auto result = JPH::MeshShapeSettings(mesh).Create();'
+ if source.count(old)!=1:raise ValueError('terrain mesh owner changed')
+ intake=r'''
+    // Exact input to the production terrain mesh constructor; standard Jolt
+    // indexing/welding/sanitation stays authoritative for this count-only run.
+    using Point = std::array<uint32_t,3>;
+    using Face = std::array<Point,3>;
+    std::map<Face,unsigned> oriented, sided;
+    for(const auto &triangle:mesh) {
+        Face points;
+        for(unsigned i=0;i<3;++i) {
+            const float xyz[]={triangle.mV[i].x,triangle.mV[i].y,triangle.mV[i].z};
+            for(unsigned a=0;a<3;++a)std::memcpy(&points[i][a],&xyz[a],4);
+        }
+        const auto start=std::min_element(points.begin(),points.end())-points.begin();
+        Face cyclic{points[start],points[(start+1)%3],points[(start+2)%3]};
+        ++oriented[cyclic];
+        const unsigned parity=cyclic[1]<cyclic[2]?1u:2u;
+        std::sort(points.begin(),points.end());sided[points]|=parity;
+    }
+    size_t bitDuplicates=0,bitReverse=0;
+    for(const auto &entry:oriented)bitDuplicates+=entry.second-1;
+    for(const auto &entry:sided)bitReverse+=entry.second==3;
+    JPH::VertexList vertices;
+    JPH::IndexedTriangleList indexed;
+    JPH::Indexify(mesh,vertices,indexed);
+    const auto weldedVertices=vertices.size(),indexedCount=indexed.size();
+    JPH::MeshShapeSettings countSettings(std::move(vertices),std::move(indexed));
+    std::map<std::array<uint32_t,3>,unsigned> weldedSides;
+    size_t nonDefaultMaterial=0,nonDefaultUserData=0;
+    for(const auto &triangle:countSettings.mIndexedTriangles) {
+        const auto cyclic=triangle.GetLowestIndexFirst();
+        std::array<uint32_t,3> key{cyclic.mIdx[0],cyclic.mIdx[1],cyclic.mIdx[2]};
+        const unsigned parity=key[1]<key[2]?1u:2u;
+        std::sort(key.begin(),key.end());weldedSides[key]|=parity;
+        nonDefaultMaterial+=triangle.mMaterialIndex!=0;nonDefaultUserData+=triangle.mUserData!=0;
+    }
+    size_t weldedReverse=0;for(const auto &entry:weldedSides)weldedReverse+=entry.second==3;
+    std::ofstream soup("terrain-input.triangles",std::ios::binary);
+    const uint64_t vertexCount=triangles.size();soup.write(reinterpret_cast<const char*>(&vertexCount),8);
+    static_assert(sizeof(CVECTOR)==12);
+    soup.write(reinterpret_cast<const char*>(triangles.data()),triangles.size()*sizeof(CVECTOR));
+    printf("MESH_COUNTS raw=%zu bit_exact_same_winding_duplicates=%zu bit_exact_reverse_groups=%zu welded_vertices=%zu indexed=%zu sanitized=%zu welded_reverse_groups=%zu nondefault_material=%zu nondefault_userdata=%zu weld_distance_m=0.0001\n",mesh.size(),bitDuplicates,bitReverse,weldedVertices,indexedCount,countSettings.mIndexedTriangles.size(),weldedReverse,nonDefaultMaterial,nonDefaultUserData);
+    return true; // Intake counts only; no terrain body and no physics step.
+    auto result = JPH::MeshShapeSettings(mesh).Create();'''
+ source=source.replace('#include <Jolt/Jolt.h>','#include <Jolt/Jolt.h>\n#include <Jolt/Geometry/Indexify.h>\n#include <map>\n#include <array>\n#include <cstring>\n#include <cstdio>\n#include <fstream>')
+ if contacts:
+  marker='struct ReactiveWorld::Impl\n'
+  observer=r'''
+struct IntakeContactObserver final : JPH::ContactListener
+{
+    uint64_t added=0,persisted=0,points=0;
+    void OnContactAdded(const JPH::Body &,const JPH::Body &,const JPH::ContactManifold &m,JPH::ContactSettings &) override { ++added;points+=m.mRelativeContactPointsOn1.size(); }
+    void OnContactPersisted(const JPH::Body &,const JPH::Body &,const JPH::ContactManifold &m,JPH::ContactSettings &) override { ++persisted;points+=m.mRelativeContactPointsOn1.size(); }
+};
+'''
+  at=source.index(marker);prefix=source[:at];body=source[at:]
+  body=body.replace('    JPH::PhysicsSystem physics;','    IntakeContactObserver observer;\n    JPH::PhysicsSystem physics;',1)
+  body=body.replace('        physics.SetGravity(JPH::Vec3(0.f, -9.81f, 0.f));','        physics.SetGravity(JPH::Vec3(0.f, -9.81f, 0.f));\n        physics.SetContactListener(&observer);',1)
+  body=body.replace('    w.wet = false;','    w.wet = false;\n    w.observer.added=w.observer.persisted=w.observer.points=0;',1)
+  body=body.replace('    state = next;',r'''    static unsigned observedFrame=0;
+    printf("CONTACT frame=%u body_id=%u active=%d added_callbacks=%llu persisted_callbacks=%llu callback_points=%llu wind_force_N=%.6f update_bits=0x%x\n",observedFrame++,w.moving.GetIndexAndSequenceNumber(),bodies.IsActive(w.moving),static_cast<unsigned long long>(w.observer.added),static_cast<unsigned long long>(w.observer.persisted),static_cast<unsigned long long>(w.observer.points),Vec(drive.airForce).Length(),uint32_t(w.updateError));
+    state = next;''',1)
+  source=prefix+observer+body
+  source=source.replace('#include <Jolt/Jolt.h>','#include <Jolt/Jolt.h>\n#include <Jolt/Physics/Collision/ContactListener.h>')
+ else:source=source.replace(old,intake)
+ (work/'roundhouse-count.cpp').write_text(source)
+ commands=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','libroundhouse_ragdoll.a'],text=True).splitlines()
+ command=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/roundhouse_ragdoll.cpp'))
+ command[command.index('-c')+1]=str(work/'roundhouse-count.cpp')
+ for flag,value in [('-o',work/'roundhouse_ragdoll.cpp.o'),('-MF',work/'roundhouse.d'),('-MT',work/'roundhouse_ragdoll.cpp.o')]:
+  if flag in command:command[command.index(flag)+1]=str(value)
+ command+=['-iquote',str(native)]
+ result=subprocess.run([x for x in command if x!='-v'],cwd=build,capture_output=True,text=True,timeout=90)
+ if result.returncode:raise RuntimeError(result.stdout+result.stderr)
+ shutil.copy2(build/'libroundhouse_ragdoll.a',work/'libroundhouse_ragdoll.a')
+ subprocess.run(['/usr/bin/ar','r',str(work/'libroundhouse_ragdoll.a'),str(work/'roundhouse_ragdoll.cpp.o')],check=True,capture_output=True)

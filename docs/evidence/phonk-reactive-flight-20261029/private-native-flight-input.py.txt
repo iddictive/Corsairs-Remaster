@@ -42,6 +42,7 @@ def extract(source,destination):
   return struct.pack('<I',len(name))+name+struct.pack('<I',0xffffffff if value is None else len(value))+(value or b'')+struct.pack('<I',len(children))+b''.join(encode(child) for child in children)
  destination=Path(destination)
  (destination/'native-type.bin').write_bytes(encode(native_type))
+ (destination/'native-world-frame.bin').write_bytes(encode(frame))
  allowed={b'hullmaterial',b'immersion',b'cargo',b'hp',b'sp',b'masts',b'hulls',b'sails',b'cannons',b'maxspeedz',b'maxspeedy',b'stopped',b'crew'}
  selected=[]
  for child in ship.children:
