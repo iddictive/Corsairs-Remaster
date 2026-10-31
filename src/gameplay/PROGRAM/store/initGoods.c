@@ -1,22 +1,81 @@
+// =====================================================================
+// Naval ammunition combat stats.
+// Called on BOTH new game (inside InitGoods) and save load (standalone).
+// Every combat-relevant property lives here; InitGoods only adds trade
+// metadata (Name/Cost/Weight/Units/AfraidWater/type/canbecontraband).
+//
+// Units key (consumed by engine + AIShip/AIFort/AICannon/BattleInterface):
+//   DamageHull  — absolute HP removed from hull per hit
+//   DamageRig   — absolute HP removed from sails per hit
+//   DamageCrew  — fraction of current crew killed per hit (0.05 = 5%)
+//   DamageFort  — absolute HP removed from fort per hit (airburst only)
+//   DamageDistanceMin — minimum fraction of damage at max range (0..1)
+//   SpeedV0     — muzzle velocity multiplier (1.0 = cannon baseline)
+//   Accuracy    — gunner precision multiplier before scatter (100 = baseline)
+//   ReloadSpeed — reload time divisor (>1 = faster, <1 = slower)
+//   HeightMultiply    — trajectory arc multiplier (lower = flatter)
+//   TimeSpeedMultiply — simulation speed multiplier (visuals + physics)
+//   RangeMultiply     — fire angle scaling for extended range
+//   MassMultiply      — projectile mass scaling for penetration physics
+// =====================================================================
 void NavalAmmo_InitDamage()
 {
-    // Base percent of the current crew; one owner for new games and old saves.
-    Goods[GOOD_BALLS].DamageCrew = 0.05;
-    Goods[GOOD_GRAPES].DamageCrew = 0.6;
-    Goods[GOOD_KNIPPELS].DamageCrew = 0.075;
-    Goods[GOOD_KNIPPELS].DamageHull = 5.75;
-    Goods[GOOD_BOMBS].DamageCrew = 0.125;
-    Goods[GOOD_AIRBURST].DamageCrew = 1.2;
-    Goods[GOOD_BALLS].Accuracy = 100.0;
-    Goods[GOOD_GRAPES].Accuracy = 50.0;
-    Goods[GOOD_KNIPPELS].Accuracy = 35.0;
-    Goods[GOOD_BOMBS].Accuracy = 80.0;
-    Goods[GOOD_AIRBURST].Accuracy = 80.0;
-    Goods[GOOD_BALLS].ReloadSpeed = 1.0;
+    // --- Balls (roundshot) ---
+    Goods[GOOD_BALLS].SpeedV0     = 1.0;
+    Goods[GOOD_BALLS].DamageHull  = 11.5;
+    Goods[GOOD_BALLS].DamageRig   = 1.8;
+    Goods[GOOD_BALLS].DamageCrew  = 0.05;   // 5% of current crew
+    Goods[GOOD_BALLS].Accuracy    = 100.0;   // baseline precision
+    Goods[GOOD_BALLS].ReloadSpeed = 1.0;     // baseline reload
+
+    // --- Grapes (canister / картечь, 6 pellets per cannon) ---
+    Goods[GOOD_GRAPES].SpeedV0     = 0.78;  // reduced range (~300 m)
+    Goods[GOOD_GRAPES].DamageHull  = 0.10;  // per pellet; 6 * 0.10 = 0.60/cannon
+    Goods[GOOD_GRAPES].DamageRig   = 0.70;  // per pellet; 6 * 0.70 = 4.20/cannon
+    Goods[GOOD_GRAPES].DamageCrew  = 0.10;  // per pellet; 6 * 0.10 = 0.60/cannon
+    Goods[GOOD_GRAPES].Accuracy    = 50.0;  // half baseline
+    Goods[GOOD_GRAPES].ReloadSpeed = 1.2;   // 20% faster reload
+
+    // --- Knippels (chain shot / книппели) ---
+    Goods[GOOD_KNIPPELS].SpeedV0     = 0.9;
+    Goods[GOOD_KNIPPELS].DamageHull  = 5.75;
+    Goods[GOOD_KNIPPELS].DamageRig   = 12.6;  // primary anti-sail round
+    Goods[GOOD_KNIPPELS].DamageCrew  = 0.075;
+    Goods[GOOD_KNIPPELS].Accuracy    = 35.0;  // worst precision
+    Goods[GOOD_KNIPPELS].ReloadSpeed = 0.8;   // 20% slower reload
+
+    // --- Bombs (explosive shell / бомбы) ---
+    Goods[GOOD_BOMBS].SpeedV0     = 0.8;
+    Goods[GOOD_BOMBS].DamageHull  = 19.5;
+    Goods[GOOD_BOMBS].DamageRig   = 2.5;
+    Goods[GOOD_BOMBS].DamageCrew  = 0.125;
+    Goods[GOOD_BOMBS].Accuracy    = 80.0;
     Goods[GOOD_BOMBS].ReloadSpeed = 1.0;
-    Goods[GOOD_KNIPPELS].ReloadSpeed = 0.8;
-    Goods[GOOD_GRAPES].ReloadSpeed = 1.2;
-    Goods[GOOD_AIRBURST].ReloadSpeed = 1.0 / 1.65;
+
+    // --- Airburst (шрапнель) ---
+    Goods[GOOD_AIRBURST].SpeedV0     = 0.8;
+    Goods[GOOD_AIRBURST].DamageHull  = 39.0;   // 2× bombs
+    Goods[GOOD_AIRBURST].DamageFort  = 180.0;
+    Goods[GOOD_AIRBURST].DamageRig   = 25.2;   // 2× knippels
+    Goods[GOOD_AIRBURST].DamageCrew  = 1.2;
+    Goods[GOOD_AIRBURST].Accuracy    = 80.0;
+    Goods[GOOD_AIRBURST].ReloadSpeed = 1.0 / 1.65;  // ~0.606, slowest reload
+
+    // --- Darts (стрелки) ---
+    Goods[GOOD_DARTS].SpeedV0          = 1.3653124814;  // high velocity
+    Goods[GOOD_DARTS].RangeMultiply    = 2.0;           // fire-angle scaling for 2× range
+    Goods[GOOD_DARTS].MassMultiply     = 0.1;           // light projectile
+    Goods[GOOD_DARTS].HeightMultiply   = 0.5773502692;  // tan(30°), flat arc
+    Goods[GOOD_DARTS].TimeSpeedMultiply = 2.0;          // 2× simulation speed
+    Goods[GOOD_DARTS].DamageHull       = 6.0;
+    Goods[GOOD_DARTS].DamageDistanceMin = 0.65;         // 65% damage retained at max range
+    Goods[GOOD_DARTS].DamageRig        = 1.2;
+    Goods[GOOD_DARTS].DamageCrew       = 0.025;
+    Goods[GOOD_DARTS].Accuracy         = 350.0;         // sniper precision
+    Goods[GOOD_DARTS].ReloadSpeed      = 0.8;           // 20% slower reload
+    // Clean up deprecated attributes from older saves.
+    DeleteAttribute(&Goods[GOOD_DARTS], "DispersionMultiply");
+    DeleteAttribute(&Goods[GOOD_DARTS], "AccuracyReferenceRange");
 }
 
 void Airburst_InitGoods()
@@ -28,10 +87,6 @@ void Airburst_InitGoods()
     Goods[GOOD_AIRBURST].Cost = 480;
     Goods[GOOD_AIRBURST].Weight = 1;
     Goods[GOOD_AIRBURST].Units = 20;
-    Goods[GOOD_AIRBURST].SpeedV0 = 0.8;
-    Goods[GOOD_AIRBURST].DamageHull = 39.0; // twice ordinary bombs
-    Goods[GOOD_AIRBURST].DamageFort = 180.0;
-    Goods[GOOD_AIRBURST].DamageRig = 25.2; // twice knippels
     Goods[GOOD_AIRBURST].AfraidWater = 0;
     Goods[GOOD_AIRBURST].type = TRADE_TYPE_AMMUNITION;
     Goods[GOOD_AIRBURST].canbecontraband = 0;
@@ -45,22 +100,9 @@ void Darts_InitGoods()
     Goods[GOOD_DARTS].Cost = 120;
     Goods[GOOD_DARTS].Weight = 1;
     Goods[GOOD_DARTS].Units = 20;
-    Goods[GOOD_DARTS].SpeedV0 = 1.3653124814;
-    Goods[GOOD_DARTS].RangeMultiply = 2.0;
-    Goods[GOOD_DARTS].MassMultiply = 0.1;
     Goods[GOOD_DARTS].NpcPirateChance = 6;
     Goods[GOOD_DARTS].NpcOtherChance = 20;
     Goods[GOOD_DARTS].NpcSupplyPerClass = 20;
-    Goods[GOOD_DARTS].HeightMultiply = 0.5773502692;
-    Goods[GOOD_DARTS].TimeSpeedMultiply = 2.0;
-    DeleteAttribute(&Goods[GOOD_DARTS], "DispersionMultiply");
-    DeleteAttribute(&Goods[GOOD_DARTS], "AccuracyReferenceRange");
-    Goods[GOOD_DARTS].DamageHull = 6.0;
-    Goods[GOOD_DARTS].DamageDistanceMin = 0.65;
-    Goods[GOOD_DARTS].DamageRig = 0.25;
-    Goods[GOOD_DARTS].DamageCrew = 0.025;
-    Goods[GOOD_DARTS].Accuracy = 350.0;
-    Goods[GOOD_DARTS].ReloadSpeed = 0.8;
     Goods[GOOD_DARTS].AfraidWater = 0;
     Goods[GOOD_DARTS].type = TRADE_TYPE_AMMUNITION;
     Goods[GOOD_DARTS].canbecontraband = 1;
@@ -77,42 +119,30 @@ void InitGoods()
 	Goods[GOOD_BALLS].Cost			= 4;
 	Goods[GOOD_BALLS].Weight		= 2;
 	Goods[GOOD_BALLS].Units			= 20;
-	Goods[GOOD_BALLS].SpeedV0		= 1.0;
-	Goods[GOOD_BALLS].DamageHull	= 11.5;
-	Goods[GOOD_BALLS].DamageRig		= 0.5;
-	Goods[GOOD_BALLS].AfraidWater = 0;    // рудимент от к3
+	Goods[GOOD_BALLS].AfraidWater = 0;
 	Goods[GOOD_BALLS].type				= TRADE_TYPE_AMMUNITION;
-	Goods[GOOD_BALLS].canbecontraband	= 0;  // рудимент от к3
-	
+	Goods[GOOD_BALLS].canbecontraband	= 0;
 
 	Goods[GOOD_GRAPES].Name			= "Grapes";
 	Goods[GOOD_GRAPES].Cost			= 12;
 	Goods[GOOD_GRAPES].Weight		= 1;
 	Goods[GOOD_GRAPES].Units		= 20;
-	Goods[GOOD_GRAPES].SpeedV0		= 0.6; // boal
-	Goods[GOOD_GRAPES].DamageHull	= 1.0;
-	Goods[GOOD_GRAPES].DamageRig	= 2.0;
 	Goods[GOOD_GRAPES].AfraidWater	= 0;
 	Goods[GOOD_GRAPES].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_GRAPES].canbecontraband	= 0;
-	
+
 	Goods[GOOD_KNIPPELS].Name		= "Knippels";
 	Goods[GOOD_KNIPPELS].Cost		= 26;
 	Goods[GOOD_KNIPPELS].Weight		= 2;
 	Goods[GOOD_KNIPPELS].Units		= 20;
-	Goods[GOOD_KNIPPELS].SpeedV0	= 0.9;
-	Goods[GOOD_KNIPPELS].DamageRig	= 12.6;
 	Goods[GOOD_KNIPPELS].AfraidWater = 0;
 	Goods[GOOD_KNIPPELS].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_KNIPPELS].canbecontraband	= 0;
-	
+
 	Goods[GOOD_BOMBS].Name			= "Bombs";
 	Goods[GOOD_BOMBS].Cost			= 60;
 	Goods[GOOD_BOMBS].Weight		= 1;
 	Goods[GOOD_BOMBS].Units			= 20;
-	Goods[GOOD_BOMBS].SpeedV0		= 0.8;
-	Goods[GOOD_BOMBS].DamageHull	= 19.5;
-	Goods[GOOD_BOMBS].DamageRig		= 1.0;
 	Goods[GOOD_BOMBS].AfraidWater = 0;
 	Goods[GOOD_BOMBS].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_BOMBS].canbecontraband	= 0;
@@ -398,7 +428,7 @@ void InitGoods()
 	Goods[GOOD_POWDER].AfraidWater = 1;
 	Goods[GOOD_POWDER].type				= TRADE_TYPE_AMMUNITION;
 	Goods[GOOD_POWDER].canbecontraband	= 0;
-	Goods[GOOD_FOOD].Norm          = 12000;
+	Goods[GOOD_POWDER].Norm        = 12000;
 		
 	Goods[GOOD_MEDICAMENT].Name		    = "Medicament";
 	Goods[GOOD_MEDICAMENT].Weight	    = 1;
