@@ -149,12 +149,16 @@ void AIShipMoveController::Execute(float fDeltaTime)
         // float fBestRotate = GetAIShip()->GetTouchController()->GetBestRotateDirection();
         // if (fBestRotate != 0.0f) fSignRot = fBestRotate;
         const auto fMul = (fDot > 0.0f) ? Bring2Range(1.0f, 0.1f, 0.0f, 1.0f, fDot) : 1.0f;
-        auto fAngRot = fSignRot;
-        if (fRotationAngle >= fRotAng)
-            fAngRot = 0.0f;
-        GetAIShip()->GetRotateController()->AddRotate(fMul * fAngRot);
-        if (fMul > 0.3f)
-            GetAIShip()->GetSpeedController()->MulSpeed(0.5f);
+        // Proportional steering towards destination vector:
+        // When angle is small (< 0.05 rad / ~3 deg), no steering needed.
+        // As angle increases, apply proportional smooth steering rather than full binary flip.
+        float fSteerMagnitude = std::clamp(fRotAng / 0.785f, 0.0f, 1.0f); // 0.785 rad = 45 deg
+        if (fRotAng < 0.05f || fRotationAngle >= fRotAng)
+            fSteerMagnitude = 0.0f;
+
+        GetAIShip()->GetRotateController()->AddRotate(fSignRot * fSteerMagnitude);
+        if (fRotAng > 0.52f) // slow down slightly only on sharp turns (>30 deg)
+            GetAIShip()->GetSpeedController()->MulSpeed(0.75f);
         // pShip->SetRotate(fAngRot);
     }
 
@@ -211,11 +215,29 @@ void AIShipMoveController::Move(CVECTOR vMovePoint)
             // Keep the normal planning retry, but hold until a safe route exists.
             if (vRealMovePoint.x == vMovePoint.x && vRealMovePoint.z == vMovePoint.z)
             {
-                Stop();
-                vDestPoint = vOurPos;
-                return;
+                // Line of sight to destination is blocked by island geometry without a waypoint.
+                // Test both tangents (+90 and -90 deg) with depth checks to skirt around the obstacle.
+                CVECTOR vToDest = !(vMovePoint - vOurPos);
+                CVECTOR vTanR(-vToDest.z, 0.0f, vToDest.x);
+                CVECTOR vTanL(vToDest.z, 0.0f, -vToDest.x);
+
+                float depthR = -20.0f, depthL = -20.0f;
+                CVECTOR ptR = vOurPos + 80.0f * vTanR;
+                CVECTOR ptL = vOurPos + 80.0f * vTanL;
+                AIHelper::pIsland->GetDepth(ptR.x, ptR.z, &depthR);
+                AIHelper::pIsland->GetDepth(ptL.x, ptL.z, &depthL);
+
+                if (depthR <= -3.5f && depthR < depthL)
+                    vMovePoint = ptR;
+                else if (depthL <= -3.5f)
+                    vMovePoint = ptL;
+                else
+                    vMovePoint = ptR;
             }
-            vMovePoint = vRealMovePoint;
+            else
+            {
+                vMovePoint = vRealMovePoint;
+            }
         }
     }
     Stop(false);

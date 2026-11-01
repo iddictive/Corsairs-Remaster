@@ -205,10 +205,11 @@ bool WdmIslands::LoadNext()
                         !storm::iEquals(label.group_name, "islands")) continue;
                     const bool projected = std::any_of(chart->Regions().begin(), chart->Regions().end(),
                         [&](const auto &region) { return storm::iEquals(region.id, label.name); });
-                    // The composed Mainland tree includes its prepared inland
-                    // fill. Stock mein also embeds obsolete island miniatures;
-                    // loading it again overlays both coasts and whole islands.
-                    if (projected || storm::iEquals(label.name, "mein")) continue;
+                    const bool bodyMatch = std::any_of(chart->Bodies().begin(), chart->Bodies().end(),
+                        [&](const auto &b) { return storm::iEquals(b.id, label.name); });
+                    // Prevent duplicate rendering of islands: skip if already loaded via chart physical bodies or regions,
+                    // or stock mein which contains overlapping island meshes causing severe Z-fighting flicker.
+                    if (projected || bodyMatch || storm::iEquals(label.name, "mein")) continue;
                     const std::string name = std::string("islands\\") + label.name;
                     auto *background = static_cast<WdmRenderModel *>(wdmObjects->wm->CreateModel(
                         new WdmRenderModel(), name.c_str(), false, false, true, 2, wdm::render_levels::Island));

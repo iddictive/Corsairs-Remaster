@@ -464,8 +464,8 @@ void WdmPlayerShip::Move(float dltTime)
         if (dltTime <= 0.0f || wdmObjects->isPause) return;
         const char *status = autopilot->GetAttribute("status");
         const CVECTOR displacement(target.x - mtx.Pos().x, 0.0f, target.z - mtx.Pos().z);
-        if (!status || std::strcmp(status, "sailing") || !std::isfinite(target.x) ||
-            !std::isfinite(target.z) || ~displacement <= 144.0f)
+        const bool activeStatus = status && (std::strcmp(status, "sailing") == 0 || std::strcmp(status, "hunting") == 0);
+        if (!activeStatus || !std::isfinite(target.x) || !std::isfinite(target.z) || ~displacement <= 144.0f)
         {
             CancelRouteRecovery();
             speed = std::max(0.0f, speed - WDM_SHIP_INER_ST * WDM_SHIP_MAX_SPEED * dltTime * 0.5f);
@@ -474,6 +474,67 @@ void WdmPlayerShip::Move(float dltTime)
         if (recovering) return;
         CVECTOR direction = displacement;
         if (wdmObjects->islands) wdmObjects->islands->FindDirection(mtx.Pos(), target, direction);
+
+        if (wdmObjects->islands)
+        {
+            const float vx = mtx.Vz().x;
+            const float vz = mtx.Vz().z;
+            const float rightX = vz;
+            const float rightZ = -vx;
+
+            const float probeDist = 35.0f;
+            const float fwdX = mtx.Pos().x + vx * probeDist;
+            const float fwdZ = mtx.Pos().z + vz * probeDist;
+            if (wdmObjects->islands->ObstacleTest(fwdX, fwdZ, 12.0f))
+            {
+                const bool obsRight = wdmObjects->islands->ObstacleTest(mtx.Pos().x + (vx + rightX * 0.7f) * probeDist,
+                                                                       mtx.Pos().z + (vz + rightZ * 0.7f) * probeDist, 10.0f);
+                const bool obsLeft  = wdmObjects->islands->ObstacleTest(mtx.Pos().x + (vx - rightX * 0.7f) * probeDist,
+                                                                       mtx.Pos().z + (vz - rightZ * 0.7f) * probeDist, 10.0f);
+                float steerX = rightX * 2.2f;
+                float steerZ = rightZ * 2.2f;
+                if (!obsLeft && obsRight)
+                {
+                    steerX = -rightX * 2.2f;
+                    steerZ = -rightZ * 2.2f;
+                }
+                // Pure lateral deflection preserves forward momentum (cs >= 0 in SteerToDirection)
+                // eliminating shuddering and loss of speed near shores.
+                direction.x += steerX * 1.8f;
+                direction.z += steerZ * 1.8f;
+            }
+            if (wdmObjects->islands->ObstacleTest(mtx.Pos().x + vx * 15.0f, mtx.Pos().z + vz * 15.0f, 9.0f))
+            {
+                const bool obsRight = wdmObjects->islands->ObstacleTest(mtx.Pos().x + (vx + rightX * 0.8f) * 15.0f,
+                                                                       mtx.Pos().z + (vz + rightZ * 0.8f) * 15.0f, 8.0f);
+                float side = obsRight ? -1.0f : 1.0f;
+                direction.x += rightX * side * 4.0f;
+                direction.z += rightZ * side * 4.0f;
+            }
+        }
+
+        CVECTOR windDir = 0.0f;
+        wdmObjects->GetWind(mtx.Pos().x, mtx.Pos().z, windDir);
+        const float dirLen = sqrtf(direction.x * direction.x + direction.z * direction.z);
+        const float windLen = sqrtf(windDir.x * windDir.x + windDir.z * windDir.z);
+        if (dirLen > 0.00001f && windLen > 0.00001f)
+        {
+            const float windDot = (direction.x * windDir.x + direction.z * windDir.z) / (dirLen * windLen);
+            if (windDot < -0.85f)
+            {
+                // Heading directly into dead headwind; rotate direction by 35 degrees to tack and preserve speed
+                const float tackAngle = 35.0f * (PI / 180.0f);
+                const float cosA = cosf(tackAngle);
+                const float sinA = sinf(tackAngle);
+                const float cross = direction.x * windDir.z - direction.z * windDir.x;
+                const float sign = cross >= 0.0f ? 1.0f : -1.0f;
+                const float newDx = direction.x * cosA - sign * direction.z * sinA;
+                const float newDz = sign * direction.x * sinA + direction.z * cosA;
+                direction.x = newDx;
+                direction.z = newDz;
+            }
+        }
+
         if (~direction > 0.00001f) SteerToDirection(direction, dltTime);
         else speed = std::max(0.0f, speed - WDM_SHIP_INER_ST * WDM_SHIP_MAX_SPEED * dltTime * 0.5f);
         return;

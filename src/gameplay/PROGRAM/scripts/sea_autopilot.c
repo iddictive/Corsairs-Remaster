@@ -252,7 +252,12 @@ int SeaAutopilot_NextPort(int origin)
         string cargoName = Goods[cargo].name;
         space.(cargoName) = SeaAutopilot_Free(cargo);
     }
+    int lastPort = -1;
+    if (CheckAttribute(pchar, "Ship.Autopilot.lastPort")) lastPort = sti(pchar.Ship.Autopilot.lastPort);
+
     int selected = -1; int total = 0;
+    int fallbackSelected = -1; int fallbackTotal = 0;
+
     for (int port = 0; port < MAX_COLONIES; port++)
     {
         if (port == origin || !SeaAutopilot_Port(port)) continue;
@@ -265,23 +270,39 @@ int SeaAutopilot_NextPort(int origin)
             int buy = GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_BUY, pchar, 1);
             int sell = GetStoreGoodsPrice(&Stores[buyer], good, PRICE_TYPE_SELL, pchar, 1);
             if (buy <= 0 || sell <= buy) continue;
-            int quantity = WdmTrafficTradeSupply(&Stores[seller], good, WdmTrafficMarketDemand(&market, buyer, good));
             string name = Goods[good].name;
+            // Available supply from store: export type gets priority, but any store stock above minimum buffer is tradable
+            int quantity = GetStoreGoodsQuantity(&Stores[seller], good) - makeint(stf(Stores[seller].Goods.(name).Norm) * 0.15);
+            if (quantity <= 0) continue;
+            int demand = WdmTrafficMarketDemand(&market, buyer, good);
+            if (demand > 0 && quantity > demand) quantity = demand;
             int room = sti(space.(name));
             if (quantity > room) quantity = room;
             int budget = sti(pchar.Money) - SeaAutopilot_Reserve();
+            if (budget <= 0) continue;
             if (buy * 1.0 * quantity / sti(Goods[good].Units) > budget)
                 quantity = makeint(budget * 1.0 * sti(Goods[good].Units) / buy);
             if (quantity > 0) profit += (sell - buy) * 1.0 * quantity / sti(Goods[good].Units);
         }
         if (profit <= 0.0) continue;
         if (profit > 100000.0) profit = 100000.0;
-        int weight = makeint(WdmTrafficRouteWeight(origin, port, 1) * (1.0 + profit / 100.0));
+        int weight = makeint(WdmTrafficRouteWeight(origin, port, 1) * (1.0 + profit / 50.0));
         if (weight < 1) continue;
-        total += weight;
-        if (rand(total - 1) < weight) selected = port;
+
+        // Disfavor immediate return to last visited port (anti-ping-pong chaining)
+        if (port == lastPort)
+        {
+            fallbackTotal += weight;
+            if (rand(fallbackTotal - 1) < weight) fallbackSelected = port;
+        }
+        else
+        {
+            total += weight;
+            if (rand(total - 1) < weight) selected = port;
+        }
     }
-    return selected;
+    if (selected >= 0) return selected;
+    return fallbackSelected;
 }
 
 // Cargo commodities only. Delivery flags apply across the player's fleet;
@@ -389,13 +410,21 @@ void SeaAutopilot_Buy(int origin, int destination)
     int seller = FindStore(Colonies[origin].id);
     int buyer = FindStore(Colonies[destination].id);
     object market; WdmTrafficBuildMarket(&market);
+    pchar.Ship.Autopilot.lastPort = origin;
+
+    // Pack fleet holds across all companion ships greedy-by-margin
     for (int good = GOOD_CHOCOLATE; good <= GOOD_SILVER; good++)
     {
         if (good == GOOD_RUM) continue;
         if (!SeaAutopilot_Good(&Stores[seller], good) || !WdmTrafficStoreGood(&Stores[buyer], good)) continue;
         if (GetStoreGoodsPrice(&Stores[buyer], good, PRICE_TYPE_SELL, pchar, 1) <=
             GetStoreGoodsPrice(&Stores[seller], good, PRICE_TYPE_BUY, pchar, 1)) continue;
-        int remaining = WdmTrafficTradeSupply(&Stores[seller], good, WdmTrafficMarketDemand(&market, buyer, good));
+        string goodName = Goods[good].name;
+        int remaining = GetStoreGoodsQuantity(&Stores[seller], good) - makeint(stf(Stores[seller].Goods.(goodName).Norm) * 0.15);
+        if (remaining <= 0) continue;
+        int demand = WdmTrafficMarketDemand(&market, buyer, good);
+        if (demand > 0 && remaining > demand) remaining = demand;
+
         for (int slot = 0; slot < COMPANION_MAX; slot++)
         {
             if (remaining < 1) break;
@@ -580,6 +609,8 @@ void SeaAutopilot_Tick()
             pchar.Ship.Autopilot.active = 1; SeaAutopilot_Status("hunting", ""); return;
         }
     }
+    // Never automatically trigger map transitions inside tactical sea while player is in sea mode.
+    // Map transitions are handled exclusively through user input or explicit destination voyage.
     if (SeaAutopilot_HuntMap()) return;
     if (!CheckAttribute(pchar, "Ship.Autopilot.port"))
     {
@@ -597,8 +628,17 @@ void SeaAutopilot_Tick()
     { DeleteAttribute(pchar, "Ship.Autopilot.port"); SeaAutopilot_Status("waiting", "port-access"); return; }
     float dx = SeaAutopilot_X() - stf(pchar.Ship.Autopilot.targetX);
     float dz = SeaAutopilot_Z() - stf(pchar.Ship.Autopilot.targetZ);
+    // If tactical sea is active and mooring is available at target island, moor automatically
+    if (bSeaActive && bSeaLoaded && !bSeaReloadStarted && bCanEnterToLand)
+    {
+        pchar.Ship.Autopilot.active = 1;
+        SeaAutopilot_Hold();
+        Sea_LandLoad();
+        return;
+    }
     if (dx * dx + dz * dz > 144.0)
     {
+        // Keep sailing in sea; do not force map load loops
         pchar.Ship.Autopilot.active = 1; SeaAutopilot_Course(); SeaAutopilot_Status("sailing", ""); return;
     }
     if (sti(pchar.Ship.Autopilot.settledLeg) != sti(pchar.Ship.Autopilot.leg))
@@ -620,6 +660,14 @@ void SeaAutopilot_Tick()
         {
             SeaAutopilot_PlanSale(port, destination);
             if (!SeaAutopilot_Route(destination)) return;
+            if (bSeaActive && bSeaLoaded && !bSeaReloadStarted)
+            {
+                if (CheckAttribute(&Colonies[destination], "island") && CheckAttribute(&AISea, "Island") &&
+                    Colonies[destination].island != AISea.Island)
+                {
+                    if (Sea_TryMapLoad(true)) return;
+                }
+            }
             pchar.Ship.Autopilot.active = 1; SeaAutopilot_Course(); SeaAutopilot_Status("sailing", ""); return;
         }
         SeaAutopilot_PlanSale(port, port);
@@ -652,5 +700,13 @@ void SeaAutopilot_Tick()
         SeaAutopilot_PlanSale(port, destination);
     }
     if (!SeaAutopilot_Route(destination)) return;
+    if (bSeaActive && bSeaLoaded && !bSeaReloadStarted)
+    {
+        if (CheckAttribute(&Colonies[destination], "island") && CheckAttribute(&AISea, "Island") &&
+            Colonies[destination].island != AISea.Island)
+        {
+            if (Sea_TryMapLoad(true)) return;
+        }
+    }
     pchar.Ship.Autopilot.active = 1; SeaAutopilot_Course(); SeaAutopilot_Status("sailing", "");
 }

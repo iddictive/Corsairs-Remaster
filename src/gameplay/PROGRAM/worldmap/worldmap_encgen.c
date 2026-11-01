@@ -2542,14 +2542,29 @@ int WdmTrafficTradeNextPort(aref encounter, int origin, int nation, ref seller)
 	object market; WdmTrafficBuildMarket(&market);
 	int weights[MAX_COLONIES];
 	int total = 0;
+	int lastPort = -1;
+	if (CheckAttribute(encounter, "trafficLastPort")) lastPort = sti(encounter.trafficLastPort);
+
 	for (int i = 0; i < MAX_COLONIES; i++)
 	{
 		weights[i] = 0;
 		if (i == origin || !WdmTrafficPortAdmits(i, nation)) continue;
+		// Exclude ping-ponging immediately back to the previous port if there are other candidates
+		if (lastPort >= 0 && i == lastPort) continue;
 		int buyer = FindStore(Colonies[i].id);
 		if (buyer < 0 || buyer == SHIP_STORE) continue;
 		weights[i] = makeint(WdmTrafficRouteWeight(origin, i, 1) * WdmTrafficTradeWork(encounter, seller, buyer, &market));
 		total = total + weights[i];
+	}
+	// Fallback to lastPort if no other profitable ports are available in the entire Caribbean
+	if (total <= 0 && lastPort >= 0 && lastPort != origin && WdmTrafficPortAdmits(lastPort, nation))
+	{
+		int buyerLast = FindStore(Colonies[lastPort].id);
+		if (buyerLast >= 0 && buyerLast != SHIP_STORE)
+		{
+			weights[lastPort] = makeint(WdmTrafficRouteWeight(origin, lastPort, 1) * WdmTrafficTradeWork(encounter, seller, buyerLast, &market));
+			total = weights[lastPort];
+		}
 	}
 	if (total <= 0) return -1;
 	int roll = rand(total - 1);
@@ -2803,7 +2818,11 @@ void WdmTrafficVoyageAdvance(aref encounter)
 				DeleteAttribute(service, "noWork");
 			}
 		}
-		if (destination >= 0) locator = WdmTrafficPortLocator(destination);
+		if (destination >= 0)
+		{
+			locator = WdmTrafficPortLocator(destination);
+			encounter.trafficLastPort = colony;
+		}
 	}
 	if (locator == "") return;
 	encounter.trafficLegLocator = locator;

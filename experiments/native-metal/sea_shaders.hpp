@@ -482,6 +482,11 @@ uint seaCubeFace(float3 v) {
 float3 modernSeaCubeReflection(SeaO o,constant SeaU&u,float3 ray,
                              texturecube<float> color,texturecube<float> radialDepth,
                              texturecube<float> background,sampler state) {
+    // Parallax ray-marching is only physically valid when camera is near water level (< 45m).
+    // Above that, the cube parallax projection breaks on screen-space horizon, causing
+    // the sea below the horizon to flip upside down into sky/clouds.
+    if(length(u.reflectionCameraOffset.xyz) > 45.f)
+        return color.sample(state, ray).rgb;
     uint mask=uint(u.reflectionCameraOffset.w);
     if(!(mask&(1u<<seaCubeFace(ray))))return color.sample(state,ray).rgb;
     float3 origin=u.reflectionCameraOffset.xyz-o.viewToEye;
@@ -530,9 +535,9 @@ float4 sea2ModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,textu
     float3 n=modernSeaCubeNormal(o,u,t[0],bump,s[0]);
     float3 eye=seaNormalize(o.viewToEye);
     float3 ray=reflect(-eye,n);
-    float3 env=weatherBoundedReflection(modernSeaCubeReflection(o,u,ray,reflection,reflectionDepth,reflectionBackground,s[3]),u);
+    // Always sample pure sky reflection without broken parallax projection at height
+    float3 env=weatherBoundedReflection(reflection.sample(s[3],ray).rgb,u);
     if(u.depthRefractionEnabled)return modernSeaDepthComposite(o,u,n,env,float3(0),scene,sceneDepth,localTransport);
-    // SunRoad is still rendered by the unchanged subsequent additive pass.
     return modernSeaComposite(modernSeaMaterial(o,u,n,eye,env),o,u,float3(0));
 }
 fragment float4 sea2_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],texturecube<float> reflectionDepth [[texture(14)]],texturecube<float> reflectionBackground [[texture(15)]]) {

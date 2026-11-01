@@ -231,13 +231,17 @@ void WdmEnemyShip::FindIslandForce()
                 steerX = -rightX * 2.2f;
                 steerZ = -rightZ * 2.2f;
             }
-            ix += -vx * 1.5f + steerX;
-            iz += -vz * 1.5f + steerZ;
+            // Pure lateral deflection preserves forward momentum without dropping speed to 0.35
+            ix += steerX * 1.8f;
+            iz += steerZ * 1.8f;
         }
         if (wdmObjects->islands->ObstacleTest(mtx.Pos().x + vx * 15.0f, mtx.Pos().z + vz * 15.0f, 9.0f))
         {
-            ix += -vx * 3.5f;
-            iz += -vz * 3.5f;
+            const bool obsRight = wdmObjects->islands->ObstacleTest(mtx.Pos().x + (vx + rightX * 0.8f) * 15.0f,
+                                                                   mtx.Pos().z + (vz + rightZ * 0.8f) * 15.0f, 8.0f);
+            float side = obsRight ? -1.0f : 1.0f;
+            ix += rightX * side * 4.0f;
+            iz += rightZ * side * 4.0f;
         }
     }
     else

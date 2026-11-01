@@ -168,58 +168,37 @@ void AIShipTouchController::Execute(float fDeltaTime)
             }
         }
 
-        // rotate calculate section
-        uint32_t dwMaxIdx = 0;
-        auto fMaxDist = -100.0f;
-        uint32_t ii, i1, i2;
-        for (i = 0; i < aTouchRays.size() / 2; i++)
+        // Compute continuous lateral clearance differential instead of discrete ray index
+        // aTouchRays: 0 is forward, 1..7 starboard, 8..14 port
+        float starboardFree = 0.0f;
+        float portFree = 0.0f;
+        const uint32_t half = aTouchRays.size() / 2;
+        for (i = 1; i <= half; i++)
         {
-            for (j = 0; j < 2; j++)
-            {
-                ii = (j == 0) ? i : (aTouchRays.size() - i - 1);
-                i1 = (ii == 0) ? aTouchRays.size() - 1 : (ii - 1);
-                i2 = (ii == aTouchRays.size() - 1) ? 0 : (ii + 1);
-                const auto fTriRotator = (aTouchRays[ii].fDist + aTouchRays[i1].fDist + aTouchRays[i2].fDist) / 3.0f;
-                if (fTriRotator - fMaxDist > 0.001f)
-                {
-                    fMaxDist = fTriRotator;
-                    dwMaxIdx = ii;
-                }
-            }
+            starboardFree += aTouchRays[i].fDist;
+            uint32_t portIdx = aTouchRays.size() - i;
+            portFree += aTouchRays[portIdx].fDist;
         }
 
-        // stop calculate section
-        auto fClosed = 0.0f;
-        if (aTouchRays[0].fDist < 1.0f)
-            fClosed = aTouchRays.size() / 4.0f;
-        for (i = 1; i < aTouchRays.size() / 4; i++)
-        {
-            i1 = i;
-            i2 = aTouchRays.size() - i;
-            if (aTouchRays[i1].fDist < 1.0f)
-                fClosed += 0.38f;
-            if (aTouchRays[i2].fDist < 1.0f)
-                fClosed += 0.38f;
-        }
-
-        // get out from my road section
-        for (i = 1; i < aTouchRays.size() / 4; i++)
-        {
-            // i1 = ;
-        }
-
-        // search new free direction
+        // Ahead clearance determines if any collision avoidance is needed
+        float fwdDist = aTouchRays[0].fDist;
+        float fClosed = (1.0f - fwdDist);
 
         fRotateFactor = 0.0f;
-        if (dwMaxIdx != 0)
-            fRotateFactor = (dwMaxIdx < aTouchRays.size() / 2) ? 2.5f : -2.5f;
-        // float fRotate = GetBestRotateDirection() * 2.5f;
+        // Avoid jitter by applying deadband and exponential smoothing: only steer when real obstacle is ahead
+        if (fwdDist < 0.70f)
+        {
+            float diff = (starboardFree - portFree) / static_cast<float>(half);
+            if (fabsf(diff) > 0.15f)
+            {
+                fRotateFactor = std::clamp(diff * 0.8f, -0.6f, 0.6f);
+            }
+        }
         GetAIShip()->GetRotateController()->AddRotate(fRotateFactor);
 
-        fClosed *= 1.6f;
-        fSpeedFactor = 1.0f - fClosed / (aTouchRays.size() / 2.0f);
-        fSpeedFactor = CLAMP(fSpeedFactor);
-        // pShip->SetSailState(fSpeedFactor);
+        // Smooth velocity damping: never dead-brake near piers or ships
+        fSpeedFactor = 1.0f - fClosed * 0.35f;
+        fSpeedFactor = std::clamp(fSpeedFactor, 0.55f, 1.0f);
     }
     else
     {

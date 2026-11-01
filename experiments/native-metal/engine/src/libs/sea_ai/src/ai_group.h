@@ -23,6 +23,8 @@ class AIGroup
 
     // ship container for this group
     std::vector<AIShip *> aGroupShips;
+  public:
+    const std::vector<AIShip *> &GetShips() const { return aGroupShips; }
 
   public:
     AIGroup(){};

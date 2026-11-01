@@ -127,8 +127,7 @@ fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
     if (span < threshold)
         return sceneColorGrade(center, colorLUT, linearClamp, gradeEnabled);
 
-    // The luma gradient chooses the edge normal.  Samples on that direction
-    // reconstruct the edge while preserving texture detail along the edge.
+    // The luma gradient chooses the edge normal.
     float2 direction = float2(-((lumaNW + lumaNE) - (lumaSW + lumaSE)),
                                ((lumaNW + lumaSW) - (lumaNE + lumaSE)));
     const float directionReduce = max(
@@ -137,13 +136,11 @@ fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
         1.0f / 128.0f);
     const float directionMin = min(abs(direction.x), abs(direction.y));
     direction *= 1.0f / (directionMin + directionReduce);
-    direction = clamp(direction, float2(-8.0f), float2(8.0f));
+    // Limit sampling reach to ±2.0 texels max to prevent wide white edge fringes on thin ropes, tracers and waves
+    direction = clamp(direction, float2(-2.0f), float2(2.0f));
     direction *= texel;
 
-    // The two candidates are centered around this pixel.  Keeping the
-    // offsets symmetric is essential: a one-sided shift leaves a visible halo
-    // on the opposite diagonal.  Linear reconstruction is used only here;
-    // center and range samples remain point reads for exact early exits.
+    // The two candidates are centered around this pixel.
     const float3 rgbA = 0.5f * (
         scene.sample(linearClamp, input.uv + direction * (1.0f / 3.0f - 0.5f)).rgb +
         scene.sample(linearClamp, input.uv + direction * (2.0f / 3.0f - 0.5f)).rgb);
@@ -151,8 +148,17 @@ fragment float4 fxaa_fs(FXAAVertex input [[stage_in]],
         scene.sample(linearClamp, input.uv - direction * 0.5f).rgb +
         scene.sample(linearClamp, input.uv + direction * 0.5f).rgb);
     const float lumaB = MSLLuma(rgbB);
-    const float3 reconstructed = (lumaB < range.minimum || lumaB > range.maximum)
-                                     ? rgbA : rgbB;
+    float3 reconstructed = (lumaB < range.minimum || lumaB > range.maximum) ? rgbA : rgbB;
+    
+    // Sub-pixel filtering: clamp reconstruction to local min/max luma range
+    // to strictly eliminate bright white silhouettes and halos around rigging/waves/smoke.
+    const float lumaRecon = MSLLuma(reconstructed);
+    if (lumaRecon > range.maximum) {
+        reconstructed *= (range.maximum / max(lumaRecon, 0.0001f));
+    } else if (lumaRecon < range.minimum) {
+        reconstructed = center.rgb;
+    }
+
     return sceneColorGrade(float4(reconstructed, center.a), colorLUT,
                            linearClamp, gradeEnabled);
 }

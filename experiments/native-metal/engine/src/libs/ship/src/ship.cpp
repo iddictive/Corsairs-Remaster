@@ -1,3 +1,4 @@
+#include <SDL2/SDL.h>
 #include "ship.h"
 #include "sea_atlas.hpp"
 #include "ship_sail_damage.hpp"
@@ -546,6 +547,10 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
         core.Controls->GetControlState("ILeftShift", shift);
         core.Controls->GetControlState("IRightShift", shift1);
         const auto held = [](const CONTROL_STATE &c) { return c.state == CST_ACTIVE || c.state == CST_ACTIVATED; };
+        const Uint8 *sdlKeys = SDL_GetKeyboardState(nullptr);
+        const bool gasActive = held(gas) || held(gas1) || (sdlKeys && sdlKeys[SDL_SCANCODE_W]);
+        const bool brakeActive = held(brake) || held(brake1) || (sdlKeys && sdlKeys[SDL_SCANCODE_S]);
+        const bool shiftActive = held(shift) || held(shift1) || (sdlKeys && (sdlKeys[SDL_SCANCODE_LSHIFT] || sdlKeys[SDL_SCANCODE_RSHIFT]));
         const auto wave = pSea ? pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset) : SeaTsunamiSample{};
         const float rise = wave.slopeX * (KNOTS2METERS(phonkDrift.worldX) + wave.directionX * wave.speed) +
                            wave.slopeZ * (KNOTS2METERS(phonkDrift.worldZ) + wave.directionZ * wave.speed);
@@ -553,8 +558,8 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
         if (wave.serial && wave.height > 3.f && rise > 3.f && !phonkFlight.airborne)
             acceleration *= 1.f + .65f * std::clamp(wave.height / wave.amplitude, 0.f, 1.f);
         phonkDrift.advance(acceleration, Strength[STRENGTH_MAIN].vRotate.y, State.vAng.y, dt,
-                           State.vSpeed.x, State.vSpeed.z, held(gas) || held(gas1),
-                           held(brake) || held(brake1), phonkFlight.airborne, held(shift) || held(shift1));
+                           State.vSpeed.x, State.vSpeed.z, gasActive,
+                           brakeActive, phonkFlight.airborne, shiftActive);
         State.vSpeed.x = 0.f;
         State.vSpeed.z = phonkDrift.magnitude();
         vSpeedAccel.z = oldForward - State.vSpeed.z;
@@ -1080,18 +1085,28 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision, GroundMotion *groundMotion)
         draft = std::max(draft, State.fShipImmersion + SP.fWaterLine - phonkFlight.hullBottom);
         const bool wasAirborne = phonkFlight.airborne, wasBuoyant = phonkFlight.buoyant;
         const float ratio = std::clamp(phonkDrift.magnitude() / storm::ship::phonk::speedCeiling, 0.f, 1.f);
-        // Phonk's cinematic vertical scale leaves ordinary native gravity and
-        // horizontal speed untouched. High-speed flight stays short/readable.
-        const float verticalGravity = fGravity * (1.f + 7.f * ratio * ratio * ratio);
+        // Natural ballistic gravity: low vertical clamping so ship can fly off waves and whirlpools
+        const float verticalGravity = fGravity * (1.f + 1.5f * ratio);
         const float supportedHeight = State.vPos.y + std::min(dtime / .025f * fRockingY, 1.f) *
             (surface - State.vPos.y);
         const bool departed = phonkFlight.support(surface, dtime, verticalGravity,
-            waveAfter.serial, waveAfter.height > 0.f, State.vPos.y, draft, supportedHeight);
+            waveAfter.serial, true, State.vPos.y, draft, supportedHeight);
         const unsigned previousImpact = phonkFlight.impactGeneration;
-        if (wasAirborne || (wasBuoyant && !departed))
+        if (wasAirborne)
             State.vPos.y = phonkFlight.advance(beforeTranslation.vPos.y, surface, dtime, fGravity, draft);
-        else if (wasBuoyant && departed) State.vPos.y = beforeTranslation.vPos.y;
-        else State.vPos.y = supportedHeight;
+        else
+            State.vPos.y = supportedHeight;
+
+        // Hard water floor clamp: the hull keel must never sink below the water surface minus draft,
+        // preventing the ship from getting trapped underwater as a submarine after whirlpool plunges.
+        if (State.vPos.y < surface - draft)
+        {
+            State.vPos.y = surface - draft;
+            phonkFlight.airborne = false;
+            phonkFlight.buoyant = false;
+            phonkFlight.settling = false;
+            phonkFlight.velocity = 0.f;
+        }
         if (phonkFlight.impactGeneration != previousImpact)
         {
             const float t = phonkFlight.impactFraction;
@@ -1274,10 +1289,11 @@ SHIP::GroundSupport SHIP::SampleGroundSupport(const SHIP_STATE &state, float flo
         float coarse;
         if (!pIsland->GetDepthFast(point.x, point.z, &coarse) ||
             (coarse < 0.f && coarse < floatingHeight - result.draft)) continue;
-        // The existing sea-depth raster encodes dry land as zero. Its sea-level
-        // downward ray cannot recover relief; trace from the height-map's ceiling.
-        const CVECTOR top(point.x, std::max(1500.f, state.vPos.y + State.vBoxSize.y), point.z);
-        const CVECTOR bottom(point.x, -500.f, point.z + .001f);
+        // Trace from local ship ceiling to relieve 2000m ray traversal per keel point
+        const float topY = std::min(state.vPos.y + 120.f, 1500.f);
+        const float botY = std::max(floatingHeight - result.draft - 20.f, -100.f);
+        const CVECTOR top(point.x, topY, point.z);
+        const CVECTOR bottom(point.x, botY, point.z + .001f);
         const float hit = pIsland->Trace(top, bottom);
         if (!std::isfinite(hit) || hit < 0.f || hit > 1.f) continue;
         auto *model = pCollide ? static_cast<COLLISION_OBJECT *>(core.GetEntityPointer(pCollide->GetObjectID())) : nullptr;
@@ -1384,7 +1400,8 @@ void SHIP::ConstrainGroundMotion(const SHIP_STATE &before, float floatingHeight,
         Contact contact;
         contact.time = 1.;
         const float turn = end.vAng.y - before.vAng.y;
-        const int steps = std::clamp(int(std::ceil(std::abs(turn) / .025f)), 1, 64);
+        // Bound sub-stepping by turn rate to prevent CPU stall (FPS drop) when touching land
+        const int steps = std::clamp(int(std::ceil(std::abs(turn) / .08f)), 1, 8);
         for (const auto &keel : vKeelContour)
         {
             if (!IsHullPositionRetained(keel)) continue;
@@ -1398,7 +1415,7 @@ void SHIP::ConstrainGroundMotion(const SHIP_STATE &before, float floatingHeight,
             for (int step = 1; step <= steps; ++step)
             {
                 const auto to = pointAt(float(step) / steps);
-                if (~(to - from) > 0.f)
+                if (~(to - from) > 0.01f)
                 {
                     const float hit = pIsland->Trace(from, to);
                     auto *model = pCollide ? static_cast<COLLISION_OBJECT *>(

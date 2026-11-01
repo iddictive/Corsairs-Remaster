@@ -490,6 +490,19 @@ void WdmStorm::Update(float dltTime)
         dir.x *= k;
         dir.z *= k;
     }
+    // Coastal deflection: storms skirt island terrain instead of stalling or grinding into peaks
+    if (wdmObjects->islands && wdmObjects->islands->ObstacleTest(pos.x + dir.x * 30.0f, pos.z + dir.z * 30.0f, 15.0f))
+    {
+        // Deflect along the tangent
+        const float rightX = dir.z;
+        const float rightZ = -dir.x;
+        const bool hitRight = wdmObjects->islands->ObstacleTest(pos.x + (dir.x + rightX) * 20.0f, pos.z + (dir.z + rightZ) * 20.0f, 12.0f);
+        const float side = hitRight ? -1.0f : 1.0f;
+        dir.x += rightX * side * 0.8f;
+        dir.z += rightZ * side * 0.8f;
+        float dlen = sqrtf(dir.x * dir.x + dir.z * dir.z);
+        if (dlen > 0.0001f) { dir.x /= dlen; dir.z /= dlen; }
+    }
     // Moving
     pos += dir * dltTime * speed;
     isKl |= (pos.x < -wdmObjects->worldSizeX * 1.4f || pos.x > wdmObjects->worldSizeX * 1.4f);

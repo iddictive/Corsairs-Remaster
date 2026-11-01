@@ -304,10 +304,17 @@ def terrain_candidate(data, spec):
                 for axis,edge,positive in ((0,bounds[0],True),(0,bounds[2],False),(2,bounds[1],True),(2,bounds[3],False)):
                     polygon=clip(polygon,axis,edge,positive)
                 selected = any(area((polygon[0],polygon[k],polygon[k+1]))>1e-7 for k in range(1,len(polygon)-1))
-            if oldtown or selected:
+            fort_tri = False
+            if texture == "jungle_gray.tga":
+                cx = sum(v[0] for v in tri) / 3.0
+                cz = sum(v[2] for v in tri) / 3.0
+                dist = math.dist((cx, cz), (1566.58, 1335.81))
+                in_fort_box = (1460.0 <= cx <= 1675.0 and 1230.0 <= cz <= 1445.0)
+                fort_tri = (dist <= 92.0) or (in_fort_box and max(v[1] for v in tri) > 35.0)
+            if oldtown or selected or fort_tri:
                 removed.add(obj[9]+j)
-                counts["town" if oldtown else "terrain"] += 1
-                if selected and not oldtown:
+                counts["town" if oldtown else ("fort" if fort_tri else "terrain")] += 1
+                if selected and not oldtown and not fort_tri:
                     local.extend(patch_triangles(tri,spec))
             else:
                 keep.append(indices)
@@ -321,7 +328,7 @@ def terrain_candidate(data, spec):
             OBJECT.pack_into(result,g["objects_offset"]+index*OBJECT.size,*row)
             for j,tri in enumerate(keep):
                 struct.pack_into("<3H",result,g["triangles_offset"]+(obj[9]+j)*6,*tri)
-    if counts["town"] not in (0, 2755) or not 1 <= counts["terrain"] <= 40:
+    if counts["town"] not in (0, 2755) or not 1 <= counts["terrain"] <= 40 or counts.get("fort", 0) not in (0, 44):
         raise ValueError(f"Unexpected Puerto Rico roles: {dict(counts)}")
     result, refs = prune_bsp(bytes(result),g,removed)
     counts["pruned_bsp_refs"] = refs

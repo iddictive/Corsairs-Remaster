@@ -25,19 +25,13 @@ void AIShipSpeedController::Execute(float fDeltaTime)
     if (!GetAIShip()->isAIControlled())
         return;
 
-    fSpeedTime += fDeltaTime;
-    dwSpeedNum++;
-    fSpeedSmooth += fSpeed;
-    if (fSpeedTime >= 2.0f)
-    {
-        fSpeedSmooth = Clamp(fSpeedSmooth / static_cast<float>(dwSpeedNum));
-        if (fSpeedSmooth > fTopSpeed)
-            fSpeedSmooth = fTopSpeed;
-        GetAIShip()->GetShipBasePointer()->SetSailState(fGlobalMultiply * fSpeed);
-        fSpeedTime = 0.0f;
-        fSpeedSmooth = 0.0f;
-        dwSpeedNum = 0;
-    }
+    // Direct progressive sail throttle with smooth exponential interpolation:
+    // Prevents discrete step fluctuations while preserving dynamic maneuvers
+    fSpeed = std::clamp(fSpeed, 0.0f, fTopSpeed);
+    const float blend = std::clamp(fDeltaTime * 4.0f, 0.05f, 1.0f);
+    fSpeedSmooth += (fSpeed - fSpeedSmooth) * blend;
+
+    GetAIShip()->GetShipBasePointer()->SetSailState(fGlobalMultiply * fSpeedSmooth);
 
     fGlobalMultiply = 1.0f;
     fSpeed = 0.0f;

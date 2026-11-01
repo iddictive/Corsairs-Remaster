@@ -1,12 +1,12 @@
 {
   "mode": "after",
-  "seconds": 0.4181258750613779,
+  "seconds": 0.3445441249932628,
   "baseline_commit": "f2dc48016e91f983e39a864b03c8254ad7b09de7",
   "runtime_source_sha256": {
-    "PROGRAM/sea_ai/sea.c": "960477a72d026c2858f182f87adfde4a6c38aea2698304b67793616decc9969e",
-    "PROGRAM/sea_ai/sea_traffic.c": "302d16d1e772c2e7c3f6fb7922c166cd3724412ec88891e94775f5b683c59f75"
+    "PROGRAM/sea_ai/sea.c": "8361ff7f1988b42376c664590d50c76dfbf8730819be2fdd71fdd658c5e099fc",
+    "PROGRAM/sea_ai/sea_traffic.c": "852d01113870ec35505319a4b936b7557d8c2dac2583fd4993b863c3c3dfb66d"
   },
-  "probe_sha256": "b3e137d5c3408d8e7a5f0b822c93918d69e63bc8e13e1dbbfab6ddfe50b3528d",
+  "probe_sha256": "43923b45ec72cf168bbafed80886bf6584aaee7b4d3c5f0e89b26bcad50f7fac",
   "fixture_sha256": "384c3cbd4f5966f9d2d75878b68363b261fdda843d5285f09c1d8c316d8f7cfe",
   "exit": 0,
   "stdout": "Run=0\nscript_errors=0\n",

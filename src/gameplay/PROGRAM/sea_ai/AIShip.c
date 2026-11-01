@@ -3591,7 +3591,12 @@ void Ship_HullHitEvent()
 	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
 	if (airburst) fCannonDamageMultiply *= Ball_AirburstPower(stf(AIBalls.CurrentAirburstDistance));
 	bool bombBlast = iBallType == GOOD_BOMBS && CheckAttribute(AIBalls, "CurrentBombBlastDistance") && stf(AIBalls.CurrentBombBlastDistance) >= 0.0;
-	if (bombBlast) fCannonDamageMultiply *= Ball_BombBlastPower(stf(AIBalls.CurrentBombBlastDistance));
+	if (bombBlast)
+	{
+		float blastPow = Ball_BombBlastPower(stf(AIBalls.CurrentBombBlastDistance));
+		if (blastPow < 0.85) blastPow = 0.85;
+		fCannonDamageMultiply *= blastPow;
+	}
 
 	ref rBall = GetGoodByType(iBallType);
 	float distanceDamageMin = 0.25;
@@ -4351,7 +4356,8 @@ void Ship_CheckMainCharacter()
 				{
 					wdmCurrentIsland = rIsland.reload.(sLocatorName).wdmisland;
 				}*/
-				float r = stf(rIsland.reload.(sLocatorName).radius);
+				float r = stf(rIsland.reload.(sLocatorName).radius) * 2.5;
+				if (r < 750.0) r = 750.0;
 				if (sqrt(sqr(x1 - x) + sqr(z1 - z)) < r)
 				{
 					bCanEnterToLand = true;
@@ -4394,12 +4400,12 @@ void Ship_CheckMainCharacter()
 		bDisableMapEnter = true;
 		rCharacter.Ship.POS.Mode = SHIP_WAR;
 	}
-    // boal fix входа в порт -->
-    if (fMinFortAbordDistance < MIN_ENEMY_DISTANCE_TO_DISABLE_ENTER_2_LOCATION)
+    // Friendly/neutral forts or normal towns do not block mooring.
+    // Only hostile active forts in combat mode block landing.
+    if (fMinFortAbordDistance < MIN_ENEMY_DISTANCE_TO_DISABLE_ENTER_2_LOCATION && fortDistance < MIN_ENEMY_DISTANCE_TO_DISABLE_MAP_ENTER_FORT)
     {
         bCanEnterToLand = false;
     }
-    // boal <--
 	bool tsunamiEncounterActive = false;
     if (bSeaTsunamiEncounter)
     {

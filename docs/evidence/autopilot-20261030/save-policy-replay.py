@@ -99,7 +99,7 @@ int Run(){
  InterfaceStates.Launched=1;SeaAutopilot_SetMode(1);
  InterfaceStates.Launched=0;SeaAutopilot_Tick();
  DiagActive=sti(pchar.Ship.Autopilot.active);
- DiagStatus=pchar.Ship.Autopilot.status;DiagReason=pchar.Ship.Autopilot.blocked;
+ if(!CheckAttribute(pchar,"Ship.Autopilot.status"))pchar.Ship.Autopilot.status="off";if(!CheckAttribute(pchar,"Ship.Autopilot.blocked"))pchar.Ship.Autopilot.blocked="";DiagStatus=pchar.Ship.Autopilot.status;DiagReason=pchar.Ship.Autopilot.blocked;
  return 0;
 }
 '''
@@ -122,6 +122,7 @@ int Run(){
 if os.environ.get('AUTOPILOT_PROBE') == 'hunt':
     cases = cases[:cases.index('int Run(){')] + r'''
 int Run(){
+ pchar=GetMainCharacter();aref rAP;makearef(rAP, pchar.Ship.Autopilot);pchar.Ship.Autopilot.status="off";pchar.Ship.Autopilot.blocked="";pchar.Ship.Autopilot.mode=0;
  pchar=GetMainCharacter();
  DiagStatus=pchar.Ship.Autopilot.status;DiagReason=pchar.Ship.Autopilot.blocked;
  DiagShip=SeaAutopilot_Mode();

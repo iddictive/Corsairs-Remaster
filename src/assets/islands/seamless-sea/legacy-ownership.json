@@ -5,7 +5,7 @@
     "tools/prepare_seamless_sea_assets.py": "f50c21e26d884e29d98ac1b635f3b7711f260ced1a27328671003bfacf5a183b",
     "src/assets/islands/seamless-sea/recipe.json": "e583c1c4efa4d02928fd04cf8f96b8eae63612136d63d022ab9ca725354c7530",
     "src/assets/islands/seamless-sea/manifest.json": "a2e6bedc8b65dab1c01cb74986135d44746d2bfb993020b11236cd8cde3b26ec",
-    "tools/prepare_puerto_rico_city.py": "6e327ac0122a6ce96596bc6567ac509f2326440bd470936d7d74f83a96fc0c50",
+    "tools/prepare_puerto_rico_city.py": "1a5379c677067c8564d1d1d58ad93e84be5f9d5e5d9024eb64603e9624b1baed",
     "tools/patch_metal_portobello_ground.py": "a3726cac177a54c3372737f010720596ef2bec168e9195d9b745e829fa32f6f4"
   },
   "files": {
@@ -38872,7 +38872,7 @@
     "terrain": 421337,
     "child:seabed": 6130
   },
-  "preparation_seconds": 35.648294875000005,
-  "peak_rss_bytes": 1538605056,
+  "preparation_seconds": 24.52769512499799,
+  "peak_rss_bytes": 1509015552,
   "policy": "Recipe-owned providers at standard legacy poses only; independent coasts protected; original bounds/VB/COL/node/BSP IDs retained; no atlas activation"
 }

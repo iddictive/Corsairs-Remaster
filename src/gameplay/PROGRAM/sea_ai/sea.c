@@ -415,14 +415,12 @@ void Sea_LandLoad()
 	ClearAllLogStrings();
 	pchar.CheckEnemyCompanionType = "Sea_LandLoad"; // откуда вход
     if (!CheckEnemyCompanionDistance2GoAway(true)) return; // && !bBettaTestMode  табличка выхода из боя
+    if (!bSeaActive || !bCanEnterToLand) return;
     
 	bSeaReloadStarted = true;
 	PauseAllSounds();
 	//ResetSoundScheme();
 	ResetSound(); // new
-
-	if (bSeaActive == false) return;
-	if (bCanEnterToLand == true)
 	{
 		Sea_ClearTownPopulation();
 		LayerFreeze(REALIZE, false);

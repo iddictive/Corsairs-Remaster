@@ -294,7 +294,9 @@ void WdmAddPlayerGroup()
 		worldMap.zeroX = worldMap.playerShipX;
 		worldMap.zeroZ = worldMap.playerShipZ;
 	}
-    if (CheckAttribute(&wdmLoginToSea, "residentResume"))
+    // Seamless Atlas coordinates always take precedence when atlas frame exists,
+    // ensuring exact geographic positioning without landing inside island cliffs or offsets.
+    if (Sea_HasAtlasFrame())
     {
         wdmLoginToSea.playerGroup.x = Sea_LocalX(psX, psZ);
         wdmLoginToSea.playerGroup.z = Sea_LocalZ(psX, psZ);

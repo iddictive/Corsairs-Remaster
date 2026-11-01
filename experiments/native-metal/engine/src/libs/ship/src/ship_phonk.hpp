@@ -114,8 +114,11 @@ struct Flight
         const float bodyTangent = buoyant ? nextTangent : (supportedHeight - bodyHeight) / dt;
         const float acceleration = sampled && sampleTime > 0.f ?
             (bodyTangent - supportVelocity) / (.5f * (dt + sampleTime)) : 0.f;
-        const bool depart = !airborne && !settling && sampled && wavePresent && serial &&
-            bodyTangent > 0.f && gravity + acceleration < 0.f &&
+        // Natural dynamic launch: depart ONLY on genuine high-speed upward wave/ramp acceleration,
+        // never from ordinary water surface dips or descending whirlpool centers.
+        const bool launchTrajectory = (bodyTangent > 4.5f) || (acceleration < -gravity * 1.5f && bodyTangent > 2.0f);
+        const bool depart = !airborne && !settling && sampled &&
+            bodyTangent > 0.f && launchTrajectory &&
             (!buoyant || (velocity > 0.f && bodyHeight >= height - std::max(.5f, draft)));
         previousSurface = sampled ? surface : height;
         surface = height; tangent = nextTangent; supportVelocity = bodyTangent; sampleTime = dt; sampled = true;
@@ -238,3 +241,4 @@ inline float pulse(float seconds)
     return std::isfinite(seconds) ? .85f + .15f * std::sin(seconds * 7.539822369f) : 0.f;
 }
 } // namespace storm::ship::phonk
+

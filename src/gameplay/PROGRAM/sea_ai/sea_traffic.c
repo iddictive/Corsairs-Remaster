@@ -251,6 +251,11 @@ void SeaTraffic_PublishRegion(string island)
     }
     bCanEnterToLand = false;
     sIslandLocator = "";
+    int targetIslandIdx = FindIsland(island);
+    if (targetIslandIdx >= 0 && !SeaFortRegionLoaded[targetIslandIdx])
+    {
+        Sea_LoadAtlasFortRegion(targetIslandIdx);
+    }
     Sea_SelectResidentIsland(island);
     BI_SetIslandData();
     // Normal sea entry checks location quest predicates. Its other listener,

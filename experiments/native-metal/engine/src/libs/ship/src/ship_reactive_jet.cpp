@@ -1,3 +1,4 @@
+#include <SDL2/SDL.h>
 #include "ship.h"
 #include "ship_contact_material.hpp"
 #include "ship_reactive_collision.hpp"
@@ -58,8 +59,21 @@ CVECTOR Angles(const CMatrix &m)
 bool Held(const char *name)
 {
     CONTROL_STATE state{};
-    core.Controls->GetControlState(name, state);
-    return state.state == CST_ACTIVE || state.state == CST_ACTIVATED;
+    if (core.Controls)
+    {
+        core.Controls->GetControlState(name, state);
+        if (state.state == CST_ACTIVE || state.state == CST_ACTIVATED)
+            return true;
+    }
+    const Uint8 *keys = SDL_GetKeyboardState(nullptr);
+    if (!keys) return false;
+    if (std::strcmp(name, "Phonk_YawLeft") == 0) return keys[SDL_SCANCODE_Q] != 0;
+    if (std::strcmp(name, "Phonk_YawRight") == 0) return keys[SDL_SCANCODE_E] != 0;
+    if (std::strcmp(name, "ILeftShift") == 0 || std::strcmp(name, "IRightShift") == 0)
+        return keys[SDL_SCANCODE_LSHIFT] != 0 || keys[SDL_SCANCODE_RSHIFT] != 0;
+    if (std::strcmp(name, "Phonk_Jet") == 0)
+        return keys[SDL_SCANCODE_LCTRL] != 0 || keys[SDL_SCANCODE_RCTRL] != 0;
+    return false;
 }
 
 CVECTOR WorldSpeed(const SHIP_STATE &state)
@@ -145,7 +159,37 @@ bool SHIP::PreparePhonkJetWorld()
 
 bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
 {
-    const bool thrust = PhonkMotionAllowed() && Held("Phonk_Jet");
+    const bool shiftUp = Held("ILeftShift") || Held("IRightShift");
+    const bool ctrlDown = Held("Phonk_Jet");
+    const float dtSeconds = DELTA_TIME(milliseconds);
+
+    if (PhonkMotionAllowed() && !prediction)
+    {
+        // Smooth persistent throttle regulation:
+        // Shift increases throttle up to 1.6x
+        // Ctrl decreases throttle down to 0.45x (cruise hover floor)
+        if (shiftUp)
+        {
+            phonkJet.flightMode = true;
+            phonkJet.throttle = std::clamp(phonkJet.throttle + dtSeconds * 0.75f, 0.45f, 1.60f);
+        }
+        else if (ctrlDown)
+        {
+            phonkJet.throttle = std::max(0.0f, phonkJet.throttle - dtSeconds * 0.85f);
+            if (phonkJet.throttle < 0.20f)
+            {
+                phonkJet.flightMode = false;
+                phonkJet.throttle = 0.0f;
+            }
+        }
+        else if (phonkJet.flightMode)
+        {
+            // Cruise floor: when flight mode is engaged, throttle holds steady at cruise (default 1.0)
+            if (phonkJet.throttle < 0.55f) phonkJet.throttle = 0.55f;
+        }
+    }
+
+    const bool thrust = PhonkMotionAllowed() && (phonkJet.flightMode || phonkJet.throttle > 0.05f || ctrlDown);
     if (!phonkJet.active && (!thrust || prediction)) return false;
     if (!pSea || bSetFixed || !milliseconds) return phonkJet.active;
     if (!PreparePhonkJetWorld())
@@ -210,22 +254,31 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
         // Sample the existing water motor response without owning its pose or
         // replacing the airborne body's momentum. Dry motion gets no water
         // traction, braking, resistance or artificial motor speed ceiling.
+        const Uint8 *sdlKeys = SDL_GetKeyboardState(nullptr);
+        const bool gasKey = Held("Ship_SailUp") || Held("Ship_SailUp1") || (sdlKeys && sdlKeys[SDL_SCANCODE_W]);
+        const bool brakeKey = Held("Ship_SailDown") || Held("Ship_SailDown1") || (sdlKeys && sdlKeys[SDL_SCANCODE_S]);
+        const bool shiftKey = Held("ILeftShift") || Held("IRightShift") || (sdlKeys && (sdlKeys[SDL_SCANCODE_LSHIFT] || sdlKeys[SDL_SCANCODE_RSHIFT]));
         storm::ship::phonk::Drift motor;
         motor.advance(storm::ship::phonk::motorAcceleration, Strength[STRENGTH_MAIN].vRotate.y,
             State.vAng.y, seconds, sailingSpeed.x, sailingSpeed.z,
-            Held("Ship_SailUp") || Held("Ship_SailUp1"), Held("Ship_SailDown") || Held("Ship_SailDown1"),
-            false, Held("ILeftShift") || Held("IRightShift"));
+            gasKey, brakeKey, false, shiftKey);
         const CVECTOR acceleration((KNOTS2METERS(motor.worldX)-body.velocity.x)/seconds, 0.f,
                                    (KNOTS2METERS(motor.worldZ)-body.velocity.z)/seconds);
         drive.waterForce = body.mass*acceleration-drive.airForce;
     }
     const float pitch = (Held("Ship_SailUp") || Held("Ship_SailUp1") ? .65f : 0.f) -
                         (Held("Ship_SailDown") || Held("Ship_SailDown1") ? .65f : 0.f);
-    const float roll = (Held("Ship_TurnLeft") ? .65f : 0.f) - (Held("Ship_TurnRight") ? .65f : 0.f);
+    // A / D наклоняет влево / вправо (Roll: крен корпуса)
+    const float roll = (Held("Ship_TurnLeft") ? -1.0f : 0.f) + (Held("Ship_TurnRight") ? 1.0f : 0.f);
+    // Q / E вращает нос корабля вокруг вертикальной оси (Yaw: Q -> нос влево, E -> нос вправо)
+    const float yawInput = (Held("Phonk_YawLeft") ? 1.2f : 0.f) - (Held("Phonk_YawRight") ? 1.2f : 0.f);
+
+    const float effectiveThrottle = phonkJet.throttle > 0.05f ? phonkJet.throttle : (thrust ? 1.0f : 0.0f);
+
     phonkJet.forces.clear();
-    if (thrust)
+    if (thrust && effectiveThrottle > 0.01f)
     {
-        const float force = phonkJet.installedThrust;
+        const float force = phonkJet.installedThrust * effectiveThrottle;
         const auto &root = storm::ship::contact::materialRoot(*phonkJet.hull.material);
         float bottom = 0.f;
         for (const auto &piece : root.pieces) bottom = std::min(bottom, float(piece.lowerY));
@@ -233,18 +286,28 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
         const auto dot = [](const CVECTOR &a, const CVECTOR &b) { return a.x*b.x+a.y*b.y+a.z*b.z; };
         const CVECTOR omega(dot(body.angularVelocity, body.pose.Vx()),
                             dot(body.angularVelocity, body.pose.Vy()), dot(body.angularVelocity, body.pose.Vz()));
-        // Differential fixed nozzles arrest rotation at the current attitude.
-        // Neither the controller nor neutral keys request a level/hover pose.
+        
+        // Active PD attitude control with strong angular damping
+        // Pitch (W/S): torque.x around lateral X axis (tilts nose down/up)
+        // Roll (A/D): torque.z around longitudinal Z axis (tilts port/starboard)
+        // Yaw (Q/E): torque.y around vertical Y axis (rotates bow left/right in horizontal plane)
         const auto torque = phonkJet.world->AngularTorque(
-            CVECTOR(4.f*(pitch-omega.x), 0.f, 4.f*(roll-omega.z)), body.mass);
-        const float armX = State.vBoxSize.x*.3f, armZ = State.vBoxSize.z*.3f;
+            CVECTOR(4.f * (pitch - omega.x), 7.5f * (yawInput - omega.y), 4.f * (roll - omega.z)), body.mass);
+        const float armX = State.vBoxSize.x * .35f, armZ = State.vBoxSize.z * .35f;
+
+        // Direct yaw steering moment around vertical axis
+        const float yawForce = (torque.y * 1.5f) / (2.f * armZ);
+
         for (unsigned i = 0; i < 4; ++i)
         {
             const float x = i & 1 ? 1.f : -1.f, z = i & 2 ? 1.f : -1.f;
-            const float thrust = force*.25f + x*(force*center.x+torque.z)/(4.f*armX) +
-                z*(force*center.z-torque.x)/(4.f*armZ);
-            phonkJet.forces.push_back({CVECTOR(x*armX, bottom-.1f, z*armZ),
-                CVECTOR(0.f, std::clamp(thrust, 0.f, force*.5f), 0.f)});
+            const float verticalThrust = force * .25f + x * (force * center.x + torque.z) / (4.f * armX) +
+                z * (force * center.z - torque.x) / (4.f * armZ);
+            // Apply true horizontal lateral thrust for pure yaw rotation without tilting
+            const float lateralThrust = (z > 0.f ? yawForce : -yawForce) * 0.5f;
+
+            phonkJet.forces.push_back({CVECTOR(x * armX, bottom - .1f, z * armZ),
+                CVECTOR(lateralThrust, std::clamp(verticalThrust, 0.f, force * .5f), 0.f)});
         }
     }
     std::vector<roundhouse::ReactiveNeighbor> neighbors;
@@ -308,17 +371,16 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
         // established native sailing owner. No quiet-water timer is required;
         // an airborne, rising or badly tilted body keeps its physical flight.
         const auto up = body.pose.Vy();
-        const bool lands = !thrust && phonkJet.wet && body.velocity.y <= 0.f &&
+        const bool lands = !phonkJet.flightMode && phonkJet.throttle <= 0.05f && phonkJet.wet && body.velocity.y <= 0.f &&
             State.vPos.y <= fluid.height+.25f &&
             up.x*fluid.normal.x+up.y*fluid.normal.y+up.z*fluid.normal.z > .94f;
         if (lands)
         {
             if (isDead()) { vOldPos=State.vPos; vOldAng=State.vAng; vCurDeadDir=CVECTOR(0.f); }
-            // Native water support owns these constrained DOFs after impact,
-            // just as native ground-to-water landing clears vertical motion.
-            // Preserve all horizontal momentum and the admissible yaw rate.
             State.vSpeed.y = State.vRotate.x = State.vRotate.z = 0.f;
             phonkJet.active = phonkJet.wet = phonkJet.preparationReported = false;
+            phonkJet.flightMode = false;
+            phonkJet.throttle = 0.0f;
             phonkJet.settledSeconds = 0.f;
             phonkJet.forces.clear();
             phonkJet.neighbors.clear();

@@ -9,6 +9,18 @@ void SeaPhonk_InitControls()
         MapControlToGroup("Phonk_Jet", "Sailing1Pers");
         MapControlToGroup("Phonk_Jet", "BattleInterfaceControls");
     }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_YawLeft"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_YawLeft", CI_GetKeyCode("KEY_Q"), 0, true);
+        MapControlToGroup("Phonk_YawLeft", "Sailing1Pers");
+        MapControlToGroup("Phonk_YawLeft", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_YawRight"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_YawRight", CI_GetKeyCode("KEY_E"), 0, true);
+        MapControlToGroup("Phonk_YawRight", "Sailing1Pers");
+        MapControlToGroup("Phonk_YawRight", "BattleInterfaceControls");
+    }
     if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Laser") ||
         objControlsState.keygroups.Sailing3Pers.Phonk_Laser == "KEY_6")
     {

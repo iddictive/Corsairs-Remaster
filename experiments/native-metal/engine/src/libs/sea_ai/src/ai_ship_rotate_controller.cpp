@@ -25,24 +25,16 @@ void AIShipRotateController::Execute(float fDeltaTime)
 {
     if (!GetAIShip()->isAIControlled())
         return;
-    fRotateTime += fDeltaTime;
-    dwRotateNum++;
-    if (fRotate < -1.0f)
-        fRotate = -1.0f;
-    if (fRotate > 1.0f)
-        fRotate = 1.0f;
-    fRotateSmooth += fRotate;
-    if (fRotateTime >= 1.0f)
-    {
-        fRotateMode = fRotateSmooth / static_cast<float>(dwRotateNum);
-        fRotateTime = 0.0f;
-        fRotateSmooth = 0.0f;
-        dwRotateNum = 0;
-    }
 
-    fRotate = 0.0f;
+    // Direct proportional steering with exponential decay smoothing:
+    // Blends target rudder angle smoothly each frame without lag or discrete step transitions
+    fRotate = std::clamp(fRotate, -1.0f, 1.0f);
+    const float blend = std::clamp(fDeltaTime * 6.0f, 0.05f, 1.0f);
+    fRotateMode += (fRotate - fRotateMode) * blend;
+
     GetAIShip()->GetShipBasePointer()->SetRotate(fGlobalMultiply * fRotateMode);
 
+    fRotate = 0.0f;
     fGlobalMultiply = 1.0f;
 }
 

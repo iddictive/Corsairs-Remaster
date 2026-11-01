@@ -800,13 +800,14 @@ void BI_LaunchCommand()
 		break;
 
 	case "BI_InstantBoarding":
-  		ActivateCharacterPerk(GetCharacter(charIdx),"InstantBoarding");
-		CharacterPerkOff(GetCharacter(charIdx),"InstantBoarding");
 		if( CheckSuccesfullBoard(GetCharacter(charIdx),GetCharacter(targetNum)) ) {
+			ActivateCharacterPerk(GetCharacter(charIdx),"InstantBoarding");
+			CharacterPerkOff(GetCharacter(charIdx),"InstantBoarding");
 			Sea_AbordageStartNow(SHIP_ABORDAGE,targetNum,true,true);
 		} else {
+			// If not yet in immediate grappling range, command the ship to close in for boarding
+			Ship_SetTaskAbordage(SECONDARY_TASK, charIdx, targetNum);
 			Log_SetStringToLog( XI_ConvertString("failed to board") );
-			Event("BI_LaunchCommand","lsls", charIdx, "BI_SailTo", targetNum, locName);
 			return;
 		}
 		break;
@@ -2205,8 +2206,9 @@ ref ProcessSailDamage()
 				}
 				else
 				{
-					float holeDmg = GetNeedDmgFromHole(holeCount,sailDmgMax,maxHoleCount);
-					if (holeDmg > sailDmg) { sailDmg = holeDmg; }
+					// Native contact holes must not impose an artificial damage floor higher than
+					// accumulated sail damage, preventing sail SP from jumping back and forth.
+					// sailDmg remains strictly monotonic based on incoming cannon fire.
 				}
 			}
 		}
@@ -2803,7 +2805,9 @@ ref ProcessRandomSailDmg()
 
 	fDmg = fTopDmg-fDmg_old;
 	if(fDmg<=0.0)	return &BI_g_fRetVal;
-	chref.ship.SP = stf(chref.ship.SP)-fDmg;
+	// Calculate total SP directly from sails structure to guarantee consistency and monotonicity
+	arSail.dmg = fTopDmg;
+	chref.ship.SP = CalculateShipSP(chref);
 
 	itmp = GetNeedHoleFromDmg(fTopDmg,sailDmgMax,mhc);
 	if(itmp>hc_old)

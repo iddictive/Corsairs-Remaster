@@ -438,6 +438,11 @@ void DATA::Set(entid_t eid)
 
 void DATA::Get(entid_t &eid)
 {
+    if (this == nullptr)
+    {
+        eid = 0;
+        return;
+    }
     // if(bRef)
     if (Data_type == VAR_REFERENCE)
     {
@@ -447,16 +452,19 @@ void DATA::Get(entid_t &eid)
             return;
         }
         Error(UNINIT_REF);
+        eid = 0;
         return;
     }
     if (bArray)
     {
         Error(NO_INDEX);
+        eid = 0;
         return;
     }
     if (!(Data_type == VAR_OBJECT || Data_type == VAR_AREFERENCE))
     {
         Error("Not object");
+        eid = 0;
         return;
     }
     eid = object_id;
@@ -464,6 +472,7 @@ void DATA::Get(entid_t &eid)
 
 bool DATA::GetPtr(uintptr_t &value)
 {
+    if (this == nullptr) { value = 0; return false; }
     // if(bRef)
     if (Data_type == VAR_REFERENCE)
     {
@@ -489,6 +498,7 @@ bool DATA::GetPtr(uintptr_t &value)
 
 bool DATA::Get(int32_t &value)
 {
+    if (this == nullptr) { value = 0; return false; }
     // if(bRef)
     if (Data_type == VAR_REFERENCE)
     {
@@ -514,6 +524,7 @@ bool DATA::Get(int32_t &value)
 
 bool DATA::Get(float &value)
 {
+    if (this == nullptr) { value = 0.0f; return false; }
     // if(bRef)
     if (Data_type == VAR_REFERENCE)
     {
@@ -539,6 +550,7 @@ bool DATA::Get(float &value)
 
 bool DATA::Get(const char *&value)
 {
+    if (this == nullptr) { value = ""; return false; }
     // if(bRef)
     if (Data_type == VAR_REFERENCE)
     {
@@ -2835,25 +2847,25 @@ void DATA::BadIndex(uint32_t index, uint32_t array_size)
 
 int32_t DATA::GetInt()
 {
-    return lValue;
+    return this ? lValue : 0;
 }
 
 uintptr_t DATA::GetPtr()
 {
-    return pValue;
+    return this ? pValue : 0;
 }
 
 float DATA::GetFloat()
 {
-    return fValue;
+    return this ? fValue : 0.0f;
 }
 
 const char *DATA::GetString()
 {
-    return sValue.c_str();
+    return this ? sValue.c_str() : "";
 }
 
 entid_t DATA::GetEntityID()
 {
-    return object_id;
+    return this ? object_id : 0;
 }

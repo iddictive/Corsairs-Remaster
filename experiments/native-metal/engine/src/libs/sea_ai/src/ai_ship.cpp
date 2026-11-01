@@ -1,4 +1,5 @@
 #include "ai_ship.h"
+#include "ai_group.h"
 #include "sailing_floor.h"
 #include "ai_fort.h"
 #include "math_inlines.h"
@@ -473,12 +474,64 @@ CVECTOR AIShip::GetAbordagePoint(VAI_INNEROBJ *pOtherObj)
 
 CVECTOR AIShip::GetFollowPoint(VAI_INNEROBJ *pOtherObj)
 {
-    const auto vDir = !(pOtherObj->GetPos() - GetPos());
-    // float fAng = GetAng().y;
-    const auto vAdd = fFollowDistance * vDir; // CVECTOR(0.0f, 0.0f, 200.0f);
-    // RotateAroundY(vAdd.x,vAdd.z,cosf(fAng),sinf(fAng));
+    // Stagger fleet companions in wedge / echelon formation with individual slot offsets
+    // so companions never collapse into one point or ram each other during leader turnabouts.
+    int followerIndex = 1;
+    auto *group = AIGroup::FindGroup(sGroupName.c_str());
+    if (group)
+    {
+        const auto &ships = group->GetShips();
+        for (size_t idx = 0; idx < ships.size(); idx++)
+        {
+            if (ships[idx] == pOtherObj)
+            {
+                followerIndex = static_cast<int>(idx);
+                break;
+            }
+        }
+    }
 
-    return vAdd;
+    // Alternating echelon: odd followers port, even followers starboard
+    float slotDist = fFollowDistance + static_cast<float>((followerIndex - 1) / 2) * (GetBoxsize().z * 1.5f + 40.0f);
+    float slotAngle = 0.0f;
+    if (followerIndex > 0)
+    {
+        float sign = (followerIndex % 2 == 1) ? -1.0f : 1.0f;
+        slotAngle = sign * (0.35f + static_cast<float>((followerIndex - 1) / 2) * 0.15f);
+    }
+
+    CVECTOR vWakeDir(-sinf(GetAng().y), 0.0f, -cosf(GetAng().y));
+    CVECTOR vBaseCandidate = vWakeDir;
+    RotateAroundY(vBaseCandidate.x, vBaseCandidate.z, cosf(slotAngle), sinf(slotAngle));
+    CVECTOR vBestAdd = slotDist * vBaseCandidate;
+    float fBestScore = -1e9f;
+
+    // Probe slot angle and nearby fallbacks for navigable water
+    const float offsets[3] = {0.0f, 0.26f, -0.26f};
+    for (int i = 0; i < 3; i++)
+    {
+        CVECTOR vCandidate = vBaseCandidate;
+        if (offsets[i] != 0.0f)
+            RotateAroundY(vCandidate.x, vCandidate.z, cosf(offsets[i]), sinf(offsets[i]));
+        CVECTOR vTarget = GetPos() + slotDist * vCandidate;
+        vTarget.y = 0.0f;
+
+        float depth = -20.0f;
+        if (AIHelper::pIsland)
+            AIHelper::pIsland->GetDepth(vTarget.x, vTarget.z, &depth);
+
+        if (depth > -3.5f) continue;
+
+        float distToFollower = sqrtf(~(pOtherObj->GetPos() - vTarget));
+        float score = -distToFollower + (i == 0 ? 30.0f : 0.0f);
+        if (score > fBestScore)
+        {
+            fBestScore = score;
+            vBestAdd = slotDist * vCandidate;
+        }
+    }
+
+    return vBestAdd;
     /*uint32_t dwIdx = aFollowPoints.Find(AI_POINT(pOtherObj));
     if (dwIdx == INVALID_ARRAY_INDEX)
     {

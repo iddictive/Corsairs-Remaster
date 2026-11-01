@@ -5,12 +5,12 @@ void NavalAmmo_InitDamage()
     Goods[GOOD_GRAPES].DamageCrew = 0.6;
     Goods[GOOD_KNIPPELS].DamageCrew = 0.075;
     Goods[GOOD_KNIPPELS].DamageHull = 5.75;
-    Goods[GOOD_BOMBS].DamageCrew = 0.125;
+    Goods[GOOD_BOMBS].DamageCrew = 0.35;
     Goods[GOOD_AIRBURST].DamageCrew = 1.2;
     Goods[GOOD_BALLS].Accuracy = 100.0;
     Goods[GOOD_GRAPES].Accuracy = 50.0;
-    Goods[GOOD_KNIPPELS].Accuracy = 35.0;
-    Goods[GOOD_BOMBS].Accuracy = 80.0;
+    Goods[GOOD_KNIPPELS].Accuracy = 45.0;
+    Goods[GOOD_BOMBS].Accuracy = 92.0;
     Goods[GOOD_AIRBURST].Accuracy = 80.0;
     Goods[GOOD_BALLS].ReloadSpeed = 1.0;
     Goods[GOOD_BOMBS].ReloadSpeed = 1.0;
@@ -29,7 +29,7 @@ void Airburst_InitGoods()
     Goods[GOOD_AIRBURST].Weight = 1;
     Goods[GOOD_AIRBURST].Units = 20;
     Goods[GOOD_AIRBURST].SpeedV0 = 0.8;
-    Goods[GOOD_AIRBURST].DamageHull = 39.0; // twice ordinary bombs
+    Goods[GOOD_AIRBURST].DamageHull = 30.0; // twice ordinary bombs
     Goods[GOOD_AIRBURST].DamageFort = 180.0;
     Goods[GOOD_AIRBURST].DamageRig = 25.2; // twice knippels
     Goods[GOOD_AIRBURST].AfraidWater = 0;
@@ -45,13 +45,13 @@ void Darts_InitGoods()
     Goods[GOOD_DARTS].Cost = 120;
     Goods[GOOD_DARTS].Weight = 1;
     Goods[GOOD_DARTS].Units = 20;
-    Goods[GOOD_DARTS].SpeedV0 = 1.3653124814;
+    Goods[GOOD_DARTS].SpeedV0 = 1.35;
     Goods[GOOD_DARTS].RangeMultiply = 2.0;
     Goods[GOOD_DARTS].MassMultiply = 0.1;
     Goods[GOOD_DARTS].NpcPirateChance = 6;
     Goods[GOOD_DARTS].NpcOtherChance = 20;
     Goods[GOOD_DARTS].NpcSupplyPerClass = 20;
-    Goods[GOOD_DARTS].HeightMultiply = 0.5773502692;
+    Goods[GOOD_DARTS].HeightMultiply = 0.5;
     Goods[GOOD_DARTS].TimeSpeedMultiply = 2.0;
     DeleteAttribute(&Goods[GOOD_DARTS], "DispersionMultiply");
     DeleteAttribute(&Goods[GOOD_DARTS], "AccuracyReferenceRange");
@@ -78,7 +78,7 @@ void InitGoods()
 	Goods[GOOD_BALLS].Weight		= 2;
 	Goods[GOOD_BALLS].Units			= 20;
 	Goods[GOOD_BALLS].SpeedV0		= 1.0;
-	Goods[GOOD_BALLS].DamageHull	= 11.5;
+	Goods[GOOD_BALLS].DamageHull	= 9;
 	Goods[GOOD_BALLS].DamageRig		= 0.5;
 	Goods[GOOD_BALLS].AfraidWater = 0;    // рудимент от к3
 	Goods[GOOD_BALLS].type				= TRADE_TYPE_AMMUNITION;
@@ -111,7 +111,7 @@ void InitGoods()
 	Goods[GOOD_BOMBS].Weight		= 1;
 	Goods[GOOD_BOMBS].Units			= 20;
 	Goods[GOOD_BOMBS].SpeedV0		= 0.8;
-	Goods[GOOD_BOMBS].DamageHull	= 19.5;
+	Goods[GOOD_BOMBS].DamageHull	= 19.0;
 	Goods[GOOD_BOMBS].DamageRig		= 1.0;
 	Goods[GOOD_BOMBS].AfraidWater = 0;
 	Goods[GOOD_BOMBS].type				= TRADE_TYPE_AMMUNITION;

@@ -17,7 +17,8 @@ struct ReactiveJet
     std::unordered_map<entid_t, JetHullCache> neighbors;
     std::vector<roundhouse::ReactiveForce> forces;
     bool active = false, wet = false, preparationReported = false;
-    float settledSeconds = 0.f, buoyancy = 1.f, installedThrust = 0.f;
+    float settledSeconds = 0.f, buoyancy = 1.f, installedThrust = 0.f, throttle = 0.f;
+    bool flightMode = false;
     uint64_t terrainStamp = 0;
     CVECTOR terrainCenter = CVECTOR(0.f);
     float terrainRadius = 0.f;

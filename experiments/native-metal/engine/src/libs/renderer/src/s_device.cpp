@@ -1865,7 +1865,7 @@ bool DX9RENDER::LoadTextureSurface(std::fstream &fileS, storm_render::Surface *s
 //################################################################################
 bool DX9RENDER::TextureSet(int32_t stage, int32_t texid)
 {
-    if (texid == -1)
+    if (texid < 0 || texid >= MAX_STEXTURES)
     {
         if (CHECKD3DERR(renderDevice->SetTexture(stage, NULL)) == true)
         {
@@ -1911,7 +1911,7 @@ bool DX9RENDER::TextureSet(int32_t stage, int32_t texid)
 //################################################################################
 bool DX9RENDER::TextureRelease(int32_t texid)
 {
-    if (texid == -1)
+    if (texid < 0 || texid >= MAX_STEXTURES)
     {
         return true;
     }
@@ -2103,8 +2103,14 @@ bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio, float magn
     const float inputPerspective = perspective;
     perspective *= FovMultiplier;
 
-    const float near_plane = fNearClipPlane; // Distance to near clipping
-    const float far_plane = fFarClipPlane;   // Distance to far clipping
+    // Safe near clipping plane: clamp near_plane >= 1.0f on massive outdoor/island scenes
+    // to preserve 24-bit/32-bit depth precision and completely eliminate Z-fighting and terrain flickering.
+    float near_plane = fNearClipPlane;
+    if (fFarClipPlane > 1500.0f && near_plane < 1.0f)
+    {
+        near_plane = 1.0f;
+    }
+    const float far_plane = fFarClipPlane;
     const float fov_horiz = perspective;     // Horizontal field of view  angle, in radians
     if (fAspectRatio < 0)
     {
