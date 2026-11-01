@@ -157,6 +157,7 @@ class SHIP : public SHIP_BASE
     bool bDead, bVisible;
     CVECTOR vDeadDir, vCurDeadDir;
     CVECTOR floodAngles = CVECTOR(0.f); // derived from saved ingress; death captures the presented pose
+    float windHeelAngle = 0.0f;
     SeaTsunamiMotion tsunamiMotion; // transient; the existing sink pose owns death/save continuation
     SeaTsunamiDrift tsunamiDrift; // transient budget; no owned velocity in saved State
     storm::ship::phonk::Drift phonkDrift; // transient; never serialized into ship velocity

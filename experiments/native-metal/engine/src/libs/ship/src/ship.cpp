@@ -1,4 +1,5 @@
 #include "ship.h"
+#include "weather_base.h"
 #include "sea_atlas.hpp"
 #include "ship_sail_damage.hpp"
 #include "ship_fire_projection.hpp"
@@ -48,6 +49,7 @@ SHIP::SHIP()
     bDead = false;
     fSailState = NAN;
     bShip2Strand = false;
+    windHeelAngle = 0.0f;
     bSetLightAndFog = false;
     iNumMasts = 0;
     iNumHulls = 0;
@@ -443,6 +445,27 @@ BOOL SHIP::CalculateNewSpeedVector(CVECTOR *Speed, CVECTOR *Rotate, bool include
         Speed->z = storm::ship::phonk::speedCeiling;
         Rotate->y = storm::ship::phonk::yawSpeed(GetMaxSpeedY(), Strength[STRENGTH_MAIN].vRotate.y);
     }
+
+    float leeway = 0.0f;
+    if (!isDead() && !bSetFixed && std::isfinite(fSailState) && fSailState >= 0.05f &&
+        !bGroundSupported && !bGroundFalling && !bLandContact && !bShip2Strand)
+    {
+        float windAngle = 0.0f;
+        float windSpeed = 0.0f;
+        if (const auto weatherId = core.GetEntityId("weather"))
+        {
+            if (auto *weather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId)))
+            {
+                windAngle = weather->GetFloat(whf_wind_angle);
+                windSpeed = weather->GetFloat(whf_wind_speed);
+            }
+        }
+        const float crossWind = sinf(windAngle - State.vAng.y);
+        const float stability = std::clamp(State.vBoxSize.x / 10.0f, 0.8f, 1.8f);
+        leeway = crossWind * (windSpeed / 15.0f) * fSailState * (1.0f / (1.0f + 0.25f * std::abs(Speed->z))) / stability;
+        leeway = std::clamp(leeway, -1.5f, 1.5f);
+    }
+    Speed->x = leeway;
 
     return true;
 }
@@ -2256,6 +2279,26 @@ void SHIP::Execute(uint32_t DeltaTime)
 
     Move(DeltaTime, false);
 
+    float targetHeel = 0.0f;
+    if (!isDead() && !bSetFixed && std::isfinite(fSailState) && fSailState >= 0.05f && pSea)
+    {
+        float windAngle = 0.0f;
+        float windSpeed = 0.0f;
+        if (const auto weatherId = core.GetEntityId("weather"))
+        {
+            if (auto *weather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId)))
+            {
+                windAngle = weather->GetFloat(whf_wind_angle);
+                windSpeed = weather->GetFloat(whf_wind_speed);
+            }
+        }
+        const float crossWind = sinf(windAngle - State.vAng.y);
+        const float stability = std::clamp(State.vBoxSize.x / 10.0f, 0.8f, 1.8f);
+        targetHeel = -crossWind * (windSpeed / 18.0f) * fSailState * (0.16f / stability);
+        targetHeel = std::clamp(targetHeel, -0.20f, 0.20f);
+    }
+    windHeelAngle += (targetHeel - windHeelAngle) * (1.0f - expf(-2.5f * fDeltaTime));
+
     if (!isDead())
     {
         const auto pos = GetPos();
@@ -2293,7 +2336,7 @@ void SHIP::Execute(uint32_t DeltaTime)
             vAng.z += whirlpoolMotion.roll;
         }
         vAng.x += floodAngles.x;
-        vAng.z += floodAngles.z;
+        vAng.z += floodAngles.z + windHeelAngle;
     }
 
     auto *pASpeed = GetACharacter()->FindAClass(GetACharacter(), "ship.speed");
@@ -3994,6 +4037,8 @@ bool SHIP::ApplyHullProjectileImpact(const CVECTOR &worldPoint, const CVECTOR &o
 {
     if(!bMounted || PhonkActive() || !GetModel() || !GetACharacter() ||
        !std::isfinite(admittedHP) || admittedHP<0.f || (!isDead() && admittedHP<=0.f)) return false;
+    // Grapeshot pellets penetrate soft targets but cannot shatter heavy oak hull structure
+    if(profile == HullProjectileProfile::Grape) return false;
     const auto validVector=[](const CVECTOR &v){return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z);};
     if(!validVector(worldPoint)||!validVector(outwardNormal)||!validVector(worldDirection)||
        (~outwardNormal)<1.e-8f||(~worldDirection)<1.e-8f) return false;

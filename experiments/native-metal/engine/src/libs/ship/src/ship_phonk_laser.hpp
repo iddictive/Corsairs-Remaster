@@ -109,6 +109,7 @@ struct LaserCutRequest
     double queuedAt=0.;
     bool releaseOnly=false;
     uint64_t rejectedFence=0;
+    uint32_t retryCount=0;
 };
 struct LaserCutTarget
 {
@@ -206,7 +207,7 @@ struct LaserState
     bool restored = false;
     bool structuralFailure = false, failureReported = false;
 };
-constexpr float laserReload = .20f, laserSampleTime = .035f, laserBurnTime = .04f;
+constexpr float laserReload = .20f, laserSampleTime = .035f, laserBurnTime = .08f;
 constexpr float laserBeamLife = .10f;
 constexpr unsigned maxLaserCuts = storm_hull_damage::MaxCutRecords;
 }

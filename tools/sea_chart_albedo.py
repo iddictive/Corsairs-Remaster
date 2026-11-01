@@ -11,7 +11,10 @@ import math
 from pathlib import Path
 import struct
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+try:
+    from PIL import Image, ImageChops, ImageDraw, ImageFilter
+except ImportError:
+    Image = ImageChops = ImageDraw = ImageFilter = None
 
 from patch_metal_portobello_ground import parse_gm
 from prepare_puerto_rico_city import vertices, metadata

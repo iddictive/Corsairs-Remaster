@@ -639,7 +639,12 @@ bool SHIP::StartPhonkLaserWork() try
     if (!bMounted || !root || !root->geo) return false;
     if(!EnsureHullMaterial())return true;
     const auto fence=hullWorkFence(model);size_t waiting=phonkLaserWork.requests.size();
-    while(waiting&&phonkLaserWork.requests.front().rejectedFence==fence){auto rejected=std::move(phonkLaserWork.requests.front());phonkLaserWork.requests.pop_front();phonkLaserWork.requests.push_back(std::move(rejected));--waiting;}
+    while(waiting&&phonkLaserWork.requests.front().rejectedFence==fence){
+        auto rejected=std::move(phonkLaserWork.requests.front());
+        phonkLaserWork.requests.pop_front();
+        if (++rejected.retryCount <= 2) phonkLaserWork.requests.push_back(std::move(rejected));
+        --waiting;
+    }
     if(!waiting)return true;
     // Ordinary cannon damage and history restoration publish one combined
     // surface. Keep the exact queued dose until that snapshot is available.
@@ -943,7 +948,14 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
         storm::ship::phonk::LaserCutWork work;
         try { work = phonkLaserWork.future.get(); }
         catch (const std::exception &) {
-            if (phonkLaserWork.active){phonkLaserWork.active->rejectedFence=hullWorkFence(GetModel());phonkLaserWork.requests.push_back(std::move(*phonkLaserWork.active));core.Trace("Ship cut future rejected; exact request retained until geometry/capacity changes");}
+            if (phonkLaserWork.active){
+                auto rejected = std::move(*phonkLaserWork.active);
+                if (++rejected.retryCount <= 2) {
+                    rejected.rejectedFence=hullWorkFence(GetModel());
+                    phonkLaserWork.requests.push_back(std::move(rejected));
+                }
+                core.Trace("Ship cut future rejected; request discarded or retried");
+            }
             phonkLaserWork.active.reset();
         }
         phonkLaserWork.cancel.reset();
@@ -999,9 +1011,13 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
                     phonkLaserWork.requests.push_front(std::move(*phonkLaserWork.active));
                 else if(identity&&!rebuilding){
                     auto rejected=std::move(*phonkLaserWork.active);
-                    rejected.rejectedFence=hullWorkFence(model);
-                    phonkLaserWork.requests.push_back(std::move(rejected));
-                    core.Trace("Ship cut rejected at node %d, phase %s; exact work retained for changed revision",work.failedNode,work.failure.empty()?"unchanged-snapshot":work.failure.c_str());
+                    if (work.failure.empty() || work.failure == "unchanged-snapshot" || ++rejected.retryCount > 2) {
+                        core.Trace("Ship cut discarded at node %d (%s); queue unblocked", work.failedNode, work.failure.c_str());
+                    } else {
+                        rejected.rejectedFence=hullWorkFence(model);
+                        phonkLaserWork.requests.push_back(std::move(rejected));
+                        core.Trace("Ship cut rejected at node %d, phase %s; retrying (attempt %u)", work.failedNode, work.failure.c_str(), rejected.retryCount);
+                    }
                 }
                 else returnImpact(phonkLaser, *phonkLaserWork.active);
             }
@@ -1012,9 +1028,10 @@ void SHIP::PollPhonkLaserWork(uint32_t delta)
     {
         auto rejected=std::move(phonkLaserWork.requests.front());
         phonkLaserWork.requests.pop_front();
-        rejected.rejectedFence=hullWorkFence(GetModel());
-        phonkLaserWork.requests.push_back(std::move(rejected));
-        core.Trace("Ship cut capture rejected; exact request and previous geometry retained until geometry/capacity changes");
+        if (++rejected.retryCount <= 2) {
+            rejected.rejectedFence=hullWorkFence(GetModel());
+            phonkLaserWork.requests.push_back(std::move(rejected));
+        }
     }
 #endif
 }
@@ -1991,6 +2008,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             LaserPlane field; field.beams = beams;
             const auto &direction = field.beams.front().direction;
             field.normal = CVECTOR(direction[0], direction[1], direction[2]);
+            field.charred = true;
             // A permanently full receiver must not retain this shooter's dose
             // forever and disable every later target. Temporary queue/fragment
             // pressure still retains the pending dose for its original owner.

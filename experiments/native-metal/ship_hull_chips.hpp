@@ -4,7 +4,7 @@ namespace storm_ship_hull {
 class ChipLease {
  inline static unsigned activeBursts=0;bool held=false;
  public:
- static constexpr unsigned particlesPerBurst=3,maxBursts=6,maxPopulation=particlesPerBurst*maxBursts;
+ static constexpr unsigned particlesPerBurst=2,maxBursts=3,maxPopulation=particlesPerBurst*maxBursts;
  ChipLease()=default;ChipLease(const ChipLease&)=delete;ChipLease&operator=(const ChipLease&)=delete;
  bool acquire(){if(held)return true;if(activeBursts>=maxBursts)return false;++activeBursts;held=true;return true;}
  void release(){if(held){--activeBursts;held=false;}}

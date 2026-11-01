@@ -258,7 +258,7 @@ void BLAST::LaunchHullChips(MESSAGE&message)
         if(!std::isfinite(nativeLength)||nativeLength<.001f){item.chip.alive=false;continue;}
         // Keep the authored broken-wood silhouette/material; normalize actual
         // mesh length instead of shrinking all three models into tiny slivers.
-        const float length=.45f+storm_ship_hull::randomUnit(seed)*std::min(.45f,radius*.7f);
+        const float length=.18f+storm_ship_hull::randomUnit(seed)*std::min(.16f,radius*.35f);
         item.chipScale=length/nativeLength;
     }
 }

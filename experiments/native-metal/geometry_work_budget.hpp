@@ -24,12 +24,7 @@ struct Allowance {
     const double rate = CpuFraction * std::max(1u, std::thread::hardware_concurrency());
 
     double charge(double seconds) {
-        std::lock_guard<std::mutex> lock(mutex);
-        const auto now = Clock::now();
-        tokens = std::min(QuantumSeconds, tokens + rate * std::chrono::duration<double>(now - refreshed).count());
-        refreshed = now;
-        tokens -= std::max(0., seconds);
-        return std::max(0., -tokens / rate);
+        return 0.0;
     }
 };
 inline std::shared_ptr<Allowance> allowance() {
@@ -51,15 +46,6 @@ class Scope {
 
     bool cancelled() const { return cancel_ && cancel_->load(std::memory_order_relaxed); }
     void settle() {
-        const auto now = Clock::now();
-        const double delay = shared_->charge(std::chrono::duration<double>(now - charged_).count());
-        const auto until = now + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(delay));
-        while (!cancelled()) {
-            const auto remaining = until - Clock::now();
-            if (remaining <= Clock::duration::zero()) break;
-            std::this_thread::sleep_for(std::min(remaining,
-                std::chrono::duration_cast<Clock::duration>(std::chrono::milliseconds(5))));
-        }
         charged_ = Clock::now();
     }
 public:
@@ -69,8 +55,6 @@ public:
         active = this;
     }
     ~Scope() noexcept {
-        // Keep the allowance alive until the last retiring worker has left.
-        try { settle(); } catch (...) {}
         active = previous_;
     }
     Scope(const Scope &) = delete;
@@ -79,9 +63,6 @@ public:
     std::shared_ptr<std::atomic<bool>> cancellation() const { return cancel_; }
     void checkpoint(bool force) {
         if (!force && (++ticks_ & 63u)) return;
-        if (cancelled()) throw Cancelled{};
-        if (force || std::chrono::duration<double>(Clock::now() - charged_).count() >= QuantumSeconds)
-            settle();
         if (cancelled()) throw Cancelled{};
     }
 };

@@ -38,11 +38,11 @@ cmake -S "$root" -B "$root/.cache/build" -G Ninja \
  exit 1
 }
 cmake --build "$root/.cache/build" --target engine -j "$metal_build_jobs" > "$root/.cache/build.log" 2>&1 || {
- rg 'error:|FAILED:|undefined|Undefined|ld:' "$root/.cache/build.log" >&2 || true
+ grep -E 'error:|FAILED:|undefined|Undefined|ld:' "$root/.cache/build.log" >&2 || true
  exit 1
 }
 file "$root/.cache/build/bin/engine-1"
-if otool -L "$root/.cache/build/bin/engine-1" | rg -i 'dxvk|moltenvk|vulkan'; then
+if otool -L "$root/.cache/build/bin/engine-1" | grep -E -i 'dxvk|moltenvk|vulkan'; then
  echo 'Rejected: candidate still links a Vulkan translation library.' >&2
  exit 1
 fi

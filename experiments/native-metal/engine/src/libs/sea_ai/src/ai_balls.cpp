@@ -1025,10 +1025,10 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 // RS_RECT * pRSR = &aBallRects[aBallRects.Add()];
                 RS_RECT *pRSR = &aBallRects.back();
                 pRSR->vPos = pBall->vPos;
-                pRSR->dwColor = heated ? 0x00FF6040 : 0xFFFFFF;
-                pRSR->dwSubTexture = fragment && grapes != aBallTypes.end() ? grapes->dwSubTexIndex : pBallsType->dwSubTexIndex;
+                pRSR->dwColor = heated ? 0x00FF6040 : (fragment ? 0x00FFAA40 : 0xFFFFFF);
+                pRSR->dwSubTexture = fragment ? 2 : pBallsType->dwSubTexIndex;
                 pRSR->fAngle = pBall->fTime * 3.0f;
-                pRSR->fSize = fragment ? 0.30f : pBallsType->fSize * pBall->fSizeMultiply;
+                pRSR->fSize = fragment ? 0.09f : pBallsType->fSize * pBall->fSizeMultiply;
             }
         }
     }

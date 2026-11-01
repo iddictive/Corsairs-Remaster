@@ -19,7 +19,7 @@ staged="$root/.cache/build/bin/engine-1"
 dest_app="/Applications/Corsairs Iddictive Remaster.app"
 dest="$dest_app/Contents/MacOS/metal-engine"
 backup_dir="$root/.cache/installed-engine-backup"
-if ps -axo comm= | rg '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/null; then
+if ps -axo comm= | grep -E '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/null; then
     echo 'Close the running game before installing the Metal engine.' >&2
     exit 1
 fi

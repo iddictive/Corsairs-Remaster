@@ -57,7 +57,7 @@ void CreateBallsEnvironment()
 	Bombs.Particle = "bomb_smoke";
 
 	// Grapes
-	Grapes.SubTexIndex = 1;		Grapes.Size = 0.055;		Grapes.GoodIndex = GOOD_GRAPES;
+	Grapes.SubTexIndex = 2;		Grapes.Size = 0.055;		Grapes.GoodIndex = GOOD_GRAPES;
 	Grapes.Particle = "grapes_tracer";
 
 	// Balls
@@ -254,8 +254,31 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 		AIBalls.Event = "@airburst:" + GOOD_AIRBURST;
 	}
 
-	EntityUpdate(1);
-	AIBalls.Add = "";
+	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_GRAPES)
+	{
+		float baseDir = stf(AIBalls.Dir);
+		float baseAng = stf(AIBalls.Ang);
+		float baseSpd = stf(AIBalls.SpdV0);
+		float baseSize = stf(AIBalls.SizeMultiply);
+		AIBalls.SizeMultiply = baseSize * 0.40;
+
+		int iPellets = 6;
+		for (int ig = 0; ig < iPellets; ig++)
+		{
+			// Физический сноп рассеивания картечи
+			AIBalls.Dir = baseDir + (frnd() - 0.5) * 0.055;
+			AIBalls.Ang = baseAng + (frnd() - 0.5) * 0.038;
+			AIBalls.SpdV0 = baseSpd * (0.94 + frnd() * 0.12);
+
+			EntityUpdate(1);
+			AIBalls.Add = "";
+		}
+	}
+	else
+	{
+		EntityUpdate(1);
+		AIBalls.Add = "";
+	}
 
 	string sParticleName = "cancloud_fire";		// if (sti(aCharacter.ship.type) < SHIP_CORVETTE)
 
@@ -320,9 +343,10 @@ void Ball_FortHit()
 	y = GetEventData();
 	z = GetEventData();
 
+	// Каменные форты не должны выбивать деревянные доски (blast содержит wood-эмиттер)
 	if (rand(4) == 1)
 	{
-		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
 	}
 	SendMessage(&AIFort, "llfff", AI_MESSAGE_FORT_HIT, iCharacterIndex, x, y, z);
 }
@@ -338,9 +362,10 @@ void Ball_IslandHit()
 	y = GetEventData();
 	z = GetEventData();
 
+	// Скалы и земля не должны выбивать деревянные доски
 	if (rand(2) == 1)
 	{
-		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
 	}
 
 	//Ship_SetLightsOff(&Characters[1], 15.0, true, true, false);

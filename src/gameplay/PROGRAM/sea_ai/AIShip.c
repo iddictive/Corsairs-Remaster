@@ -1321,13 +1321,16 @@ float Ship_MastDamage()
 					mastDose = 0.1;
 				break;
 				case GOOD_GRAPES:
-					mastDose = 0.05;
+					mastDose = 0.01;
 				break;
 				case GOOD_KNIPPELS:
 					mastDose = 0.25;
 				break;
 				case GOOD_BOMBS:
-					mastDose = 0.15;
+					mastDose = 0.18;
+				break;
+				case GOOD_AIRBURST:
+					mastDose = 0.22;
 				break;
 				case GOOD_DARTS:
 					mastDose = 0.025;
@@ -3612,8 +3615,7 @@ void Ship_HullHitEvent()
 		break;
 		case GOOD_GRAPES:
 			bSeriousBoom = false;
-			Play3DSound("grapes2bort", x, y, z);
-            if (rand(100) < 30) {Play3DSound("episode_boom", x, y, z);}
+			if (rand(3) == 0) Play3DSound("grapes2bort", x, y, z);
 		break;
 		case GOOD_KNIPPELS:
 			bSeriousBoom = false;
@@ -3636,9 +3638,14 @@ void Ship_HullHitEvent()
 	// A weak near miss cannot turn into an unscaled magazine explosion.
 	if (bombBlast) bSeriousBoom = false;
 	fTmpCannonDamage = fCannonDamageMultiply * stf(rBall.DamageHull);
-	if (rand(2) == 1)
+	// Ограничиваем спам взрывов и досок: бомбы взрываются часто, обычные ядра - умеренно
+	if (iBallType == GOOD_BOMBS)
 	{
-		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		if (rand(2) == 1) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+	}
+	else if (iBallType != GOOD_GRAPES && iBallType != GOOD_DARTS)
+	{
+		if (rand(5) == 0) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
 	}
 
     if (sti(rOurCharacter.TmpPerks.ShipDefenseProfessional) && rand(1000) < 700) { bSeriousBoom = false; }				// no seriouse boom
@@ -3802,7 +3809,7 @@ void Ship_DeckCrewImpact(ref rCharacter, int ammo, bool airburst, float x, float
 	float radius = 5.0;
 	float lethalRadius = 1.2;
 	float impulse = 10.0;
-	if (ammo == GOOD_GRAPES) { radius = 7.0; lethalRadius = 1.8; impulse = 8.0; }
+	if (ammo == GOOD_GRAPES) { radius = 4.0; lethalRadius = 1.2; impulse = 2.0; }
 	if (ammo == GOOD_KNIPPELS) { lethalRadius = 1.5; impulse = 12.0; }
 	if (ammo == GOOD_BOMBS || ammo == GOOD_AIRBURST)
 	{
