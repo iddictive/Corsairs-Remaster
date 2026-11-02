@@ -1235,6 +1235,12 @@
       "legacy": [
         "8c4aaf4efbc3571b1a78acf99d75e6e66fb662b35c17c9aa1457d6ea89f5426b"
       ]
+    },
+    "PROGRAM/interface/items.c": {
+      "encoding": "cp1251",
+      "legacy": [
+        "e4cff0737150de77e3be5b21be1fffd09f9405cc804bbe842e0644a46dbdb92e"
+      ]
     }
   }
 }

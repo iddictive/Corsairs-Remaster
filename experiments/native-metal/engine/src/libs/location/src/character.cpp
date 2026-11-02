@@ -23,6 +23,13 @@
 #include "math_inlines.h"
 #include "string_compare.hpp"
 #include "v_data.h"
+#include "v_file_service.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 //============================================================================================
 
@@ -624,6 +631,7 @@ Character::Character()
 
 Character::~Character()
 {
+    ClearUnarmedPose();
     CancelRoundhouse();
     auto *m = static_cast<MODEL *>(core.GetEntityPointer(mdl));
     if (m)
@@ -1371,10 +1379,17 @@ bool Character::SetFightMode(bool _isFight, bool isPlayAni)
     isNFHit = false;
     const bool old = isFight;
     isFight = _isFight;
+    if (!isFight) ClearUnarmedPose();
     if (isFight)
     {
         radius = radiusFgt;
-        if (isPlayAni)
+        if (isFightWOWps)
+        {
+            // Unarmed: skip the saber drawing animation completely
+            priorityAction.SetName(nullptr);
+            isSetPriorityAction = false;
+        }
+        else if (isPlayAni)
         {
             if (!SetPriorityAction(CHARACTER_NORM_TO_FIGHT))
             {
@@ -1391,7 +1406,13 @@ bool Character::SetFightMode(bool _isFight, bool isPlayAni)
     else
     {
         radius = radiusNrm;
-        if (isPlayAni)
+        if (isFightWOWps)
+        {
+            // Unarmed: skip the saber sheathing animation completely
+            priorityAction.SetName(nullptr);
+            isSetPriorityAction = false;
+        }
+        else if (isPlayAni)
         {
             if (!SetPriorityAction(CHARACTER_FIGHT_TO_NORM))
             {
@@ -2463,6 +2484,7 @@ void Character::Update(float dltTime)
         }
         */
         UpdateAnimation();
+        UpdateUnarmedPose(dltTime);
     }
     // Analyzing detectors
     for (int32_t i = 0; i < numDetectors; i++)
@@ -2675,6 +2697,12 @@ void Character::ActionEvent(const char *actionName, Animation *animation, int32_
     if (IsRoundhouseControlled()) return;
     if (index != 0)
         return;
+    // The animation player ends before it checks events when a long frame
+    // crosses the end. Deliver the pending contact before clearing fight state.
+    if (event == ae_end && unarmedStrikePending && !unarmedStrikeDelivered && isFightWOWps &&
+        (unarmedReverse ? animation->Player(0).GetPosition() <= 0.0f : animation->Player(0).GetPosition() >= 1.0f) && actionName &&
+        storm::iEquals(actionName, unarmedStrikeAction.c_str()))
+        ActionEvent(animation, 0, "Attack");
     if (event == ae_end)
         curIdleIndex = -1;
 
@@ -2789,7 +2817,28 @@ void Character::ActionEvent(Animation *animation, int32_t playerIndex, const cha
     }
     else if ((alliace = GetValueByPrefix(eventName, "SndAlliace_")) != nullptr)
     {
-        PlaySound(alliace);
+        if (isFightWOWps)
+        {
+            if (storm::iEquals(alliace, "sword_sh") || storm::iEquals(alliace, "sword_out"))
+            {
+                // Unarmed mode: no steel drawing sounds
+            }
+            else if (storm::iEquals(alliace, "attack_thrust1") || storm::iEquals(alliace, "attack_thrust2") ||
+                     storm::iEquals(alliace, "attack_slash1") || storm::iEquals(alliace, "attack_slash2") ||
+                     storm::iEquals(alliace, "attack_round") || storm::iEquals(alliace, "attack_break") ||
+                     storm::iEquals(alliace, "attack_feint") || storm::iEquals(alliace, "attack_feintc"))
+            {
+                PlaySound("ambush_punch");
+            }
+            else
+            {
+                PlaySound(alliace);
+            }
+        }
+        else
+        {
+            PlaySound(alliace);
+        }
     }
     else
         /*
@@ -2828,6 +2877,15 @@ void Character::ActionEvent(Animation *animation, int32_t playerIndex, const cha
         }
         else if (storm::iEquals(eventName, "Attack"))
         {
+            if (isFightWOWps && (fgtCurType == fgt_attack_fast || fgtCurType == fgt_attack_force ||
+                                 fgtCurType == fgt_attack_break))
+            {
+                if (IsDead() || IsDialog() || !isFight || priorityAction.name || !unarmedStrikePending ||
+                    unarmedStrikeDelivered || !unarmedBank ||
+                    !storm::iEquals(actionName, unarmedStrikeAction.c_str())) return;
+                unarmedStrikeDelivered = true;
+                SampleUnarmedPose(*animation, unarmedContactPhase);
+            }
             CheckAttackHit(false);
         }
         else if (storm::iEquals(eventName, "GBAttack"))
@@ -3194,6 +3252,11 @@ void Character::ReleaseSound(int32_t id)
 
 bool Character::zLoadModel(MESSAGE &message)
 {
+    ClearUnarmedPose();
+    unarmedBank.reset();
+    unarmedBankAttempted = false;
+    unarmedRig.clear();
+    unarmedEventPhases.clear();
     CancelRoundhouse();
     roundhouseState.reset();
     char mpath[300];
@@ -3202,6 +3265,7 @@ bool Character::zLoadModel(MESSAGE &message)
     core.EraseEntity(mdl);
     const std::string &name = message.String();
     const std::string &ani = message.String();
+    unarmedRig = ani;
     // Path to textures
     auto *gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
     if (gs)
@@ -3352,13 +3416,19 @@ bool Character::zSetBlade(MESSAGE &message)
         nBladeIdx = message.Long();
     } // else "lsfll"
 
-    isBladeSet = false;
     const std::string &name = message.String();
-    isBladeSet = true;
-    if (name.empty())
+    if (nBladeIdx == 0)
     {
-        isBladeSet = false;
-        SetFightMode(false);
+        const bool newUnarmedEquipped = storm::iEquals(name, "unarmed");
+        if ((isUnarmedForced || newUnarmedEquipped) != isFightWOWps)
+        {
+            if (unarmedStrikePending) StopFightAnimation();
+            else ClearUnarmedPose();
+        }
+        isUnarmedEquipped = newUnarmedEquipped;
+        isFightWOWps = isUnarmedForced || isUnarmedEquipped;
+        isBladeSet = !name.empty();
+        if (name.empty()) SetFightMode(false);
     }
 
     // sabergun
@@ -3593,8 +3663,32 @@ uint32_t Character::zExMessage(MESSAGE &message)
         }
         if (storm::iEquals(msg, "SetFightWOWeapon"))
         {
-            isFightWOWps = message.Long() != 0;
+            const bool newUnarmedForced = message.Long() != 0;
+            if ((newUnarmedForced || isUnarmedEquipped) != isFightWOWps)
+            {
+                if (unarmedStrikePending) StopFightAnimation();
+                else ClearUnarmedPose();
+            }
+            isUnarmedForced = newUnarmedForced;
+            isFightWOWps = isUnarmedForced || isUnarmedEquipped;
             UpdateWeapons();
+            return 1;
+        }
+        if (storm::iEquals(msg, "TriggerRagdollFall"))
+        {
+            if (IsDead() || IsDialog() || IsRoundhouseControlled())
+            {
+                core.Trace("Sneak knockout: ragdoll rejected actor=%llu (dead, in dialog or already controlled)",
+                           static_cast<unsigned long long>(GetId()));
+                return 0;
+            }
+            const CVECTOR point = curPos + CVECTOR(0.0f, height * 0.7f, 0.0f);
+            const CVECTOR impulse(30.0f * sinf(ay), 2.0f, 30.0f * cosf(ay));
+            if (!BeginRoundhouseFall(point, impulse))
+            {
+                core.Trace("Sneak knockout: ragdoll unavailable actor=%llu", static_cast<unsigned long long>(GetId()));
+                return 0;
+            }
             return 1;
         }
         if (storm::iEquals(msg, "LockFightMode"))
@@ -4043,6 +4137,207 @@ bool Character::SetAction(const char *actionName, float tblend, float movespeed,
     return res;
 }
 
+void Character::ClearUnarmedPose()
+{
+    if (unarmedPoseActive)
+        if (auto *model = Model())
+            if (auto *animation = model->GetAnimation()) animation->ClearPoseOverride();
+    unarmedPoseActive = false;
+    unarmedAction.clear();
+    unarmedTime = 0.0f;
+    unarmedStrikePending = false;
+    unarmedStrikeDelivered = false;
+    unarmedStrikeAction.clear();
+}
+
+bool Character::PrepareUnarmedBank(Animation &animation)
+{
+    if (!unarmedBankAttempted)
+    {
+        unarmedBankAttempted = true;
+        auto *service = static_cast<AnimationService *>(core.GetService("AnimationServiceImp"));
+        auto rigs = fio ? fio->OpenIniFile("RESOURCE\\INI\\roundhouse-rigs.ini") : nullptr;
+        char source[128] = {};
+        if (service && rigs && !unarmedRig.empty() &&
+            rigs->GetInt(unarmedRig.c_str(), "supported", 0) == 1 &&
+            rigs->ReadString(unarmedRig.c_str(), "source", source, sizeof(source), "") && source[0])
+            unarmedBank.reset(service->CreateAnimation(("Unarmed_" + std::string(source)).c_str()));
+        if (unarmedBank && unarmedBank->GetNumBones() == animation.GetNumBones())
+        {
+            for (int i = 0; i < animation.GetNumBones(); ++i)
+            {
+                bool compatible = unarmedBank->GetBoneParent(i) == animation.GetBoneParent(i);
+                const auto &expected = animation.GetInverseBindMatrix(i);
+                const auto &actual = unarmedBank->GetInverseBindMatrix(i);
+                for (int j = 0; compatible && j < 16; ++j)
+                    compatible = std::isfinite(actual.matrix[j]) && std::isfinite(expected.matrix[j]) &&
+                                 std::fabs(actual.matrix[j] - expected.matrix[j]) < 0.001f;
+                if (!compatible)
+                {
+                    unarmedBank.reset();
+                    break;
+                }
+            }
+        }
+        else unarmedBank.reset();
+        if (!unarmedBank)
+            core.Trace("Unarmed: missing or incompatible animation bank for rig '%s'", unarmedRig.c_str());
+    }
+    return unarmedBank != nullptr;
+}
+
+bool Character::PrepareUnarmedStrike(Animation &animation, const char *baseAction, const char *poseAction,
+                                     int frames, float contact)
+{
+    if (!baseAction || !PrepareUnarmedBank(animation)) return false;
+    auto cached = unarmedEventPhases.find(baseAction);
+    if (cached == unarmedEventPhases.end())
+    {
+        UnarmedTiming timing;
+        const std::string path = "RESOURCE\\animation\\" + unarmedRig + ".ani";
+        auto ini = fio ? fio->OpenIniFile(path.c_str()) : nullptr;
+        if (ini)
+        {
+            const int start = ini->GetInt(baseAction, "start_time", -1);
+            const int end = ini->GetInt(baseAction, "end_time", -1);
+            char type[32], loop[32], event[256];
+            ini->ReadString(baseAction, "type", type, sizeof(type), "normal");
+            const bool hasLoop = ini->ReadString(baseAction, "loop", loop, sizeof(loop), "false");
+            timing.reverse = storm::iEquals(type, "reverse");
+            if (start >= 0 && end > start && (storm::iEquals(type, "normal") || timing.reverse) &&
+                hasLoop && storm::iEquals(loop, "false") && ini->ReadString(baseAction, "event", event, sizeof(event), ""))
+            {
+                int count = 0;
+                bool gunBladeAttack = false;
+                do
+                {
+                    char name[64] = {}, direction[32] = {};
+                    int frame = 0, offset = 0;
+                    if (std::sscanf(event, " \"%63[^\"]\" , %d%n", name, &frame, &offset) != 2) continue;
+                    if (storm::iEquals(name, "GBAttack")) { gunBladeAttack = true; continue; }
+                    if (!storm::iEquals(name, "Attack")) continue;
+                    const char *tail = event + offset;
+                    const bool percent = *tail == '%';
+                    if (percent) ++tail;
+                    const bool hasDirection = std::sscanf(tail, " , %31[a-zA-Z]", direction) == 1;
+                    if (timing.reverse && (!hasDirection ||
+                        (!storm::iEquals(direction, "reverse") && !storm::iEquals(direction, "always")))) continue;
+                    if (!timing.reverse && hasDirection && storm::iEquals(direction, "reverse")) continue;
+                    ++count;
+                    const float position = percent ? std::clamp(frame / 100.0f, 0.0f, 1.0f)
+                                                  : std::clamp(float(frame - start) / float(end - start), 0.0f, 1.0f);
+                    timing.phase = timing.reverse ? 1.0f - position : position;
+                } while (ini->ReadStringNext(baseAction, "event", event, sizeof(event)));
+                if (gunBladeAttack || count != 1 || timing.phase <= 0.0f || timing.phase >= 1.0f) timing.phase = -1.0f;
+            }
+        }
+        cached = unarmedEventPhases.emplace(baseAction, timing).first;
+    }
+    auto &player = unarmedBank->Player(0);
+    if (cached->second.phase < 0.0f || !player.SetAction(poseAction) || player.GetFrames() != frames || !player.Play())
+    {
+        core.Trace("Unarmed: cannot prepare strike rig='%s' base='%s' pose='%s'", unarmedRig.c_str(), baseAction, poseAction);
+        return false;
+    }
+    player.SetAutoStop(false);
+    player.Pause();
+    unarmedAction = poseAction;
+    unarmedStrikeAction = baseAction;
+    unarmedEventPhase = cached->second.phase;
+    unarmedReverse = cached->second.reverse;
+    unarmedContactPhase = contact;
+    unarmedStrikePending = false;
+    unarmedStrikeDelivered = false;
+    return true;
+}
+
+void Character::SampleUnarmedPose(Animation &animation, float phase)
+{
+    unarmedBank->Player(0).SetPosition(std::clamp(phase, 0.0f, 1.0f));
+    unarmedBank->EvaluatePose();
+    unarmedPalette.resize(unarmedBank->GetNumBones());
+    for (int i = 0; i < unarmedBank->GetNumBones(); ++i)
+        unarmedPalette[i] = unarmedBank->GetAnimationMatrix(i);
+    animation.SetPoseOverride(unarmedPalette.data(), static_cast<int>(unarmedPalette.size()));
+    unarmedPoseActive = true;
+}
+
+void Character::UpdateUnarmedPose(float seconds)
+{
+    auto *model = Model();
+    auto *animation = model ? model->GetAnimation() : nullptr;
+    // The dialogue sneak uses the ordinary actor action as its clock, but its
+    // visible pose must be a fist strike even when a blade remains equipped.
+    if (animation && IsPlayer() && !IsDead() && !IsDialog() && !IsRoundhouseControlled() &&
+        priorityAction.name && storm::iEquals(priorityAction.name, "ambush_punch") &&
+        PrepareUnarmedBank(*animation))
+    {
+        auto &player = unarmedBank->Player(0);
+        if (unarmedAction != "unarmed_cross")
+        {
+            if (!player.SetAction("unarmed_cross") || !player.Play()) { ClearUnarmedPose(); return; }
+            player.SetAutoStop(false);
+            player.Pause();
+            unarmedAction = "unarmed_cross";
+        }
+        const float base = animation->Player(0).GetPosition();
+        constexpr float strike = 10.0f / 34.0f;
+        constexpr float contact = 9.0f / 19.0f;
+        const float phase = base <= strike ? base * contact / strike
+            : contact + (base - strike) * (1.0f - contact) / (1.0f - strike);
+        SampleUnarmedPose(*animation, phase);
+        return;
+    }
+    if (!animation || !isFight || !isFightWOWps || IsDead() || IsDialog() || isSwim || isJump ||
+        priorityAction.name || IsRoundhouseControlled())
+    {
+        ClearUnarmedPose();
+        return;
+    }
+    const char *action = nullptr;
+    switch (fgtCurType)
+    {
+    case fgt_attack_fast: action = "unarmed_jab"; break;
+    case fgt_attack_force: action = "unarmed_cross"; break;
+    case fgt_attack_break: action = "unarmed_uppercut"; break;
+    case fgt_strafe_l: action = "unarmed_dodge_left"; break;
+    case fgt_strafe_r: action = "unarmed_dodge_right"; break;
+    case fgt_block:
+    case fgt_blockhit: action = "unarmed_block"; break;
+    case fgt_none: if (!isMove && !userIdle.name) action = "unarmed_idle"; break;
+    default: break;
+    }
+    if (unarmedStrikePending && fgtCurType != fgt_attack_fast && fgtCurType != fgt_attack_force &&
+        fgtCurType != fgt_attack_break)
+        ClearUnarmedPose();
+    if (!action || !PrepareUnarmedBank(*animation)) { ClearUnarmedPose(); return; }
+
+    auto &player = unarmedBank->Player(0);
+    if (unarmedAction != action)
+    {
+        if (!player.SetAction(action) || !player.Play())
+        {
+            core.Trace("Unarmed: missing pose '%s' for rig '%s'", action, unarmedRig.c_str());
+            ClearUnarmedPose();
+            unarmedBank.reset();
+            return;
+        }
+        player.SetAutoStop(false);
+        player.Pause();
+        unarmedAction = action;
+        unarmedTime = 0.0f;
+    }
+    unarmedTime += std::max(seconds, 0.0f);
+    float phase = animation->Player(0).GetPosition();
+    if (unarmedStrikePending && unarmedReverse) phase = 1.0f - phase;
+    if (fgtCurType == fgt_none) phase = std::fmod(unarmedTime, 1.0f);
+    if (fgtCurType == fgt_block || fgtCurType == fgt_blockhit) phase = std::min(unarmedTime / 0.3f, 0.5f);
+    if (unarmedStrikePending)
+        phase = phase <= unarmedEventPhase ? phase * unarmedContactPhase / unarmedEventPhase
+            : unarmedContactPhase + (phase - unarmedEventPhase) * (1.0f - unarmedContactPhase) / (1.0f - unarmedEventPhase);
+    SampleUnarmedPose(*animation, phase);
+}
+
 void Character::UpdateAnimation()
 {
     if (IsRoundhouseControlled()) return;
@@ -4367,26 +4662,52 @@ void Character::UpdateAnimation()
                           }
                         }
                  */
-                const char *pWeaponID;
+                const char *pWeaponID = "";
                 VDATA *pdat = core.Event("eGetWeaponID", "s", characterID);
                 if (pdat)
                 {
-                    pWeaponID = pdat->GetString();
+                    if (const char *weapon = pdat->GetString()) pWeaponID = weapon;
                 }
                 VDATA *vd = nullptr;
                 float recoilDist;
+                const auto setPunch = [&](const ActionCharacter &base, const char *pose, int frames, float contact) {
+                    auto *model = Model();
+                    auto *animation = model ? model->GetAnimation() : nullptr;
+                    if (!animation || !PrepareUnarmedStrike(*animation, base.name, pose, frames, contact))
+                    {
+                        ClearUnarmedPose();
+                        return false;
+                    }
+                    if (!SetAction(base.name, base.tblend, 0.0f, 4.0f))
+                    {
+                        ClearUnarmedPose();
+                        return false;
+                    }
+                    unarmedStrikePending = true;
+                    return true;
+                };
+
+                if (isFightWOWps && (fgtSetType == fgt_attack_round || fgtSetType == fgt_attack_feint ||
+                                     fgtSetType == fgt_attack_feintc))
+                {
+                    core.Trace("Unarmed: no authored pose for fight action %s", fightNamesTbl[fgtSetType]);
+                    fgtSetType = fgt_none;
+                    fgtSetIndex = -1;
+                    return;
+                }
 
                 switch (fgtSetType)
                 {
                 case fgt_attack_fast: // Quick hit
-                    if (!(isSet = SetAction(attackFast[fgtSetIndex].name, attackFast[fgtSetIndex].tblend, 0.0f, 4.0f)))
+                    if (!(isSet = isFightWOWps ? setPunch(attackFast[fgtSetIndex], "unarmed_jab", 14, 6.0f / 14.0f)
+                                              : SetAction(attackFast[fgtSetIndex].name, attackFast[fgtSetIndex].tblend, 0.0f, 4.0f)))
                     {
                         core.Trace("Character animation: not set fast attack action: \"%s\"",
                                    attackFast[fgtSetIndex].name);
                     }
                     else
                     {
-                        core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
+                        if (!isFightWOWps) core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
                         core.Event("Event_ChrSnd_Attack", "is", GetId(), "fast");
                         // boal transfer at the moment of hit core.Event ("ChrFgtActApply", "is", GetId (),
                         // FGT_ATTACK_FAST);
@@ -4395,20 +4716,19 @@ void Character::UpdateAnimation()
                     }
                     break;
                 case fgt_attack_force: // Slash and lunge with a slashing blow
-                    if (storm::iEquals(pWeaponID, "topor") && fgtSetIndex == 3)
+                    if (!isFightWOWps && storm::iEquals(pWeaponID, "topor") && fgtSetIndex == 3)
                     {
-                        // if with an ax, then the lunge is changed to a chopping blow
                         fgtSetIndex = rand() % 2;
                     }
-                    if (!(isSet =
-                              SetAction(attackForce[fgtSetIndex].name, attackForce[fgtSetIndex].tblend, 0.0f, 4.0f)))
+                    if (!(isSet = isFightWOWps ? setPunch(attackForce[fgtSetIndex], "unarmed_cross", 19, 9.0f / 19.0f)
+                                              : SetAction(attackForce[fgtSetIndex].name, attackForce[fgtSetIndex].tblend, 0.0f, 4.0f)))
                     {
                         core.Trace("Character animation: not set force attack action: \"%s\"",
                                    attackForce[fgtSetIndex].name);
                     }
                     else
                     {
-                        core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
+                        if (!isFightWOWps) core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
                         core.Event("Event_ChrSnd_Attack", "is", GetId(), "force");
                         // boal transfer at the moment of hit core.Event ("ChrFgtActApply", "is", GetId (),
                         // FGT_ATTACK_FORCE);
@@ -4425,7 +4745,7 @@ void Character::UpdateAnimation()
                     }
                     else
                     {
-                        core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
+                        if (!isFightWOWps) core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
                         core.Event("Event_ChrSnd_Attack", "is", GetId(), "round");
                         // boal transfer at the moment of hit core.Event ("ChrFgtActApply", "is", GetId (),
                         // FGT_ATTACK_ROUND);
@@ -4433,15 +4753,15 @@ void Character::UpdateAnimation()
                     }
                     break;
                 case fgt_attack_break: // Piercing blow
-                    if (!(isSet =
-                              SetAction(attackBreak[fgtSetIndex].name, attackBreak[fgtSetIndex].tblend, 0.0f, 4.0f)))
+                    if (!(isSet = isFightWOWps ? setPunch(attackBreak[fgtSetIndex], "unarmed_uppercut", 21, 13.0f / 21.0f)
+                                              : SetAction(attackBreak[fgtSetIndex].name, attackBreak[fgtSetIndex].tblend, 0.0f, 4.0f)))
                     {
                         core.Trace("Character animation: not set break attack action: \"%s\"",
                                    attackBreak[fgtSetIndex].name);
                     }
                     else
                     {
-                        core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
+                        if (!isFightWOWps) core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
                         core.Event("Event_ChrSnd_Attack", "is", GetId(), "break");
                         // boal transfer at the moment of hit core.Event ("ChrFgtActApply", "is", GetId (),
                         // FGT_ATTACK_BREAK);
@@ -4457,7 +4777,7 @@ void Character::UpdateAnimation()
                     }
                     else
                     {
-                        core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
+                        if (!isFightWOWps) core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
                         core.Event("Event_ChrSnd_Attack", "is", GetId(), "feint");
                         core.Event("ChrFgtActApply", "is", GetId(), FGT_ATTACK_FEINT);
                         camRotWait = camRotMax = 0.3f;
@@ -4471,7 +4791,7 @@ void Character::UpdateAnimation()
                     }
                     else
                     {
-                        core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
+                        if (!isFightWOWps) core.Send_Message(blade, "ll", MSG_BLADE_TRACE_ON, 0);
                         core.Event("Event_ChrSnd_Attack", "is", GetId(), "feintc");
                         core.Event("ChrFgtActApply", "is", GetId(), "feintc"); // boal eating energy for success
                         camRotWait = camRotMax = 0.3f;
@@ -4863,6 +5183,13 @@ const char *Character::FindFightIdleAnimation(float &tblend)
         tblend = userIdle.tblend;
         return userIdle.name;
     }
+    // Unarmed boxing idle: natural upright stance with fists ready
+    if (isFightWOWps)
+    {
+        curIdleIndex = -1;
+        tblend = 0.25f;
+        return "idle_1";
+    }
     if (curIdleIndex < 0 || curIdleIndex >= numFightActionIdles)
     {
         // calculate the current probabilities and the total probability
@@ -5135,7 +5462,10 @@ inline void Character::CheckAttackHit(bool isGunBlade)
             {
                 if (fc.c->fgtCurType >= fgt_attack_fast && fc.c->fgtCurType <= fgt_attack_feintc)
                 {
-                    fc.c->PlaySound("fgt_collision");
+                    if (isFightWOWps || fc.c->isFightWOWps)
+                        fc.c->PlaySound("ambush_punch");
+                    else
+                        fc.c->PlaySound("fgt_collision");
                 }
                 else
                 {
@@ -5440,6 +5770,7 @@ CVECTOR Character::GetHandLightPos()
 // boal -->
 void Character::StopFightAnimation()
 {
+    ClearUnarmedPose();
     MODEL *m = Model();
     Animation *a = nullptr;
     if (m)

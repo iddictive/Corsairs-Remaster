@@ -215,7 +215,7 @@ void DialogAmbush_Start(bool trySneak)
 	AddDialogExitQuest("MainHeroFightModeOn");
 }
 
-//Нанести удар кулаком исподтишка: урон на попадании
+//Нанести удар кулаком исподтишка: урон на попадании и физический нокаут
 void DialogAmbush_ApplySneakStrike()
 {
 	if(!CheckAttribute(pchar, "DialogAmbushSneak.Target")) return;
@@ -226,6 +226,7 @@ void DialogAmbush_ApplySneakStrike()
 	LAi_group_Attack(target, pchar);
 	Lai_CharacterChangeEnergy(pchar, -LAi_CalcUseEnergyForBlade(pchar, "break"));
 	LAi_ApplyCharacterAttackDamage(pchar, target, "break", false);
+	SendMessage(target, "ls", MSG_CHARACTER_EX_MSG, "TriggerRagdollFall");
 }
 
 //Вернуть управление и выхватить оружие сразу после удара

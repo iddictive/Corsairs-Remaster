@@ -1,0 +1,998 @@
+{
+  "atomic_writer_sha256": "1d09fe4caab7c93990c107575f39c9560dd7c9e73b24d8f447bde9ba3c0bf6be",
+  "authoring_helpers_sha256": "22b558a0fd28c08050b3214518d278f8f6eb39cfdce89ea93da09e837f0cdf6b",
+  "banks": {
+    "Angellica": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_Angellica"
+    },
+    "Danielle": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_Danielle"
+    },
+    "Jessika": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_Jessika"
+    },
+    "Lo_Man": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_Lo_Man"
+    },
+    "ManKSM": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_ManKSM"
+    },
+    "Milenace": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_Milenace"
+    },
+    "Moscovit": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_Moscovit"
+    },
+    "YokoDias": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_YokoDias"
+    },
+    "beatrice2": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_beatrice2"
+    },
+    "genres": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_genres"
+    },
+    "man": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_man"
+    },
+    "man1": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_man1"
+    },
+    "man2": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_man2"
+    },
+    "man_B": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_man_B"
+    },
+    "man_kvl2": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_man_kvl2"
+    },
+    "mushketer": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_mushketer"
+    },
+    "mushketer_whisper": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_mushketer_whisper"
+    },
+    "mushketer_whisper_short": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_mushketer_whisper_short"
+    },
+    "skeleton": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_skeleton"
+    },
+    "towngirl3": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_towngirl3"
+    },
+    "woman": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_woman"
+    },
+    "woman2": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_woman2"
+    },
+    "woman_A2": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_woman_A2"
+    },
+    "woman_B": {
+      "actions": {
+        "unarmed_block": [
+          88,
+          97
+        ],
+        "unarmed_cross": [
+          46,
+          65
+        ],
+        "unarmed_dodge_left": [
+          98,
+          113
+        ],
+        "unarmed_dodge_right": [
+          114,
+          129
+        ],
+        "unarmed_idle": [
+          1,
+          30
+        ],
+        "unarmed_jab": [
+          31,
+          45
+        ],
+        "unarmed_uppercut": [
+          66,
+          87
+        ]
+      },
+      "bank": "Unarmed_woman_B"
+    }
+  },
+  "contract": "Frame 0 is inverse bind; action ranges are inclusive. All action boundaries match the idle guard. Block is a one-shot, not a held guard.",
+  "files": {
+    "RESOURCE/animation/Unarmed_Angellica.an": {
+      "bytes": 85412,
+      "sha256": "1acbcba8037284af942b6eca1d6ab756dde9cfa189c148eb00f16d1fc4852554"
+    },
+    "RESOURCE/animation/Unarmed_Angellica.ani": {
+      "bytes": 837,
+      "sha256": "babb047af38f2ce71cbba5b43f7192cf32d0a47296bcac5d07db54774d43ddd8"
+    },
+    "RESOURCE/animation/Unarmed_Danielle.an": {
+      "bytes": 269860,
+      "sha256": "ccb42b1b965e30073cfcd25b53fd016ad41036c381b753ad977a3420ab158795"
+    },
+    "RESOURCE/animation/Unarmed_Danielle.ani": {
+      "bytes": 836,
+      "sha256": "9f7eed11f00157a2e45e1d6a6acb3744f88cccc375457b340dc1ac2f1db0f30a"
+    },
+    "RESOURCE/animation/Unarmed_Jessika.an": {
+      "bytes": 104276,
+      "sha256": "8b35dc9468a1c9e7577325f21c40c649da6fff9ef3786dfcbc7ea169cbeaa68b"
+    },
+    "RESOURCE/animation/Unarmed_Jessika.ani": {
+      "bytes": 835,
+      "sha256": "f8e1a36ca85c7d612f79444508f53767a68e8cc696ac622e4b34dba8047a5e3d"
+    },
+    "RESOURCE/animation/Unarmed_Lo_Man.an": {
+      "bytes": 58164,
+      "sha256": "01bdf225e29700d168e62b9f447ce8e6b699453878737a46bef5c42844a556b8"
+    },
+    "RESOURCE/animation/Unarmed_Lo_Man.ani": {
+      "bytes": 834,
+      "sha256": "39d4a16203d871e6fc5fc65200061e396e2e05ea2cf91387d08367d006259656"
+    },
+    "RESOURCE/animation/Unarmed_ManKSM.an": {
+      "bytes": 85412,
+      "sha256": "5c3de4b8453bc76913e2aac9baeccc2b30b4ac2ca47ed0634bab4de285b1a408"
+    },
+    "RESOURCE/animation/Unarmed_ManKSM.ani": {
+      "bytes": 834,
+      "sha256": "dc60bb5ca2fc66e3ae640ca21ca761cf6bfb5abd18a68d30ecfcf16b59192478"
+    },
+    "RESOURCE/animation/Unarmed_Milenace.an": {
+      "bytes": 85412,
+      "sha256": "2a1118c1cd271d794b9467ee25b0b7af1c095bbd242b3460132ddbbc0322221c"
+    },
+    "RESOURCE/animation/Unarmed_Milenace.ani": {
+      "bytes": 836,
+      "sha256": "e04d5e78cbff0760ae074c3b173e72c7c90cb1c422fe4e9efd3721af8d0dabe0"
+    },
+    "RESOURCE/animation/Unarmed_Moscovit.an": {
+      "bytes": 89604,
+      "sha256": "82875c094597f326126a7eac677bc91ef1a55aee7f75a6923bcb30262001d9bb"
+    },
+    "RESOURCE/animation/Unarmed_Moscovit.ani": {
+      "bytes": 836,
+      "sha256": "4a042fdca86404451f56807bf3f449209322da8a8ce31b7e548b0c26196e9a1a"
+    },
+    "RESOURCE/animation/Unarmed_YokoDias.an": {
+      "bytes": 85412,
+      "sha256": "94028ae2cb53cbda8460e63e936b35681f2f178c4a77fdabe09d2a4ee75aa6d2"
+    },
+    "RESOURCE/animation/Unarmed_YokoDias.ani": {
+      "bytes": 836,
+      "sha256": "8e144861821d04e28a5f3836da0d133aa3bd3298534a2febd2832435caa65f6d"
+    },
+    "RESOURCE/animation/Unarmed_beatrice2.an": {
+      "bytes": 85412,
+      "sha256": "2a1118c1cd271d794b9467ee25b0b7af1c095bbd242b3460132ddbbc0322221c"
+    },
+    "RESOURCE/animation/Unarmed_beatrice2.ani": {
+      "bytes": 837,
+      "sha256": "605df56cd017f56f3f025ebfb87233855358ec25dd43ebb74ef9742fe071c21c"
+    },
+    "RESOURCE/animation/Unarmed_genres.an": {
+      "bytes": 259380,
+      "sha256": "189289cf778032cbee6fbdfd92298b96285d61894c55a0efc0007e85a2d2678a"
+    },
+    "RESOURCE/animation/Unarmed_genres.ani": {
+      "bytes": 834,
+      "sha256": "7ca7a0993d8f3168610ff4f79cf299da7337d64586d06602e1187c4866ceace5"
+    },
+    "RESOURCE/animation/Unarmed_man.an": {
+      "bytes": 259380,
+      "sha256": "a80e017773735cd5511ce557546bff5bcefe6be86f86ce89212d776b316de4e7"
+    },
+    "RESOURCE/animation/Unarmed_man.ani": {
+      "bytes": 831,
+      "sha256": "e0b614236d59d777cc350470ced111d52a9938cf589f6d0cdc3509245b42e07f"
+    },
+    "RESOURCE/animation/Unarmed_man1.an": {
+      "bytes": 167156,
+      "sha256": "b50898441e479e9d05ac1490fc6fbf3964f52de8e69f8e6763259e4324545f39"
+    },
+    "RESOURCE/animation/Unarmed_man1.ani": {
+      "bytes": 832,
+      "sha256": "f8ae3a3c13b1a8025e1c888838a7eef29f5cfa27edb7135251fd88289847b6d8"
+    },
+    "RESOURCE/animation/Unarmed_man2.an": {
+      "bytes": 167156,
+      "sha256": "b50898441e479e9d05ac1490fc6fbf3964f52de8e69f8e6763259e4324545f39"
+    },
+    "RESOURCE/animation/Unarmed_man2.ani": {
+      "bytes": 832,
+      "sha256": "49893c827a4b81280eb1da36892010affe4e7b77cbd6bc712ce2099c8e244b5b"
+    },
+    "RESOURCE/animation/Unarmed_man_B.an": {
+      "bytes": 167156,
+      "sha256": "b50898441e479e9d05ac1490fc6fbf3964f52de8e69f8e6763259e4324545f39"
+    },
+    "RESOURCE/animation/Unarmed_man_B.ani": {
+      "bytes": 833,
+      "sha256": "344022cdf9b0d5a2adfa5b88d0e038c8c22a16a05ab2a53ea4d850e29b5ff8be"
+    },
+    "RESOURCE/animation/Unarmed_man_kvl2.an": {
+      "bytes": 85412,
+      "sha256": "102df5e6e613f0854a6d76c0f7ca4982b38df4dd237e6c1706e4b78a64b39e1e"
+    },
+    "RESOURCE/animation/Unarmed_man_kvl2.ani": {
+      "bytes": 836,
+      "sha256": "a1d940161aacd56d120931fda16f02c71ea2bac41adbdd8234047d54db57e281"
+    },
+    "RESOURCE/animation/Unarmed_mushketer.an": {
+      "bytes": 259380,
+      "sha256": "b1f2caebfc4fb27d7f13386f7e7f3ae7bf439a014a2710c3f9c84a6ccef6e45c"
+    },
+    "RESOURCE/animation/Unarmed_mushketer.ani": {
+      "bytes": 837,
+      "sha256": "8d155ae44a9cf788adf6b392970bc3ab7cf309bbe01767b8cf8f22f3bc032f02"
+    },
+    "RESOURCE/animation/Unarmed_mushketer_whisper.an": {
+      "bytes": 85412,
+      "sha256": "81e52313db42d1f2f9dd62a49977884be085fde418b08cbbbc06af2793052aee"
+    },
+    "RESOURCE/animation/Unarmed_mushketer_whisper.ani": {
+      "bytes": 845,
+      "sha256": "65737c1920a09444ab32df8d62d957621d25ec6f4cc2d5b528121084d3678499"
+    },
+    "RESOURCE/animation/Unarmed_mushketer_whisper_short.an": {
+      "bytes": 85412,
+      "sha256": "81e52313db42d1f2f9dd62a49977884be085fde418b08cbbbc06af2793052aee"
+    },
+    "RESOURCE/animation/Unarmed_mushketer_whisper_short.ani": {
+      "bytes": 851,
+      "sha256": "8167618a59d58233fd66028e911d95ac15f0b84419983fa2df66941ae8498e87"
+    },
+    "RESOURCE/animation/Unarmed_skeleton.an": {
+      "bytes": 259380,
+      "sha256": "a80e017773735cd5511ce557546bff5bcefe6be86f86ce89212d776b316de4e7"
+    },
+    "RESOURCE/animation/Unarmed_skeleton.ani": {
+      "bytes": 836,
+      "sha256": "6890bcc87c63c5e9231d1be701778bd055487bcffb0b9df6a2a746a44446f5f3"
+    },
+    "RESOURCE/animation/Unarmed_towngirl3.an": {
+      "bytes": 93796,
+      "sha256": "973c94f24e083d2e94818fa8eb7d34cbf1a1a9ef055012c8a5d192d11db6fa8f"
+    },
+    "RESOURCE/animation/Unarmed_towngirl3.ani": {
+      "bytes": 837,
+      "sha256": "88db1c22cc34be172d09e41af6be23fdc9c1eb13fbf4b3a056e7c62f3ef1d257"
+    },
+    "RESOURCE/animation/Unarmed_woman.an": {
+      "bytes": 269860,
+      "sha256": "e9d31bb0b1eceea4b1eb14c946abb57613d7cd2e8813d70183e4c59fa6778856"
+    },
+    "RESOURCE/animation/Unarmed_woman.ani": {
+      "bytes": 833,
+      "sha256": "afb54f51c7f076df272fa4ce72bf52657760d430c11ea5ceebdf5965d5fc8882"
+    },
+    "RESOURCE/animation/Unarmed_woman2.an": {
+      "bytes": 177636,
+      "sha256": "bcb191d781b25609b567b75e4268228da5951e2765881e0bd0c4acbd12328fe8"
+    },
+    "RESOURCE/animation/Unarmed_woman2.ani": {
+      "bytes": 834,
+      "sha256": "a2a5b8b19a3283be76cc32045ec655c9c90544125474c855882e1888d73a4ff8"
+    },
+    "RESOURCE/animation/Unarmed_woman_A2.an": {
+      "bytes": 269860,
+      "sha256": "83277f27bba01d2cd6961cc64378a202f6b40fbe8a00d3c8d6e50389b67a0f43"
+    },
+    "RESOURCE/animation/Unarmed_woman_A2.ani": {
+      "bytes": 836,
+      "sha256": "c476e5098e36ab24f7ba2d60b1088023762a84e459dec0437db802fdcd7af44c"
+    },
+    "RESOURCE/animation/Unarmed_woman_B.an": {
+      "bytes": 93796,
+      "sha256": "973c94f24e083d2e94818fa8eb7d34cbf1a1a9ef055012c8a5d192d11db6fa8f"
+    },
+    "RESOURCE/animation/Unarmed_woman_B.ani": {
+      "bytes": 835,
+      "sha256": "619cf71950d414c0a59481851bd016964b4a77a4d95748bc25f24d395423e772"
+    }
+  },
+  "fps": 30,
+  "generator_sha256": "d964f8eb15962ac57bf61679810bd5b5d33c5176061cfa41ed6132cccc99c094",
+  "roundhouse_helpers_sha256": "c9fbbdaaf201f8ba5b2d14e3d4a6d0704a85f0316db7fb2e06cbe75e482f6f23",
+  "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
+  "version": 1
+}

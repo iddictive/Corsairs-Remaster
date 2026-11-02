@@ -14,6 +14,7 @@ import prepare_native_movies
 import prepare_puerto_rico_city
 import prepare_legacy_sea_geometry
 import prepare_roundhouse
+import prepare_unarmed
 from delivery_state import DeliveryState, RECEIPT, player_guard, transact
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -153,6 +154,9 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
             PROJECT/"src/assets/islands/seamless-sea/manifest.json")),
         (kick, (kick.RECIPE, kick.SOURCES, kick.MANIFEST, Path(kick.__file__),
                 Path(kick.__file__).with_name("prepare_port_rowboat.py"))),
+        (prepare_unarmed, (prepare_unarmed.SOURCES, prepare_unarmed.MANIFEST,
+                           Path(prepare_unarmed.__file__), Path(prepare_roundhouse.__file__),
+                           Path(prepare_roundhouse.__file__).with_name("prepare_port_rowboat.py"))),
     ):
         raw = module.MANIFEST.read_bytes()
         specs = json.loads(raw)["files"]

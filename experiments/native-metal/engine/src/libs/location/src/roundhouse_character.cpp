@@ -207,6 +207,7 @@ bool Character::StartRoundhouse()
     if (!answer || !answer->Get(allowed) || !allowed) return false;
     CapturePalette(*Model()->GetAnimation(), state.blendFrom);
     state.strikeOrigin = JointWorld(*Model()->GetAnimation(),Model()->mtx,state.rig.bodies[1].joint).Pos();
+    ClearUnarmedPose();
     StopFightAnimation();
     state.phase = RoundhouseState::Phase::Kick;
     state.time = 0;
@@ -254,6 +255,7 @@ bool Character::BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse
     }
     const auto handle = world->Create(rig, pose, impulse, point);
     if (!handle) return reject("create-ragdoll");
+    ClearUnarmedPose();
     CancelRoundhouse();
     state.handle = handle;
     state.phase = RoundhouseState::Phase::Falling;

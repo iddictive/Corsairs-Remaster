@@ -12,6 +12,7 @@ model binded to an animated locator
 #include "core.h"
 #include "geometry.h"
 #include "shared/messages.h"
+#include "string_compare.hpp"
 
 CREATE_CLASS(BLADE)
 
@@ -51,6 +52,7 @@ BLADE::BLADE_INFO::~BLADE_INFO()
 void BLADE::BLADE_INFO::DrawBlade(VDX9RENDER *rs, unsigned int blendValue, MODEL *mdl, NODE *manNode)
 {
     auto *obj = static_cast<MODEL *>(core.GetEntityPointer(eid));
+    if (obj != nullptr && obj->GetNode(0) && storm::iEquals(obj->GetNode(0)->GetName(), "unarmed")) return;
     if (obj != nullptr)
     {
         CMatrix perMtx;
@@ -180,7 +182,7 @@ bool BLADE::BLADE_INFO::LoadBladeModel(MESSAGE &message)
 
     // model name
     const std::string &mdlName = message.String();
-    if (!mdlName.empty())
+    if (!mdlName.empty() && !storm::iEquals(mdlName, "unarmed"))
     {
         // path of the model
         char path[256];

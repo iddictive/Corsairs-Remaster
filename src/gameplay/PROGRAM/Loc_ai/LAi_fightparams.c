@@ -23,17 +23,28 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 		return 30.0 + 3.0 * Progression_GetPermanentSPECIAL(attack, SPECIAL_S) + 25.0 * LAi_GetCharacterFightLevel(attack);
 	}
 	//Расчитываем повреждение от сабли
+	string curBlade = "";
+	if(CheckAttribute(attack, "equip.blade")) curBlade = attack.equip.blade;
+	bool isUnarmed = (curBlade == "" || curBlade == "unarmed");
+
 	float min = 10.0;
 	float max = 10.0;
 	
-	if(CheckAttribute(attack, "chr_ai.dmgbldmin"))
+	if(isUnarmed)
 	{
-		min = stf(attack.chr_ai.dmgbldmin);
+		min = 6.0 + 1.2 * Progression_GetPermanentSPECIAL(attack, SPECIAL_S) + 0.6 * sti(attack.rank);
+		max = 14.0 + 2.0 * Progression_GetPermanentSPECIAL(attack, SPECIAL_S) + 1.1 * sti(attack.rank);
 	}
-	
-	if(CheckAttribute(attack, "chr_ai.dmgbldmax"))
+	else
 	{
-		max = stf(attack.chr_ai.dmgbldmax);
+		if(CheckAttribute(attack, "chr_ai.dmgbldmin"))
+		{
+			min = stf(attack.chr_ai.dmgbldmin);
+		}
+		if(CheckAttribute(attack, "chr_ai.dmgbldmax"))
+		{
+			max = stf(attack.chr_ai.dmgbldmax);
+		}
 	}
 
 	// evganat - пасха
@@ -76,12 +87,21 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 	float kAttackDmg = 1.0;
 	
 	// TO_DO оптимизация на ветку параметров
+	string enemyBlade = "";
+	if(CheckAttribute(enemy, "equip.blade")) enemyBlade = enemy.equip.blade;
+	bool enemyUnarmed = (enemyBlade == "" || enemyBlade == "unarmed");
+	float unarmedBlockLeak = 0.0;
+	if(isBlocked && enemyUnarmed && !isUnarmed)
+	{
+		unarmedBlockLeak = 0.45; // 45% сабельного урона пробивает блок голыми руками
+	}
+
 	switch(attackType)
 	{
 		case "fast":
 			if(isBlocked)
 			{
-				kAttackDmg = 0.0;
+				kAttackDmg = unarmedBlockLeak * 0.7;
 			}else{
 				kAttackDmg = 0.7;
 			}
@@ -89,7 +109,7 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 		case "force":
 			if(isBlocked)
 			{
-				kAttackDmg = 0.0;
+				kAttackDmg = unarmedBlockLeak * 1.0;
 			}else{
 				kAttackDmg = 1.0;
 			}
@@ -97,7 +117,7 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 		case "round":
 			if(isBlocked)
 			{
-				kAttackDmg = 0.0;
+				kAttackDmg = unarmedBlockLeak * 0.6;
 			}else{
 				kAttackDmg = 0.6;
 			}
@@ -118,7 +138,7 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 		case "feintc":  // фикс после изучения ядра //Атакующие продолжение финта
 			if(isBlocked)
 			{
-				kAttackDmg = 0.0;
+				kAttackDmg = unarmedBlockLeak * 0.8;
 			}else{
 				kAttackDmg = 0.8;
 			}
@@ -127,7 +147,7 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 		case "feint":
 			if(isBlocked)
 			{
-				kAttackDmg = 0.0;
+				kAttackDmg = unarmedBlockLeak * 0.5;
 			}else{
 				kAttackDmg = 0.5;
 			}
@@ -1146,6 +1166,9 @@ bool LAi_Chr_CheckHitAttack() // попала ли атака
 	float chance = 1.0;
 	if (CheckAttribute(enemy, "exhausted"))
 		chance = 0.5;
+	string eBlade = "";
+	if (CheckAttribute(enemy, "equip.blade")) eBlade = enemy.equip.blade;
+	if (eBlade == "" || eBlade == "unarmed") chance = 1.0;
 	if (isRecoil && r <= chance)
 		res = false;	
 	return res;

@@ -13,6 +13,8 @@
 #include <string>
 #include <chrono>
 #include <memory>
+#include <vector>
+#include <unordered_map>
 
 #include "animation.h"
 #include "matrix.h"
@@ -507,6 +509,23 @@ class Character : public Entity
     bool lockRotate;      // Prevent rotation
     bool isDialog;        // Character in dialogue
     bool isFightWOWps;    // Allow to switch to unarmed combat mode
+    bool isUnarmedEquipped = false;
+    bool isUnarmedForced = false;
+    std::string unarmedRig;
+    std::unique_ptr<Animation> unarmedBank;
+    std::vector<CMatrix> unarmedPalette;
+    std::string unarmedAction;
+    float unarmedTime = 0.0f;
+    bool unarmedBankAttempted = false;
+    bool unarmedPoseActive = false;
+    struct UnarmedTiming { float phase = -1.0f; bool reverse = false; };
+    std::unordered_map<std::string, UnarmedTiming> unarmedEventPhases;
+    std::string unarmedStrikeAction;
+    float unarmedEventPhase = 0.0f;
+    float unarmedContactPhase = 0.0f;
+    bool unarmedReverse = false;
+    bool unarmedStrikePending = false;
+    bool unarmedStrikeDelivered = false;
     bool isActiveState;   // If true then character is active
     bool recoilLook;      // To trigger the teaser after rebound
     float swimChange;     // Mode change response time
@@ -725,6 +744,12 @@ class Character : public Entity
   private:
     // The location the character is in
     bool PrepareRoundhouse();
+    void UpdateUnarmedPose(float seconds);
+    void ClearUnarmedPose();
+    bool PrepareUnarmedBank(Animation &animation);
+    bool PrepareUnarmedStrike(Animation &animation, const char *baseAction, const char *poseAction,
+                              int frames, float contact);
+    void SampleUnarmedPose(Animation &animation, float phase);
     bool UpdateRoundhouse(float seconds);
     bool BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse);
     std::unique_ptr<RoundhouseState> roundhouseState;
