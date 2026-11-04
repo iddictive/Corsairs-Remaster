@@ -21,6 +21,7 @@
 
 #include "core.h"
 #include "math_inlines.h"
+#include "math3d/quaternion.h"
 #include "string_compare.hpp"
 #include "v_data.h"
 #include "v_file_service.h"
@@ -1376,10 +1377,23 @@ bool Character::SetFightMode(bool _isFight, bool isPlayAni)
             return false;
         _isFight = false;
     }
+    if (isFightWOWps)
+    {
+        auto *model = Model();
+        auto *animation = model ? model->GetAnimation() : nullptr;
+        if (animation && (_isFight || unarmedPoseActive))
+        {
+            unarmedTransitionFrom.resize(animation->GetNumBones());
+            for (int i = 0; i < animation->GetNumBones(); ++i)
+                unarmedTransitionFrom[i] = animation->GetAnimationMatrix(i);
+            unarmedTransitionTime = 0.0f;
+            unarmedTransition = true;
+        }
+    }
     isNFHit = false;
     const bool old = isFight;
     isFight = _isFight;
-    if (!isFight) ClearUnarmedPose();
+    if (!isFight && !unarmedTransition) ClearUnarmedPose();
     if (isFight)
     {
         radius = radiusFgt;
@@ -4193,6 +4207,8 @@ void Character::ClearUnarmedPose(bool clearCombo)
         if (auto *model = Model())
             if (auto *animation = model->GetAnimation()) animation->ClearPoseOverride();
     unarmedPoseActive = false;
+    unarmedTransition = false;
+    unarmedTransitionFrom.clear();
     unarmedAction.clear();
     unarmedTime = 0.0f;
     unarmedStrikePending = false;
@@ -4311,13 +4327,34 @@ bool Character::PrepareUnarmedStrike(Animation &animation, const char *baseActio
     return true;
 }
 
+namespace
+{
+CMatrix BlendUnarmedMatrix(const CMatrix &from, const CMatrix &to, float amount)
+{
+    Matrix first, second, result;
+    std::copy(std::begin(from.matrix), std::end(from.matrix), first.matrix);
+    std::copy(std::begin(to.matrix), std::end(to.matrix), second.matrix);
+    Quaternion rotation;
+    rotation.SLerp(Quaternion(first), Quaternion(second), amount).GetMatrix(result);
+    CMatrix blended;
+    blended = result;
+    blended.Pos() = from.v.pos + (to.v.pos - from.v.pos) * amount;
+    return blended;
+}
+}
+
 void Character::SampleUnarmedPose(Animation &animation, float phase)
 {
     unarmedBank->Player(0).SetPosition(std::clamp(phase, 0.0f, 1.0f));
     unarmedBank->EvaluatePose();
     unarmedPalette.resize(unarmedBank->GetNumBones());
     for (int i = 0; i < unarmedBank->GetNumBones(); ++i)
+    {
         unarmedPalette[i] = unarmedBank->GetAnimationMatrix(i);
+        if (unarmedTransition && i < static_cast<int>(unarmedTransitionFrom.size()))
+            unarmedPalette[i] = BlendUnarmedMatrix(unarmedTransitionFrom[i], unarmedPalette[i],
+                                                  std::min(unarmedTransitionTime / 0.2f, 1.0f));
+    }
     animation.SetPoseOverride(unarmedPalette.data(), static_cast<int>(unarmedPalette.size()));
     unarmedPoseActive = true;
 }
@@ -4327,6 +4364,21 @@ void Character::UpdateUnarmedPose(float seconds)
     unarmedComboWindow = std::max(0.0f, unarmedComboWindow - std::max(0.0f, seconds));
     auto *model = Model();
     auto *animation = model ? model->GetAnimation() : nullptr;
+    if (unarmedTransition)
+        unarmedTransitionTime += std::max(seconds, 0.0f);
+    if (animation && !isFight && isFightWOWps && unarmedTransition &&
+        !IsDead() && !IsDialog() && !isSwim && !isJump && !priorityAction.name && !IsRoundhouseControlled())
+    {
+        animation->ClearPoseOverride();
+        if (unarmedTransitionTime >= 0.2f) { ClearUnarmedPose(); return; }
+        unarmedPalette.resize(animation->GetNumBones());
+        for (int i = 0; i < animation->GetNumBones(); ++i)
+            unarmedPalette[i] = BlendUnarmedMatrix(unarmedTransitionFrom[i], animation->GetAnimationMatrix(i),
+                                                  unarmedTransitionTime / 0.2f);
+        animation->SetPoseOverride(unarmedPalette.data(), static_cast<int>(unarmedPalette.size()));
+        unarmedPoseActive = true;
+        return;
+    }
     // The dialogue sneak uses the ordinary actor action as its clock, but its
     // visible pose must be a fist strike even when a blade remains equipped.
     if (animation && IsPlayer() && !IsDead() && !IsDialog() && !IsRoundhouseControlled() &&
@@ -4397,6 +4449,11 @@ void Character::UpdateUnarmedPose(float seconds)
         phase = phase <= unarmedEventPhase ? phase * unarmedContactPhase / unarmedEventPhase
             : unarmedContactPhase + (phase - unarmedEventPhase) * (1.0f - unarmedContactPhase) / (1.0f - unarmedEventPhase);
     SampleUnarmedPose(*animation, phase);
+    if (unarmedTransition && unarmedTransitionTime >= 0.2f)
+    {
+        unarmedTransition = false;
+        unarmedTransitionFrom.clear();
+    }
 }
 
 void Character::UpdateAnimation()

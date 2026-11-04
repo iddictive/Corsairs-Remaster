@@ -533,64 +533,9 @@ def kick(source, spec):
 
 
 def jump_kick(source, spec):
-    """A separate aerial hook: crouch, tucked turn, heel release and landing."""
-    r = source_rig(source)
-    body = source["body"]["joints"]
-    support, striking = body[9:12], body[12:15]
-    _, bindg = fk(r, source["bind_pose"], source["bind_root"])
-    aerial = dict(spec, **spec["jump_choreography"])
-    # Reuse the metric contact/leg/landing solver with independently authored
-    # body and leg curves. K's pose sequence is not an input to this action.
-    seed, offset, checks = kick(source, aerial)
-    takeoff, landing = aerial["flight_interval"]
-    result = []
-    for frame, (ground_root, ground_q) in enumerate(seed):
-        t = frame / (len(seed) - 1)
-        flight = max(0., min(1., (t-takeoff)/(landing-takeoff)))
-        height = aerial["height_m"] * 4 * flight * (1-flight)
-        root = add(ground_root, (0., height, 0.))
-        q = list(ground_q)
-        air = smooth((t-takeoff)/.08)*(1-smooth((t-(landing-.12))/.12))
-        # The launch leg folds beneath the pelvis in flight; it is not the
-        # planted pivot retained by the ordinary spinning heel kick.
-        before = list(q)
-        authored_leg(r, q, support, curve(aerial["support_leg_keys"], t, True), source, bindg)
-        for joint in support: q[joint] = blend(before[joint], q[joint], air)
-        # Tuck both arms during the turn, then open them for counterbalance.
-        p, g = fk(r, q, root)
-        spread = curve(aerial["arm_spread_keys"], t, True)[0]
-        for ids, side in ((body[3:6], 1.), (body[6:9], -1.)):
-            target = add(p[body[1]], rotate(g[body[1]], rotate(qi(bindg[body[1]]),
-                         scale((side*(.10+.14*spread), -.03-.04*spread, .14-.20*spread), source["body"]["height"]))))
-            pole = rotate(g[body[1]], rotate(qi(bindg[body[1]]), (side, -.6, -.2)))
-            before = list(q)
-            limb(r, q, root, ids, target, pole)
-            for joint in ids[:2]: q[joint] = blend(before[joint], q[joint], air)
-        # Sweep a real extended leg around the attacker, at the opponent's
-        # guard head height. Native skinning mirrors X. Move the pelvis only
-        # by the excess over measured leg reach, blended into flight.
-        weight = smooth((t-.24)/.19) * (1-smooth((t-.76)/.14))
-        if weight:
-            p, g = fk(r, ground_q, ground_root)
-            before = list(q)
-            angle = math.radians(curve(aerial["sweep_keys"], t, True)[0])
-            head = checks["heel_target_xyz"]
-            radius = math.hypot(head[0], head[2])
-            heel_target = (radius*math.sin(angle), head[1], radius*math.cos(angle))
-            target = sub(heel_target, rotate(g[striking[2]], offset))
-            pole = (math.sin(angle), 0.35, math.cos(angle))
-            current, _ = fk(r, q, root)
-            reach = sum(math.sqrt(dot(r["rest"][j], r["rest"][j])) for j in striking[1:])*.995
-            delta = sub(target, current[striking[0]])
-            distance = math.sqrt(dot(delta, delta))
-            if distance > reach:
-                root = add(root, scale(delta, weight*(distance-reach)/distance))
-            hinge_leg(r, q, root, striking, target, pole, source, bindg)
-            global_orientation(r, q, root, striking[2], g[striking[2]])
-            for joint in striking:
-                q[joint] = blend(before[joint], q[joint], weight)
-        result.append((root, q))
-    return result
+    """Retarget the captured airborne kick to this source skeleton."""
+    from roundhouse_mocap import jump
+    return jump(source, spec["kick_samples"])
 
 
 def getup(source, spec, face_down, support=None):
@@ -663,12 +608,22 @@ def paths():
     return tuple(json.loads(MANIFEST.read_text())["files"])
 
 
+def input_hashes():
+    paths = {"recipe_sha256": RECIPE, "sources_sha256": SOURCES,
+             "generator_sha256": Path(__file__),
+             "authoring_helpers_sha256": ROOT / "tools/prepare_port_rowboat.py"}
+    result = {key: sha(path.read_bytes()) for key, path in paths.items()}
+    motion = (ROOT / "tools/roundhouse_mocap.py", ROOT / "tools/boxing_mocap.py",
+              ASSETS / "mocap/recipe.json", ASSETS / "mocap/87_01.bvh")
+    result["mocap_inputs"] = {path.relative_to(ROOT).as_posix(): sha(path.read_bytes()) for path in motion}
+    return result
+
+
 def prepared():
     manifest = json.loads(MANIFEST.read_text())
-    for path, key in ((RECIPE, "recipe_sha256"), (SOURCES, "sources_sha256"), (Path(__file__), "generator_sha256"),
-                      (ROOT / "tools/prepare_port_rowboat.py", "authoring_helpers_sha256")):
-        if sha(path.read_bytes()) != manifest[key]:
-            raise ValueError(f"Roundhouse source changed: {path.name}; regenerate first")
+    for key, value in input_hashes().items():
+        if value != manifest.get(key):
+            raise ValueError(f"Roundhouse source changed: {key}; regenerate first")
     missing = False
     for name, row in manifest["files"].items():
         path = OUTPUT / name
@@ -727,7 +682,11 @@ def prepare(write_manifest=True, expected_manifest=None):
         for action, (first, last) in ranges.items():
             speed = f'{(last-first)/(spec["fps"]*spec["jump_choreography"]["duration_s"]):.9g}' if action == "roundhouse_jump" else "1.0"
             text += (f"[{action}]\nspeed = {speed}\nloop = false\ntype = normal\nstart_time = {first}\nend_time = {last}\n"
-                     f'data = "Blend time", "0.0"\n\n')
+                     f'data = "Blend time", "0.0"\n')
+            if action in ("roundhouse_kick", "roundhouse_jump"):
+                window = spec["jump_choreography"]["contact_window"] if action == "roundhouse_jump" else spec["contact_window"]
+                text += f'data = "StrikeStart", "{window[0]:.9g}"\ndata = "StrikeEnd", "{window[1]:.9g}"\n'
+            text += "\n"
         save(f"RESOURCE/animation/{bank}.ani", text.encode("ascii"))
         banks[name] = {"bank": bank, "heel_offset": offset, "actions": ranges}
         checks[name] = check
@@ -748,6 +707,9 @@ def prepare(write_manifest=True, expected_manifest=None):
         text += f"getup_duration = {(spec['getup_samples']-1)/spec['fps']:.9g}\n"
         heel = authored["heel_offset"] if authored else (0., 0., 0.)
         for axis_name, v in zip("xyz", heel): text += f"heel_offset_{axis_name} = {v:.9g}\n"
+        _, bind_world = fk(source_rig(source), source["bind_pose"], source["bind_root"])
+        left_heel = rotate(qi(bind_world[body["joints"][11]]), spec["heel_bind_offset"])
+        for axis_name, v in zip("xyz", left_heel): text += f"left_heel_offset_{axis_name} = {v:.9g}\n"
         for axis_name, v in zip("xyz", spec["head_contact_offset"]): text += f"head_offset_{axis_name} = {v:.9g}\n"
         if checks[name]:
             for axis_name, v in zip("xyz", checks[name]["heel_contact_xyz"]): text += f"contact_{axis_name} = {v:.9g}\n"
@@ -755,9 +717,7 @@ def prepare(write_manifest=True, expected_manifest=None):
         for i, (joint, end, parent) in enumerate(zip(body["joints"], body["ends"], BODY_PARENTS)):
             text += f"body{i}_joint = {joint}\nbody{i}_end = {end}\nbody{i}_parent = {parent}\n"
     save("RESOURCE/INI/roundhouse-rigs.ini", text.encode("ascii"))
-    manifest = {"version": 1, "recipe_sha256": sha(RECIPE.read_bytes()), "sources_sha256": sha(SOURCES.read_bytes()),
-                "generator_sha256": sha(Path(__file__).read_bytes()),
-                "authoring_helpers_sha256": sha((ROOT / "tools/prepare_port_rowboat.py").read_bytes()),
+    manifest = {"version": 1, **input_hashes(),
                 "files": files, "checks": checks, "banks": banks, "body_order": BODY_NAMES,
                 "acceptance": "Exact bind, metric FK and offline skinned mesh proof; installed gameplay replay remains separate."}
     if expected_manifest is not None and manifest["files"] != expected_manifest["files"]:

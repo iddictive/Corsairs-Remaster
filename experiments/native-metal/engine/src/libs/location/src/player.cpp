@@ -225,7 +225,7 @@ void Player::Move(float dltTime)
                 {
                     // Keep the dodge through its ordinary end, then resume guard.
                 }
-                else if (IsDoParry())
+                else if (!isFightWOWps && IsDoParry())
                 {
                     // boal -->
                     if (fgtCurType == fgt_block || fgtCurType == fgt_blockhit || fgtCurType == fgt_blockbreak ||

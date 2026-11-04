@@ -846,8 +846,8 @@
   },
   "files": {
     "RESOURCE/INI/roundhouse-rigs.ini": {
-      "bytes": 49010,
-      "sha256": "e4bc400a1adb03fb9595d8aa943427b99ed1edafbeb1f778bab7674c53ae23d2"
+      "bytes": 53435,
+      "sha256": "cb9920920d1cee039350f50aabe364d61ea3401d95b938688fa1317800b09bdc"
     },
     "RESOURCE/animation/Roundhouse_Angellica.an": {
       "bytes": 159088,
@@ -859,19 +859,19 @@
     },
     "RESOURCE/animation/Roundhouse_Danielle.an": {
       "bytes": 1001160,
-      "sha256": "a63b35c1b9269f0327ef846b6633aea8c792dd21bc51cf69c38598fff2be4c93"
+      "sha256": "da5e8e7c4d162514a311f2e7b94a09e6f83cb432abf02e6941323ddcdaca9a1c"
     },
     "RESOURCE/animation/Roundhouse_Danielle.ani": {
-      "bytes": 500,
-      "sha256": "df2dee8ccd744a77a6449dda483638c5a604c818c9dc2a69f05555955956f5b4"
+      "bytes": 613,
+      "sha256": "dfa276b1528467edffcdb02d3b4e8546bd6c5ec7d431c39348a66eda81d449ae"
     },
     "RESOURCE/animation/Roundhouse_Jessika.an": {
       "bytes": 386856,
-      "sha256": "20d0f12623f1e242a7ba3afd3d03b5ad9f2fddb925b19736b0f2e701c16e3336"
+      "sha256": "e8b8341184b1c870d1995c86009104d74e1d4b3acf6f15b47a5ddbbc83522fc4"
     },
     "RESOURCE/animation/Roundhouse_Jessika.ani": {
-      "bytes": 499,
-      "sha256": "17745897d95371d9c483ba54775b4f2c5b92a1edc53d7650d64085e60af41f83"
+      "bytes": 612,
+      "sha256": "61f0a5fbcdb99e1a33fbc2193ab528db2112f46b7f8a0c056469ccd5325e5eb0"
     },
     "RESOURCE/animation/Roundhouse_Lo_Man.an": {
       "bytes": 108336,
@@ -907,11 +907,11 @@
     },
     "RESOURCE/animation/Roundhouse_YokoDias.an": {
       "bytes": 316872,
-      "sha256": "d6445b17e993528bf0b1b77ba63b2e56c42722b7d9aa93c2f0c83046e15f4ad1"
+      "sha256": "9ad44bddf463bb1d750af68490df448903d07400a74649fb1bf69a725d53d615"
     },
     "RESOURCE/animation/Roundhouse_YokoDias.ani": {
-      "bytes": 500,
-      "sha256": "55c5029025e34b2a3edbe278a8aa48a3250419ec036f3245241eb98f9fadd1bd"
+      "bytes": 613,
+      "sha256": "59e21db538d78a2ba9f69c339ddaed0b3a5b0bdce4c6a901da474680210c408c"
     },
     "RESOURCE/animation/Roundhouse_beatrice2.an": {
       "bytes": 159088,
@@ -931,27 +931,27 @@
     },
     "RESOURCE/animation/Roundhouse_man.an": {
       "bytes": 962280,
-      "sha256": "bb4368f9dda2391316bbc619a7ac4ed9c27852917918a7180b3f9c192d5c6f82"
+      "sha256": "c24c4e2420a2ca8847fc5751ee8d885526b0a58532648fa673dc270e89be565e"
     },
     "RESOURCE/animation/Roundhouse_man.ani": {
-      "bytes": 495,
-      "sha256": "2d47c5ca8a888d29d20d8dcca63f62f9840c034915e772c1eedc8a868c79b67e"
+      "bytes": 608,
+      "sha256": "d1068c3f7ab0e970fe39768b4b51319da2852e6d3bab0c18f6010efe586cf573"
     },
     "RESOURCE/animation/Roundhouse_man1.an": {
       "bytes": 620136,
-      "sha256": "5a94c7b82d026613e970efb6e7b9034c0e51f6ea91cc8aa98f0867b2f801fc4f"
+      "sha256": "559df473fc6ae95aabac0f64a5d36bbb4f08a72b599a6f5d80e77a80fcd32f3b"
     },
     "RESOURCE/animation/Roundhouse_man1.ani": {
-      "bytes": 496,
-      "sha256": "b4bab99bea87dbaae714e4a08b7cefa4e3fa5c9b65e939fa9dc79a9c907d41c5"
+      "bytes": 609,
+      "sha256": "b9f0c650b5d80fbb3da6b21ef265a780efec2a6d4d51edd07fe722d3667b91f2"
     },
     "RESOURCE/animation/Roundhouse_man2.an": {
       "bytes": 620136,
-      "sha256": "efc81d4bbfe9a2aea3b043e6cf6ce8f446a36f70e36c91742a5e436802d6cdfa"
+      "sha256": "086fb1e1412c952480379de31f2a78965ad98cabbbb9e49ed26026f0f436c5c6"
     },
     "RESOURCE/animation/Roundhouse_man2.ani": {
-      "bytes": 496,
-      "sha256": "60d864a14f3b660423fb94a3d560b7d2f0e759874c81253140e4882adb143174"
+      "bytes": 609,
+      "sha256": "f915a5d1c863fa772f1c42f277a8e56f65559441adc64d242f87fa4f50cccf85"
     },
     "RESOURCE/animation/Roundhouse_man_B.an": {
       "bytes": 311344,
@@ -1042,8 +1042,14 @@
       "sha256": "dc061fc1c0a1500b8a62141786cd5ef07ceb6ad56bd56ac9f4590a695f77bd07"
     }
   },
-  "generator_sha256": "27ec5afe04c714a4f934ced8681ceea4632850a59f4510aae3d1dee446940b74",
-  "recipe_sha256": "aa8b94e710754c9047f1b656ee2a50a765b1c39c82e8a35ab6a18cdfc715276b",
+  "generator_sha256": "43b58a6244b3394200196b87b1c6253d12d15739bddf9101e9a86ac0ca2d4ddf",
+  "mocap_inputs": {
+    "src/assets/roundhouse/mocap/87_01.bvh": "48e3cd06cbf4953f5d559f95d8d51c2fd8fa48d14c69d493a6a0f8c779b67799",
+    "src/assets/roundhouse/mocap/recipe.json": "3fba3a99915e6ab4714845d7e70e3bf5574a770f611a146d4fa11c6de5f21a4d",
+    "tools/boxing_mocap.py": "4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3",
+    "tools/roundhouse_mocap.py": "e90769167aea32a737a65bfc799b0ca89548d6cac25d50984681b3ac2864cd0b"
+  },
+  "recipe_sha256": "7308850c5726a2f76ab994876709a7020c387b569a120bd8297478e2574c9068",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "version": 1
 }

@@ -32,6 +32,11 @@ struct RoundhouseState
     CVECTOR headOffset = {};
     CVECTOR previousHeel = {};
     CVECTOR previousKnee = {};
+    CVECTOR previousLeftHeel = {};
+    CVECTOR previousLeftKnee = {};
+    CVECTOR leftHeelOffset = {};
+    CVECTOR rootStart = {};
+    CVECTOR previousRoot = {};
     CVECTOR strikeOrigin = {};
     CVECTOR origin = {};
     CVECTOR recoveryPosition = {};

@@ -6,16 +6,19 @@
 #include "core.h"
 #include "v_file_service.h"
 #include "math3d/quaternion.h"
+#include "shared/sea_ai/deck_collision.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <span>
 #include <string>
 
 namespace
 {
 constexpr float ContactSearchRadius = 2.2f;
+constexpr float JumpImpactRadius = 1.75f;
 
 bool CanHitRoundhouse(Character &actor, Character &target)
 {
@@ -134,6 +137,7 @@ bool Character::PrepareRoundhouse()
     if (state.kickDuration <= 0 || state.getupDuration <= 0 || state.strikeStartTime < 0 ||
         state.strikeEndTime <= state.strikeStartTime || state.strikeEndTime > state.kickDuration) return false;
     state.heelOffset = CVECTOR(ini->GetFloat(alias,"heel_offset_x",0), ini->GetFloat(alias,"heel_offset_y",0), ini->GetFloat(alias,"heel_offset_z",0));
+    state.leftHeelOffset = CVECTOR(ini->GetFloat(alias,"left_heel_offset_x",0), ini->GetFloat(alias,"left_heel_offset_y",0), ini->GetFloat(alias,"left_heel_offset_z",0));
     state.headOffset = CVECTOR(ini->GetFloat(alias,"head_offset_x",0), ini->GetFloat(alias,"head_offset_y",0), ini->GetFloat(alias,"head_offset_z",0));
     state.rig.headBody = 2;
     state.rig.jointParents.resize(count);
@@ -285,15 +289,16 @@ bool Character::StartRoundhouse(bool jumping)
         !PrepareRoundhouse() || !roundhouseState->kickSupported) return false;
     auto &state = *roundhouseState;
     if (!SelectAction(*state.bank, jumping ? "roundhouse_jump" : "roundhouse_kick")) return false;
+    const auto &player = state.bank->Player(0);
+    const char *startData = player.GetData("StrikeStart"), *endData = player.GetData("StrikeEnd");
+    if (!startData || !endData) return false;
+    const float strikeStart = std::strtof(startData,nullptr), strikeEnd = std::strtof(endData,nullptr);
+    if (!(strikeStart >= 0 && strikeEnd > strikeStart && strikeEnd <= 1)) return false;
+    state.kickDuration = player.GetFrames()/(state.bank->GetFPS()*player.GetDefSpeed());
+    if (!(state.kickDuration > 0)) return false;
     int32_t allowed = 0;
     auto *answer = core.Event("Roundhouse_TryStart", "il", GetId(), jumping ? 1 : 0);
     if (!answer || !answer->Get(allowed) || !allowed) return false;
-    // Each authored action owns its tempo. Preserve the contact phase when
-    // alternating K and L; the airborne clip has its own shorter duration.
-    const float strikeStart = state.strikeStartTime/state.kickDuration;
-    const float strikeEnd = state.strikeEndTime/state.kickDuration;
-    const auto &player = state.bank->Player(0);
-    state.kickDuration = player.GetFrames()/(state.bank->GetFPS()*player.GetDefSpeed());
     state.strikeStartTime = strikeStart*state.kickDuration;
     state.strikeEndTime = strikeEnd*state.kickDuration;
     CapturePalette(*Model()->GetAnimation(), state.blendFrom);
@@ -308,6 +313,10 @@ bool Character::StartRoundhouse(bool jumping)
     state.hasPreviousHeel = false;
     state.origin = curPos;
     state.yaw = ay;
+    CMatrix identity;
+    identity.SetIdentity();
+    state.rootStart = JointWorld(*state.bank,identity,state.rig.bodies[0].joint).Pos();
+    state.previousRoot = {};
     // Ordinary melee already owns player target selection. Keep only its ID;
     // deletion, escape or changed eligibility ends steering without retargeting.
     auto *target = IsPlayer() ? static_cast<Player *>(this)->FindAttackCharacter() : nullptr;
@@ -492,15 +501,38 @@ bool Character::UpdateRoundhouse(float seconds)
         }
         else state.aimTarget = invalid_entity;
     }
-    curPos = oldPos = state.origin;
     ay = state.yaw;
-    model->mtx.BuildMatrix(CVECTOR(0,ay,0),curPos);
     const float duration = kick ? state.kickDuration : state.getupDuration;
     Sample(*state.bank,state.time/duration);
     CapturePalette(*state.bank,state.pose);
+    if (kick && state.jumping)
+    {
+        CMatrix identity;
+        identity.SetIdentity();
+        CVECTOR root = JointWorld(*state.bank,identity,state.rig.bodies[0].joint).Pos() - state.rootStart;
+        root.y = 0;
+        CMatrix rotation;
+        rotation.BuildMatrix(CVECTOR(0.0f,ay,0.0f),CVECTOR(0.0f,0.0f,0.0f));
+        const CVECTOR step = rotation * (root-state.previousRoot);
+        currentNode = location->GetPtcData().Move(currentNode,curPos+step,oldPos);
+        curPos = oldPos;
+        state.previousRoot = root;
+        // The native skinning path mirrors local X. Remove the extracted
+        // translation from every palette matrix before applying actor motion.
+        for (auto &matrix : state.pose) { matrix.Pos().x += root.x; matrix.Pos().z -= root.z; }
+    }
+    else curPos = oldPos = state.origin;
+    model->mtx.BuildMatrix(CVECTOR(0,ay,0),curPos);
     const float blend = std::clamp(state.time/0.16f,0.0f,1.0f);
     for (std::size_t i = 0; i < state.pose.size() && i < state.blendFrom.size(); ++i)
+    {
         state.pose[i] = Interpolate(state.blendFrom[i],state.pose[i],blend);
+        if (kick && state.jumping)
+        {
+            const float recovery = std::clamp((state.time-(duration-0.22f))/0.22f,0.0f,1.0f);
+            state.pose[i] = Interpolate(state.pose[i],state.blendFrom[i],recovery);
+        }
+    }
     animation->SetPoseOverride(state.pose.data(),static_cast<int>(state.pose.size()));
     UpdateWeapons();
 
@@ -509,14 +541,18 @@ bool Character::UpdateRoundhouse(float seconds)
         auto heelMatrix = JointWorld(*animation,model->mtx,state.heel);
         const CVECTOR heel = roundhouse::JointPointWorld(heelMatrix, state.heelOffset);
         const CVECTOR knee = state.jumping ? JointWorld(*animation,model->mtx,state.rig.bodies[13].joint).Pos() : heel;
-        if (!state.hasPreviousHeel) { state.previousHeel = heel; state.previousKnee = knee; state.hasPreviousHeel = true; }
+        const CVECTOR leftHeel = state.jumping ? roundhouse::JointPointWorld(
+            JointWorld(*animation,model->mtx,state.rig.bodies[11].joint),state.leftHeelOffset) : heel;
+        const CVECTOR leftKnee = state.jumping ? JointWorld(*animation,model->mtx,state.rig.bodies[10].joint).Pos() : knee;
+        if (!state.hasPreviousHeel) { state.previousHeel = heel; state.previousKnee = knee;
+            state.previousLeftHeel = leftHeel; state.previousLeftKnee = leftKnee; state.hasPreviousHeel = true; }
         if ((state.jumping || !state.contacted) && state.time >= state.strikeStartTime && state.time <= state.strikeEndTime)
         {
             struct Contact { entid_t victim; CVECTOR point; float distance; };
             std::vector<Contact> contacts;
             Contact nearest{invalid_entity, {}, 0.0f};
             const CVECTOR torso = JointWorld(*animation,model->mtx,state.rig.bodies[1].joint).Pos();
-            auto candidates = location->supervisor.FindCharacters(this,ContactSearchRadius,100.0f,0.0f,0.0f,false,false);
+            auto candidates = location->supervisor.FindCharacters(this,ContactSearchRadius,state.jumping ? 0.0f : 100.0f,0.0f,0.0f,false,false);
             for (const auto &candidate : candidates)
             {
                 auto *other = candidate.c;
@@ -529,14 +565,42 @@ bool Character::UpdateRoundhouse(float seconds)
                 auto headMatrix = JointWorld(*otherAnimation,otherModel->mtx,other->roundhouseState->head);
                 const auto head = roundhouse::JointPointWorld(headMatrix, other->roundhouseState->headOffset);
                 float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
+                CVECTOR contactPoint = head;
+                bool hit = distance < 0.22f*0.22f;
                 if (state.jumping)
-                    distance = std::min({distance, SegmentDistanceSquared(head,knee,heel),
-                        SegmentDistanceSquared(head,state.previousKnee,state.previousHeel),
-                        SegmentDistanceSquared(head,state.previousKnee,knee)});
-                if (distance >= 0.22f*0.22f || location->Trace(state.previousHeel,head) < 0.995f ||
-                    location->Trace(torso,head) < 0.995f || location->Trace(state.strikeOrigin,head) < 0.995f) continue;
+                {
+                    hit = false;
+                    for (const auto &body : other->roundhouseState->rig.bodies)
+                    {
+                        const CVECTOR a = JointWorld(*otherAnimation,otherModel->mtx,body.joint).Pos();
+                        const CVECTOR b = body.endJoint >= 0 ? JointWorld(*otherAnimation,otherModel->mtx,body.endJoint).Pos() : a;
+                        const auto sweep = [&](const CVECTOR &pk, const CVECTOR &ph, const CVECTOR &k, const CVECTOR &h) {
+                            return std::min(deck_collision::distance2(a,b,pk,ph,h),
+                                            deck_collision::distance2(a,b,pk,h,k));
+                        };
+                        const float d = std::min(sweep(state.previousKnee,state.previousHeel,knee,heel),
+                                                 sweep(state.previousLeftKnee,state.previousLeftHeel,leftKnee,leftHeel));
+                        const float radius = body.radius + 0.055f;
+                        if (d < radius*radius && (!hit || d < distance))
+                        { hit = true; distance = d; contactPoint = (a+b)*0.5f; }
+                    }
+                    // The captured airborne motion has a short reach and does
+                    // not physically sweep a surrounding crowd. Its active
+                    // rotation also delivers a bounded circular impact.
+                    const CVECTOR delta = other->curPos-curPos;
+                    if (!hit && delta.x*delta.x+delta.z*delta.z <= JumpImpactRadius*JumpImpactRadius)
+                    {
+                        const auto &chest = other->roundhouseState->rig.bodies[1];
+                        contactPoint = JointWorld(*otherAnimation,otherModel->mtx,chest.joint).Pos();
+                        distance = delta.x*delta.x+delta.z*delta.z;
+                        hit = true;
+                    }
+                }
+                if (!hit || location->Trace(torso,contactPoint) < 0.995f ||
+                    location->Trace(state.strikeOrigin,contactPoint) < 0.995f ||
+                    (!state.jumping && location->Trace(state.previousHeel,head) < 0.995f)) continue;
                 if (!CanHitRoundhouse(*this,*other)) continue;
-                if (state.jumping) contacts.push_back({other->GetId(),head,distance});
+                if (state.jumping) contacts.push_back({other->GetId(),contactPoint,distance});
                 else if (!nearest.victim || distance < nearest.distance) nearest = {other->GetId(),head,distance};
             }
             const auto attacker = GetId();
@@ -564,6 +628,8 @@ bool Character::UpdateRoundhouse(float seconds)
         }
         state.previousHeel = heel;
         state.previousKnee = knee;
+        state.previousLeftHeel = leftHeel;
+        state.previousLeftKnee = leftKnee;
     }
     if (state.time >= duration)
     {

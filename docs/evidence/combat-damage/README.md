@@ -1,5 +1,13 @@
 # Combat damage geometry evidence
 
+Follow-up: ordinary world blood stains previously never aged while the ring
+buffer was below 75% capacity. They now use the existing 5.5-second lifetime
+and fade regardless of occupancy. The per-frame scan is bounded by the existing
+10,000-triangle buffer; its full-scene frame-time cost has not been measured.
+This corrects a proven stale-world-stain path, but does not establish that it
+was the source of the user's particular floating mark. Ship stains retain their
+separate attached path.
+
 Integrated gameplay contract: substantial, actual unblocked blade/gun damage
 starts 90 seconds of nonlethal bleeding at 2% of **current** HP per second.
 Both at least 8 HP and at least 8% of maximum HP must have been lost. Fists,

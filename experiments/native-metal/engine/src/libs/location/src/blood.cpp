@@ -138,9 +138,6 @@ void Blood::Execute(uint32_t delta_time)
                                       [](const ShipStain &stain) { return stain.life <= 0.f; }), shipStains.end());
         return;
     }
-    if (nUsedTQ < ON_LIVETIME_BLOOD_TRIANGLES)
-        return;
-
     const auto fDeltaTime = delta_time * 0.001f;
     for (int32_t n = 0; n < aBlood.size(); n++)
     {
@@ -175,8 +172,6 @@ void Blood::Execute(uint32_t delta_time)
                 pvBloodT[m].v[2].dwCol = dwCol;
             }
         }
-        else
-            break;
     }
 }
 

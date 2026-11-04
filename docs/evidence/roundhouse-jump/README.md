@@ -1,6 +1,41 @@
 # Jumping heel kick: offline evidence
 
-Current circular revision: L sweeps the actual heel/shin across approximately
+The installed procedural revision below was rejected in gameplay: its pelvis
+and forced heel arc turn in opposite directions, and free arm IK changes the
+elbow bend plane. Contact counts did not establish motion quality. The current
+repair replaces L with a retained complete airborne capture; K and boxing stay
+byte-identical. Acceptance covers the full six-rig gesture, both anatomical
+legs, support/landing, exact entry/recovery, real multi-victim contact and the
+installed bank. The user explicitly accepts either upright or horizontal style.
+
+Root motion belongs to the action's baked root track: native L extracts its
+horizontal delta into the existing PTC movement owner and removes that same
+delta from the skin palette. Rendering and Character position therefore share
+one trajectory and finish at the supported landing position. The existing
+location world owns falls; victim eligibility and per-kick deduplication remain
+unchanged. Source-to-native handedness is applied to the whole recorded pose.
+L contact combines both captured heel/shin sweeps with a bounded 1.75 m
+circular impact during the strike window. Eligibility, obstruction and
+per-victim deduplication apply to both. K retains its previous head-contact rule.
+
+Cost boundary: capture parsing/retargeting is offline only, with the same 121
+baked action frames and rig count. Active L adds one existing PTC move and one
+root transform per frame, strips root translation in the existing palette loop,
+and checks two leg sweeps against the existing victim rig capsules. Idle, K,
+boxing and shaders add no work. Same-consumer native replay timing and full
+gesture output are required; interactive frame time remains the user's check.
+
+The captured replacement is subject 87 trial 01: the recorded full-body
+airborne rotation, including both arms and legs, with native guard blending and
+one-sided floor support. `capture-*-full` views are represented by the six
+`capture-<rig>.png` sheets; `capture-trajectory.json` and
+`capture-measure.py` retain the sample data and procedure. `capture-crowd-result.json`
+records three victims at normal starting separation, each hit once and physically
+fallen; its 140-frame CPU sample is 52.918 ms versus the prior 46.612 ms sample.
+This is not an interactive FPS measurement. The user must assess the actual
+animation and landing in the installed game.
+
+Prior installed revision (superseded): L sweeps the heel/shin across approximately
 120 degrees while airborne. `circular-phases.png` covers six real GM rigs;
 `circular-motion.png` covers the complete sampled gesture from two views.
 These are offline component frames, not gameplay captures. All 121 serialized

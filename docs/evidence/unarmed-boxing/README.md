@@ -174,6 +174,13 @@ scheduled event transport, final weapon draw, or rendered gameplay.
 
 ## Connected combos and guard escape
 
+Follow-up after the reported stance snap and X parry: a native replay of all
+13 earlier combo/dodge cases still passes. Separate real Player input probes
+confirm X does not start parry unarmed and still starts it armed; stance entry
+and exit both produce an intermediate pose before their 0.2-second transition
+finishes. `guard-transition-native-result.json` and its fixture retain that
+evidence; rendered gameplay remains the user's check.
+
 `combos-native-result.json` and `combos-native-raw.txt` retain the actual native
 Character/Player, animation-ending, complete gameplay VM and Jolt replay:
 13/13 cases pass, with zero script errors and no native window. Jab-cross,

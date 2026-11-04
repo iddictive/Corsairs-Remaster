@@ -5,7 +5,8 @@
   "support_models": {"man": "Blad_0", "man1": "barmen_33", "man2": "Researcher", "Jessika": "jess0", "YokoDias": "Beatric_0", "Danielle": "Dan_Howk_0"},
   "kick_samples": 121,
   "jump_choreography": {
-    "duration_s": 1.4,
+    "duration_s": 2.1,
+    "contact_window": [0.24, 0.69],
     "height_m": 0.75,
     "sweep_keys": [[0.0,-60.0], [0.43,-60.0], [0.595,0.0], [0.76,60.0], [1.0,60.0]],
     "flight_interval": [0.20, 0.86],

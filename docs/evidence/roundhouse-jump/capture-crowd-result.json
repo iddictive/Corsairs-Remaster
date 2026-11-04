@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "START VictimLeft x=-1.29904 z=0.75\nSTART Victim x=0 z=1.5\nSTART VictimRight x=1.29904 z=0.75\nTARGET VictimLeft hits=1 hp=385 physical=1\nTARGET Victim hits=1 hp=385 physical=1\nTARGET VictimRight hits=1 hp=385 physical=1\nTOTAL 3 cpu_ms=52.918\n",
+  "stderr": ""
+}
