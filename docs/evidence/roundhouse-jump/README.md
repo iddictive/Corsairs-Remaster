@@ -13,7 +13,7 @@ revision admitted one victim (`crowd-baseline-result.json`). Full 140-frame
 CPU replay cost was 45.403 ms before and 46.612 ms after, including the added
 two physical victims; these single samples do not establish interactive FPS.
 K still hits one target. Existing wall, far, immortal and same-group negatives
-pass on the new engine. Targets are admitted by actual swept heel/shin contact
+pass on the new engine (`circular-boundary-result.json`). Targets are admitted by actual swept heel/shin contact
 and visibility, with a per-kick entity ledger; there is no radial damage pulse.
 
 Reproduce after the ordinary engine build, with a fresh temporary directory:

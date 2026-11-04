@@ -1,0 +1,44 @@
+[
+  {
+    "case": "fighter",
+    "exit": 0,
+    "seconds": 0.444373624981381,
+    "stdout": "case=fighter supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.176376 hits=1 hp=442.000000 ragdolls=1 physical_displacement=1.249021 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=45.028000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "jump",
+    "exit": 0,
+    "seconds": 0.26899016700917855,
+    "stdout": "case=jump supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.231962 hits=1 hp=385.000000 ragdolls=1 physical_displacement=1.433819 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=45.032000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "wall",
+    "exit": 0,
+    "seconds": 0.23066370899323374,
+    "stdout": "case=wall supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.000240 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=1 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=1.070000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "far",
+    "exit": 0,
+    "seconds": 0.2298837499693036,
+    "stdout": "case=far supervisor_spacing=1.500000 final_spacing=2.400000 heel_head_min=0.892926 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.947000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "immortal",
+    "exit": 0,
+    "seconds": 0.2306132500525564,
+    "stdout": "case=immortal supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.000240 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=1.014000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "same-group",
+    "exit": 0,
+    "seconds": 0.2291353330365382,
+    "stdout": "case=same-group supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.000240 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.972000 frames=140\n",
+    "stderr": ""
+  }
+]
