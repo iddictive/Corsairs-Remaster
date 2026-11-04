@@ -1,0 +1,37 @@
+[
+  {
+    "case": "deep",
+    "exit": 0,
+    "seconds": 0.5004303749883547,
+    "stdout": "t=1 phase=2 pelvisY=-2.70484 rootY=-3.69939 launchY=0.0233962\nt=2 phase=2 pelvisY=-2.82191 rootY=-3.81646 launchY=0.0233962\nt=3 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=4 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=5 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=6 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=7 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=8 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=9 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nRESULT dead=1 hp=0 phase=2 handles=1 rootY=-3.81639\nlowest=-2.8342 launch=0.0233962 final=-3.81639\n",
+    "stderr": ""
+  },
+  {
+    "case": "floor",
+    "exit": 0,
+    "seconds": 0.21780491701792926,
+    "stdout": "t=1 phase=2 pelvisY=0.23823 rootY=-0.756327 launchY=0.0233962\nt=2 phase=2 pelvisY=0.273597 rootY=-0.72096 launchY=0.0233962\nt=3 phase=3 pelvisY=-0.0323461 rootY=0.0195335 launchY=0.0233962\nt=4 phase=3 pelvisY=-0.270806 rootY=0.0195335 launchY=0.0233962\nt=5 phase=0 pelvisY=-0.0802963 rootY=0.0195335 launchY=0.0233962\nt=6 phase=0 pelvisY=-0.0802963 rootY=0.0195335 launchY=0.0233962\nt=7 phase=0 pelvisY=-0.0802963 rootY=0.0195335 launchY=0.0233962\nt=8 phase=0 pelvisY=-0.0802963 rootY=0.0195335 launchY=0.0233962\nt=9 phase=0 pelvisY=-0.0802963 rootY=0.0195335 launchY=0.0233962\nRESULT dead=0 hp=500 phase=0 handles=0 rootY=0.0195335\nlowest=-0.312528 launch=0.0233962 final=0.0195335\n",
+    "stderr": ""
+  },
+  {
+    "case": "immortal",
+    "exit": 0,
+    "seconds": 0.21907766704680398,
+    "stdout": "t=1 phase=2 pelvisY=-2.70484 rootY=-3.69939 launchY=0.0233962\nt=2 phase=2 pelvisY=-2.82191 rootY=-3.81646 launchY=0.0233962\nt=3 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=4 phase=2 pelvisY=-2.82183 rootY=-3.81639 launchY=0.0233962\nt=5 phase=3 pelvisY=-2.82183 rootY=0.0233962 launchY=0.0233962\nt=6 phase=3 pelvisY=-0.1255 rootY=0.0233962 launchY=0.0233962\nt=7 phase=3 pelvisY=-0.0802958 rootY=0.0233962 launchY=0.0233962\nt=8 phase=0 pelvisY=-0.0802963 rootY=0.0233962 launchY=0.0233962\nt=9 phase=0 pelvisY=-0.0802963 rootY=0.0233962 launchY=0.0233962\nRESULT dead=0 hp=1 phase=0 handles=0 rootY=0.0233962\nlowest=-2.8342 launch=0.0233962 final=0.0233962\n",
+    "stderr": ""
+  },
+  {
+    "case": "void",
+    "exit": 0,
+    "seconds": 0.23301654099486768,
+    "stdout": "t=1 phase=2 pelvisY=-3.42186 rootY=-4.41642 launchY=0.0233962\nt=2 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=3 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=4 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=5 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=6 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=7 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=8 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nt=9 phase=2 pelvisY=-8.90051 rootY=-9.89507 launchY=0.0233962\nRESULT dead=1 hp=0 phase=2 handles=0 rootY=-9.89507\nlowest=-8.90051 launch=0.0233962 final=-9.89507\n",
+    "stderr": ""
+  },
+  {
+    "case": "shallow",
+    "exit": 0,
+    "seconds": 0.21728012501262128,
+    "stdout": "t=1 phase=2 pelvisY=-0.750804 rootY=-1.74536 launchY=0.0233962\nt=2 phase=2 pelvisY=-0.837205 rootY=-1.83176 launchY=0.0233962\nt=3 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nt=4 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nt=5 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nt=6 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nt=7 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nt=8 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nt=9 phase=2 pelvisY=-0.83733 rootY=-1.83189 launchY=0.0233962\nRESULT dead=0 hp=500 phase=2 handles=1 rootY=-1.83189\nlowest=-0.838267 launch=0.0233962 final=-1.83189\n",
+    "stderr": ""
+  }
+]

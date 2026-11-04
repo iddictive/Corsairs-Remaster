@@ -16,6 +16,11 @@ void extrnInitPerks()
 	ChrPerksList.list.RoundhouseKick.condition.BasicDefense = true;
 	ChrPerksList.list.RoundhouseKick.BaseType = "self";
 	ChrPerksList.list.RoundhouseKick.PlayerOnly = true;
+	ChrPerksList.list.RoundhouseJump.descr = "perkRoundhouseJump";
+	ChrPerksList.list.RoundhouseJump.TextureGroup = "PERK_ROUNDHOUSE";
+	ChrPerksList.list.RoundhouseJump.condition.RoundhouseKick = true;
+	ChrPerksList.list.RoundhouseJump.BaseType = "self";
+	ChrPerksList.list.RoundhouseJump.PlayerOnly = true;
 
 	ChrPerksList.list.AdvancedDefense.descr = "perkAdvancedDefense";
 	ChrPerksList.list.AdvancedDefense.condition.BasicDefense = true;

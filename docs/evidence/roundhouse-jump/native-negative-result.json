@@ -1,0 +1,44 @@
+[
+  {
+    "case": "wall",
+    "exit": 0,
+    "seconds": 0.48129512500000016,
+    "stdout": "case=wall supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.000377 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=1 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=1.090000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "far",
+    "exit": 0,
+    "seconds": 0.23484616700000016,
+    "stdout": "case=far supervisor_spacing=1.500000 final_spacing=2.400000 heel_head_min=0.893057 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.948000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "immortal",
+    "exit": 0,
+    "seconds": 0.236120208,
+    "stdout": "case=immortal supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.000377 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.997000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "same-group",
+    "exit": 0,
+    "seconds": 0.23522416700000015,
+    "stdout": "case=same-group supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.000377 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.978000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "locked",
+    "exit": 0,
+    "seconds": 0.2340253750000003,
+    "stdout": "REJECT locked\n",
+    "stderr": ""
+  },
+  {
+    "case": "tired",
+    "exit": 0,
+    "seconds": 0.23168583299999979,
+    "stdout": "REJECT tired\n",
+    "stderr": ""
+  }
+]

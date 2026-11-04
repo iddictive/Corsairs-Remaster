@@ -194,22 +194,23 @@ void Character::CancelRoundhouse()
     }
 }
 
-bool Character::StartRoundhouse()
+bool Character::StartRoundhouse(bool jumping)
 {
     const auto *location = GetLocation();
     if (!location || location->IsPaused() || IsDialog() || IsRoundhouseControlled() || IsDead() ||
         !IsFight() || isJump || isSwim || priorityAction.name ||
         !PrepareRoundhouse() || !roundhouseState->kickSupported) return false;
     auto &state = *roundhouseState;
-    if (!SelectAction(*state.bank, "roundhouse_kick")) return false;
+    if (!SelectAction(*state.bank, jumping ? "roundhouse_jump" : "roundhouse_kick")) return false;
     int32_t allowed = 0;
-    auto *answer = core.Event("Roundhouse_TryStart", "i", GetId());
+    auto *answer = core.Event("Roundhouse_TryStart", "il", GetId(), jumping ? 1 : 0);
     if (!answer || !answer->Get(allowed) || !allowed) return false;
     CapturePalette(*Model()->GetAnimation(), state.blendFrom);
     state.strikeOrigin = JointWorld(*Model()->GetAnimation(),Model()->mtx,state.rig.bodies[1].joint).Pos();
     ClearUnarmedPose();
     StopFightAnimation();
     state.phase = RoundhouseState::Phase::Kick;
+    state.jumping = jumping;
     state.time = 0;
     state.contacted = false;
     state.hasPreviousHeel = false;
@@ -223,7 +224,7 @@ bool Character::StartRoundhouse()
     return true;
 }
 
-bool Character::BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse)
+bool Character::BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse, entid_t attacker)
 {
     if (IsPhysicalRagdoll() || !PrepareRoundhouse()) return false;
     const auto reject = [&](const char *stage) {
@@ -265,6 +266,11 @@ bool Character::BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse
     state.recoveryNode = recoveryNode;
     state.yaw = ay;
     state.pose = std::move(pose);
+    state.pelvisRootOffset = state.pose[state.rig.bodies[0].joint].Pos().y-curPos.y;
+    state.fallAttacker = attacker;
+    state.fallDamageApplied = false;
+    state.recoveryClassified = false;
+    state.protectedRecovery = false;
     StopFightAnimation();
     return true;
 }
@@ -292,13 +298,45 @@ bool Character::UpdateRoundhouse(float seconds)
     if (state.phase == RoundhouseState::Phase::Falling)
     {
         auto *world = location->ExistingRagdollWorld();
-        if (!world || !world->GetPose(state.handle,state.pose)) { CancelRoundhouse(); return false; }
+        if (!world || (state.handle && !world->GetPose(state.handle,state.pose))) { CancelRoundhouse(); return false; }
         const CVECTOR pelvis = state.pose[state.rig.bodies[0].joint].Pos();
         curPos.x = pelvis.x;
+        curPos.y = pelvis.y-state.pelvisRootOffset;
         curPos.z = pelvis.z;
         model->mtx.BuildMatrix(CVECTOR(0,ay,0),curPos);
         updatePalette(state.pose);
         UpdateWeapons();
+        // Measure actual body clearance below the launch floor, not the
+        // standing pelvis height or the temporary lift from the kick impulse.
+        float bottom = pelvis.y;
+        for (const auto &body : state.rig.bodies)
+        {
+            bottom = std::min(bottom,state.pose[body.joint].Pos().y-body.radius);
+            if (body.endJoint >= 0) bottom = std::min(bottom,state.pose[body.endJoint].Pos().y-body.radius);
+        }
+        const auto fallPolicy = [&](bool lethal) {
+            const bool credited = core.IsEntityValid(state.fallAttacker);
+            int32_t result = 0;
+            auto *answer = core.Event("Roundhouse_FallDamage","iill",GetId(),
+                                      credited ? state.fallAttacker : GetId(),lethal ? 1 : 0,credited ? 1 : 0);
+            if (!answer || !answer->Get(result))
+                core.Trace("Roundhouse: fall policy missing actor=%llu",static_cast<unsigned long long>(GetId()));
+            state.protectedRecovery = result < 0;
+            state.recoveryClassified = true;
+        };
+        if (!IsDead() && !state.fallDamageApplied && state.origin.y-bottom >= 2.0f)
+        {
+            state.fallDamageApplied = true;
+            fallPolicy(true);
+        }
+        // A corpse leaving all collision geometry keeps its final physical
+        // pose until normal character/location cleanup, without a live body
+        // simulating forever below the world.
+        if (IsDead() && state.handle && state.origin.y-bottom > 10.0f)
+        {
+            world->Remove(state.handle);
+            state.handle = 0;
+        }
         if (!IsDead() && state.time >= 2.5f && (world->IsSleeping(state.handle) || state.time >= 5.0f))
         {
             float ground = 0.0f;
@@ -306,7 +344,8 @@ bool Character::UpdateRoundhouse(float seconds)
             CVECTOR recoveryPosition(pelvis.x,ground,pelvis.z);
             const bool supported = node >= 0 && ground <= pelvis.y+0.05f && pelvis.y-ground <= height &&
                                    HasCollisionSupport(*location,pelvis,ground);
-            const bool useAnchor = !supported && state.time >= 5.0f;
+            if (!supported && state.time >= 5.0f && !state.recoveryClassified) fallPolicy(false);
+            const bool useAnchor = !supported && state.time >= 5.0f && state.protectedRecovery;
             if (!supported)
             {
                 node = useAnchor ? state.recoveryNode : -1;
@@ -411,9 +450,9 @@ bool Character::UpdateRoundhouse(float seconds)
                 // Contact owns damage exactly once. Physical admission is a
                 // separate required effect, with its own failure diagnostic.
                 state.contacted = true;
-                victim->BeginRoundhouseFall(contact,direction*85.0f+CVECTOR(0,22.0f,0));
+                victim->BeginRoundhouseFall(contact,direction*(state.jumping ? 130.0f : 85.0f)+CVECTOR(0,state.jumping ? 32.0f : 22.0f,0),GetId());
                 core.Event("Event_ChrSnd_Hit","i",victim->GetId());
-                core.Event("Location_CharacterAttack","iislll",GetId(),victim->GetId(),"roundhouse",0,0,-1);
+                core.Event("Location_CharacterAttack","iislll",GetId(),victim->GetId(),state.jumping ? "roundhouse_jump" : "roundhouse",0,0,-1);
             }
         }
         state.previousHeel = heel;

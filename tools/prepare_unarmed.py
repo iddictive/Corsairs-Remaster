@@ -19,20 +19,24 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from prepare_port_rowboat import add, sub, scale, unit, qm, rotate, axis, fk
-from prepare_roundhouse import (SOURCES, curve, source_rig, limb, bend_pole,
-                                global_orientation, pack)
+from prepare_port_rowboat import add, sub, scale, unit, qm, rotate, axis, fk, between
+from prepare_roundhouse import (SOURCES, curve, source_rig, limb,
+                                global_orientation, pack, bend_pole)
+from boxing_mocap import ASSETS as MOCAP_ASSETS, make_guard, make_strikes
 from runtime_script_patch import atomic_write
 
 ASSETS = ROOT / "src/assets/unarmed"
 OUTPUT = ROOT / "experiments/native-metal/.cache/unarmed"
 MANIFEST = ASSETS / "manifest.json"
+STRIKE_DURATIONS = {"unarmed_jab": .32, "unarmed_cross": .42, "unarmed_uppercut": .56}
 DEPENDENCIES = {
     "sources_sha256": SOURCES,
     "generator_sha256": Path(__file__),
     "roundhouse_helpers_sha256": ROOT / "tools/prepare_roundhouse.py",
     "authoring_helpers_sha256": ROOT / "tools/prepare_port_rowboat.py",
     "atomic_writer_sha256": ROOT / "tools/runtime_script_patch.py",
+    "mocap_helpers_sha256": ROOT / "tools/boxing_mocap.py",
+    **{"mocap_" + path.name + "_sha256": path for path in sorted(MOCAP_ASSETS.iterdir()) if path.is_file()},
 }
 
 def sha(data):
@@ -42,30 +46,9 @@ def make_unarmed_actions(source, fps=30.0):
     r = source_rig(source)
     body = source["body"]["joints"]
     height = source["body"]["height"]
-    origin = source["guard_root"]
-    initial = list(source["guard_pose"])
-    planted, feet_world = fk(r, initial, origin)
-    _, bind_world = fk(r, source["bind_pose"], source["bind_root"])
+    initial = list(source["bind_pose"])
     arms = (body[3:6], body[6:9])
     legs = (body[9:12], body[12:15])
-    leg_poles = [bend_pole(planted, ids) for ids in legs]
-
-    # Sword guard contains an open leading hand and rolled/twisted arm joints.
-    # Restore each complete arm subtree, including its intermediate twist joints
-    # and closed bind fingers, before solving. The sword stance below the waist
-    # remains intact; the torso faces the opponent instead of the sword's guard.
-    arm_joints = set()
-    for j, parent in enumerate(r["parents"]):
-        if j in (arms[0][0], arms[1][0]) or parent in arm_joints:
-            arm_joints.add(j)
-            initial[j] = source["bind_pose"][j]
-    # The clavicles are outside those subtrees. Retaining a sword-side shrug
-    # here raises/rolls the shoulder even when the elbow target is correct.
-    for ids in arms:
-        joint = r["parents"][ids[0]]
-        while joint != body[1]:
-            initial[joint] = source["bind_pose"][joint]
-            joint = r["parents"][joint]
     # Coarse rigs use a single finger pad plus thumb, rather than five chains.
     # Their bind finger pad is open; flex it at its real joint to make a fist.
     for ids, side in zip(arms, (1., -1.)):
@@ -73,73 +56,67 @@ def make_unarmed_actions(source, fps=30.0):
         if len(fingers) == 2 and all(j not in r["parents"] for j in fingers):
             pad = max(fingers, key=lambda j: r["rest"][j][1])
             initial[pad] = qm(initial[pad], axis((0., 0., 1.), -side * 1.1))
+        elif len(fingers) == 5:
+            # Detailed rigs retain real phalange chains. The captured BVH has
+            # no fingers; a bind hand otherwise turns the uppercut into a palm.
+            thumb = min(fingers, key=lambda j: r["rest"][j][1])
+            for finger in fingers:
+                if finger == thumb: continue
+                joint = finger
+                for amount in (.45, .45, .3):
+                    initial[joint] = qm(initial[joint], axis((0., 0., 1.), -side * amount))
+                    children = [j for j, parent in enumerate(r["parents"]) if parent == joint]
+                    if len(children) != 1: break
+                    joint = children[0]
+            # Oppose the thumb across the folded fingers. Curling its local Z
+            # like another finger leaves a hook below the striking knuckles.
+            chain = [thumb]
+            while len(chain) < 4:
+                children = [j for j, parent in enumerate(r["parents"]) if parent == chain[-1]]
+                if len(children) != 1: break
+                chain.append(children[0])
+            if len(chain) == 4:
+                p, g = fk(r, initial, source["bind_root"])
+                index = min((j for j in fingers if j != thumb), key=lambda j: math.dist(p[j], p[thumb]))
+                child = next(j for j, parent in enumerate(r["parents"]) if parent == index)
+                along = unit(sub(p[child], p[index]))
+                target = add(p[index], scale(along, .025))
+                limb(r, initial, source["bind_root"], chain[:3], target, bend_pole(p, chain[:3]))
+                current, world = fk(r, initial, source["bind_root"])
+                tip = chain[2]
+                turn = between(sub(current[chain[3]], current[tip]), along)
+                global_orientation(r, initial, source["bind_root"], tip, qm(turn, world[tip]))
 
-    def pose(yaw=0., pitch=0., roll=0., hips=0., shift=(0., 0., 0.),
-             punch=None, extension=0., upper=(0., 0.), block=0.):
+    guard = make_guard(source, hand_pose=initial)
+    origin, initial = guard
+    planted, guard_world = fk(r, initial, origin)
+    poles = {tuple(ids): bend_pole(planted, ids) for ids in (*arms, *legs)}
+
+    def pose(pitch=0., roll=0., shift=(0., 0., 0.), block=0.):
         root = add(origin, scale(shift, height))
         q = list(initial)
-        if hips:
-            global_orientation(r, q, root, body[0],
-                qm(axis((0., 1., 0.), math.radians(hips)), feet_world[body[0]]))
-        turn = axis((0., 1., 0.), math.radians(-18. + yaw))
         tilt = qm(axis((0., 0., 1.), math.radians(roll)),
                   axis((1., 0., 0.), math.radians(pitch)))
-        global_orientation(r, q, root, body[1], qm(qm(tilt, turn), bind_world[body[1]]))
-        # Keep eyes toward the opponent and chin slightly tucked.
-        global_orientation(r, q, root, body[2],
-                           qm(axis((1., 0., 0.), math.radians(6.)), bind_world[body[2]]))
-        # Same solve at rest and in motion; switching IK on only after the root
-        # moves would snap the knees on the first breathing/strike sample.
-        for ids, pole in zip(legs, leg_poles):
-            limb(r, q, root, ids, planted[ids[2]], pole)
-            global_orientation(r, q, root, ids[2], feet_world[ids[2]])
+        global_orientation(r, q, root, body[1], qm(tilt, guard_world[body[1]]))
+        for ids in legs:
+            limb(r, q, root, ids, planted[ids[2]], poles[tuple(ids)])
+            global_orientation(r, q, root, ids[2], guard_world[ids[2]])
 
         p, _ = fk(r, q, root)
-        head = p[body[2]]
-        for hand, (ids, side) in enumerate(zip(arms, (1., -1.))):
-            # Targets travel with the upper body. Keeping the elbow below the
-            # wrist produces a compact guard rather than sideways chicken wings.
-            offset = (side * .085, -.075 + .045 * block,
-                      (.13 if hand == 0 else .10) - .015 * block)
-            target = add(head, rotate(turn, scale(offset, height)))
-            pole = rotate(turn, (side * .18, -1., .05))
-            if punch == hand:
-                shoulder = p[ids[0]]
-                reach = math.dist(p[ids[0]], p[ids[1]]) + math.dist(p[ids[1]], p[ids[2]])
-                aim = add(head, (side * .025 * height, -.075 * height, reach))
-                # A small remaining bend avoids the straight-arm IK singularity.
-                end = add(shoulder, scale(unit(sub(aim, shoulder)), .98 * reach))
-                target = add(target, scale(sub(end, target), extension))
-            if hand == 1:
-                load, drive = upper
-                chamber = add(p[body[0]], rotate(turn, scale((-.11, .075, .14), height)))
-                target = add(target, scale(sub(chamber, target), load))
-                target = add(target, (0., .025 * height * drive, .095 * height * drive))
-            limb(r, q, root, ids, target, pole)
+        for ids, side in zip(arms, (1., -1.)):
+            offset = sub(planted[ids[2]], planted[body[1]])
+            target = add(p[body[1]], rotate(tilt, offset))
+            target = add(target, scale((-side*.015, .045, -.015), height*block))
+            limb(r, q, root, ids, target, rotate(tilt, poles[tuple(ids)]))
+            global_orientation(r, q, root, ids[2], qm(tilt, guard_world[ids[2]]))
         return root, [unit(rotation) for rotation in q]
 
-    guard = pose()
-
     def action(count, sample):
-        # Exact common boundaries; interpolate targets BEFORE IK, never solved
-        # shoulder/elbow rotations independently through the chest.
+        # Every motion returns to the same recorded guard.
         return [guard if f in (0, count-1) else sample(f / (count-1)) for f in range(count)]
 
     idle = action(30, lambda t: pose(pitch=.4 * math.sin(2 * math.pi * t),
                   shift=(0., .0015 * math.sin(2 * math.pi * t), 0.)))
-
-    def strike(t, hand, contact):
-        ext = curve(((0., 0.), (.13, .02), (contact, 1.), (.72, .28), (1., 0.)), t)[0]
-        return pose(yaw=(-12. if hand == 0 else 38.) * ext, hips=(-4. if hand == 0 else 12.) * ext,
-                    shift=(0., -.008 * ext, (.025 if hand == 0 else .045) * ext),
-                    punch=hand, extension=ext)
-
-    def uppercut(t):
-        load, drive = curve(((0., 0., 0.), (.28, 1., 0.),
-                             (13/21, 0., 1.), (.82, 0., .25), (1., 0., 0.)), t)
-        return pose(yaw=-10. * load + 30. * drive, hips=-6. * load + 14. * drive,
-                    pitch=10. * load - 3. * drive, roll=9. * load - 2. * drive,
-                    shift=(-.025 * load, -.045 * load, .04 * drive), upper=(load, drive))
 
     def blocking(t):
         amount = curve(((0., 0.), (.3, 1.), (.7, 1.), (1., 0.)), t)[0]
@@ -152,9 +129,7 @@ def make_unarmed_actions(source, fps=30.0):
 
     return {
         "unarmed_idle": idle,
-        "unarmed_jab": action(15, lambda t: strike(t, 0, 6/14)),
-        "unarmed_cross": action(20, lambda t: strike(t, 1, 9/19)),
-        "unarmed_uppercut": action(22, uppercut),
+        **make_strikes(source, hand_pose=initial, guard=guard),
         "unarmed_block": action(10, blocking),
         "unarmed_dodge_left": action(16, lambda t: dodge(t, 1)),
         "unarmed_dodge_right": action(16, lambda t: dodge(t, -1)),
@@ -176,7 +151,8 @@ def prepare(write_manifest=True, expected_manifest=None):
         for act, (first, last) in ranges.items():
             loop_str = "true" if act == "unarmed_idle" else "false"
             blend_str = "0.2" if act == "unarmed_idle" else "0.1"
-            ani_text += (f"[{act}]\nspeed = 1.0\nloop = {loop_str}\ntype = normal\n"
+            speed = (last-first) / (30.0 * STRIKE_DURATIONS[act]) if act in STRIKE_DURATIONS else 1.0
+            ani_text += (f"[{act}]\nspeed = {speed:.9g}\nloop = {loop_str}\ntype = normal\n"
                          f"start_time = {first}\nend_time = {last}\n"
                          f'data = "Blend time", "{blend_str}"\n\n')
         outputs[an_rel] = data
@@ -186,6 +162,7 @@ def prepare(write_manifest=True, expected_manifest=None):
         files[ani_rel] = {"sha256": sha(ani_text.encode("ascii")), "bytes": len(ani_text)}
 
     manifest = {"version": 1, "fps": 30, "banks": banks, "files": files,
+                "strike_durations_s": STRIKE_DURATIONS,
                 "contract": "Frame 0 is inverse bind; action ranges are inclusive. All action boundaries match the idle guard. Block is a one-shot, not a held guard."}
     manifest.update({key: sha(path.read_bytes()) for key, path in DEPENDENCIES.items()})
     if expected_manifest is not None and manifest != expected_manifest:

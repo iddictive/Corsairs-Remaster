@@ -1,0 +1,22 @@
+from pathlib import Path
+import sys,json,math,numpy as np
+sys.path.insert(0,'tools')
+import render_unarmed_atlas as v
+from prepare_roundhouse import animated_mesh,bind_skin,skin_coordinates,source_rig
+from prepare_port_rowboat import fk,rig
+from boxing_mocap import make_strikes
+from PIL import Image
+s=json.load(open('src/assets/roundhouse/rigs.json'))['rigs']['man'];r=source_rig(s)
+verts,faces=animated_mesh(Path('docs/evidence/roundhouse-kick/inputs/Blad_0.gm').read_bytes());bound=bind_skin(s,verts)
+wrist=s['body']['joints'][8];desc={wrist}
+for j,p in enumerate(r['parents']):
+ if p in desc:desc.add(j)
+mask=[(a in desc and weight>.25) or (b in desc and weight<.75) for _,weight,a,b in verts]
+faces=[f for f in faces if all(mask[i] for i in f)]
+canvas=Image.new('RGB',(1800,500));bank=rig(Path('experiments/native-metal/.cache/unarmed/RESOURCE/animation/Unarmed_man.an').read_bytes());m=json.load(open('src/assets/unarmed/manifest.json'));f=m['banks']['man']['actions']['unarmed_uppercut'][0]+13
+for row,(name,(root,q)) in enumerate((('bind fingers',make_strikes(s)['unarmed_uppercut'][13]),('fist layer',(bank['roots'][f],bank['pose'](f))))):
+ p,g=fk(r,q,root);points=np.asarray(skin_coordinates(p,g,bound));selected=points[[i for i,x in enumerate(mask) if x]]
+ for col,angle in enumerate((0,45,90)):
+  a=math.radians(angle);right=np.array((math.cos(a),0,-math.sin(a)));xx=selected@right;lo,hi=xx.min(),xx.max();floor=selected[:,1].min()-.01;zoom=min(560/(hi-lo),210/(selected[:,1].max()-floor))
+  canvas.paste(v.panel(points,faces,angle,(600,250),f'{name} {angle}',((lo+hi)/2,floor,zoom)),(col*600,row*250))
+canvas.save('${OUTPUT}/hands.png')

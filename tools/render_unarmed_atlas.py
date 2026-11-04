@@ -28,16 +28,15 @@ ACTIONS = (
     ("Уклон вправо", "unarmed_dodge_right", .4),
 )
 
-def panel(points, faces, angle, size, label, detail=False):
+def panel(points, faces, angle, size, label, framing=None):
     width, height = size
     a = math.radians(angle)
     right = np.array((math.cos(a), 0., -math.sin(a)))
     toward_camera = np.array((math.sin(a), 0., math.cos(a)))
     points = np.asarray(points)
-    zoom = min(width/1.8, (height-45)/1.9) * (1.5 if detail else 1.)
-    centered = points - np.array((0., 0., .25 if detail else 0.))
-    xy = np.column_stack((width/2 + centered @ right * zoom,
-                          height-30 - (points[:, 1]-(.75 if detail else 0.))*zoom))
+    center, floor, zoom = framing or (0., 0., min(width/1.8, (height-45)/1.9))
+    xy = np.column_stack((width/2 + (points @ right-center) * zoom,
+                          height-30 - (points[:, 1]-floor)*zoom))
     depth = points @ toward_camera
     pixels = np.empty((height, width, 3), dtype=np.uint8)
     pixels[:] = (25, 30, 38)
@@ -117,6 +116,8 @@ def main():
     points, faces, animation, actions = load(args.rig, args.bank_root)
     if args.motion:
         frames = []
+        durations = []
+        timing = json.loads((ROOT/"src/assets/unarmed/manifest.json").read_text()).get("strike_durations_s", {})
         for title, action, _ in selected:
             first, last = actions[action]
             for frame in range(first, last+1):
@@ -126,8 +127,9 @@ def main():
                     canvas.paste(panel(mesh, faces, angle, size,
                         f"{args.rig}: {title} {frame-first}/{last-first} · {angle:g}°"), (col*size[0], 0))
                 frames.append(canvas)
+                durations.append(1000*timing[action]/(last-first) if action in timing else 1000/animation["fps"])
         frames[0].save(args.output, save_all=True, append_images=frames[1:],
-                      duration=1000/animation["fps"], loop=0, optimize=False)
+                      duration=durations, loop=0, optimize=False)
     else:
         rows = []
         for title, action, contact in selected:
@@ -137,10 +139,22 @@ def main():
                 first+round((last-first)*t) for t in phases]
             rows.extend((frame, f"{title} {frame-first}/{last-first}") for frame in samples)
         cols = 8 if args.all_frames else 5
+        meshes = [np.asarray(points(frame)) for frame, _ in rows]
+        framing = None
+        if args.all_frames:
+            # One fixed camera fits every hand position in the whole sequence;
+            # a per-frame fit would conceal root/hand travel and apparent speed.
+            a = math.radians(args.angle)
+            right = np.array((math.cos(a), 0., -math.sin(a)))
+            upper = np.concatenate([mesh[mesh[:, 1] >= .65] for mesh in meshes])
+            horizontal = upper @ right
+            lo, hi = horizontal.min(), horizontal.max()
+            framing = ((lo+hi)/2, .65,
+                       min((size[0]-24)/(hi-lo), (size[1]-60)/(upper[:, 1].max()-.65)))
         canvas = Image.new("RGB", (cols*size[0], math.ceil(len(rows)/cols)*size[1]), (16, 20, 26))
         for i, (frame, title) in enumerate(rows):
-            canvas.paste(panel(points(frame), faces, args.angle, size,
-                f"{args.rig} · {title} · {args.angle:g}°", args.all_frames),
+            canvas.paste(panel(meshes[i], faces, args.angle, size,
+                f"{args.rig} · {title} · {args.angle:g}°", framing),
                 ((i % cols)*size[0], (i // cols)*size[1]))
         canvas.save(args.output)
     print(args.output)

@@ -1,0 +1,10 @@
+t=1 phase=2 pelvisY=-2.70484 rootY=0.0233962 launchY=0.0233962
+t=2 phase=2 pelvisY=-2.82191 rootY=0.0233962 launchY=0.0233962
+t=3 phase=2 pelvisY=-2.82183 rootY=0.0233962 launchY=0.0233962
+t=4 phase=2 pelvisY=-2.82183 rootY=0.0233962 launchY=0.0233962
+t=5 phase=3 pelvisY=-2.82183 rootY=0.0233962 launchY=0.0233962
+t=6 phase=3 pelvisY=-0.1255 rootY=0.0233962 launchY=0.0233962
+t=7 phase=3 pelvisY=-0.0802956 rootY=0.0233962 launchY=0.0233962
+t=8 phase=0 pelvisY=-0.0802963 rootY=0.0233962 launchY=0.0233962
+t=9 phase=0 pelvisY=-0.0802963 rootY=0.0233962 launchY=0.0233962
+lowest=-2.8342 launch=0.0233962 final=0.0233962

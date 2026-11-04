@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "source_page": "https://accad.osu.edu/research/motion-lab/mocap-system-and-data",
+  "archive_url": "https://accad.ohio-state.edu/sites/accad.osu.edu/files/Male2_bvh.zip",
+  "archive_sha256": "f30dc56f8557d4b9f1bd6b8b0c4218c076471de0a9c1a20f3bc4a8b776cc14b1",
+  "license": "CC-BY-3.0",
+  "license_url": "https://creativecommons.org/licenses/by/3.0/",
+  "attribution": "Open Motion Project by ACCAD/The Ohio State University",
+  "units": "centimetres; world Y up, +Z opponent direction",
+  "calibration_frame": 0,
+  "actions": {
+    "unarmed_jab": {
+      "file": "Male2_E1_JabLeft.bvh",
+      "archive_member": "Male2_E1_JabLeft.bvh",
+      "sha256": "4decf021c38de4ba56120ffe4013964a12e34db1fbcd64c33a4cd5861370e91c",
+      "frames": 15,
+      "samples": [
+        [
+          0,
+          29
+        ],
+        [
+          6,
+          35
+        ],
+        [
+          14,
+          45
+        ]
+      ],
+      "contact_output_frame": 6,
+      "capture_frame_time_s": 0.0333333
+    },
+    "unarmed_cross": {
+      "file": "Male2_E4_CrossRight.bvh",
+      "archive_member": "Male2_E4_CrossRight.bvh",
+      "sha256": "d218e221170a04b06cfda704470a62100c1bbe751807f28026c0f3ece5aa6cd7",
+      "frames": 20,
+      "samples": [
+        [
+          0,
+          14
+        ],
+        [
+          9,
+          21
+        ],
+        [
+          19,
+          45
+        ]
+      ],
+      "contact_output_frame": 9,
+      "capture_frame_time_s": 0.0333333
+    },
+    "unarmed_uppercut": {
+      "file": "Male2_E7_UppercutLeft.bvh",
+      "archive_member": "Male2_E7_UppercutLeft.bvh",
+      "sha256": "5188f5943c750c08eab5ec6e18aa17e1082758ba409958513185358fb4657946",
+      "frames": 22,
+      "samples": [
+        [
+          0,
+          14
+        ],
+        [
+          8,
+          23
+        ],
+        [
+          13,
+          26
+        ],
+        [
+          21,
+          56
+        ]
+      ],
+      "contact_output_frame": 13,
+      "capture_frame_time_s": 0.0333333,
+      "mirror_x": true
+    }
+  },
+  "guard": {
+    "action": "unarmed_cross",
+    "source_frame": 14,
+    "entrance_intervals": 2,
+    "exit_intervals": 3
+  }
+}

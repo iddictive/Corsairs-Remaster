@@ -532,6 +532,34 @@ def kick(source, spec):
     return poses, offset, checks
 
 
+def jump_kick(source, spec, ground_poses):
+    """Lift the authored spin off its support foot while retaining its heel path."""
+    r = source_rig(source)
+    body = source["body"]["joints"]
+    striking = body[12:15]
+    _, bindg = fk(r, source["bind_pose"], source["bind_root"])
+    result = []
+    for frame, (ground_root, ground_q) in enumerate(ground_poses):
+        t = frame / (len(ground_poses) - 1)
+        flight = max(0., min(1., (t-.12)/.71))
+        height = spec["jump_height_m"] * 4 * flight * (1-flight)
+        root = add(ground_root, (0., height, 0.))
+        q = list(ground_q)
+        # Preserve the ground spin's actual striking-foot trajectory in the
+        # contact window, so the same physical sweep reaches the target.
+        weight = smooth((t-.32)/.10) * (1-smooth((t-.72)/.10))
+        if weight:
+            p, g = fk(r, ground_q, ground_root)
+            before = list(q)
+            pole = bend_pole(p, striking)
+            hinge_leg(r, q, root, striking, p[striking[2]], pole, source, bindg)
+            global_orientation(r, q, root, striking[2], g[striking[2]])
+            for joint in striking:
+                q[joint] = blend(before[joint], q[joint], weight)
+        result.append((root, q))
+    return result
+
+
 def getup(source, spec, face_down, support=None):
     r = source_rig(source); body = source["body"]["joints"]
     initial = source["guard_pose"]; origin = source["guard_root"]
@@ -638,6 +666,7 @@ def prepare(write_manifest=True, expected_manifest=None):
         if name in hero_rigs:
             poses, offset, check = kick(source, spec)
             actions["roundhouse_kick"] = poses
+            actions["roundhouse_jump"] = jump_kick(source, spec, poses)
         support = bind_skin(source, source["support_mesh"]["vertices"]) if "support_mesh" in source else None
         actions.update(getup_front=getup(source, spec, True, support), getup_back=getup(source, spec, False, support))
         data, ranges = pack(source, actions, spec["fps"])

@@ -799,200 +799,211 @@
   "files": {
     "RESOURCE/animation/Unarmed_Angellica.an": {
       "bytes": 85412,
-      "sha256": "6faea8889f6382437b5a38464dde80a82fb7154ecacaec9e060f1f3226ceb911"
+      "sha256": "f01208d5221088d067b6120f4afc86a75270a08c1baf2d3e8b6c6ac905b8d0a8"
     },
     "RESOURCE/animation/Unarmed_Angellica.ani": {
-      "bytes": 837,
-      "sha256": "babb047af38f2ce71cbba5b43f7192cf32d0a47296bcac5d07db54774d43ddd8"
+      "bytes": 844,
+      "sha256": "e6f98e637208dc164178432449ef334fa00d5fefd30246434811c2dfc2f6b625"
     },
     "RESOURCE/animation/Unarmed_Danielle.an": {
       "bytes": 269860,
-      "sha256": "c1cc3633aaa19b99871c87eb25ff50259abc7562804d4a983c5576fcb1915269"
+      "sha256": "97e3af2bbad6161153f697c3dee611fc0fc13e8b29babcb170b4c53ea0dbb02c"
     },
     "RESOURCE/animation/Unarmed_Danielle.ani": {
-      "bytes": 836,
-      "sha256": "9f7eed11f00157a2e45e1d6a6acb3744f88cccc375457b340dc1ac2f1db0f30a"
+      "bytes": 843,
+      "sha256": "067bc550e2c6d51701ebbeb51f3fd37a3778db0958ced209478fdebca8ab5d66"
     },
     "RESOURCE/animation/Unarmed_Jessika.an": {
       "bytes": 104276,
-      "sha256": "b4975d517399d71b4fa84ad6a8335208de806f51d31a36397f7f2e175f00764d"
+      "sha256": "b7277c5c03c1ca6b6b4a123a66dfc5bdc7971394af901de5d7eb7cdbf363b461"
     },
     "RESOURCE/animation/Unarmed_Jessika.ani": {
-      "bytes": 835,
-      "sha256": "f8e1a36ca85c7d612f79444508f53767a68e8cc696ac622e4b34dba8047a5e3d"
+      "bytes": 842,
+      "sha256": "7e32e82fbe5c1b71ada5398ef20972a12fb8915d84f9646d9b95bfd0e5306b90"
     },
     "RESOURCE/animation/Unarmed_Lo_Man.an": {
       "bytes": 58164,
-      "sha256": "9cc86b37f5fde37cf335c333ec3efd6ca556cc979517ac185622fb4989139a2b"
+      "sha256": "75e909f909bc3861b517a7d5da60f1149eaa5fefc460aa36a0bbb6742eb5218a"
     },
     "RESOURCE/animation/Unarmed_Lo_Man.ani": {
-      "bytes": 834,
-      "sha256": "39d4a16203d871e6fc5fc65200061e396e2e05ea2cf91387d08367d006259656"
+      "bytes": 841,
+      "sha256": "288e5f0210d0017350ca2b400d072f819bc4eb772410a99090deb6f9f7b7ea81"
     },
     "RESOURCE/animation/Unarmed_ManKSM.an": {
       "bytes": 85412,
-      "sha256": "a791a4a140639b2d6fa23d74b24fad0066a4e99d6941b319b764e97a55596154"
+      "sha256": "51e6cb16ea59ddfb602601012433f2fd96a12aebc018e6785719f57f3d3ec742"
     },
     "RESOURCE/animation/Unarmed_ManKSM.ani": {
-      "bytes": 834,
-      "sha256": "dc60bb5ca2fc66e3ae640ca21ca761cf6bfb5abd18a68d30ecfcf16b59192478"
+      "bytes": 841,
+      "sha256": "ff530f17df8d713ea5dd2eaad3760884cba5ff1abb873c9870b01b691acdc8c4"
     },
     "RESOURCE/animation/Unarmed_Milenace.an": {
       "bytes": 85412,
-      "sha256": "b871a51096ffc602680f60c5fbf6f092592c514e63805c5ad7de80a92d93cad0"
+      "sha256": "b22fc076b57a48e8b45948e82629eb5a9690fd9108d8f6e6fcf29754a668de67"
     },
     "RESOURCE/animation/Unarmed_Milenace.ani": {
-      "bytes": 836,
-      "sha256": "e04d5e78cbff0760ae074c3b173e72c7c90cb1c422fe4e9efd3721af8d0dabe0"
+      "bytes": 843,
+      "sha256": "bbacb185e10ddadc6aac00345a24242926123e7ee7b5fe00506c19353c6fdce1"
     },
     "RESOURCE/animation/Unarmed_Moscovit.an": {
       "bytes": 89604,
-      "sha256": "b169bd2138a9e482a8af2a26d6410c903c66fd0de6345c012865b99a2110178c"
+      "sha256": "8dc01b4517b59e36ffb201fde3c3ea612627168814f0f907de773366ba9a7983"
     },
     "RESOURCE/animation/Unarmed_Moscovit.ani": {
-      "bytes": 836,
-      "sha256": "4a042fdca86404451f56807bf3f449209322da8a8ce31b7e548b0c26196e9a1a"
+      "bytes": 843,
+      "sha256": "b8194f2235e5bfd61729bbdf2f3cda0ddfa9a0a3a99752cb4191020a281ca66b"
     },
     "RESOURCE/animation/Unarmed_YokoDias.an": {
       "bytes": 85412,
-      "sha256": "e0ef50aa160d8eb0d735b264d8ac22770780d2690cc9b79edc95dbcd723949fb"
+      "sha256": "04514db339f1d0bc56df526aba5cd49a5ade893f6b3df8ce6892f4b8dbe04835"
     },
     "RESOURCE/animation/Unarmed_YokoDias.ani": {
-      "bytes": 836,
-      "sha256": "8e144861821d04e28a5f3836da0d133aa3bd3298534a2febd2832435caa65f6d"
+      "bytes": 843,
+      "sha256": "b18df6224ab21d766165762909f14dd2b3e816050d006cc4e5b4b033c5c32917"
     },
     "RESOURCE/animation/Unarmed_beatrice2.an": {
       "bytes": 85412,
-      "sha256": "b871a51096ffc602680f60c5fbf6f092592c514e63805c5ad7de80a92d93cad0"
+      "sha256": "b22fc076b57a48e8b45948e82629eb5a9690fd9108d8f6e6fcf29754a668de67"
     },
     "RESOURCE/animation/Unarmed_beatrice2.ani": {
-      "bytes": 837,
-      "sha256": "605df56cd017f56f3f025ebfb87233855358ec25dd43ebb74ef9742fe071c21c"
+      "bytes": 844,
+      "sha256": "7842a05e863dd25a52a749d100b187625197c93ccf900231638a73a2a8ffeab5"
     },
     "RESOURCE/animation/Unarmed_genres.an": {
       "bytes": 259380,
-      "sha256": "70d28da31af123c291a802cdcfda744a45f0eb09f5ede82aa52c438b68f8f33d"
+      "sha256": "ba3f7f7b8dd63cd404458538425307b5447e60dbe7b09a1be3f9c052d5eb535e"
     },
     "RESOURCE/animation/Unarmed_genres.ani": {
-      "bytes": 834,
-      "sha256": "7ca7a0993d8f3168610ff4f79cf299da7337d64586d06602e1187c4866ceace5"
+      "bytes": 841,
+      "sha256": "ab940635cf640a54938bc1182e70c045adb1a9c3b5bd0b9f302f61749ee7058f"
     },
     "RESOURCE/animation/Unarmed_man.an": {
       "bytes": 259380,
-      "sha256": "95a450659d11230263cd76ea0b89d8eeb1a37337d89a4affc7010930154cf407"
+      "sha256": "a14369f12173f226bc7c187617387989335aaab8fb61eb4ee097c23419d0b4f8"
     },
     "RESOURCE/animation/Unarmed_man.ani": {
-      "bytes": 831,
-      "sha256": "e0b614236d59d777cc350470ced111d52a9938cf589f6d0cdc3509245b42e07f"
+      "bytes": 838,
+      "sha256": "66da01b6c22a002d265c70b613e969a03b26951563bf5ace8992a6887fb39ae0"
     },
     "RESOURCE/animation/Unarmed_man1.an": {
       "bytes": 167156,
-      "sha256": "0790e1209a3100621251b656597535c523e35b1f1f1a4d25505dad40a85a68d2"
+      "sha256": "101b5a4f3b1d1d82bb962d176cae309bd62629d28d3ea56539718d5b40ee67a7"
     },
     "RESOURCE/animation/Unarmed_man1.ani": {
-      "bytes": 832,
-      "sha256": "f8ae3a3c13b1a8025e1c888838a7eef29f5cfa27edb7135251fd88289847b6d8"
+      "bytes": 839,
+      "sha256": "be1f5f077403d964c2f498fbe94f04324ce0f95f2a6b685bb3e94e8040646452"
     },
     "RESOURCE/animation/Unarmed_man2.an": {
       "bytes": 167156,
-      "sha256": "0790e1209a3100621251b656597535c523e35b1f1f1a4d25505dad40a85a68d2"
+      "sha256": "5f32e2deb09e4ec98be287471000b2eae4e30fb5d64f757eba418d1446e96c22"
     },
     "RESOURCE/animation/Unarmed_man2.ani": {
-      "bytes": 832,
-      "sha256": "49893c827a4b81280eb1da36892010affe4e7b77cbd6bc712ce2099c8e244b5b"
+      "bytes": 839,
+      "sha256": "f15ea242f29c6a6ba161e9f35761b9824e000c75463526a46e5322b83299765d"
     },
     "RESOURCE/animation/Unarmed_man_B.an": {
       "bytes": 167156,
-      "sha256": "0790e1209a3100621251b656597535c523e35b1f1f1a4d25505dad40a85a68d2"
+      "sha256": "992234cdc8eb3eab714846122e19c63ce9bf32a8a0206f4aff2ab0e39db231fa"
     },
     "RESOURCE/animation/Unarmed_man_B.ani": {
-      "bytes": 833,
-      "sha256": "344022cdf9b0d5a2adfa5b88d0e038c8c22a16a05ab2a53ea4d850e29b5ff8be"
+      "bytes": 840,
+      "sha256": "57ffdf71fd2ed678a4a2b483127d78d79647c49a07c1cfe8d36ae749bbfb2a54"
     },
     "RESOURCE/animation/Unarmed_man_kvl2.an": {
       "bytes": 85412,
-      "sha256": "72d9656cbc9d379985e913e306478d1ea88ce7570b7351446b45b20d26a58747"
+      "sha256": "b96df79a6426e7a7d649e5e72d0d15917815ff68fcda094b1c4279b99e9e4821"
     },
     "RESOURCE/animation/Unarmed_man_kvl2.ani": {
-      "bytes": 836,
-      "sha256": "a1d940161aacd56d120931fda16f02c71ea2bac41adbdd8234047d54db57e281"
+      "bytes": 843,
+      "sha256": "8d0544037b2fd84c72b5eefa8c6e6b87c3b6cf62d6e4172b009e8c38fb84b546"
     },
     "RESOURCE/animation/Unarmed_mushketer.an": {
       "bytes": 259380,
-      "sha256": "58f8882d6c5b6fff572beccd790373a4a201abc9adceb5a3820a0ff26bbdb614"
+      "sha256": "fa7ad200896abb433cdc15053e4bf97ac5e7201fde0d9387652c4e598b296f7d"
     },
     "RESOURCE/animation/Unarmed_mushketer.ani": {
-      "bytes": 837,
-      "sha256": "8d155ae44a9cf788adf6b392970bc3ab7cf309bbe01767b8cf8f22f3bc032f02"
+      "bytes": 844,
+      "sha256": "27faf1e3e486452cfd34a72cc4786b3e075f0ad673a13de2b24da16b8a071894"
     },
     "RESOURCE/animation/Unarmed_mushketer_whisper.an": {
       "bytes": 85412,
-      "sha256": "7dfbdec0411b19a94330e6413959f36dbb721bd6a290a24459a8084efbbd4af3"
+      "sha256": "9a5180438400ddbf726d05cd4799b5dc42d829f4e3e73c99ac2b835902d46814"
     },
     "RESOURCE/animation/Unarmed_mushketer_whisper.ani": {
-      "bytes": 845,
-      "sha256": "65737c1920a09444ab32df8d62d957621d25ec6f4cc2d5b528121084d3678499"
+      "bytes": 852,
+      "sha256": "088e17dbfcac924c2043d6a632b6cd95c996a7d381bbe81ca197369719707d6c"
     },
     "RESOURCE/animation/Unarmed_mushketer_whisper_short.an": {
       "bytes": 85412,
-      "sha256": "7dfbdec0411b19a94330e6413959f36dbb721bd6a290a24459a8084efbbd4af3"
+      "sha256": "9a5180438400ddbf726d05cd4799b5dc42d829f4e3e73c99ac2b835902d46814"
     },
     "RESOURCE/animation/Unarmed_mushketer_whisper_short.ani": {
-      "bytes": 851,
-      "sha256": "8167618a59d58233fd66028e911d95ac15f0b84419983fa2df66941ae8498e87"
+      "bytes": 858,
+      "sha256": "b73c673a950295a598ef2358a16932a543cf3e066199b5f98c5535d6d70b681d"
     },
     "RESOURCE/animation/Unarmed_skeleton.an": {
       "bytes": 259380,
-      "sha256": "95a450659d11230263cd76ea0b89d8eeb1a37337d89a4affc7010930154cf407"
+      "sha256": "2d1c3c2b0148cdffaf19505561e98a52fb3d4fc6b4b26aa7a3a0cabfaa726f7e"
     },
     "RESOURCE/animation/Unarmed_skeleton.ani": {
-      "bytes": 836,
-      "sha256": "6890bcc87c63c5e9231d1be701778bd055487bcffb0b9df6a2a746a44446f5f3"
+      "bytes": 843,
+      "sha256": "fb85f005305c9b945bdd04f36a9100dd1d8b42fbf80ce84cacadc53b97806156"
     },
     "RESOURCE/animation/Unarmed_towngirl3.an": {
       "bytes": 93796,
-      "sha256": "a3d9e929c842babe63509647323b7abe2af902e75d7b7ee6245f1e99632a13c7"
+      "sha256": "6a59849840554ce95cc9b888d2328b6fc4804aaad3307b2848c4743a73471274"
     },
     "RESOURCE/animation/Unarmed_towngirl3.ani": {
-      "bytes": 837,
-      "sha256": "88db1c22cc34be172d09e41af6be23fdc9c1eb13fbf4b3a056e7c62f3ef1d257"
+      "bytes": 844,
+      "sha256": "e01e0a669864fc78b58fe604d1cb57ed1163ad4ee29189f311f1196d60ce92ae"
     },
     "RESOURCE/animation/Unarmed_woman.an": {
       "bytes": 269860,
-      "sha256": "a73b0b48d42499051813ce580932854f47cbdab514338b86cc5ab9ce7f249e00"
+      "sha256": "7ea34b5778b42703ea163aa1f9226eae05b9fc5236618cbb4e7b57b2543bd615"
     },
     "RESOURCE/animation/Unarmed_woman.ani": {
-      "bytes": 833,
-      "sha256": "afb54f51c7f076df272fa4ce72bf52657760d430c11ea5ceebdf5965d5fc8882"
+      "bytes": 840,
+      "sha256": "9347f68308ca68f5f178a28f9f3b98ed72f6f8f9e080e5d6ea4326629bf66e94"
     },
     "RESOURCE/animation/Unarmed_woman2.an": {
       "bytes": 177636,
-      "sha256": "023536d4e93e9b0dc304106ae7241b6cd78101658556f780010ae5b25c02787a"
+      "sha256": "d8646a94c6d9208a65b4aa66ffa9bd2b97fa3e511ce2bc29ea4f1da24f754a6c"
     },
     "RESOURCE/animation/Unarmed_woman2.ani": {
-      "bytes": 834,
-      "sha256": "a2a5b8b19a3283be76cc32045ec655c9c90544125474c855882e1888d73a4ff8"
+      "bytes": 841,
+      "sha256": "06ab303b03c96ea107d85a1bdfd67d55ad82be2cbe45ed71c2ba900560fcd17b"
     },
     "RESOURCE/animation/Unarmed_woman_A2.an": {
       "bytes": 269860,
-      "sha256": "36ddc57bb020a6e1905f2bfc2125784e81628fecd167d49f5d42695fd49de143"
+      "sha256": "ee454dacda6eea6ddeb893b39571588f9c43ca9b03c3a218f305269f0253fd9c"
     },
     "RESOURCE/animation/Unarmed_woman_A2.ani": {
-      "bytes": 836,
-      "sha256": "c476e5098e36ab24f7ba2d60b1088023762a84e459dec0437db802fdcd7af44c"
+      "bytes": 843,
+      "sha256": "74064131eb66745b79913d5b77645c87bee778a179e8f6bdbc04dcbbb36967a0"
     },
     "RESOURCE/animation/Unarmed_woman_B.an": {
       "bytes": 93796,
-      "sha256": "a3d9e929c842babe63509647323b7abe2af902e75d7b7ee6245f1e99632a13c7"
+      "sha256": "6a59849840554ce95cc9b888d2328b6fc4804aaad3307b2848c4743a73471274"
     },
     "RESOURCE/animation/Unarmed_woman_B.ani": {
-      "bytes": 835,
-      "sha256": "619cf71950d414c0a59481851bd016964b4a77a4d95748bc25f24d395423e772"
+      "bytes": 842,
+      "sha256": "b2f2687d8f69e1bdcbd566671c8b55746c11b8bdf60f9ecc7ac2775e7c4aa363"
     }
   },
   "fps": 30,
-  "generator_sha256": "36a898dc0dbb475b038b3477a5711405b07b19ab695131bc1f88bd4779375aca",
-  "roundhouse_helpers_sha256": "c9fbbdaaf201f8ba5b2d14e3d4a6d0704a85f0316db7fb2e06cbe75e482f6f23",
+  "generator_sha256": "280888db91e91bfbc644f5b040b719df2b0540b90b02e9897e15e1a8970a22ba",
+  "mocap_ATTRIBUTION.md_sha256": "8bfc307205c3e1e7f757151284e02376538550d0c57fd6ab9cb3e2edc03e616e",
+  "mocap_Male2_E1_JabLeft.bvh_sha256": "4decf021c38de4ba56120ffe4013964a12e34db1fbcd64c33a4cd5861370e91c",
+  "mocap_Male2_E4_CrossRight.bvh_sha256": "d218e221170a04b06cfda704470a62100c1bbe751807f28026c0f3ece5aa6cd7",
+  "mocap_Male2_E7_UppercutLeft.bvh_sha256": "5188f5943c750c08eab5ec6e18aa17e1082758ba409958513185358fb4657946",
+  "mocap_helpers_sha256": "3623e0e51ef93cb6b01f4d3e03f427144d7aec64504f1a9128c468f23dfe001c",
+  "mocap_recipe.json_sha256": "8d0fdad9b931199d73ca5ec0e4e0b642745b69e2d2832b7dc206ca76d0aef365",
+  "roundhouse_helpers_sha256": "7d6451e12fa09661290793de5d7942f15d072c555de6864eb81be461dddb2fef",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
+  "strike_durations_s": {
+    "unarmed_cross": 0.42,
+    "unarmed_jab": 0.32,
+    "unarmed_uppercut": 0.56
+  },
   "version": 1
 }

@@ -169,6 +169,8 @@ void Player::Move(float dltTime)
                 CONTROL_STATE kickControl;
                 core.Controls->GetControlState("ChrRoundhouse", kickControl);
                 if (kickControl.state == CST_ACTIVATED && StartRoundhouse()) return;
+                core.Controls->GetControlState("ChrRoundhouseJump", kickControl);
+                if (kickControl.state == CST_ACTIVATED && StartRoundhouse(true)) return;
                 if (IsDoBlock())
                 {
                     // boal -->

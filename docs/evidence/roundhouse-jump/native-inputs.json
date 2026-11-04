@@ -1,0 +1,17 @@
+{
+  "inputs_sha256": {
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "38e4e1a03320a82763f1d400d182670cfc8a9091376cc76db678f11cf4fc0a45",
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.h": "374970664fb47b66be287b6e717df92585a97547ca106093c67d20c953997623",
+    "experiments/native-metal/engine/src/libs/location/src/character.h": "671f2ea4fb59e78731cc37d7800237bffeb94d8b74370788f40815dd1ea8b26b",
+    "experiments/native-metal/engine/src/libs/location/src/player.cpp": "16bb4997c13c47f9c2585db89e84a954686f0ab673c7a73be03979f0142a5a07",
+    "src/gameplay/PROGRAM/Loc_ai/LAi_fightparams.c": "9830d25cf2532d0dcad5427ee142c0a28900b30d7538d45e2ba27954590fa14b",
+    "src/assets/roundhouse/manifest.json": "79e2d9ec5f5d9c34086129fd2d276d3ab817694a3753706b18e0deb28c827e62",
+    "experiments/native-metal/.cache/build/lib/liblocation.a": "7f2cefff4974a3e8bc45e8ece24f5333fc2f9c62960ac4a6b3176987fb156cd2"
+  },
+  "fixtures_sha256": {
+    "native-contact.cpp.txt": "7f7abbb7e0e3eea2ac934eabd92c68fc2066ea0e5a97152fbc92a0f7fe344768",
+    "native-negative.cpp.txt": "cf556506ca75cfd26032403ca7e895834b09ce598bd6c115c6cf678759f2cbfb"
+  },
+  "negative_cases": "Same native scene; StartRoundhouse(true) for wall, far, immortal, same-group; exact fixture retains locked/tired rejection setup.",
+  "controls_probe": "Isolated VM checks used stubbed native bindings for occupied/free L, a saved B remap and reloaded unassigned mapping. Disposable inputs were not retained; this is not reproducible native controls acceptance."
+}

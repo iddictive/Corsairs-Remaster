@@ -1,0 +1,16 @@
+{
+  "inputs_sha256": {
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "38e4e1a03320a82763f1d400d182670cfc8a9091376cc76db678f11cf4fc0a45",
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.h": "374970664fb47b66be287b6e717df92585a97547ca106093c67d20c953997623",
+    "experiments/native-metal/engine/src/libs/location/src/character.h": "671f2ea4fb59e78731cc37d7800237bffeb94d8b74370788f40815dd1ea8b26b",
+    "src/gameplay/PROGRAM/Loc_ai/LAi_fightparams.c": "9830d25cf2532d0dcad5427ee142c0a28900b30d7538d45e2ba27954590fa14b",
+    "experiments/native-metal/.cache/build/lib/liblocation.a": "7f2cefff4974a3e8bc45e8ece24f5333fc2f9c62960ac4a6b3176987fb156cd2",
+    "experiments/native-metal/.cache/build/lib/libcore.a": "b693f89d2fdbe93ab8577ff1756b0418ee72c4a25fdd119480d1a09ba94aff69",
+    "src/assets/roundhouse/manifest.json": "79e2d9ec5f5d9c34086129fd2d276d3ab817694a3753706b18e0deb28c827e62"
+  },
+  "baseline_executable_sha256": "24d9ac0ea21484b8799bab0c315d5abc78b809211e00ff64d80f51574ede8fc6",
+  "baseline_roundhouse_source_ref": "fb4ae91019a58a74c0c8175eac1d24eb481ec2c8",
+  "note": "Final results replayed after normal delivery using current cached native libraries, installed resources and canonical gameplay projected into isolated scratch. Baseline source is retained by its Git ref.",
+  "generated_fixture_sha256": "1c1610195178fa7d6376df69a04905cfcf58f424bcb338e9b46d41bce45914d3",
+  "installed_engine_sha256": "98ec44d749e59d662e8e3b94057cd36cd1406003d06884102aa0928efb3497a5"
+}

@@ -15,6 +15,8 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
+OUTPUT = Path(os.environ.get('CORSAIRS_REPLAY_OUTPUT', str(HERE)))
+OUTPUT.mkdir(parents=True, exist_ok=True)
 ROOT = HERE.parents[2]
 S = Path(os.environ['CODEX_SCRATCH_DIR'])
 BUILD = ROOT / 'experiments/native-metal/.cache/build'
@@ -133,8 +135,8 @@ finally:
     # The launcher substitutes a private scratch path; retain it as a placeholder.
     def portable(s):
         return s.replace(str(INST.parent),'${CORSAIRS_APP}').replace(str(S),'${SCRATCH}').replace(str(ROOT),'${REPO}').replace(str(Path.home()),'${HOME}')
-    (HERE/'replay-result.json').write_text(portable(json.dumps(metadata,indent=2))+'\n')
-    (HERE/'replay-raw.txt').write_text(portable('\n'.join(logs)))
+    (OUTPUT/'replay-result.json').write_text(portable(json.dumps(metadata,indent=2))+'\n')
+    (OUTPUT/'replay-raw.txt').write_text(portable('\n'.join(logs)))
     for row in metadata['runs']: print(row['lane'],row['case'],'exit='+str(row['exit']),row['stdout'][-600:],row['stderr'][-400:])
 if any(row['exit'] != 0 for row in metadata['runs']) or len(metadata['runs']) != 12:
     sys.exit(1)

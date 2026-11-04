@@ -90,8 +90,10 @@ void DartView_InitControls()
 
 void Roundhouse_InitControls()
 {
-    if (CheckAttribute(&objControlsState, "keygroups.FightModeControls.ChrRoundhouse")) return;
-    CI_CreateAndSetControls("FightModeControls", "ChrRoundhouse", CI_GetKeyCode("KEY_K"), 0, true);
+    if (!CheckAttribute(&objControlsState, "keygroups.FightModeControls.ChrRoundhouse"))
+        CI_CreateAndSetControls("FightModeControls", "ChrRoundhouse", CI_GetKeyCode("KEY_K"), 0, true);
+    if (!CheckAttribute(&objControlsState, "keygroups.FightModeControls.ChrRoundhouseJump"))
+        CI_CreateAndSetControls("FightModeControls", "ChrRoundhouseJump", CI_GetKeyCode("KEY_L"), 0, true);
 }
 
 void DeckWalk_DefaultShipKeys()
@@ -159,7 +161,12 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 			}
 
 			ctrlName = GetAttributeName(arKey);
-			keyCode = CI_GetKeyCode(GetAttributeValue(arKey));
+			if (ctrlName == "ChrRoundhouseJump" && GetAttributeValue(arKey) == "")
+			{
+				keyCode = -1;
+				state = -1;
+			}
+			else keyCode = CI_GetKeyCode(GetAttributeValue(arKey));
 			// Legacy deck ship names share global bindings with the outside view.
 			if (grName == "sailing1pers" && (ctrlName == "Ship_TurnLeft" || ctrlName == "Ship_TurnRight" || ctrlName == "Ship_SailUp" || ctrlName == "Ship_SailDown" || ctrlName == "DeckCamera_Forward" || ctrlName == "DeckCamera_Backward" || ctrlName == "ShipCamera_Forward" || ctrlName == "ShipCamera_Backward" || ctrlName == "DeckWalk_Forward" || ctrlName == "DeckWalk_Backward" || ctrlName == "DeckWalk_Left" || ctrlName == "DeckWalk_Right" || ctrlName == "DeckWalk_Run"))
 			{
@@ -182,6 +189,26 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 	MapControlToGroup("ChrRun", "Sailing1Pers");
 	// Refresh the fixed aim binding even for profiles saved before it existed.
 	CI_CreateAndSetControls("Sailing1Pers", "DeckAimZoom", CI_GetKeyCode("VK_RBUTTON"), 0, false);
+	// Older profiles can already use L in combat. Keep that mapping and leave
+	// the new action unassigned until the player chooses a free key.
+	if (!CheckAttribute(arControlsRoot, "FightModeControls.ChrRoundhouseJump"))
+	{
+		int jumpKey = CI_GetKeyCode("KEY_L");
+		aref fightControls, fightControl;
+		makearef(fightControls, objControlsState.keygroups.FightModeControls);
+		for (i = 0; i < GetAttributesNum(fightControls); i++)
+		{
+			fightControl = GetAttributeN(fightControls, i);
+			if (GetAttributeName(fightControl) != "ChrRoundhouseJump" && GetAttributeValue(fightControl) == "KEY_L")
+			{
+				jumpKey = -1;
+				break;
+			}
+		}
+		int jumpState = 0;
+		if (jumpKey < 0) jumpState = -1;
+		CI_CreateAndSetControls("FightModeControls", "ChrRoundhouseJump", jumpKey, jumpState, true);
+	}
 	Roundhouse_InitControls();
 	ControlsInitFixedShortcuts();
 	RunControlsContainers();

@@ -2068,7 +2068,11 @@ void Character::Move(float dltTime)
         Animation *a = m->GetAnimation();
         if (a)
         {
-            a->Player(0).SetSpeed(a->Player(0).GetDefSpeed() * k);
+            auto &player = a->Player(0);
+            const char *action = player.GetAction();
+            const bool fistStrike = isFightWOWps && unarmedStrikePending && action &&
+                                    storm::iEquals(action, unarmedStrikeAction.c_str());
+            player.SetSpeed((fistStrike ? unarmedStrikeSpeed : player.GetDefSpeed()) * k);
             a->Player(1).SetSpeed(a->Player(1).GetDefSpeed() * k);
         }
     }
@@ -4148,6 +4152,7 @@ void Character::ClearUnarmedPose()
     unarmedStrikePending = false;
     unarmedStrikeDelivered = false;
     unarmedStrikeAction.clear();
+    unarmedStrikeSpeed = 1.0f;
 }
 
 bool Character::PrepareUnarmedBank(Animation &animation)
@@ -4683,6 +4688,14 @@ void Character::UpdateAnimation()
                         ClearUnarmedPose();
                         return false;
                     }
+                    // The base action still owns its single damage event, but
+                    // sword-clip lengths must not dictate a fist strike's pace.
+                    // SetAction resets this per-player rate for the next action.
+                    auto &player = animation->Player(0);
+                    const auto &posePlayer = unarmedBank->Player(0);
+                    const float duration = posePlayer.GetFrames() / (unarmedBank->GetFPS() * posePlayer.GetDefSpeed());
+                    unarmedStrikeSpeed = player.GetFrames() / (animation->GetFPS() * duration);
+                    player.SetSpeed(unarmedStrikeSpeed);
                     unarmedStrikePending = true;
                     return true;
                 };

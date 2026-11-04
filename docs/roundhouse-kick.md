@@ -11,6 +11,16 @@ Learn the personal `RoundhouseKick` perk, then press K in combat (35 energy).
 The controls settings list “Удар пяткой с разворота” and retain a saved remap.
 The debugger's all-perks command includes the new perk.
 
+The dependent `RoundhouseJump` perk adds L (remappable): an airborne spin
+uses twice the ordinary heel strike's base damage, stronger physical impulse,
+and the same energy cost and contact eligibility. Offline mesh evidence and
+its limitations are in [roundhouse-jump](evidence/roundhouse-jump/README.md).
+
+A physical fall at least 2 m below the launch floor applies fatal damage
+through the normal quest/immortality/death path. Mortal victims cannot recover
+at their launch anchor. [Fall replay](evidence/roundhouse-fall/README.md)
+records the reproduced teleport and the corrected recovery cases.
+
 Verification uses the real native CPU animation/physics paths and offline skinned-mesh frames;
 those checks do not establish played-scene visual acceptance or full-scene FPS.
 

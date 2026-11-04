@@ -1,62 +1,77 @@
 # Unarmed animation and combat evidence
 
-## Pose repair, 2026-11-04
+## Recorded boxing and native strike timing, 2026-11-04
 
-`tools/prepare_unarmed.py` owns the baked poses. The repair restores neutral
-clavicles and complete arm subtrees, solves moving hand targets before IK,
-keeps the same leg solve at rest and in motion, and closes coarse-rig finger
-pads. The cross extends at chin height with hip rotation. The uppercut loads
-to the punching side, chambers the fist above the pelvis, then rises in front
-of the body; its opposite hand stays in guard. Action boundaries share one
-exact guard. Damage, input, event timing and saves are unchanged in this batch.
+The earlier procedural candidate in `fb4ae910` was rejected in gameplay for
+body rotation, slow attacks and insufficient extension. Its historical
+[pose measurements](pose-metrics.json) remain evidence of that candidate,
+not acceptance of the current motion.
 
-The [front](rigs-front.png), [quarter](rigs-quarter.png) and
-[side](rigs-side.png) sheets show all seven actions on six retained real GM
-meshes: Danielle, Jessika, YokoDias, man, man1 and man2. The
-[phase sheet](boxing-pose-atlas.png) and
-[cross/uppercut/block motion](cross-uppercut-block.gif) show the representative
-man mesh. These are depth-tested offline two-weight renders, not game/Metal
-captures. The GIF uses the bank's 30 FPS; game combat events retain their own
-existing phase remapping. Independent pixel observation covered the three
-six-model sheets and every man cross/uppercut baked sample from the side.
-This is six-mesh visual coverage, not a visual claim for all 24 rigs.
+`tools/prepare_unarmed.py` now consumes the retained
+[ACCAD motion sources and attribution](../../../src/assets/unarmed/mocap/ATTRIBUTION.md)
+through `tools/boxing_mocap.py`. Jab and cross use recorded left/right strikes;
+the uppercut mirrors the recorded left uppercut into the same orthodox stance.
+The source recipe owns trims, contact mapping and guard transitions. Native
+finger articulation supplies the fist shape because the capture has no fingers.
+The [close hand views](hands.png) and [digit-only views](fingers-only.png)
+separate folded fingers from the wrist mesh. Detailed thumbs oppose the folded
+index through the existing native-rig IK helper; applying a generic finger curl
+to the thumb left a hook. Their one-off reproduction inputs are
+[the hand inspection](inspect-hand.py.txt) and [digit filter](inspect-digits.py.txt);
+replace `${OUTPUT}` with a caller-owned output directory when replaying them.
+Idle, block and dodges derive from the same recorded guard; every action has
+exact common boundary poses. [Retarget evidence](mocap/README.md) records the
+source/native trajectories and why the uppercut contact precedes its high
+follow-through. Those intermediate sheets use unmodified bind fingers; the
+integrated sheets below include the native hand layer.
 
-[Native measurements](pose-metrics.json), produced by
-[inspect-poses.py](inspect-poses.py) and
-[native-pose-sampler.cpp.inc](native-pose-sampler.cpp.inc), use the real cached
-Release `AnimationImp::EvaluatePose`, including `Bone` quaternion compression
-and native interpolation. They sample quarter-frame intervals across every
-action on all 24 rigs (11,880 action samples per candidate). The baseline is
-the installed bank set from source commit `9f4d3d3637dd340ebd09ad56870f9cd3ab8b514b`;
-all baseline/candidate bank hashes and cached native object hashes are retained.
-The baseline banks can be reconstructed with that commit's generator and its
-unchanged captured rigs/shared authoring helpers into task-owned scratch.
+The [front](rigs-front.png), [quarter](rigs-quarter.png) and [side](rigs-side.png)
+sheets show all seven actions on six real GM meshes: Danielle, Jessika,
+YokoDias, man, man1 and man2. The [full sample sheet](all-frames.png) shows every
+man cross/uppercut sample with one fixed upper-body camera fitted to the whole
+sequence. The [phase sheet](boxing-pose-atlas.png) and
+[motion GIF](cross-uppercut-block.gif) show the representative man mesh.
+These are offline depth-tested two-weight renders, not game captures. The GIF
+uses authored strike durations; static sheets cannot prove played motion.
 
-The elbow internal-angle range changed from 5.23–178.72° to 18.96–157.05°.
-Native maximum ankle drift changed from 0.3854 m to 0.0069 m. Every action's
-native boundary joint error is zero. Uppercut loaded wrists are 0.113–0.131 m
-above the pelvis and rise 0.348–0.521 m to contact. These geometry measurements
-support the rendered review; they do not prove absence of every mesh contact.
+[Current native measurements](pose-metrics-current.json) use the real Release
+`AnimationImp::EvaluatePose`, including Bone compression and quarter-frame
+interpolation, over all 24 rigs. The baseline is the installed rejected
+`fb4ae910` bank set. The 130-frame layout, bone counts and AN byte count stay
+compatible. Recorded weight transfer moves ankles: maximum displacement from
+initial guard is 0.244 m; this metric is not an assertion that the feet slide.
+Captured ankle displacement, native leg proportions and sole support own the
+retarget. No additional retargeting or IK runs in gameplay.
 
-The 24 AN banks retain 130 frames, 30 FPS, bone counts and total size
-(3,649,136 bytes). All ANI bytes/action ranges remain unchanged. No runtime
-code or extra per-frame work was added; only offline preparation changed.
-Normal delivery updated the existing development runtime and installed app;
-the player remains the owner of in-game visual/gameplay acceptance.
+The native combat clock previously used the sword clip duration, and
+`Character::Move` restored its default speed every frame. Fists now use the
+bank's authored whole-action durations: jab 0.32 s, cross 0.42 s, uppercut
+0.56 s, multiplied by the existing character speed modifier. The base action
+retains its single damage event and existing contact-phase remapping. Sword
+rates reset normally. No new per-frame animation sampling or physics work is
+added to boxing; the existing speed assignment selects the appropriate rate.
+Full-scene FPS and the player's visual acceptance remain outside CPU evidence.
 
-Reproduce with Python 3.10+ and the existing Pillow/NumPy authoring environment:
+The current [clock replay](clock-result.json) and [raw output](clock-raw.txt)
+exercise real `Character::Move` with candidate banks, twelve existing combat
+cases and a sword-rate check after each fist. The retained
+[one-off runner](clock-replay.py.txt) and [native fixture](clock-fixture.cpp.txt)
+bind the exact checks; old historical replay results below remain unchanged.
+
+Reproduce asset and native pose preparation with Python 3.10+ and the project's
+Pillow/NumPy environment:
 
 ```sh
 python3 tools/prepare_unarmed.py
 python3 tools/render_unarmed_atlas.py --rig all --angle 90 --output /task-owned-output/rigs-side.png
 python3 tools/render_unarmed_atlas.py --motion --action unarmed_cross --action unarmed_uppercut --action unarmed_block --output /task-owned-output/motion.gif
-python3 docs/evidence/unarmed-boxing/inspect-poses.py --baseline /reconstructed-baseline --candidate experiments/native-metal/.cache/unarmed --scratch /task-owned-scratch --output /task-owned-output/pose-metrics.json
+python3 docs/evidence/unarmed-boxing/inspect-poses.py --baseline /reconstructed-fb4-bank-root --candidate experiments/native-metal/.cache/unarmed --scratch /task-owned-scratch --output /task-owned-output/pose-metrics.json
 ```
 
-The native sampler compiles only its disposable adapter against existing
-animation objects. It never starts the game, changes player data or modifies
-the installed app. The caller owns scratch cleanup. Cache reconstruction and
-staging remain the normal project commands; no receipt is edited by hand.
+The native sampler compiles only a disposable CPU adapter against the current
+cached animation objects. It does not start the game or read player saves.
+Normal staging and installation own final runtime delivery; no receipt is
+edited by hand.
 
 ## Earlier CPU combat replay
 

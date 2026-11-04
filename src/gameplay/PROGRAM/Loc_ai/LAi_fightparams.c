@@ -18,9 +18,11 @@
 //Расчитать повреждение для персонажа
 float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool isBlocked)
 {
-	if (attackType == "roundhouse")
+	if (attackType == "roundhouse" || attackType == "roundhouse_jump")
 	{
-		return 30.0 + 3.0 * Progression_GetPermanentSPECIAL(attack, SPECIAL_S) + 25.0 * LAi_GetCharacterFightLevel(attack);
+		float damage = 30.0 + 3.0 * Progression_GetPermanentSPECIAL(attack, SPECIAL_S) + 25.0 * LAi_GetCharacterFightLevel(attack);
+		if (attackType == "roundhouse_jump") damage *= 2.0;
+		return damage;
 	}
 	//Расчитываем повреждение от сабли
 	string curBlade = "";
@@ -551,7 +553,7 @@ void LAi_ApplyCharacterAttackDamage(aref attack, aref enemy, string attackType, 
 		//Проверим на смерть
 		LAi_CheckKillCharacter(enemy);
 		//проверим на отравление
-		if (attackType != "roundhouse") MakePoisonAttackCheckSex(enemy, attack);
+		if (attackType != "roundhouse" && attackType != "roundhouse_jump") MakePoisonAttackCheckSex(enemy, attack);
 	}
 	//Есть ли оружие у цели
 	bool isSetBalde = (CheckAttribute(enemy, "equip.blade") == true);//(SendMessage(enemy, "ls", MSG_CHARACTER_EX_MSG, "IsSetBalde") != 0);
@@ -971,12 +973,39 @@ void LAi_Location_CharacterSGFire()
 	if (LAi_IsDead(enemy)) LAi_SetResultOfDeath(attack, enemy, CheckAttribute(enemy, "equip.blade"));
 }
 
+#event_handler("Roundhouse_FallDamage", "Roundhouse_FallDamage");
+int Roundhouse_FallDamage()
+{
+	aref enemy = GetEventData();
+	aref attack = GetEventData();
+	bool lethal = GetEventData();
+	bool credited = GetEventData();
+	if (LAi_IsDead(enemy)) return 1;
+	if (!lethal)
+	{
+		if (LAi_IsImmortal(enemy)) return -1;
+		return 0;
+	}
+	// Ordinary damage owns quest minimum-HP callbacks and immortality.
+	LAi_ApplyCharacterDamage(enemy, MakeInt(2.0 * LAi_GetCharacterHP(enemy) + 1.0));
+	if (LAi_GetCharacterHP(enemy) <= 0.0 && credited) enemy.Killer.Index = attack.index;
+	LAi_CheckKillCharacter(enemy);
+	if (LAi_IsDead(enemy))
+	{
+		if (credited) LAi_SetResultOfDeath(attack, enemy, CheckAttribute(enemy, "equip.blade"));
+		return 1;
+	}
+	return -1;
+}
+
 #event_handler("Roundhouse_TryStart", "Roundhouse_TryStart");
 bool Roundhouse_TryStart()
 {
 	aref attack = GetEventData();
+	bool jumping = GetEventData();
 	if (LAi_IsDead(attack)) return false;
-	if (!CheckCharacterPerk(attack, "RoundhouseKick")) return false;
+	if (jumping && !CheckCharacterPerk(attack, "RoundhouseJump")) return false;
+	if (!jumping && !CheckCharacterPerk(attack, "RoundhouseKick")) return false;
 	if (Lai_CharacterGetEnergy(attack) < 35.0) return false;
 	Lai_CharacterChangeEnergy(attack, -35.0);
 	return true;

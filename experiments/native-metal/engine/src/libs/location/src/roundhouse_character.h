@@ -15,7 +15,12 @@ struct RoundhouseState
     bool supported = false;
     bool kickSupported = false;
     bool contacted = false;
+    bool jumping = false;
     bool hasPreviousHeel = false;
+    bool fallDamageApplied = false;
+    bool recoveryClassified = false;
+    bool protectedRecovery = false;
+    float pelvisRootOffset = 0.0f;
     float time = 0.0f;
     float kickDuration = 1.6f;
     float strikeStartTime = 0.0f;
@@ -37,4 +42,5 @@ struct RoundhouseState
     std::vector<CMatrix> blendFrom;
     std::vector<CMatrix> pose;
     entid_t aimTarget = invalid_entity;
+    entid_t fallAttacker = invalid_entity;
 };

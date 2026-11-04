@@ -23,10 +23,14 @@
     "Danielle": {
       "actions": {
         "getup_back": [
+          364,
+          484
+        ],
+        "getup_front": [
           243,
           363
         ],
-        "getup_front": [
+        "roundhouse_jump": [
           122,
           242
         ],
@@ -45,10 +49,14 @@
     "Jessika": {
       "actions": {
         "getup_back": [
+          364,
+          484
+        ],
+        "getup_front": [
           243,
           363
         ],
-        "getup_front": [
+        "roundhouse_jump": [
           122,
           242
         ],
@@ -139,10 +147,14 @@
     "YokoDias": {
       "actions": {
         "getup_back": [
+          364,
+          484
+        ],
+        "getup_front": [
           243,
           363
         ],
-        "getup_front": [
+        "roundhouse_jump": [
           122,
           242
         ],
@@ -197,10 +209,14 @@
     "man": {
       "actions": {
         "getup_back": [
+          364,
+          484
+        ],
+        "getup_front": [
           243,
           363
         ],
-        "getup_front": [
+        "roundhouse_jump": [
           122,
           242
         ],
@@ -219,10 +235,14 @@
     "man1": {
       "actions": {
         "getup_back": [
+          364,
+          484
+        ],
+        "getup_front": [
           243,
           363
         ],
-        "getup_front": [
+        "roundhouse_jump": [
           122,
           242
         ],
@@ -241,10 +261,14 @@
     "man2": {
       "actions": {
         "getup_back": [
+          364,
+          484
+        ],
+        "getup_front": [
           243,
           363
         ],
-        "getup_front": [
+        "roundhouse_jump": [
           122,
           242
         ],
@@ -834,20 +858,20 @@
       "sha256": "003b2b4790048a05fcb69db125a2c581f10fb16ef2a0c8294d93ba4f2ddd77d8"
     },
     "RESOURCE/animation/Roundhouse_Danielle.an": {
-      "bytes": 751900,
-      "sha256": "29a8ef8da8bf54729926c7c1b9dbe99bfdba0c85dbb77ea3ebea717f689b26cb"
+      "bytes": 1001160,
+      "sha256": "a5205f521f3cde1d8da2a629dee46fc748376a44546dccce221e1b1f52ee1b52"
     },
     "RESOURCE/animation/Roundhouse_Danielle.ani": {
-      "bytes": 376,
-      "sha256": "7aeb378154b63eeb471d9685511f6ac0122cd54339b16cbcfa5f2b8617450d12"
+      "bytes": 493,
+      "sha256": "cc0c3a2f382eeff8bcb4c4f8a67431d1b6cfde4bb008a5ea3ab697de39684f7a"
     },
     "RESOURCE/animation/Roundhouse_Jessika.an": {
-      "bytes": 290540,
-      "sha256": "ad4536f692c08f676b4558255b3bcaa6ce540019ef4b54da85fcd646d44bde7d"
+      "bytes": 386856,
+      "sha256": "f8b552c9d8bf5d8bc542249442321ce9e4d1c8f6df814cdc3134083faa9379d8"
     },
     "RESOURCE/animation/Roundhouse_Jessika.ani": {
-      "bytes": 375,
-      "sha256": "004766e93db8c199094166c2f1dd0248d66d2e4c1374ff1769ebc6a049331b9d"
+      "bytes": 492,
+      "sha256": "6380734ada77a4327d1aadc6242a33b2c68b8d18bfd2d5dcae27957215830cd2"
     },
     "RESOURCE/animation/Roundhouse_Lo_Man.an": {
       "bytes": 108336,
@@ -882,12 +906,12 @@
       "sha256": "23ed30f19c9886bbfc892cb1671a9df3f8f7cb97e9ebfbc4117a02081323fbbe"
     },
     "RESOURCE/animation/Roundhouse_YokoDias.an": {
-      "bytes": 237980,
-      "sha256": "ff64f4a32b9c8a04c8f02a8f46a0119a21093bef0ef0f0834003cf85ed790c3f"
+      "bytes": 316872,
+      "sha256": "5ddde2733797e7fd5526ae33df3301dc13d5da8c05926957e637cbb25036fdf1"
     },
     "RESOURCE/animation/Roundhouse_YokoDias.ani": {
-      "bytes": 376,
-      "sha256": "338958c5d4b96107ec5e6c8d238751013c7361f229983777261c41e1083c51db"
+      "bytes": 493,
+      "sha256": "97e9e5e34cff2a4aa2713028e1cbdff5bcc3b28d41529974b8be7eb113b4127f"
     },
     "RESOURCE/animation/Roundhouse_beatrice2.an": {
       "bytes": 159088,
@@ -906,28 +930,28 @@
       "sha256": "bb4ee06223f49182e80f59792e3e8f735d0a8791d662ebdd2bea69634e09617a"
     },
     "RESOURCE/animation/Roundhouse_man.an": {
-      "bytes": 722700,
-      "sha256": "1dd1cbfe0270860c80f5ceead9413c3f1ae9742746c04e4713499bf2ea7a8cf3"
+      "bytes": 962280,
+      "sha256": "8a3e03a4754442df966d5ccefc915fa95591d6432ddd520213c2d9aa809b2bef"
     },
     "RESOURCE/animation/Roundhouse_man.ani": {
-      "bytes": 371,
-      "sha256": "a526d6c130625aa188eb06a981bd132957bb8da75be9c47d567ee689a0704999"
+      "bytes": 488,
+      "sha256": "e1df4bbc2192fbb0fa68dc00ca8d91f3fa1b1137fad89d4c4dca5df71113e6d0"
     },
     "RESOURCE/animation/Roundhouse_man1.an": {
-      "bytes": 465740,
-      "sha256": "c93413fb6d38ba1af71ee7917c03a16de0d43117caa5896d513c4e508713d003"
+      "bytes": 620136,
+      "sha256": "a870934c19668799a276f612979721a2cc95fe02bab765bda343af6b6ed14d06"
     },
     "RESOURCE/animation/Roundhouse_man1.ani": {
-      "bytes": 372,
-      "sha256": "d1d97338074471ab4238f001e36cf0efffdc9047f2866cba311b9673e1b6d24c"
+      "bytes": 489,
+      "sha256": "5cb54bb3a120bcf0ad43fc093afbdb05f1ff3f5bc8a18ecc8379777479479c25"
     },
     "RESOURCE/animation/Roundhouse_man2.an": {
-      "bytes": 465740,
-      "sha256": "4732f7b67f772eb807b6cb28c2fed36e0ec25d64a471d4cbb66ad6b0dfa76362"
+      "bytes": 620136,
+      "sha256": "1eb8c86ae030adf85f678837a3a4c5b54a82de9b2ee97538a6e976ba218b2dcd"
     },
     "RESOURCE/animation/Roundhouse_man2.ani": {
-      "bytes": 372,
-      "sha256": "0ea63d1172437e4aec8815db906ad1b2840bc1530ff2fa88c458113b280a040e"
+      "bytes": 489,
+      "sha256": "3de61780f952aa0bc0a12080821439d62556dfa2450e9e82ed8131334a7121ab"
     },
     "RESOURCE/animation/Roundhouse_man_B.an": {
       "bytes": 311344,
@@ -1018,8 +1042,8 @@
       "sha256": "dc061fc1c0a1500b8a62141786cd5ef07ceb6ad56bd56ac9f4590a695f77bd07"
     }
   },
-  "generator_sha256": "c9fbbdaaf201f8ba5b2d14e3d4a6d0704a85f0316db7fb2e06cbe75e482f6f23",
-  "recipe_sha256": "b4a2d7473afbe652a7d2a43d971152947ed1afbd3ca82a1a1e8ac4edf602faaf",
+  "generator_sha256": "7d6451e12fa09661290793de5d7942f15d072c555de6864eb81be461dddb2fef",
+  "recipe_sha256": "13659d84780047ebaf361eec86241045e5b89b01eec6f7837a8775415e301c6e",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "version": 1
 }

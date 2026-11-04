@@ -227,7 +227,7 @@ class Character : public Entity
     };
 
     void AlreadyDeleted();
-    bool StartRoundhouse();
+    bool StartRoundhouse(bool jumping = false);
     bool IsRoundhouseControlled() const;
     bool IsPhysicalRagdoll() const;
     void CancelRoundhouse();
@@ -523,6 +523,7 @@ class Character : public Entity
     std::string unarmedStrikeAction;
     float unarmedEventPhase = 0.0f;
     float unarmedContactPhase = 0.0f;
+    float unarmedStrikeSpeed = 1.0f;
     bool unarmedReverse = false;
     bool unarmedStrikePending = false;
     bool unarmedStrikeDelivered = false;
@@ -751,7 +752,7 @@ class Character : public Entity
                               int frames, float contact);
     void SampleUnarmedPose(Animation &animation, float phase);
     bool UpdateRoundhouse(float seconds);
-    bool BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse);
+    bool BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse, entid_t attacker = invalid_entity);
     std::unique_ptr<RoundhouseState> roundhouseState;
     entid_t loc_id;
 

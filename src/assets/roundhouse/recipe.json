@@ -4,6 +4,7 @@
   "hero_animations": ["man", "man1", "man2", "jessika", "YokoDias", "man_A", "Danielle", "one_leg_man"],
   "support_models": {"man": "Blad_0", "man1": "barmen_33", "man2": "Researcher", "Jessika": "jess0", "YokoDias": "Beatric_0", "Danielle": "Dan_Howk_0"},
   "kick_samples": 121,
+  "jump_height_m": 0.22,
   "contact_frame": 68,
   "near_contact_frame": 60,
   "getup_samples": 121,
