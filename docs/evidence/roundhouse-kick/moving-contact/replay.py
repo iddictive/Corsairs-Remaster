@@ -1,0 +1,216 @@
+"""Disposable CPU integration replay; not a permanent target/test harness.
+
+Run through codex-run-scratch with 512 MiB/6000 files/180 s, one compiler.
+Usage: python3 <this-file> aim-final|aim-baseline
+Sources/results stay beside this file. Libraries and runtime assets are read-only.
+No SDL calls, native window, normal game startup, save, shared build or install.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[3]
+BUILD = ROOT / 'experiments/native-metal/.cache/build'
+RUNTIME = Path(os.environ['CORSAIRS_APP']).expanduser().resolve() / 'Contents/Resources'
+SCRATCH = Path(os.environ['CODEX_SCRATCH_DIR'])
+PHASE = sys.argv[1]
+assert PHASE in ('baseline', 'final', 'aim-baseline', 'aim-final')
+CURRENT_CONSUMER=PHASE!='baseline'
+CASE = sys.argv[2] if len(sys.argv)>2 else None
+assert CASE in (None,'far','boundaries')
+RESULT_NAME=PHASE+('-'+CASE if CASE else '')
+NINJA = (BUILD / 'build.ninja').read_text()
+
+
+def fields(pattern):
+    block = re.search(pattern + r'.*?(?=\nbuild |\Z)', NINJA, re.S)
+    assert block, pattern
+    return dict(re.findall(r'^  ([A-Z_]+) = (.*)$', block[0], re.M))
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def portable(text):
+    text=text.replace(str(SCRATCH),'${SCRATCH}').replace(str(ROOT),'${REPO}').replace('<scratch>','${SCRATCH}').replace('<repo>','${REPO}')
+    return re.sub(r'(?:/private)?/var/folders/[^\s\'\"<>]+?/codex-scratch\.[^/\s\'\"<>]+','${SCRATCH}',text)
+
+
+source = HERE / ('fixture-40.cpp.txt' if os.environ.get('K_ORBIT_40') == '1' else 'fixture.cpp.txt')
+headers = SCRATCH / 'fixture_headers'
+headers.mkdir()
+# These access-only projections retain production layout/method declarations.
+# They are never compiled into or copied back to the game.
+for filename, relative in {
+    'character.h': 'location/src/character.h',
+    'location.h': 'location/src/location.h',
+    'model_array.h': 'location/src/model_array.h',
+    'modelr.h': 'model/src/modelr.h',
+    'ai_character.h': 'location/src/ai_character.h',
+    'np_character.h': 'location/src/np_character.h',
+    'player.h': 'location/src/player.h',
+}.items():
+    original = ROOT / 'experiments/native-metal/engine/src/libs' / relative
+    text = original.read_text()
+    text = re.sub(r'^class (Character|Location|ModelArray|NODER|MODELR)(\b)', r'struct \1\2', text, flags=re.M)
+    (headers / filename).write_text(text)
+if PHASE=='baseline':
+    shutil.copyfile(HERE/'native-contact-baseline-state.h.txt',SCRATCH/'roundhouse_character.h')
+
+if PHASE == 'baseline':
+    (SCRATCH / 'RESOURCE').symlink_to(RUNTIME / 'RESOURCE', target_is_directory=True)
+else:
+    resource = SCRATCH / 'RESOURCE'
+    resource.mkdir()
+    for child in (RUNTIME/'RESOURCE').iterdir():
+        if child.name.lower() not in ('animation','ini'):
+            (resource/child.name).symlink_to(child,target_is_directory=child.is_dir())
+        else:
+            folder=resource/child.name; folder.mkdir()
+            for item in child.iterdir(): (folder/item.name).symlink_to(item,target_is_directory=item.is_dir())
+    generated=ROOT/'experiments/native-metal/.cache/roundhouse'
+    manifest=json.loads((ROOT/'src/assets/roundhouse/manifest.json').read_text())
+    for name,row in manifest['files'].items():
+        path=generated/name
+        assert sha(path)==row['sha256'], f'producer not frozen: {name}'
+        target=SCRATCH/name
+        if target.is_symlink(): target.unlink()
+        target.symlink_to(path)
+(SCRATCH / 'userdata/Logs').mkdir(parents=True)
+os.environ['STORM_USERDATA'] = str(SCRATCH / 'userdata')
+os.environ['STORM_QUIET_CLIENT'] = '1'
+# Initial spacing reproduction reaches no damage handler. Final consumer is
+# supplied by the real-script acceptance lane instead of this setup prelude.
+script = '''object Attacker; object Victim; int Hits;
+void Main(){Attacker.id="replay_attacker";Attacker.model.animation="man";Attacker.chr_ai.hp=500.0;Victim.id="replay_victim";Victim.model.animation="man";Victim.chr_ai.hp=500.0;Hits=0;}
+#event_handler("Roundhouse_TryStart","TryStart");
+bool TryStart(){aref actor=GetEventData();return true;}
+#event_handler("Roundhouse_CanHit","CanHit");
+bool CanHit(){aref actor=GetEventData();aref victim=GetEventData();return true;}
+#event_handler("Location_CharacterAttack","Impact");
+void Impact(){aref actor=GetEventData();aref victim=GetEventData();string kind=GetEventData();bool blocked=GetEventData();Hits++;victim.chr_ai.hp=stf(victim.chr_ai.hp)-50.0;}
+'''
+if CURRENT_CONSUMER:
+    sys.path.insert(0,str(ROOT/'tools'))
+    import gameplay_sources
+    stage=ROOT/'experiments/native-metal/.cache/runtime'
+    shutil.copytree(stage/'PROGRAM',SCRATCH,dirs_exist_ok=True)
+    sources,_=gameplay_sources.read()
+    for name,(data,_,_) in sources.items():
+        if name.startswith('PROGRAM/'):
+            target=SCRATCH/Path(name).relative_to('PROGRAM')
+            target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(data)
+    main=SCRATCH/'seadogs.c'
+    data=main.read_bytes()
+    assert len(re.findall(rb'void\s+Main\s*\(',data))==1
+    main.write_bytes(re.sub(rb'void\s+Main\s*\(',b'void GameMainNotExecuted(',data,count=1))
+    # Damage stays canonical. Only the unrelated particle/rendering effect is
+    # suppressed in this window-free fixture, by its gameplay owner.
+    utils=SCRATCH/'Loc_ai/LAi_utils.c'
+    data=utils.read_bytes()
+    assert len(re.findall(rb'void\s+LaunchBlood\s*\(',data))==1
+    utils.write_bytes(re.sub(rb'void\s+LaunchBlood\s*\(',b'void ReplayUncalledLaunchBlood(',data,count=1))
+    shared=SCRATCH/'RESOURCE/shared'
+    if shared.is_symlink(): shared.unlink()
+    assert not shared.exists()
+    shutil.copytree(stage/'resource/shared',shared)
+    supplied = HERE / 'consumer.c.txt'
+    assert supplied.is_file(), 'Final requires exact gameplay consumer from its owner'
+    script = supplied.read_text()
+(SCRATCH / 'fixture.c').write_text(script)
+
+compile_fields = fields(r'build native-engine/CMakeFiles/script-vm-probe\.dir/[^\n]+\.cpp\.o:')
+link_fields = fields(r'build bin/script-vm-probe:')
+compiler = ['/usr/bin/c++']
+for key in ('DEFINES', 'FLAGS', 'INCLUDES'):
+    compiler += [v for v in shlex.split(compile_fields[key]) if v != '-v']
+compiler += ['-I'+str(SCRATCH),
+             '-I'+str(ROOT/'experiments/native-metal/engine/src/libs/location/src'),
+             '-I'+str(ROOT/'experiments/native-metal/engine/src/libs/model/src'),
+             '-I'+str(ROOT/'experiments/native-metal/engine/src/libs/animation/src')]
+obj = SCRATCH / 'native-contact-replay.o'
+compile_cmd = compiler + ['-x','c++','-c',str(source),'-o',str(obj)]
+link_cmd = ['/usr/bin/c++'] + shlex.split(link_fields['FLAGS'])
+link_cmd += [x for x in shlex.split(link_fields['LINK_FLAGS']) if x != '-v']
+link_cmd += [str(obj), '-o', str(SCRATCH/'native-contact-replay')]
+link_cmd += shlex.split(link_fields['LINK_LIBRARIES'])
+commands = [compile_cmd, link_cmd]
+
+# Recompile only the changed native combat owner into a disposable archive;
+# cached shared archives, objects and all build registration stay untouched.
+if PHASE in ('final','aim-final'):
+    overlay = SCRATCH / 'liblocation-contact.a'
+    shutil.copyfile(BUILD/'lib/liblocation.a', overlay)
+    replacements=[]
+    for name in ('roundhouse_character','character'):
+        current = ROOT/f'experiments/native-metal/engine/src/libs/location/src/{name}.cpp'
+        if name == 'roundhouse_character':
+            current = SCRATCH/'baseline.cpp'
+            current.write_bytes(subprocess.check_output(['git','show','3f33a20:experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp'],cwd=ROOT))
+        flags = fields(r'build native-engine/storm/libs/location/CMakeFiles/location\.dir/src/'+name+r'\.cpp\.o:')
+        cc = ['/usr/bin/c++']
+        for key in ('DEFINES','FLAGS','INCLUDES'):
+            cc += [v for v in shlex.split(flags[key]) if v != '-v']
+        cc += ['-I'+str(ROOT/'experiments/native-metal/engine/src/libs/location/src')]
+        replacement = SCRATCH/f'{name}.cpp.o'
+        commands.insert(len(commands)-1, cc+['-c',str(current),'-o',str(replacement)])
+        replacements.append(str(replacement))
+    commands.insert(len(commands)-1, ['/usr/bin/ar','-r',str(overlay)]+replacements)
+    link_cmd[:] = [str(overlay) if x in (str(BUILD/'lib/liblocation.a'),'lib/liblocation.a') else x for x in link_cmd]
+    if PHASE=='aim-final':
+        baseline_link=[str(BUILD/'lib/liblocation.a') if x==str(overlay) else str(SCRATCH/'native-contact-baseline-timing') if x==str(SCRATCH/'native-contact-replay') else x for x in link_cmd]
+        commands.insert(len(commands)-1,baseline_link)
+
+results = {'phase':PHASE,'compiler':subprocess.check_output(['/usr/bin/c++','--version'],text=True).splitlines()[0],
+           'runtime':str(RUNTIME),
+           'fixture_substitutions':['CPU memory GEOM_SERVICE; native GEOM collision unchanged','Replay Init bypasses renderer/camera startup; actual Character combat and Supervisor methods retained'] + (['Canonical game Main renamed and never called','LaunchBlood presentation-only no-op; original definition renamed exactly once; actual damage unchanged'] if CURRENT_CONSUMER else ['Setup-only permissive script handlers; baseline never reaches them']),
+           'source_sha256':sha(source),
+           'consumer_sha256':sha(SCRATCH/'fixture.c'),
+           'native_source_sha256':{name:sha((SCRATCH/'baseline.cpp') if PHASE=='aim-final' and name=='roundhouse_character.cpp' else ROOT/'experiments/native-metal/engine/src/libs/location/src'/name) for name in ('roundhouse_character.cpp','roundhouse_character.h','character.cpp')},
+           'archives_sha256':{p.name:sha(p) for p in [BUILD/'lib/liblocation.a',BUILD/'lib/libgeometry.a',BUILD/'lib/libmodel.a',BUILD/'lib/libanimation.a',BUILD/'lib/libcore.a']},
+           'assets_sha256':{str(p.relative_to(RUNTIME)):sha(p) for p in [RUNTIME/'RESOURCE/MODELS/Locations/Outside/TownExitKSM/DuelField.gm',RUNTIME/'RESOURCE/MODELS/Locations/Outside/TownExitKSM/duelfield_patch.ptc',RUNTIME/'RESOURCE/INI/roundhouse-rigs.ini']},
+           'commands':[[x.replace(str(SCRATCH),'<scratch>').replace(str(ROOT),'<repo>') for x in c] for c in commands], 'runs':[]}
+if CURRENT_CONSUMER:
+    results['producer_manifest_sha256']=sha(ROOT/'src/assets/roundhouse/manifest.json')
+    results['generated_assets_sha256']={name:row['sha256'] for name,row in manifest['files'].items()}
+else:
+    results['baseline_bank_sha256']={name:sha(RUNTIME/'RESOURCE/ANIMATION'/name) for name in ('Roundhouse_man.an','Roundhouse_man.ani')}
+log = []
+try:
+    for command in commands:
+        done = subprocess.run(command,cwd=BUILD,capture_output=True,text=True,timeout=100)
+        log.append(done.stdout+done.stderr)
+        assert done.returncode == 0, f'compile/link failed: {done.returncode}'
+    cases = [('attack0.6_2.0',1), ('attack0.5_2.0',0), ('attack0.6_2.0wall',0), ('attack0.6_2.0incoming',1), ('fighter',1), ('far',0)]
+    if PHASE=='aim-baseline': cases=[('fighter',1),('offset-right',-1),('offset-left',-1),('orbit-right',-1),('orbit-left',-1)]
+    if PHASE=='aim-baseline': cases = [('fighter',-1),('far',-1),('behind',-1),('wall',-1),('immortal',-1),('same-group',-1),('no-lock-pose',-1),('multi',-1),('attack0.6_2.0incoming',-1),('orbit-right',-1),('orbit-left',-1),('moving-attack-right',-1),('moving-attack-left',-1),('attack0.4_1.5',-1),('attack0.6_1.5',-1),('attack0.4_1.1',-1),('attack0.6_1.1',-1),('target-escapes',-1),('target-ineligible',-1),('target-erased',-1)]
+    boundaries=[('target-erased',0),('target-escapes',0),('target-ineligible',0),('after-strike',0)]
+    if PHASE=='aim-final': cases = [('fighter',-1),('far',-1),('behind',-1),('wall',-1),('immortal',-1),('same-group',-1),('no-lock-pose',-1),('multi',-1),('attack0.6_2.0incoming',-1),('orbit-right',-1),('orbit-left',-1),('moving-attack-right',-1),('moving-attack-left',-1),('attack0.4_1.5',-1),('attack0.6_1.5',-1),('attack0.4_1.1',-1),('attack0.6_1.1',-1),('target-escapes',-1),('target-ineligible',-1),('target-erased',-1)]
+    if CASE: cases=boundaries if CASE=='boundaries' else [row for row in cases if row[0]==CASE]
+    if False:
+        results['forward_timing_runs']=[]
+        for variant,binary in [('baseline','native-contact-baseline-timing'),('final','native-contact-replay')]:
+            for repeat in range(3):
+                done=subprocess.run([str(SCRATCH/binary),str(RUNTIME),'fighter','1'],cwd=SCRATCH,capture_output=True,text=True,timeout=20)
+                results['forward_timing_runs'].append(dict(variant=variant,repeat=repeat,exit=done.returncode,stdout=done.stdout,stderr=done.stderr))
+                log.append(variant+' timing '+done.stdout+done.stderr)
+                assert done.returncode==0, f'forward {variant} timing failed'
+        cases=[row for row in cases if row[0]!='fighter']
+    for case,expected in cases:
+        done = subprocess.run([str(SCRATCH/'native-contact-replay'),str(RUNTIME),case,str(expected)],cwd=SCRATCH,capture_output=True,text=True,timeout=20)
+        entry = dict(case=case,expected_contact=None if expected<0 else bool(expected),exit=done.returncode,stdout=done.stdout,stderr=done.stderr)
+        results['runs'].append(entry); log.append(done.stdout+done.stderr)
+        assert done.returncode == 0, f'replay {case} failed: {done.returncode}'
+finally:
+    (SCRATCH/f'{RESULT_NAME}-result.json').write_text(portable(json.dumps(results,indent=2)+'\n'))
+    (SCRATCH/f'{RESULT_NAME}-raw.txt').write_text(portable('\n'.join(log)))
+    print(portable('\n'.join(log)[-5000:]))

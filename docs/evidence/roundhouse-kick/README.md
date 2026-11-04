@@ -1,5 +1,8 @@
 # Roundhouse native animation evidence
 
+The later [moving-contact replay](moving-contact/README.md) supersedes the
+historical frozen-heading observation and documents the close-range fallback.
+
 The K contact follow-up reproduces an attacking `man/attack_force_1` pose at
 phase 0.6 and 2 m separation: the lower-leg sweep intersected the torso while
 the old head-only test missed. The current contact checks the actual swept
