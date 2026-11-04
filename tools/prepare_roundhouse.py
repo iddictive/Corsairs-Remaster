@@ -543,13 +543,6 @@ def jump_kick(source, spec):
     # body and leg curves. K's pose sequence is not an input to this action.
     seed, offset, checks = kick(source, aerial)
     takeoff, landing = aerial["flight_interval"]
-    corrections = [[0., 0., 0., 0.], [.22, 0., 0., 0.]]
-    for frame, target in ((spec["near_contact_frame"], checks["near_head_animation_xyz"]),
-                          (spec["contact_frame"], checks["heel_target_xyz"])):
-        p, g = fk(r, seed[frame][1], seed[frame][0])
-        heel = add(p[striking[2]], rotate(g[striking[2]], offset))
-        corrections.append([frame/(len(seed)-1), *sub(target, heel)])
-    corrections += [[.76, 0., 0., 0.], [1., 0., 0., 0.]]
     result = []
     for frame, (ground_root, ground_q) in enumerate(seed):
         t = frame / (len(seed) - 1)
@@ -573,15 +566,19 @@ def jump_kick(source, spec):
             before = list(q)
             limb(r, q, root, ids, target, pole)
             for joint in ids[:2]: q[joint] = blend(before[joint], q[joint], air)
-        # The independent seed closes the same near/far contact contract.
-        # Adapt the leg to the jump height without moving the animated heel
-        # away from that strike path while it can deliver damage.
-        weight = smooth((t-.30)/.10) * (1-smooth((t-.70)/.06))
+        # Sweep a real extended leg around the attacker, at the opponent's
+        # guard head height. Native skinning mirrors X. Move the pelvis only
+        # by the excess over measured leg reach, blended into flight.
+        weight = smooth((t-.24)/.19) * (1-smooth((t-.76)/.14))
         if weight:
             p, g = fk(r, ground_q, ground_root)
             before = list(q)
-            pole = bend_pole(p, striking)
-            target = add(p[striking[2]], curve(corrections, t, True))
+            angle = math.radians(curve(aerial["sweep_keys"], t, True)[0])
+            head = checks["heel_target_xyz"]
+            radius = math.hypot(head[0], head[2])
+            heel_target = (radius*math.sin(angle), head[1], radius*math.cos(angle))
+            target = sub(heel_target, rotate(g[striking[2]], offset))
+            pole = (math.sin(angle), 0.35, math.cos(angle))
             current, _ = fk(r, q, root)
             reach = sum(math.sqrt(dot(r["rest"][j], r["rest"][j])) for j in striking[1:])*.995
             delta = sub(target, current[striking[0]])

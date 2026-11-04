@@ -308,6 +308,7 @@ float LAi_GetCharacterRelHP(aref chr)
 //Получить относительную энергию персонажа 0..1
 float LAi_GetCharacterRelEnergy(aref chr)
 {
+	if (LAi_HasInfiniteEnergy(chr)) return 1.0;
 	float energy = 0.0;
 	if(CheckAttribute(chr, "chr_ai.energy"))
 	{
@@ -724,6 +725,35 @@ float LAi_GetBladeEnergyType(aref chr)
 //------------------------------------------------------------------------------------------
 
 //Процессируем всех загружекных персонажей
+void LAi_UpdateBleeding(aref chr, float dltTime)
+{
+	if(!CheckAttribute(chr, "chr_ai.bleeding.remaining")) return;
+	if(LAi_IsDead(chr) || LAi_IsImmortal(chr))
+	{
+		DeleteAttribute(chr, "chr_ai.bleeding");
+		return;
+	}
+	if(dltTime <= 0.0) return;
+	float remaining = stf(chr.chr_ai.bleeding.remaining);
+	float elapsed = dltTime;
+	if(elapsed > remaining) elapsed = remaining;
+	if(elapsed > 0.0)
+	{
+		float hp = LAi_GetCharacterHP(chr);
+		// Current-HP damage stays independent of the AI update cadence.
+		if(hp > 1.0)
+		{
+			hp = hp*pow(0.98, elapsed);
+			if(hp < 1.0) hp = 1.0;
+			chr.chr_ai.hp = hp;
+			LAi_ProcessCheckMinHP(chr);
+		}
+	}
+	remaining = remaining - elapsed;
+	if(remaining <= 0.0) DeleteAttribute(chr, "chr_ai.bleeding");
+	else chr.chr_ai.bleeding.remaining = remaining;
+}
+
 void LAi_AllCharactersUpdate(float dltTime)
 {
 	for(int i = 0; i < LAi_numloginedcharacters; i++)
@@ -735,6 +765,7 @@ void LAi_AllCharactersUpdate(float dltTime)
 			aref chr_ai;
 			makearef(chr_ai, Characters[idx].chr_ai);
 			ref chr = &Characters[idx];
+			LAi_UpdateBleeding(chr, dltTime);
 			if(LAi_IsDead(chr)) continue;
 			//Востоновление жизни
 			float dlthp = LAI_DEFAULT_DLTHP;

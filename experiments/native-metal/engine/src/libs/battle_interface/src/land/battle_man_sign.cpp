@@ -3,6 +3,9 @@
 #include "battle_man_command.h"
 #include "core.h"
 #include "shared/battle_interface/msg_control.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
 
 BIManSign::BIManSign(entid_t BIEntityID, VDX9RENDER *pRS)
 {
@@ -132,8 +135,38 @@ void BIManSign::Draw()
         nStartV += m_nGunChargeSquareQ * 4;
     }
 
+    DrawBleeding();
     if (m_pCommandList)
         m_pCommandList->Draw();
+}
+
+void BIManSign::DrawBleeding()
+{
+    for (int32_t n = 0; n < m_nManQuantity; ++n)
+    {
+        const auto &man = m_Man[n];
+        if (!std::isfinite(man.bleedingRemaining) || man.bleedingRemaining <= 0.f || man.fHealth <= 0.f ||
+            !std::isfinite(man.bleedingRate) || man.bleedingRate <= 0.f) continue;
+        if (m_bleedingFont < 0) m_bleedingFont = m_pRS->LoadFont("interface_normal");
+        const float scale = m_pntManPicIconSize.x / 64.f;
+        const float x = man.pntPos.x + m_pntManPicOffset.x - m_pntManPicIconSize.x * .5f + 9.f * scale;
+        const float y = man.pntPos.y + m_pntManPicOffset.y + m_pntManPicIconSize.y * .5f + 12.f * scale;
+        // Own status in the portrait's existing lower frame, clear of the
+        // portrait/HP/reload shapes; severity and duration share one status.
+        const std::array<std::array<float,2>,9> outline={{{0,-7},{3,-2},{4,1},{3,4},{0,5},{-3,4},{-4,1},{-3,-2},{0,-7}}};
+        std::array<BI_COLORONLY_VERTEX,24> drop;
+        for (size_t i=0;i<8;++i)
+        {
+            drop[i*3]={{x,y,1.f},1.f,0xffdf3948};
+            drop[i*3+1]={{x+outline[i][0]*scale,y+outline[i][1]*scale,1.f},1.f,0xffbd1b30};
+            drop[i*3+2]={{x+outline[i+1][0]*scale,y+outline[i+1][1]*scale,1.f},1.f,0xffbd1b30};
+        }
+        m_pRS->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,BI_COLORONLY_VERTEX_FORMAT,8,
+            drop.data(),sizeof(BI_COLORONLY_VERTEX),"battle_only_color");
+        const int remaining = int(std::ceil(std::clamp(man.bleedingRemaining,0.f,5999.f)));
+        if (m_bleedingFont >= 0) m_pRS->ExtPrint(m_bleedingFont,0xffffd6d8,0,PR_ALIGN_LEFT,true,.55f*scale,
+            0,0,int(x+8.f*scale),int(y-8.f*scale),"%.2g%%/с %d:%02d",man.bleedingRate*100.f,remaining/60,remaining%60);
+    }
 }
 
 void BIManSign::Init(ATTRIBUTES *pRoot, ATTRIBUTES *pA)
@@ -426,6 +459,7 @@ void BIManSign::ExecuteCommand(int32_t command)
 
 void BIManSign::Release()
 {
+    if (m_bleedingFont >= 0) { m_pRS->UnloadFont(m_bleedingFont); m_bleedingFont = -1; }
     STORM_DELETE(m_pCommandList);
     TEXTURE_RELEASE(m_pRS, m_nBackTextureID);
     // TEXTURE_RELEASE( m_pRS, m_nShipTextureID );
@@ -458,6 +492,8 @@ int32_t BIManSign::CalculateManQuantity()
         m_Man[n].nShootMax = 4;
         m_Man[n].nShootCurrent = 0;
         m_Man[n].fGunProgress = 0.0f;
+        m_Man[n].bleedingRemaining = 0.f;
+        m_Man[n].bleedingRate = 0.f;
     }
 
     auto *pAttr = m_pARoot ? m_pARoot->GetAttributeClass("data") : nullptr;
@@ -800,6 +836,8 @@ void BIManSign::CheckDataChange()
             m_bMakeVertexFill = true;
         if (FloatACompare(pA, "gunprogress", m_Man[n].fGunProgress))
             m_bMakeVertexFill = true;
+        m_Man[n].bleedingRemaining = pA->GetAttributeAsFloat("bleedingRemaining", 0.f);
+        m_Man[n].bleedingRate = pA->GetAttributeAsFloat("bleedingRate", 0.f);
         if (StringACompare(pA, "texture", m_Man[n].sTexture))
         {
             TEXTURE_RELEASE(m_pRS, m_Man[n].nTexture);

@@ -56,6 +56,8 @@ class BIManSign
     float GetGunProgressByIndex(int32_t nIdx);
 
     void CheckDataChange();
+    void DrawBleeding();
+    int32_t m_bleedingFont = -1;
 
     bool LongACompare(ATTRIBUTES *pA, const char *attrName, int32_t &nCompareVal);
     bool FloatACompare(ATTRIBUTES *pA, const char *attrName, float &fCompareVal);
@@ -144,6 +146,8 @@ class BIManSign
         int32_t nShootMax;
         int32_t nShootCurrent;
         float fGunProgress;
+        float bleedingRemaining = 0.f;
+        float bleedingRate = 0.f;
     } m_Man[MAX_MAN_QUANTITY];
 
     int32_t m_nManQuantity;

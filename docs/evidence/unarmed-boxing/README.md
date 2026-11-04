@@ -171,3 +171,31 @@ sword. The cross pose was selected, the handler reduced target HP from 500 to
 still in dialogue was rejected without creating a ragdoll. The fixture invokes
 the handler directly: it does not verify dialogue option visibility, the
 scheduled event transport, final weapon draw, or rendered gameplay.
+
+## Connected combos and guard escape
+
+`combos-native-result.json` and `combos-native-raw.txt` retain the actual native
+Character/Player, animation-ending, complete gameplay VM and Jolt replay:
+13/13 cases pass, with zero script errors and no native window. Jab-cross,
+double-jab-cross and the uppercut continuation consume one buffered input on
+the natural animation ending, apply one damage event per strike, and pay the
+ordinary energy cost. A connected same-target chain can knock down a victim
+at no more than 20% energy; all three positive cases fall, get up and recover
+alive. High victim energy, misses, blocks, target swap, dialogue and death
+cancellation do not produce that knockout.
+
+Actual Player::Move with a typed controls seam proves held-block left/right/
+back dodges and return to guard, each costing two energy. The armed negative
+remains in guard. Sword timing and transitions were preserved. Fists reject
+the sword round/feint/feint-counter actions before input side effects.
+
+```sh
+export CODEX_SCRATCH_DIR=$(mktemp -d /tmp/corsairs-boxing-check.XXXXXX)
+export CORSAIRS_APP="/Applications/Corsairs Iddictive Remaster.app"
+python3 docs/evidence/unarmed-boxing/combos-native.py prepare
+python3 docs/evidence/unarmed-boxing/combos-native.py run
+```
+
+The manifest retains compiler/link commands, archive/header/script/resource
+hashes and raw results. Paths are redacted in the published manifest; the
+runner generates local executable paths. Final visual gameplay is not claimed.

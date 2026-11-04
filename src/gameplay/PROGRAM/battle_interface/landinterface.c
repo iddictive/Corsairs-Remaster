@@ -1267,6 +1267,16 @@ void SetCharacterIconData(int chrindex, aref arData)
 	arData.chrindex = chrindex;
 	arData.health = LAi_GetCharacterRelHP(chref);
 	arData.energy = LAi_GetCharacterRelEnergy(chref);
+	arData.bleedingRemaining = 0.0;
+	arData.bleedingRate = 0.0;
+	if(chrindex == GetMainCharacterIndex() && !LAi_IsDead(chref))
+	{
+		if(CheckAttribute(chref, "chr_ai.bleeding.remaining"))
+		{
+			arData.bleedingRemaining = stf(chref.chr_ai.bleeding.remaining);
+			arData.bleedingRate = stf(chref.chr_ai.bleeding.rate);
+		}
+	}
 	arData.shootMax = LAi_GetCharacterChargeQuant(chref);
 	arData.shootCur = LAi_GetCharacterChargeCur(chref);
 	if( CheckAttribute(chref,"FaceId") ) {

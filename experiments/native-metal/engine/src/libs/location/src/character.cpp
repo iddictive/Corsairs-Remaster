@@ -1473,6 +1473,22 @@ void Character::Attack(Character *enemy, FightAction type)
         return;
     if (type < fgt_attack_fast || type > fgt_attack_feintc)
         return;
+    if (isFightWOWps)
+    {
+        // Sword spins and counter-feints have no fist animation or damage contract.
+        if (type != fgt_attack_fast && type != fgt_attack_force && type != fgt_attack_break)
+            return;
+        if (IsPlayer() && unarmedStrikePending && fgtCurType != fgt_none)
+        {
+            // One deliberate follow-up during recovery, never an interrupted punch.
+            if (unarmedStrikeDelivered && unarmedBufferedAttack == fgt_none)
+            {
+                unarmedBufferedAttack = type;
+                unarmedBufferedTarget = enemy ? enemy->GetId() : invalid_entity;
+            }
+            return;
+        }
+    }
     // if(!fightTbl[fgtCurType][type]) return;
     if (enemy)
     {
@@ -2347,6 +2363,7 @@ void Character::Move(float dltTime)
 // Update character position
 void Character::Update(float dltTime)
 {
+    UpdateCombatDetached();
     const bool roundhouseControlled = UpdateRoundhouse(dltTime);
     auto *const location = GetLocation();
 
@@ -2707,6 +2724,22 @@ void Character::ActionEvent(const char *actionName, Animation *animation, int32_
         (unarmedReverse ? animation->Player(0).GetPosition() <= 0.0f : animation->Player(0).GetPosition() >= 1.0f) && actionName &&
         storm::iEquals(actionName, unarmedStrikeAction.c_str()))
         ActionEvent(animation, 0, "Attack");
+    const bool endedPunch = event == ae_end && isFightWOWps && unarmedStrikePending &&
+        (unarmedReverse ? animation->Player(0).GetPosition() <= 0.0f : animation->Player(0).GetPosition() >= 1.0f) && actionName &&
+        storm::iEquals(actionName, unarmedStrikeAction.c_str());
+    const auto bufferedAttack = endedPunch ? unarmedBufferedAttack : fgt_none;
+    const auto bufferedTarget = unarmedBufferedTarget;
+    if (endedPunch)
+    {
+        unarmedBufferedAttack = fgt_none;
+        unarmedBufferedTarget = invalid_entity;
+        if (!unarmedComboConnected)
+        {
+            unarmedComboStage = 0;
+            unarmedComboWindow = 0.0f;
+            unarmedComboTarget = invalid_entity;
+        }
+    }
     if (event == ae_end)
         curIdleIndex = -1;
 
@@ -2795,6 +2828,13 @@ void Character::ActionEvent(const char *actionName, Animation *animation, int32_
         if (!storm::iEquals(actionName, userIdle.name))
             return;
         core.Event("Location_Character_EndAction", "i", GetId());
+    }
+    if (bufferedAttack != fgt_none && !IsDead() && !IsDialog() && !priorityAction.name && isFight && isFightWOWps)
+    {
+        // Resolve the entity again: it may have disappeared during recovery.
+        auto *target = core.IsEntityValid(bufferedTarget)
+            ? static_cast<Character *>(core.GetEntityPointer(bufferedTarget)) : nullptr;
+        Attack(target, bufferedAttack); // ordinary energy gate still owns admission
     }
 }
 
@@ -3540,6 +3580,12 @@ bool Character::zDistByCharacter(MESSAGE &message, bool is2D)
 uint32_t Character::zExMessage(MESSAGE &message)
 {
     const std::string &msg = message.String();
+    if (storm::iEquals(msg, "CombatWeaponImpact"))
+    {
+        const auto attacker = message.EntityID();
+        const int kind = message.Long();
+        return ApplyCombatWeaponImpact(attacker, kind, message.Long() != 0);
+    }
     LocatorArray *la;
     int32_t i;
     VDATA *v;
@@ -4141,7 +4187,7 @@ bool Character::SetAction(const char *actionName, float tblend, float movespeed,
     return res;
 }
 
-void Character::ClearUnarmedPose()
+void Character::ClearUnarmedPose(bool clearCombo)
 {
     if (unarmedPoseActive)
         if (auto *model = Model())
@@ -4153,6 +4199,15 @@ void Character::ClearUnarmedPose()
     unarmedStrikeDelivered = false;
     unarmedStrikeAction.clear();
     unarmedStrikeSpeed = 1.0f;
+    unarmedBufferedAttack = fgt_none;
+    unarmedBufferedTarget = invalid_entity;
+    if (clearCombo)
+    {
+        unarmedComboTarget = invalid_entity;
+        unarmedComboStage = 0;
+        unarmedComboWindow = 0.0f;
+        unarmedComboConnected = false;
+    }
 }
 
 bool Character::PrepareUnarmedBank(Animation &animation)
@@ -4269,6 +4324,7 @@ void Character::SampleUnarmedPose(Animation &animation, float phase)
 
 void Character::UpdateUnarmedPose(float seconds)
 {
+    unarmedComboWindow = std::max(0.0f, unarmedComboWindow - std::max(0.0f, seconds));
     auto *model = Model();
     auto *animation = model ? model->GetAnimation() : nullptr;
     // The dialogue sneak uses the ordinary actor action as its clock, but its
@@ -4314,8 +4370,8 @@ void Character::UpdateUnarmedPose(float seconds)
     }
     if (unarmedStrikePending && fgtCurType != fgt_attack_fast && fgtCurType != fgt_attack_force &&
         fgtCurType != fgt_attack_break)
-        ClearUnarmedPose();
-    if (!action || !PrepareUnarmedBank(*animation)) { ClearUnarmedPose(); return; }
+        ClearUnarmedPose(fgtCurType != fgt_none);
+    if (!action || !PrepareUnarmedBank(*animation)) { ClearUnarmedPose(fgtCurType != fgt_none); return; }
 
     auto &player = unarmedBank->Player(0);
     if (unarmedAction != action)
@@ -4697,6 +4753,7 @@ void Character::UpdateAnimation()
                     unarmedStrikeSpeed = player.GetFrames() / (animation->GetFPS() * duration);
                     player.SetSpeed(unarmedStrikeSpeed);
                     unarmedStrikePending = true;
+                    unarmedComboConnected = false;
                     return true;
                 };
 
@@ -5501,6 +5558,36 @@ inline void Character::CheckAttackHit(bool isGunBlade)
             }
             core.Event("Location_CharacterAttack", "iislll", GetId(), fc.c->GetId(), aname,
                        static_cast<int32_t>(isBlocked), static_cast<int32_t>(isGunBlade), blockTime);
+            if (isFightWOWps && !isGunBlade && !isBlocked && !unarmedComboConnected &&
+                fc.c->GetId() == enemyAttack && unarmedStrikePending && unarmedStrikeDelivered)
+            {
+                unarmedComboConnected = true;
+                if (unarmedComboTarget != fc.c->GetId() || unarmedComboWindow <= 0.0f)
+                    unarmedComboStage = 0;
+                // Jab-cross, double-jab-cross, and their uppercut finish.
+                if (fgtCurType == fgt_attack_fast)
+                    unarmedComboStage = unarmedComboStage == 1 ? 2 : 1;
+                else if (fgtCurType == fgt_attack_force)
+                    unarmedComboStage = unarmedComboStage == 1 || unarmedComboStage == 2 ? 3 : 0;
+                else if (fgtCurType == fgt_attack_break)
+                    unarmedComboStage = unarmedComboStage == 3 ? 4 : 0;
+                else
+                    unarmedComboStage = 0;
+                unarmedComboTarget = fc.c->GetId();
+                unarmedComboWindow = 0.95f;
+                if (unarmedComboStage >= 3)
+                {
+                    int32_t canKnockout = 0;
+                    auto *answer = core.Event("Boxing_CanKnockout", "ii", GetId(), fc.c->GetId());
+                    if (answer && answer->Get(canKnockout) && canKnockout &&
+                        fc.c->BeginRoundhouseFall(fc.c->curPos + CVECTOR(0, 1.5f, 0),
+                            CVECTOR(sinf(ay) * 35.0f, 8.0f, cosf(ay) * 35.0f), GetId()))
+                    {
+                        unarmedComboStage = 0;
+                        unarmedComboWindow = 0.0f;
+                    }
+                }
+            }
             // boal 09/12/06 energy consumption after impact -->
             if (isUseEnergy && fgtCurType != fgt_attack_feintc)
             {

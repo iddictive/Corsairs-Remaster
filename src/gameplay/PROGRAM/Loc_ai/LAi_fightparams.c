@@ -165,7 +165,7 @@ float LAi_CalcDamageForBlade(aref attack, aref enemy, string attackType, bool is
 		{
 			if(CheckAttribute(enemy, "chr_ai.energy"))
 			{
-				enemy.chr_ai.energy = (stf(enemy.chr_ai.energy) * 0.9); //fix
+				Lai_CharacterChangeEnergy(enemy, -stf(enemy.chr_ai.energy) * 0.1);
 			}
 		}
 		
@@ -272,6 +272,7 @@ float LAi_CalcUseEnergyForBlade(aref character, string actionType)
 
 float Lai_UpdateEnergyPerDltTime(aref chr, float curEnergy, float dltTime)
 {
+	if (LAi_HasInfiniteEnergy(chr)) return LAi_GetCharacterMaxEnergy(chr);
 	float fMultiplier = 1.6666667;
 
 	if(CheckCharacterPerk(chr, "Energaiser")) // скрытый перк боссов и ГГ
@@ -464,6 +465,19 @@ float LAi_GunReloadSpeed(aref chr)
 //--------------------------------------------------------------------------------
 
 //Начисление повреждений при атаке мечём
+// Only real, substantial weapon wounds bleed. Healing changes HP, not this timer.
+void LAi_RecordWeaponWound(aref attack, aref enemy, float previousHP, int kind)
+{
+	float hp = LAi_GetCharacterHP(enemy);
+	float lost = previousHP - hp;
+	if(lost <= 0.0) return;
+	SendMessage(enemy, "lsill", MSG_CHARACTER_EX_MSG, "CombatWeaponImpact", attack, kind, LAi_IsDead(enemy));
+	if(LAi_IsDead(enemy) || LAi_IsImmortal(enemy) || hp < 1.0) return;
+	if(lost < 8.0 || lost < LAi_GetCharacterMaxHP(enemy)*0.08) return;
+	enemy.chr_ai.bleeding.rate = 0.02;
+	enemy.chr_ai.bleeding.remaining = 90.0;
+}
+
 void LAi_ApplyCharacterAttackDamage(aref attack, aref enemy, string attackType, bool isBlocked)
 {
 	//Если неубиваемый, то нетрогаем его
@@ -547,11 +561,18 @@ void LAi_ApplyCharacterAttackDamage(aref attack, aref enemy, string attackType, 
 		if (sti(attack.index) == nMainCharacterIndex || IsOfficer(&Characters[sti(attack.index)]))
 			WdmMilitaryParticipationHit(enemy, Crime_HasPlayerIntent(enemy));
 		//Наносим повреждение
+		float previousHP = LAi_GetCharacterHP(enemy);
 		LAi_ApplyCharacterDamage(enemy, MakeInt(dmg + 0.5));
 		// Preserve lethal attribution before the synchronous death event.
 		if (LAi_GetCharacterHP(enemy) <= 0.0) enemy.Killer.Index = attack.index;
 		//Проверим на смерть
 		LAi_CheckKillCharacter(enemy);
+		if(!isBlocked && attackType != "roundhouse" && attackType != "roundhouse_jump" &&
+			CheckAttribute(attack, "equip.blade"))
+		{
+			if(attack.equip.blade != "" && attack.equip.blade != "unarmed")
+				LAi_RecordWeaponWound(attack, enemy, previousHP, 1);
+		}
 		//проверим на отравление
 		if (attackType != "roundhouse" && attackType != "roundhouse_jump") MakePoisonAttackCheckSex(enemy, attack);
 	}
@@ -696,11 +717,13 @@ void LAi_ApplyCharacterFireDamage(aref attack, aref enemy, float kDist)
 	{
 		if (sti(attack.index) == nMainCharacterIndex || IsOfficer(&Characters[sti(attack.index)]))
 			WdmMilitaryParticipationHit(enemy, Crime_HasPlayerIntent(enemy));
+		float previousHP = LAi_GetCharacterHP(enemy);
 		LAi_ApplyCharacterDamage(enemy, MakeInt(damage + 0.5));	
 		// Preserve lethal attribution before the synchronous death event.
 		if (LAi_GetCharacterHP(enemy) <= 0.0) enemy.Killer.Index = attack.index;
 		//Проверим на смерть
 		LAi_CheckKillCharacter(enemy);
+		LAi_RecordWeaponWound(attack, enemy, previousHP, 2);
 	}
 	//Есть ли оружие у цели
 	bool isSetBalde = (CheckAttribute(enemy, "equip.blade") == true);//(SendMessage(enemy, "ls", MSG_CHARACTER_EX_MSG, "IsSetBalde") != 0);
@@ -1025,6 +1048,21 @@ bool Roundhouse_CanHit()
 	return true;
 }
 
+#event_handler("Boxing_CanKnockout", "Boxing_CanKnockout");
+bool Boxing_CanKnockout()
+{
+	aref attack = GetEventData();
+	aref enemy = GetEventData();
+	if (LAi_IsDead(attack) || LAi_IsDead(enemy) || LAi_IsImmortal(enemy)) return false;
+	if (CheckAttribute(attack, "chr_ai.group") && CheckAttribute(enemy, "chr_ai.group"))
+	{
+		if (attack.chr_ai.group == enemy.chr_ai.group) return false;
+	}
+	// Ordinary attack damage has already run; only the exhausted victim falls.
+	float maxEnergy = LAi_GetCharacterMaxEnergy(enemy);
+	return maxEnergy > 0.0 && Lai_CharacterGetEnergy(enemy) <= maxEnergy * 0.20;
+}
+
 #event_handler("ChrAttackAction", "LAi_ChrAttackAction");
 bool LAi_ChrAttackAction()
 {
@@ -1134,7 +1172,7 @@ bool LAi_Chr_CheckEnergy()
 	{
 		needEnergy += stf(Items[sti(chr.cirassId)].Weight)*0.1;
 	}
-	if (stf(chr.chr_ai.energy) >= needEnergy)
+	if (Lai_CharacterGetEnergy(chr) >= needEnergy)
 	{	
 		res = true;
 		Lai_CharacterChangeEnergy(chr, -needEnergy);

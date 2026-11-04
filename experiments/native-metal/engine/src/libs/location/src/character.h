@@ -527,6 +527,12 @@ class Character : public Entity
     bool unarmedReverse = false;
     bool unarmedStrikePending = false;
     bool unarmedStrikeDelivered = false;
+    FightAction unarmedBufferedAttack = fgt_none;
+    entid_t unarmedBufferedTarget = invalid_entity;
+    entid_t unarmedComboTarget = invalid_entity;
+    int unarmedComboStage = 0;
+    float unarmedComboWindow = 0.0f;
+    bool unarmedComboConnected = false;
     bool isActiveState;   // If true then character is active
     bool recoilLook;      // To trigger the teaser after rebound
     float swimChange;     // Mode change response time
@@ -746,12 +752,14 @@ class Character : public Entity
     // The location the character is in
     bool PrepareRoundhouse();
     void UpdateUnarmedPose(float seconds);
-    void ClearUnarmedPose();
+    void ClearUnarmedPose(bool clearCombo = true);
     bool PrepareUnarmedBank(Animation &animation);
     bool PrepareUnarmedStrike(Animation &animation, const char *baseAction, const char *poseAction,
                               int frames, float contact);
     void SampleUnarmedPose(Animation &animation, float phase);
     bool UpdateRoundhouse(float seconds);
+    bool ApplyCombatWeaponImpact(entid_t attacker, int kind, bool fatal);
+    void UpdateCombatDetached();
     bool BeginRoundhouseFall(const CVECTOR &point, const CVECTOR &impulse, entid_t attacker = invalid_entity);
     std::unique_ptr<RoundhouseState> roundhouseState;
     entid_t loc_id;

@@ -1,5 +1,35 @@
 # Jumping heel kick: offline evidence
 
+Current circular revision: L sweeps the actual heel/shin across approximately
+120 degrees while airborne. `circular-phases.png` covers six real GM rigs;
+`circular-motion.png` covers the complete sampled gesture from two views.
+These are offline component frames, not gameplay captures. All 121 serialized
+K frames remain unchanged on the six kick-enabled rigs.
+
+`crowd-native-result.json` records the real Character/VM/Jolt replay: three
+targets at radius 1.5 m and headings -60/0/+60 degrees, ordinary native spacing,
+one damage event and one physical fall per target. The previous installed
+revision admitted one victim (`crowd-baseline-result.json`). Full 140-frame
+CPU replay cost was 45.403 ms before and 46.612 ms after, including the added
+two physical victims; these single samples do not establish interactive FPS.
+K still hits one target. Existing wall, far, immortal and same-group negatives
+pass on the new engine. Targets are admitted by actual swept heel/shin contact
+and visibility, with a per-kick entity ledger; there is no radial damage pulse.
+
+Reproduce after the ordinary engine build, with a fresh temporary directory:
+
+```sh
+export CODEX_SCRATCH_DIR=$(mktemp -d /tmp/corsairs-crowd-check.XXXXXX)
+export CORSAIRS_APP="/Applications/Corsairs Iddictive Remaster.app"
+python3 docs/evidence/roundhouse-jump/crowd-native-replay.py
+```
+
+The runner overlays current canonical gameplay and generated animation banks
+onto an isolated installed-resource reader. No game window is created. The
+retained native cut-part lifecycle replay consumes its generated fixture too;
+see the combat damage evidence. Installed visual timing remains the user's
+interactive check.
+
 The first implementation only lifted K's poses and was rejected as lacking a
 unique animation. L now has independent body/torso/striking-leg curves, an
 in-flight folded launch leg, tucked/opened counterbalance arms and its own

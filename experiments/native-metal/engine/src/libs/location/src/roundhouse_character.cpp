@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <span>
 #include <string>
 
 namespace
@@ -180,8 +181,14 @@ void Character::CancelRoundhouse()
     if (state.handle)
         if (auto *location = GetLocation())
             if (auto *world = location->ExistingRagdollWorld()) world->Remove(state.handle);
+    if (state.detachedHandle)
+        if (auto *location = GetLocation())
+            if (auto *world = location->ExistingRagdollWorld()) world->Remove(state.detachedHandle);
+    state.detachedHandle = 0;
+    state.detachedPose.clear();
     state.handle = 0;
     state.aimTarget = invalid_entity;
+    state.hitTargets.clear();
     const bool controlled = IsRoundhouseControlled();
     state.phase = RoundhouseState::Phase::Idle;
     if (auto *model = Model())
@@ -191,6 +198,82 @@ void Character::CancelRoundhouse()
         fgtCurType = fgtSetType = fgt_none;
         priorityAction.SetName(nullptr);
         isSetPriorityAction = false;
+    }
+}
+
+bool Character::ApplyCombatWeaponImpact(entid_t attacker, int kind, bool fatal)
+{
+    auto *source = dynamic_cast<Character *>(core.GetEntityPointer(attacker));
+    auto *model = Model();
+    auto *location = GetLocation();
+    if (!source || !model || !location || source->GetLocation() != location || (kind != 1 && kind != 2))
+        return false;
+    // Existing combat resolves melee arcs and hitscan targets rather than mesh
+    // collision points. Project that accepted attacker-to-victim line onto the
+    // actual skinned receiver; a mesh miss creates no invented surface wound.
+    CVECTOR start = source->curPos + CVECTOR(0.0f, 1.3f, 0.0f);
+    if (kind == 2)
+    {
+        const auto hand = source->GetHandLightPos();
+        if (hand.x != 0.0f || hand.y != 0.0f || hand.z != 0.0f) start = hand;
+    }
+    const auto delta = curPos + CVECTOR(0.0f, 1.25f, 0.0f) - start;
+    const auto end = start + delta * 1.5f;
+    int neck = -1;
+    if (fatal && PrepareRoundhouse())
+    {
+        const auto &rig = roundhouseState->rig;
+        const int chest = rig.bodies[1].joint;
+        int joint = roundhouseState->head;
+        for (std::size_t count = 0; count < rig.jointParents.size() && joint >= 0 &&
+             joint < static_cast<int>(rig.jointParents.size()); ++count)
+        {
+            const int parent = rig.jointParents[joint];
+            if (parent == chest) { neck = joint; break; }
+            joint = parent;
+        }
+    }
+    if (!model->ApplyCombatDamage(start, end, kind, fatal, neck)) return false;
+    CMatrix world;
+    float radius = 0.0f;
+    if (model->GetCombatDetachedPart(world, radius) && PrepareRoundhouse() && !roundhouseState->detachedHandle)
+    {
+        roundhouse::RigDefinition rig;
+        rig.jointParents = {-1};
+        rig.bindWorld = {world};
+        rig.headBody = 0;
+        roundhouse::BodyDefinition body;
+        body.joint = 0;
+        body.mass = 4.0f;
+        body.radius = radius;
+        rig.bodies = {body};
+        auto &state = *roundhouseState;
+        state.detachedPose = {world};
+        CVECTOR impulse = delta;
+        const float length = std::sqrt(~impulse);
+        if (length > 0.001f) impulse *= 8.0f / length;
+        impulse.y += 5.0f;
+        if (auto *physics = location->GetRagdollWorld())
+            state.detachedHandle = physics->Create(rig, state.detachedPose, impulse, world.Pos());
+    }
+    return true;
+}
+
+void Character::UpdateCombatDetached()
+{
+    if (!roundhouseState || !roundhouseState->detachedHandle) return;
+    auto &state = *roundhouseState;
+    auto *location = GetLocation();
+    auto *world = location ? location->ExistingRagdollWorld() : nullptr;
+    auto *model = Model();
+    if (world && model && world->GetPose(state.detachedHandle, state.detachedPose) && !state.detachedPose.empty())
+    {
+        model->SetCombatDetachedTransform(state.detachedPose[0]);
+        if (state.detachedPose[0].Pos().y < curPos.y - 10.0f)
+        {
+            world->Remove(state.detachedHandle);
+            state.detachedHandle = 0;
+        }
     }
 }
 
@@ -221,6 +304,7 @@ bool Character::StartRoundhouse(bool jumping)
     state.jumping = jumping;
     state.time = 0;
     state.contacted = false;
+    state.hitTargets.clear();
     state.hasPreviousHeel = false;
     state.origin = curPos;
     state.yaw = ay;
@@ -424,46 +508,62 @@ bool Character::UpdateRoundhouse(float seconds)
     {
         auto heelMatrix = JointWorld(*animation,model->mtx,state.heel);
         const CVECTOR heel = roundhouse::JointPointWorld(heelMatrix, state.heelOffset);
-        if (!state.hasPreviousHeel) { state.previousHeel = heel; state.hasPreviousHeel = true; }
-        if (!state.contacted && state.time >= state.strikeStartTime && state.time <= state.strikeEndTime)
+        const CVECTOR knee = state.jumping ? JointWorld(*animation,model->mtx,state.rig.bodies[13].joint).Pos() : heel;
+        if (!state.hasPreviousHeel) { state.previousHeel = heel; state.previousKnee = knee; state.hasPreviousHeel = true; }
+        if ((state.jumping || !state.contacted) && state.time >= state.strikeStartTime && state.time <= state.strikeEndTime)
         {
-            Character *victim = nullptr;
-            CVECTOR contact;
-            float nearest = 0.22f*0.22f;
+            struct Contact { entid_t victim; CVECTOR point; float distance; };
+            std::vector<Contact> contacts;
+            Contact nearest{invalid_entity, {}, 0.0f};
             const CVECTOR torso = JointWorld(*animation,model->mtx,state.rig.bodies[1].joint).Pos();
             auto candidates = location->supervisor.FindCharacters(this,ContactSearchRadius,100.0f,0.0f,0.0f,false,false);
             for (const auto &candidate : candidates)
             {
                 auto *other = candidate.c;
-                if (!other || other == this || other->IsDead() || other->IsPhysicalRagdoll() || !other->PrepareRoundhouse()) continue;
+                if (!other || other == this || other->IsDead() || other->IsPhysicalRagdoll() ||
+                    std::find(state.hitTargets.begin(),state.hitTargets.end(),other->GetId()) != state.hitTargets.end() ||
+                    !other->PrepareRoundhouse()) continue;
                 auto *otherModel = other->Model();
                 auto *otherAnimation = otherModel ? otherModel->GetAnimation() : nullptr;
                 if (!otherAnimation) continue;
                 auto headMatrix = JointWorld(*otherAnimation,otherModel->mtx,other->roundhouseState->head);
                 const auto head = roundhouse::JointPointWorld(headMatrix, other->roundhouseState->headOffset);
-                const float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
-                if (distance >= nearest || location->Trace(state.previousHeel,head) < 0.995f ||
+                float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
+                if (state.jumping)
+                    distance = std::min({distance, SegmentDistanceSquared(head,knee,heel),
+                        SegmentDistanceSquared(head,state.previousKnee,state.previousHeel),
+                        SegmentDistanceSquared(head,state.previousKnee,knee)});
+                if (distance >= 0.22f*0.22f || location->Trace(state.previousHeel,head) < 0.995f ||
                     location->Trace(torso,head) < 0.995f || location->Trace(state.strikeOrigin,head) < 0.995f) continue;
                 if (!CanHitRoundhouse(*this,*other)) continue;
-                nearest = distance;
-                victim = other;
-                contact = head;
+                if (state.jumping) contacts.push_back({other->GetId(),head,distance});
+                else if (!nearest.victim || distance < nearest.distance) nearest = {other->GetId(),head,distance};
             }
-            if (victim)
+            const auto attacker = GetId();
+            const auto resolved = state.jumping ? std::span<const Contact>(contacts) :
+                std::span<const Contact>(&nearest, nearest.victim ? 1 : 0);
+            for (const auto &contact : resolved)
             {
-                CVECTOR direction = contact - (curPos+CVECTOR(0,1.2f,0));
+                auto *victim = static_cast<Character *>(core.GetEntityPointerSafe(contact.victim));
+                if (!victim || victim->GetLocation() != location || victim->IsDead() || victim->IsPhysicalRagdoll() ||
+                    !CanHitRoundhouse(*this,*victim)) continue;
+                CVECTOR direction = contact.point - (curPos+CVECTOR(0,1.2f,0));
                 direction.y = 0;
                 const float length = std::sqrt(~direction);
                 direction = length > 0.001f ? direction/length : CVECTOR(std::sin(ay),0,std::cos(ay));
-                // Contact owns damage exactly once. Physical admission is a
-                // separate required effect, with its own failure diagnostic.
+                // Admit a victim before callbacks. A failed physics admission
+                // must not let the same sweep apply damage again next frame.
+                if (state.jumping) state.hitTargets.push_back(contact.victim);
                 state.contacted = true;
-                victim->BeginRoundhouseFall(contact,direction*(state.jumping ? 130.0f : 85.0f)+CVECTOR(0,state.jumping ? 32.0f : 22.0f,0),GetId());
+                victim->BeginRoundhouseFall(contact.point,direction*(state.jumping ? 130.0f : 85.0f)+CVECTOR(0,state.jumping ? 32.0f : 22.0f,0),attacker);
                 core.Event("Event_ChrSnd_Hit","i",victim->GetId());
-                core.Event("Location_CharacterAttack","iislll",GetId(),victim->GetId(),state.jumping ? "roundhouse_jump" : "roundhouse",0,0,-1);
+                core.Event("Location_CharacterAttack","iislll",attacker,contact.victim,state.jumping ? "roundhouse_jump" : "roundhouse",0,0,-1);
+                if (!core.IsEntityValid(attacker)) return true;
+                if (state.phase != RoundhouseState::Phase::Kick) return IsRoundhouseControlled();
             }
         }
         state.previousHeel = heel;
+        state.previousKnee = knee;
     }
     if (state.time >= duration)
     {

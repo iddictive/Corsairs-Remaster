@@ -171,7 +171,45 @@ void Player::Move(float dltTime)
                 if (kickControl.state == CST_ACTIVATED && StartRoundhouse()) return;
                 core.Controls->GetControlState("ChrRoundhouseJump", kickControl);
                 if (kickControl.state == CST_ACTIVATED && StartRoundhouse(true)) return;
-                if (IsDoBlock())
+                const bool heldBlock = IsDoBlock();
+                bool unarmedDodge = false;
+                if (isFightWOWps && heldBlock)
+                {
+                    // Movement is sampled above. A fresh dodge must survive the
+                    // held guard, which otherwise overwrites its requested action.
+                    const auto dodge = fgtSetType;
+                    bool freshDodge = false;
+                    CONTROL_STATE direction;
+                    if (dodge == fgt_strafe_l)
+                    {
+                        core.Controls->GetControlState("ChrStrafeLeft", direction);
+                        freshDodge = direction.state == CST_ACTIVATED;
+                    }
+                    else if (dodge == fgt_strafe_r)
+                    {
+                        core.Controls->GetControlState("ChrStrafeRight", direction);
+                        freshDodge = direction.state == CST_ACTIVATED;
+                    }
+                    else if (dodge == fgt_recoil)
+                    {
+                        for (const auto *control : {"ChrBackward", "ChrBackward1", "ChrBackward2"})
+                        {
+                            core.Controls->GetControlState(control, direction);
+                            freshDodge |= direction.state == CST_ACTIVATED;
+                        }
+                    }
+                    unarmedDodge = fgtCurType == fgt_strafe_l || fgtCurType == fgt_strafe_r || fgtCurType == fgt_recoil;
+                    if (freshDodge && (fgtCurType == fgt_block || fgtCurType == fgt_blockhit))
+                    {
+                        StopFightAnimation();
+                        fgtSetType = dodge;
+                        fgtSetIndex = 0;
+                        unarmedDodge = true;
+                    }
+                    else if (freshDodge && fgtCurType == fgt_none)
+                        unarmedDodge = true;
+                }
+                if (heldBlock && !unarmedDodge)
                 {
                     // boal -->
                     if (fgtCurType == fgt_attack_fast || fgtCurType == fgt_attack_force ||
@@ -182,6 +220,10 @@ void Player::Move(float dltTime)
                     }
                     // boal <--
                     Block();
+                }
+                else if (unarmedDodge)
+                {
+                    // Keep the dodge through its ordinary end, then resume guard.
                 }
                 else if (IsDoParry())
                 {
@@ -212,7 +254,7 @@ void Player::Move(float dltTime)
                     }
                     Attack(FindAttackCharacter(), fgt_attack_fast);
                 }
-                else if (IsDoAttackRound())
+                else if (IsDoAttackRound() && !isFightWOWps)
                 {
                     if (fgtCurType == fgt_block || fgtCurType == fgt_blockhit || fgtCurType == fgt_blockbreak ||
                         fgtCurType == fgt_hit_attack)
@@ -229,7 +271,7 @@ void Player::Move(float dltTime)
                     }
                     Attack(FindAttackCharacter(), fgt_attack_break);
                 }
-                else if (IsDoAttackFeint())
+                else if (IsDoAttackFeint() && !isFightWOWps)
                 {
                     if (fgtCurType == fgt_block || fgtCurType == fgt_blockhit || fgtCurType == fgt_blockbreak ||
                         fgtCurType == fgt_hit_attack)

@@ -415,7 +415,11 @@ void MODELR::Realize(uint32_t Delta_Time, float distanceBlend)
         } convertScope{GeometyService};
         GeometyService->SetVBConvertFunc(gpuSkinning ? GPUVBTransform : VBTransform);
 
+        // Hide only replaced skin geometry, preserving linked equipment/nodes.
+        const int originalFlags = root->flags;
+        if (combatDamage && combatDamage->ReplacesSkin()) root->flags &= ~NODE::VISIBLE;
         root->Draw(distanceBlend);
+        root->flags = originalFlags;
         // GPU draws leave the CPU stream stale, including a paused animation.
         if (gpuSkinning || !alreadyTransformed)
         {
@@ -425,6 +429,8 @@ void MODELR::Realize(uint32_t Delta_Time, float distanceBlend)
     }
     else
         root->Draw(distanceBlend);
+
+    if (combatDamage) combatDamage->Draw(*this, *rs);
 
 #ifdef STORM_METAL_RENDERER_CONSUMERS
     // Script opt-in excludes mechanism buttons, placed offerings and quest signs.
@@ -459,6 +465,22 @@ void MODELR::Realize(uint32_t Delta_Time, float distanceBlend)
 Animation *MODELR::GetAnimation()
 {
     return ani;
+}
+
+bool MODELR::ApplyCombatDamage(const CVECTOR &start, const CVECTOR &end, int kind, bool fatal, int joint)
+{
+    if (!combatDamage) combatDamage = std::make_unique<CombatDamage>();
+    return combatDamage->Apply(*this, *rs, start, end, kind, fatal, joint);
+}
+
+bool MODELR::GetCombatDetachedPart(CMatrix &world, float &radius) const
+{
+    return combatDamage && combatDamage->DetachedPart(world, radius);
+}
+
+void MODELR::SetCombatDetachedTransform(const CMatrix &world)
+{
+    if (combatDamage) combatDamage->SetDetachedTransform(world);
 }
 
 void MODELR::AniRender()
@@ -517,6 +539,7 @@ uint64_t MODELR::ProcessMessage(MESSAGE &message)
         alpha2 = message.Float();
         break;
     case MSG_MODEL_LOAD_GEO: // set geometry
+        combatDamage.reset();
         // GUARD(MSG_MODEL_LOAD_GEO)
         str = message.String();
         NODER::gs = GeometyService;
@@ -539,6 +562,7 @@ uint64_t MODELR::ProcessMessage(MESSAGE &message)
         break;
     case MSG_MODEL_LOAD_ANI: // set animation
     {
+        combatDamage.reset();
         str = message.String();
         auto asr = static_cast<AnimationService *>(core.GetService("AnimationServiceImp"));
         ani = asr->CreateAnimation(str.c_str());
@@ -614,6 +638,7 @@ uint64_t MODELR::ProcessMessage(MESSAGE &message)
 
         if (auto *node = FindNode(geometry_node.c_str()))
         {
+            if (node == root) combatDamage.reset();
             node->SubstituteGeometry(new_model_name);
         }
         else

@@ -199,6 +199,10 @@ The [spinning heel kick](roundhouse-kick.md) records animation, contact, physica
 fall and recovery owners, with reproducible CPU and skinned-mesh evidence.
 The [unarmed pose evidence](evidence/unarmed-boxing/README.md) records the baked
 pose owner, real-mesh views and native interpolation measurements.
+The [combat damage evidence](evidence/combat-damage/README.md) records weapon
+wounds, nonlethal bleeding, detached-part ownership and the supported cut meshes.
+The [combat debug controls](evidence/debug-combat-cheats/README.md) record
+independent player cheats and safe queued-salvo policy changes.
 
 ## Verification and troubleshooting
 

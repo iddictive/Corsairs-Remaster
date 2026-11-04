@@ -7,6 +7,7 @@
 #include "dx9render.h"
 #include "geometry.h"
 #include "model.h"
+#include "combat_damage.h"
 
 class NODER : public NODE
 {
@@ -125,6 +126,7 @@ class MODELR : public MODEL
     storm_render::VertexBuffer *d3dDestVB;
 
     unsigned short *idxBuff;
+    std::unique_ptr<CombatDamage> combatDamage;
 
   public:
     NODER *root;
@@ -159,6 +161,9 @@ class MODELR : public MODEL
     NODE *FindNode(const char *cNodeName) override;
     void Update() override;
     Animation *GetAnimation() override;
+    bool ApplyCombatDamage(const CVECTOR &, const CVECTOR &, int, bool, int) override;
+    bool GetCombatDetachedPart(CMatrix &, float &) const override;
+    void SetCombatDetachedTransform(const CMatrix &) override;
 
     float Trace(const CVECTOR &src, const CVECTOR &dst) override;
     float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) override;

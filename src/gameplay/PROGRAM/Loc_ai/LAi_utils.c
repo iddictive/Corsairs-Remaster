@@ -40,9 +40,16 @@ bool LAi_CharacterCanFrie(aref chr)
 	return false;
 }
 
+bool LAi_HasInfiniteEnergy(aref chr)
+{
+	return CheckAttribute(chr, "DebugCheats.InfiniteEnergy") && sti(chr.DebugCheats.InfiniteEnergy) != 0 &&
+		CheckAttribute(chr, "index") && sti(chr.index) == GetMainCharacterIndex();
+}
+
 //Получить количество энергии у персонажа 0..100
 float Lai_CharacterGetEnergy(aref chr)
 {
+	if (LAi_HasInfiniteEnergy(chr)) return LAi_GetCharacterMaxEnergy(chr);
 	if(CheckAttribute(chr, "chr_ai.energy"))
 	{
 		return stf(chr.chr_ai.energy);
@@ -53,6 +60,11 @@ float Lai_CharacterGetEnergy(aref chr)
 //Изменить количество энергии у персонажа 0..100
 void Lai_CharacterChangeEnergy(aref chr, float dlt)
 {
+	if (LAi_HasInfiniteEnergy(chr))
+	{
+		chr.chr_ai.energy = LAi_GetCharacterMaxEnergy(chr);
+		return;
+	}
 	if(CheckAttribute(chr, "chr_ai.energy"))
 	{
 		float cur = stf(chr.chr_ai.energy);

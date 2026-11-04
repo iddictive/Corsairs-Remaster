@@ -1404,7 +1404,7 @@ ref BI_GetChargeQuantity()
 	BI_ChargeState[4] = GetCargoGoods(chr,GOOD_BOMBS);
 	BI_ChargeState[5] = GetCargoGoods(chr,GOOD_DARTS);
 	BI_ChargeState[6] = GetCargoGoods(chr,GOOD_AIRBURST);
-	if (SeaPhonk_HasUnlimitedAmmo(chr))
+	if (Cannon_HasUnlimitedAmmo(chr))
 	{
 		for (int i = 1; i <= BI_ChargeState[0]; i++) BI_ChargeState[i] = GetCannonsNum(chr);
 	}

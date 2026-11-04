@@ -998,7 +998,7 @@
   "mocap_Male2_E7_UppercutLeft.bvh_sha256": "5188f5943c750c08eab5ec6e18aa17e1082758ba409958513185358fb4657946",
   "mocap_helpers_sha256": "4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3",
   "mocap_recipe.json_sha256": "8d0fdad9b931199d73ca5ec0e4e0b642745b69e2d2832b7dc206ca76d0aef365",
-  "roundhouse_helpers_sha256": "dc12757fcf6a89f396a0b81ce1c8a0fb1d490397ff192bc128e7611591fe6db8",
+  "roundhouse_helpers_sha256": "27ec5afe04c714a4f934ced8681ceea4632850a59f4510aae3d1dee446940b74",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "strike_durations_s": {
     "unarmed_cross": 0.42,

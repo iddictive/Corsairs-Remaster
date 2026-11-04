@@ -1,0 +1,15 @@
+{
+  "phase": "additional closed-cap edge falsifier, before source correction",
+  "man": {
+    "missing_cap_seam_edges": 8
+  },
+  "YokoDias": {
+    "missing_cap_seam_edges": 16
+  },
+  "cause": "zero-influence boundary edge admitted by both adjacent triangles; contour duplicated",
+  "Jessika": {
+    "seam_segments": 46,
+    "degree2_vertices": 46,
+    "cap_triangles": 0
+  }
+}

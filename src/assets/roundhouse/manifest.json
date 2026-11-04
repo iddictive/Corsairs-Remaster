@@ -859,7 +859,7 @@
     },
     "RESOURCE/animation/Roundhouse_Danielle.an": {
       "bytes": 1001160,
-      "sha256": "86ae38f2051a487052aa20da827932e6fdb84171c5bbf0cc2e484908c9a2e3ec"
+      "sha256": "a63b35c1b9269f0327ef846b6633aea8c792dd21bc51cf69c38598fff2be4c93"
     },
     "RESOURCE/animation/Roundhouse_Danielle.ani": {
       "bytes": 500,
@@ -867,7 +867,7 @@
     },
     "RESOURCE/animation/Roundhouse_Jessika.an": {
       "bytes": 386856,
-      "sha256": "5312e6dff9b0838006e5e703f6db1b55a00da2478c442128f3c9f6b7ebf0589c"
+      "sha256": "20d0f12623f1e242a7ba3afd3d03b5ad9f2fddb925b19736b0f2e701c16e3336"
     },
     "RESOURCE/animation/Roundhouse_Jessika.ani": {
       "bytes": 499,
@@ -907,7 +907,7 @@
     },
     "RESOURCE/animation/Roundhouse_YokoDias.an": {
       "bytes": 316872,
-      "sha256": "f3e2b9a24aafef6e5016f6b48c1ad153486cf7fc68906e3b3d21433bdfa00f8a"
+      "sha256": "d6445b17e993528bf0b1b77ba63b2e56c42722b7d9aa93c2f0c83046e15f4ad1"
     },
     "RESOURCE/animation/Roundhouse_YokoDias.ani": {
       "bytes": 500,
@@ -931,7 +931,7 @@
     },
     "RESOURCE/animation/Roundhouse_man.an": {
       "bytes": 962280,
-      "sha256": "861b3fad9b8c9e0c808ed6ff7aec332befed0cde18aa6cb6103cc8e660ba64b4"
+      "sha256": "bb4368f9dda2391316bbc619a7ac4ed9c27852917918a7180b3f9c192d5c6f82"
     },
     "RESOURCE/animation/Roundhouse_man.ani": {
       "bytes": 495,
@@ -939,7 +939,7 @@
     },
     "RESOURCE/animation/Roundhouse_man1.an": {
       "bytes": 620136,
-      "sha256": "2a9b66e8da8b1be8e13f606899f41edd91c155222f9d33f6a5dc5ebc49d95cac"
+      "sha256": "5a94c7b82d026613e970efb6e7b9034c0e51f6ea91cc8aa98f0867b2f801fc4f"
     },
     "RESOURCE/animation/Roundhouse_man1.ani": {
       "bytes": 496,
@@ -947,7 +947,7 @@
     },
     "RESOURCE/animation/Roundhouse_man2.an": {
       "bytes": 620136,
-      "sha256": "f0be13969e760eacf74deb841d8e9f1ad0d2a5b418af6beaa681789b0c10b4f6"
+      "sha256": "efc81d4bbfe9a2aea3b043e6cf6ce8f446a36f70e36c91742a5e436802d6cdfa"
     },
     "RESOURCE/animation/Roundhouse_man2.ani": {
       "bytes": 496,
@@ -1042,8 +1042,8 @@
       "sha256": "dc061fc1c0a1500b8a62141786cd5ef07ceb6ad56bd56ac9f4590a695f77bd07"
     }
   },
-  "generator_sha256": "dc12757fcf6a89f396a0b81ce1c8a0fb1d490397ff192bc128e7611591fe6db8",
-  "recipe_sha256": "487d445b18507bc433aad9caf2c11a0a7916d25f4ec25b4988a16958ff8ba8a2",
+  "generator_sha256": "27ec5afe04c714a4f934ced8681ceea4632850a59f4510aae3d1dee446940b74",
+  "recipe_sha256": "aa8b94e710754c9047f1b656ee2a50a765b1c39c82e8a35ab6a18cdfc715276b",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "version": 1
 }

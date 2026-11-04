@@ -1,0 +1,74 @@
+{
+  "man": {
+    "cut_ms": 0.27675,
+    "wound_ms": 0.80175,
+    "source_triangles": 2987,
+    "body_triangles": 2261,
+    "part_triangles": 832,
+    "cap_triangles": 29,
+    "wound_triangles": 109,
+    "wound_skin_triangles": 15,
+    "max_anchor_error": 1.19267e-07
+  },
+  "Danielle": {
+    "cut_ms": 0.180083,
+    "wound_ms": 0.450875,
+    "source_triangles": 2315,
+    "body_triangles": 1415,
+    "part_triangles": 952,
+    "cap_triangles": 12,
+    "wound_triangles": 106,
+    "wound_skin_triangles": 17,
+    "max_anchor_error": 1.19271e-07
+  },
+  "YokoDias": {
+    "cut_ms": 0.240167,
+    "wound_ms": 1.02358,
+    "source_triangles": 3070,
+    "body_triangles": 2174,
+    "part_triangles": 913,
+    "cap_triangles": 8,
+    "wound_triangles": 124,
+    "wound_skin_triangles": 20,
+    "max_anchor_error": 1.19446e-07
+  },
+  "man1": {
+    "cut_ms": 0.146542,
+    "wound_ms": 0.48775,
+    "source_triangles": 1571,
+    "body_triangles": 1288,
+    "part_triangles": 359,
+    "cap_triangles": 18,
+    "wound_triangles": 57,
+    "wound_skin_triangles": 6,
+    "max_anchor_error": 1.19267e-07
+  },
+  "man2": {
+    "cut_ms": 0.207709,
+    "wound_ms": 0.628917,
+    "source_triangles": 2069,
+    "body_triangles": 1508,
+    "part_triangles": 637,
+    "cap_triangles": 18,
+    "wound_triangles": 97,
+    "wound_skin_triangles": 12,
+    "max_anchor_error": 1.19442e-07
+  },
+  "Jessika": {
+    "status": "cut-rejected-original-skin-preserved",
+    "seam_segments": 46,
+    "welded_seam_vertices": 46,
+    "seam_degree": 2,
+    "cap_triangles": 0
+  },
+  "scope": {
+    "renderer": "offline depth-tested real-GM triangles; no native Metal/game frame",
+    "timing": "single event geometry only; not full Draw or FPS",
+    "negative": "same wound projection moved10m off receiver produceszero triangles",
+    "sources": {
+      "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
+      "docs/evidence/roundhouse-kick/inputs/meshes.json": "1c14108992453107f129dd5af9faa37b1263cda5506d305ba333f14dc8990a62",
+      "experiments/native-metal/engine/src/libs/model/src/combat_damage_geometry.h": "b023e07aba683d74d60f90a0d64e31124bdd07eee4ac68cc919e8fdba8bad6a6"
+    }
+  }
+}

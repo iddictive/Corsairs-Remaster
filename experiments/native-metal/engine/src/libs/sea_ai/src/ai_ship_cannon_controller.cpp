@@ -285,6 +285,20 @@ void AIShipCannonController::Execute(float fDeltaTime)
     const CVECTOR vOurPos = GetAIShip()->GetPos();
     const float fOurHeight = CannonHeightAboveWater(vOurPos);
 
+    if (GetAIShip()->isMainCharacter() &&
+        GetAIShip()->GetACharacter()->FindAClass(GetAIShip()->GetACharacter(), "DebugCheats.Pending"))
+    {
+        bool queued = false;
+        for (const auto &bort : aShipBorts)
+            for (const auto &cannon : bort.aCannons)
+                queued |= cannon.isFired();
+        if (!queued)
+        {
+            Reload(); // Return/discard all rounds under the old policy before flipping flags.
+            core.Event("Cannon_ApplyPendingCheats", "a", GetAIShip()->GetACharacter());
+        }
+    }
+
     if (bReload)
     {
         bNotEnoughBalls = false;

@@ -311,6 +311,7 @@ void AICannon::QuickRecharge(bool bHaveEnoughBalls)
 
 float AICannon::GetRechargePercent()
 {
+    if (isRecharged() && fTotalTime2Action <= 0.0f) return 1.0f;
     return (isRecharged()) ? 1.0f - fTime2Action / fTotalTime2Action : 1.0f;
 }
 

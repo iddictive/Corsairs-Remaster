@@ -2836,7 +2836,7 @@ int Ship_FindOtherBallType(ref rCharacter, float fMinEnemyDistance, bool bBalls,
 void Ship_NotEnoughBalls()
 {
 	bNotEnoughBalls = GetEventData();
-	if (SeaPhonk_HasUnlimitedAmmo(pchar))
+	if (Cannon_HasUnlimitedAmmo(pchar))
 	{
 		bNotEnoughBalls = false;
 		return;
@@ -2856,7 +2856,7 @@ void Ship_NotEnoughBalls()
 int Ship_GetCurrentBallsNum()
 {
 	aref aCharacter = GetEventData();
-	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return GetCannonsNum(aCharacter);
+	if (Cannon_HasUnlimitedAmmo(aCharacter)) return GetCannonsNum(aCharacter);
 	return GetCargoGoods(aCharacter,sti(aCharacter.Ship.Cannons.Charge.Type));
 }
 

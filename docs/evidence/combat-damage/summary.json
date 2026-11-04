@@ -1,0 +1,79 @@
+{
+  "man": {
+    "cut_ms": 0.399,
+    "wound_ms": 0.948292,
+    "source_triangles": 2987,
+    "body_triangles": 2260,
+    "part_triangles": 831,
+    "cap_triangles": 28,
+    "wound_triangles": 109,
+    "wound_skin_triangles": 15,
+    "max_anchor_error": 1.19267e-07,
+    "cap_seam_missing": 0
+  },
+  "Danielle": {
+    "cut_ms": 0.204333,
+    "wound_ms": 0.444875,
+    "source_triangles": 2315,
+    "body_triangles": 1415,
+    "part_triangles": 952,
+    "cap_triangles": 12,
+    "wound_triangles": 106,
+    "wound_skin_triangles": 17,
+    "max_anchor_error": 1.19271e-07,
+    "cap_seam_missing": 0
+  },
+  "Jessika": {
+    "status": "cut-rejected-original-skin-preserved",
+    "seam_segments": 46,
+    "welded_seam_vertices": 46,
+    "seam_degree": 2,
+    "cap_triangles": 0
+  },
+  "YokoDias": {
+    "cut_ms": 0.266584,
+    "wound_ms": 0.996,
+    "source_triangles": 3070,
+    "body_triangles": 2178,
+    "part_triangles": 917,
+    "cap_triangles": 12,
+    "wound_triangles": 124,
+    "wound_skin_triangles": 20,
+    "max_anchor_error": 1.19446e-07,
+    "cap_seam_missing": 0
+  },
+  "man1": {
+    "cut_ms": 0.176958,
+    "wound_ms": 0.49875,
+    "source_triangles": 1571,
+    "body_triangles": 1288,
+    "part_triangles": 359,
+    "cap_triangles": 18,
+    "wound_triangles": 57,
+    "wound_skin_triangles": 6,
+    "max_anchor_error": 1.19267e-07,
+    "cap_seam_missing": 0
+  },
+  "man2": {
+    "cut_ms": 0.2075,
+    "wound_ms": 0.595125,
+    "source_triangles": 2069,
+    "body_triangles": 1508,
+    "part_triangles": 637,
+    "cap_triangles": 18,
+    "wound_triangles": 97,
+    "wound_skin_triangles": 12,
+    "max_anchor_error": 1.19442e-07,
+    "cap_seam_missing": 0
+  },
+  "scope": {
+    "renderer": "offline depth-tested real-GM triangles; no native Metal/game frame",
+    "timing": "single event geometry only; not full Draw or FPS",
+    "negative": "same wound projection moved10m off receiver produceszero triangles",
+    "sources": {
+      "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
+      "docs/evidence/roundhouse-kick/inputs/meshes.json": "1c14108992453107f129dd5af9faa37b1263cda5506d305ba333f14dc8990a62",
+      "experiments/native-metal/engine/src/libs/model/src/combat_damage_geometry.h": "bd27929c62d81ebc07f69a6f8918621ef6885435ebe2508b3bb4048eb8ed5ea2"
+    }
+  }
+}

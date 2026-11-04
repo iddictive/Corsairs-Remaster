@@ -18,6 +18,22 @@ void DebugMenu_Add(int group, string action, string label)
 	DebugMenuCount++;
 }
 
+bool DebugMenu_CheatEnabled(string name)
+{
+	string pending = "DebugCheats.Pending." + name;
+	if (CheckAttribute(pchar,pending)) return sti(pchar.(pending)) != 0;
+	string attribute = "DebugCheats." + name;
+	return CheckAttribute(pchar,attribute) && sti(pchar.(attribute)) != 0;
+}
+
+string DebugMenu_CheatLabel(string name, string label)
+{
+	if (DebugMenu_CheatEnabled(name)) label += ": вкл";
+	else label += ": выкл";
+	if (CheckAttribute(pchar,"DebugCheats.Pending." + name)) label += " (после залпа)";
+	return label;
+}
+
 string DebugMenu_Label(string action, string label)
 {
 	bool state;
@@ -38,6 +54,9 @@ string DebugMenu_Label(string action, string label)
 		case "B_F14": state = globalSGMode; toggle = true; break;
 		case "PHONK": state = SeaPhonk_IsActive(); toggle = true; break;
 		case "PHONK_MUSIC": state = !SeaPhonk_IsMusicMuted(); toggle = true; break;
+		case "INFINITE_ENERGY": state = LAi_HasInfiniteEnergy(pchar); toggle = true; break;
+		case "INSTANT_CANNON_RELOAD": return DebugMenu_CheatLabel("InstantCannonReload",label); break;
+		case "UNLIMITED_AMMO": return DebugMenu_CheatLabel("UnlimitedAmmo",label); break;
 		case "AUTOPILOT_TRADE": state = SeaAutopilot_Mode() == 1; toggle = true; break;
 		case "AUTOPILOT_HUNT": state = SeaAutopilot_Mode() == 2; toggle = true; break;
 		case "TSUNAMI_START":
@@ -98,7 +117,7 @@ string DebugMenu_GroupName(int group)
 	{
 		case 0: return "Эффекты"; break;
 		case 1: return "Персонаж"; break;
-		case 2: return "Готовые наборы"; break;
+		case 2: return "Корабль и наборы"; break;
 		case 3: return "Корабль и команда"; break;
 		case 4: return "Мир и перемещение"; break;
 		case 5: return "Квесты"; break;
@@ -220,6 +239,34 @@ void DebugEffects_Run(string node)
 	if (resume) IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
 
+void DebugMenu_ToggleCheat(string name, bool reloadCannons)
+{
+	string attribute = "DebugCheats." + name;
+	bool desired = !DebugMenu_CheatEnabled(name);
+	if (reloadCannons)
+	{
+		string pending = "DebugCheats.Pending." + name;
+		bool current = CheckAttribute(pchar,attribute) && sti(pchar.(attribute));
+		if (desired == current)
+		{
+			DeleteAttribute(pchar,pending);
+			aref flags;
+			makearef(flags,pchar.DebugCheats.Pending);
+			if (GetAttributesNum(flags) == 0) DeleteAttribute(pchar,"DebugCheats.Pending");
+		}
+		else pchar.(pending) = desired;
+		// The sea controller commits after the current salvo; ashore there are no loaded rounds.
+		if (!bSeaLoaded || !IsEntity(&AISea) || !IsEntity(pchar)) Cannon_ApplyPendingCheats(pchar);
+	}
+	else
+	{
+		if (desired) pchar.(attribute) = true;
+		else DeleteAttribute(pchar,attribute);
+		if (name == "InfiniteEnergy" && desired) pchar.chr_ai.energy = LAi_GetCharacterMaxEnergy(pchar);
+	}
+	Statistic_AddValue(pchar,"Cheats." + name,1);
+}
+
 void InitInterface(string iniName)
 {
  	StartAboveForm(true);
@@ -302,9 +349,12 @@ void CalculateInfoData()
 	DebugMenu_Add(1,"B_F27","Репутация -10");
 	DebugMenu_Add(1,"B_F19","Шкиперу: навыки +35");
 	DebugMenu_Add(1,"B_F24","Лицензия на 30 дней");
+	DebugMenu_Add(1,"INFINITE_ENERGY","Бесконечная энергия");
 	DebugMenu_Add(2,"B_F6","Ранг 20 и «Арабелла»");
 	DebugMenu_Add(2,"B_F31","Ранг 35 и «Сантисима»");
 	DebugMenu_Add(2,"B_F32","Ранг 10 и бриг");
+	DebugMenu_Add(2,"INSTANT_CANNON_RELOAD","Пушки без перезарядки");
+	DebugMenu_Add(2,"UNLIMITED_AMMO","Бесконечный боезапас");
 	DebugMenu_Add(3,"BTN_SPECIAL1","Без еды и крыс");
 	DebugMenu_Add(3,"BTN_SPECIAL3","Капитаны сдаются");
 	DebugMenu_Add(3,"B_F4","Опыт команды +10");
@@ -392,6 +442,9 @@ void ProcCommand()
 
 	switch(nodName)
 	{
+		case "INFINITE_ENERGY": DebugMenu_ToggleCheat("InfiniteEnergy",false); break;
+		case "INSTANT_CANNON_RELOAD": DebugMenu_ToggleCheat("InstantCannonReload",true); break;
+		case "UNLIMITED_AMMO": DebugMenu_ToggleCheat("UnlimitedAmmo",true); break;
 		case "ALL_PERKS": DebugMenu_GivePerks(); break;
 		case "HEAL":
 			LAi_UseAtidoteBottle(pchar);

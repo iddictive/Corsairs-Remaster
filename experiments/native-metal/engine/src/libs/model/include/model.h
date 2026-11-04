@@ -105,6 +105,13 @@ class MODEL : public COLLISION_OBJECT
     virtual void Update() = 0;
     virtual Animation *GetAnimation() = 0;
 
+    // Visual-only accepted weapon impacts: 1 blade, 2 projectile. The caller
+    // owns damage/death/immortality policy; the model owns actual skin tracing.
+    // Last argument is neck-base joint (head-chain child of canonical chest).
+    virtual bool ApplyCombatDamage(const CVECTOR &, const CVECTOR &, int, bool, int = -1) { return false; }
+    virtual bool GetCombatDetachedPart(CMatrix &, float &) const { return false; }
+    virtual void SetCombatDetachedTransform(const CMatrix &) {}
+
     float Trace(const CVECTOR &src, const CVECTOR &dst) override = 0;
     virtual float TraceLaserMaterial(const CVECTOR &src, const CVECTOR &dst) = 0;
     bool Clip(const PLANE *planes, int32_t nplanes, const CVECTOR &center, float radius,

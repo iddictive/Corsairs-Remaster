@@ -1,7 +1,38 @@
 #define MAX_CANNON_DAMAGE_DISTANCE				3.0
 
+bool Cannon_HasUnlimitedAmmo(aref character)
+{
+	return SeaPhonk_HasUnlimitedAmmo(character) ||
+		(CheckAttribute(character, "index") && sti(character.index) == GetMainCharacterIndex() &&
+		CheckAttribute(character, "DebugCheats.UnlimitedAmmo") && sti(character.DebugCheats.UnlimitedAmmo) != 0);
+}
+
+void Cannon_ApplyPendingCheatFlag(aref character, string name)
+{
+	string pending = "DebugCheats.Pending." + name;
+	if (!CheckAttribute(character,pending)) return;
+	string attribute = "DebugCheats." + name;
+	if (sti(character.(pending))) character.(attribute) = true;
+	else DeleteAttribute(character,attribute);
+}
+
+void Cannon_ApplyPendingCheats(aref character)
+{
+	if (!CheckAttribute(character,"index") || sti(character.index) != GetMainCharacterIndex()) return;
+	Cannon_ApplyPendingCheatFlag(character,"InstantCannonReload");
+	Cannon_ApplyPendingCheatFlag(character,"UnlimitedAmmo");
+	DeleteAttribute(character,"DebugCheats.Pending");
+}
+
+void Cannon_ApplyPendingCheatsEvent()
+{
+	aref character = GetEventData();
+	Cannon_ApplyPendingCheats(character);
+}
+
 void DeleteCannonsEnvironment()
 {
+	DelEventHandler("Cannon_ApplyPendingCheats", "Cannon_ApplyPendingCheatsEvent");
 	DelEventHandler(CANNON_GET_RECHARGE_TIME, "Cannon_GetRechargeTime");
 	DelEventHandler(CANNON_GET_FIRE_TIME, "Cannon_GetFireTime");
 	DelEventHandler("Cannon_GetSalvoWindow", "Cannon_GetSalvoWindow");
@@ -19,6 +50,7 @@ void DeleteCannonsEnvironment()
 
 void CreateCannonsEnvironment()
 {
+	SetEventHandler("Cannon_ApplyPendingCheats", "Cannon_ApplyPendingCheatsEvent", 0);
 	SetEventHandler(CANNON_GET_RECHARGE_TIME, "Cannon_GetRechargeTime", 0);
 	SetEventHandler(CANNON_GET_FIRE_TIME, "Cannon_GetFireTime", 0);
 	SetEventHandler("Cannon_GetSalvoWindow", "Cannon_GetSalvoWindow", 0);
@@ -40,7 +72,7 @@ bool Cannon_LoadBall()
 {
 	aref	aCharacter = GetEventData();
 	if (CheckAttribute(aCharacter, "Fort.Cannons.ActiveGun")) return Fort_LoadCannon(aCharacter);
-	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return true;
+	if (Cannon_HasUnlimitedAmmo(aCharacter)) return true;
 
 	int iBallType = sti(aCharacter.Ship.Cannons.Charge.Type);
 	int iNumBalls = GetCargoGoods(aCharacter, iBallType);
@@ -64,7 +96,7 @@ void Cannon_UnloadBall()
 		Fort_UnloadCannon(aCharacter);
 		return;
 	}
-	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return;
+	if (Cannon_HasUnlimitedAmmo(aCharacter)) return;
 	if(CheckAttribute(aCharacter, "Ship.Cannons"))
 	{
 		AddCharacterGoodsCannon(aCharacter, sti(aCharacter.Ship.Cannons.Charge.Type), 1);
@@ -293,6 +325,8 @@ float Cannon_GetFireHeight()
 float Cannon_GetRechargeTime()
 {
 	aref	aCharacter = GetEventData();
+	if (CheckAttribute(aCharacter, "index") && sti(aCharacter.index) == GetMainCharacterIndex() &&
+		CheckAttribute(aCharacter, "DebugCheats.InstantCannonReload") && sti(aCharacter.DebugCheats.InstantCannonReload)) return 0.0;
 	if (SeaPhonk_HasUnlimitedAmmo(aCharacter)) return 1.5;
 
 	float	fCannonSkill = 1.0 - stf(aCharacter.TmpSkill.Cannons) / 3.0;
