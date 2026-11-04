@@ -1,5 +1,17 @@
 # Roundhouse native animation evidence
 
+The K contact follow-up reproduces an attacking `man/attack_force_1` pose at
+phase 0.6 and 2 m separation: the lower-leg sweep intersected the torso while
+the old head-only test missed. The current contact checks the actual swept
+shin against pelvis/chest capsules as well as the head, still selecting one
+victim and respecting visibility. `torso-contact-result.json` records the
+native replay: one hit, an attacking-pose miss, a wall negative, ordinary and
+far cases, and incoming player damage during K. The pre-fix source is commit
+`21d7df12743582c7858dfd4282755133c0c3c708`. Reproduce with
+`torso-contact-native.py final` under `codex-run-scratch`, with `CORSAIRS_APP`
+set to the installed app. The samples before and after include different
+amounts of ragdoll work, so their timings do not establish a frame-time delta.
+
 The generator authors a spinning heel kick and front/back recovery clips in
 Storm's AN format. The ordinary resource delivery owner consumes
 `prepare_roundhouse.paths()` and `prepare_roundhouse.prepared()`; no original

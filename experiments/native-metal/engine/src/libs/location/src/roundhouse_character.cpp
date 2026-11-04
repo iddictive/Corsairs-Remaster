@@ -527,7 +527,7 @@ bool Character::UpdateRoundhouse(float seconds)
     {
         auto heelMatrix = JointWorld(*animation,model->mtx,state.heel);
         const CVECTOR heel = roundhouse::JointPointWorld(heelMatrix, state.heelOffset);
-        const CVECTOR knee = state.jumping ? JointWorld(*animation,model->mtx,state.rig.bodies[13].joint).Pos() : heel;
+        const CVECTOR knee = JointWorld(*animation,model->mtx,state.rig.bodies[13].joint).Pos();
         const CVECTOR leftHeel = state.jumping ? roundhouse::JointPointWorld(
             JointWorld(*animation,model->mtx,state.rig.bodies[11].joint),state.leftHeelOffset) : heel;
         const CVECTOR leftKnee = state.jumping ? JointWorld(*animation,model->mtx,state.rig.bodies[10].joint).Pos() : knee;
@@ -554,6 +554,27 @@ bool Character::UpdateRoundhouse(float seconds)
                 float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
                 CVECTOR contactPoint = head;
                 bool hit = distance < 0.22f*0.22f;
+                if (!state.jumping && !hit)
+                {
+                    // The opponent's attack pose can move its head out of the
+                    // heel path while the swept lower leg crosses its torso.
+                    for (int i = 0; i < 2; ++i)
+                    {
+                        const auto &body = other->roundhouseState->rig.bodies[i];
+                        const CVECTOR a = JointWorld(*otherAnimation,otherModel->mtx,body.joint).Pos();
+                        const CVECTOR b = body.endJoint >= 0 ? JointWorld(*otherAnimation,otherModel->mtx,body.endJoint).Pos() : a;
+                        const float d = std::min(deck_collision::distance2(a,b,state.previousKnee,state.previousHeel,heel),
+                                                 deck_collision::distance2(a,b,state.previousKnee,heel,knee));
+                        const float radius = body.radius + 0.055f;
+                        if (d < radius*radius && (!hit || d < distance))
+                        {
+                            const CVECTOR axis = b-a;
+                            const float axisLength = ~axis;
+                            const float t = axisLength > 1.0e-8f ? std::clamp(((heel-a) | axis)/axisLength,0.0f,1.0f) : 0.0f;
+                            hit = true; distance = d; contactPoint = a+axis*t;
+                        }
+                    }
+                }
                 if (state.jumping)
                 {
                     hit = false;
@@ -585,10 +606,10 @@ bool Character::UpdateRoundhouse(float seconds)
                 }
                 if (!hit || location->Trace(torso,contactPoint) < 0.995f ||
                     location->Trace(state.strikeOrigin,contactPoint) < 0.995f ||
-                    (!state.jumping && location->Trace(state.previousHeel,head) < 0.995f)) continue;
+                    (!state.jumping && location->Trace(state.previousHeel,contactPoint) < 0.995f)) continue;
                 if (!CanHitRoundhouse(*this,*other)) continue;
                 if (state.jumping) contacts.push_back({other->GetId(),contactPoint,distance});
-                else if (!nearest.victim || distance < nearest.distance) nearest = {other->GetId(),head,distance};
+                else if (!nearest.victim || distance < nearest.distance) nearest = {other->GetId(),contactPoint,distance};
             }
             const auto attacker = GetId();
             const auto resolved = state.jumping ? std::span<const Contact>(contacts) :
