@@ -862,16 +862,16 @@
       "sha256": "ffa2dc843e43c7e715f9d75a54de0663b1915450b83158bfb95ac6e9d840918d"
     },
     "RESOURCE/animation/Roundhouse_Danielle.ani": {
-      "bytes": 620,
-      "sha256": "c0c5e34daa92b8f671472280be4b0dcee1ac02ff5dcb9e6250187e6a19798e48"
+      "bytes": 619,
+      "sha256": "ce8ba7d6cceee1bb8b0973b25fe53ae6d95add5f0b649fbfa1a0accfa4a609cf"
     },
     "RESOURCE/animation/Roundhouse_Jessika.an": {
       "bytes": 386856,
       "sha256": "b4e38e7dccb13de587c63d7de7394ac6ba5ca0f7de4d2ed3f00225332c66f4fb"
     },
     "RESOURCE/animation/Roundhouse_Jessika.ani": {
-      "bytes": 619,
-      "sha256": "5cefe41bcf2ee5ccf0d3c90050c1de7864142a0541051a5969f8daf4dc6f7dff"
+      "bytes": 618,
+      "sha256": "3f2e88bcc197939f77323d62fa86fab45cfbcf7d00f6f9d17eeaf992d48eec7f"
     },
     "RESOURCE/animation/Roundhouse_Lo_Man.an": {
       "bytes": 108336,
@@ -910,8 +910,8 @@
       "sha256": "d204ad470ef8505ec2f312a634a14e9f5620d7aadd36d0228d344e9c1d48950a"
     },
     "RESOURCE/animation/Roundhouse_YokoDias.ani": {
-      "bytes": 620,
-      "sha256": "c1b735a28b7b7988a9b345434965d4f3b6ba4385ea970a3dc31eaf91c4d6b815"
+      "bytes": 619,
+      "sha256": "ebacb88e3dceeec7496952118c41d568ab7dcf67babae0ce54b2c47cc8ce0dbf"
     },
     "RESOURCE/animation/Roundhouse_beatrice2.an": {
       "bytes": 159088,
@@ -934,24 +934,24 @@
       "sha256": "69f41cc4dca38097421104bc4d36591e1c0baa10d0aa61ebf70976ae85f3fa69"
     },
     "RESOURCE/animation/Roundhouse_man.ani": {
-      "bytes": 615,
-      "sha256": "1243ed0b2a46781951d9c7d97121af29d19d23743c5d920b71fb6254b8508715"
+      "bytes": 614,
+      "sha256": "d1bf81b91d0d1cc8a1db9db544aa739ec7f9bb4645802e0034932f6449082561"
     },
     "RESOURCE/animation/Roundhouse_man1.an": {
       "bytes": 620136,
       "sha256": "fb4f43cac123a14188ab29231730366aa1c671aae2f3729b92cd3554a9afed5a"
     },
     "RESOURCE/animation/Roundhouse_man1.ani": {
-      "bytes": 616,
-      "sha256": "f6be5780004c5d28e9eb74baba25d0c025a4d1a1043e60e164fee2b286274ada"
+      "bytes": 615,
+      "sha256": "7f2db7e98f73d8ddebb671f977392f2c1b6d2d164318e6b6572c2563e9c0a820"
     },
     "RESOURCE/animation/Roundhouse_man2.an": {
       "bytes": 620136,
       "sha256": "358e169996e2b0dc7e1abd8f0e7f48e6b02a1bfd1efd8ac555377d677959767a"
     },
     "RESOURCE/animation/Roundhouse_man2.ani": {
-      "bytes": 616,
-      "sha256": "84540a89e931825a048ae5fbc4c6b29d6743dd4cf56181808eacf358c3d10f03"
+      "bytes": 615,
+      "sha256": "39a4fad31bdda7774a5ef41351c5978a00bcf9e23adce36982b0b4a2098c4a29"
     },
     "RESOURCE/animation/Roundhouse_man_B.an": {
       "bytes": 311344,
@@ -1049,7 +1049,7 @@
     "tools/boxing_mocap.py": "4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3",
     "tools/roundhouse_mocap.py": "e90769167aea32a737a65bfc799b0ca89548d6cac25d50984681b3ac2864cd0b"
   },
-  "recipe_sha256": "012b37e00caee67f1ab373214a650be171ec4d77def23c085d493d00dd541039",
+  "recipe_sha256": "dae9ae1715b4d2235a07df557e43106a63a02d06fdb5dbfb30859fe12411a9a6",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "version": 1
 }
