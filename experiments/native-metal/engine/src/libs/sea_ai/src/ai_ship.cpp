@@ -197,7 +197,7 @@ void AIShip::Execute(float fDeltaTime)
         auto *pASeaAIU = GetACharacter()->CreateSubAClass(GetACharacter(), "SeaAI.Update");
         auto *const pAShips = pASeaAIU->CreateAttribute("Ships", "");
         for (i = 0; i < AIShips.size(); i++)
-            if (this != AIShips[i] && !AIShips[i]->isDead())
+            if (AIShips[i] && this != AIShips[i] && !AIShips[i]->isDead() && AIShips[i]->GetShipPointer())
             {
                 SetSeaAIAttributes(pAShips, AIShips[i]);
             }
@@ -216,7 +216,7 @@ void AIShip::Execute(float fDeltaTime)
         auto *const pAShips = pASeaAIU->CreateAttribute("Ships", "");
 
         for (i = 0; i < AIShips.size(); i++)
-            if (this != AIShips[i] && !AIShips[i]->isDead())
+            if (AIShips[i] && this != AIShips[i] && !AIShips[i]->isDead() && AIShips[i]->GetShipPointer())
             {
                 SetSeaAIAttributes(pAShips, AIShips[i]);
             }
@@ -251,7 +251,7 @@ void AIShip::CheckSituation()
 
     auto fMinEnemyDist = 1e9f;
     for (auto &AIShip : AIShips)
-        if (AIShip != this)
+        if (AIShip && AIShip != this && !AIShip->isDead() && AIShip->GetShipPointer())
         {
             const auto fDist = GetDistance(*AIShip);
             if (Helper.isEnemy(GetACharacter(), AIShip->GetACharacter()))
