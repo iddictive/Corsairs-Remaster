@@ -3,9 +3,9 @@
 
 Animations generated:
 1. unarmed_idle: Boxing stance with raised fist guard and gentle bounce.
-2. unarmed_attack_fast: Left jab with quick snap, shoulder turn and recoil.
-3. unarmed_attack_force: Right cross/hook with hip rotation and torso drive.
-4. unarmed_attack_break: Uppercut chin strike with explosive upward extension.
+2. unarmed_jab: Left jab with quick snap, shoulder turn and recoil.
+3. unarmed_cross: Right cross with hip rotation and torso drive.
+4. unarmed_uppercut: Uppercut chin strike with upward extension.
 5. unarmed_block: Tight double-forearm high guard covering face and temples.
 6. unarmed_dodge_left/right: Guarded lateral ducks with planted feet.
 """
@@ -19,10 +19,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from prepare_port_rowboat import (I, add, sub, scale, dot, cross, unit, qm, qi,
-                                  rotate, axis, between, blend, rig, fk)
-from prepare_roundhouse import (SOURCES, BODY_NAMES, BODY_PARENTS, NON_HUMAN,
-                                smooth, curve, source_rig, limb, global_orientation, pack)
+from prepare_port_rowboat import add, sub, scale, unit, qm, rotate, axis, fk
+from prepare_roundhouse import (SOURCES, curve, source_rig, limb, bend_pole,
+                                global_orientation, pack)
 from runtime_script_patch import atomic_write
 
 ASSETS = ROOT / "src/assets/unarmed"
@@ -43,168 +42,122 @@ def make_unarmed_actions(source, fps=30.0):
     r = source_rig(source)
     body = source["body"]["joints"]
     height = source["body"]["height"]
-    initial = source["guard_pose"]
     origin = source["guard_root"]
-    p0, g0 = fk(r, initial, origin)
+    initial = list(source["guard_pose"])
+    planted, feet_world = fk(r, initial, origin)
+    _, bind_world = fk(r, source["bind_pose"], source["bind_root"])
+    arms = (body[3:6], body[6:9])
+    legs = (body[9:12], body[12:15])
+    leg_poles = [bend_pole(planted, ids) for ids in legs]
 
-    # Key landmark references
-    chest_pos = p0[body[1]]
-    head_pos = p0[body[2]]
-    # Natural boxing guard targets (left hand slightly forward, right hand at jaw)
-    guard_l = (0.16 * height, head_pos[1] - 0.12 * height, chest_pos[2] + 0.32 * height)
-    guard_r = (-0.14 * height, head_pos[1] - 0.14 * height, chest_pos[2] + 0.22 * height)
+    # Sword guard contains an open leading hand and rolled/twisted arm joints.
+    # Restore each complete arm subtree, including its intermediate twist joints
+    # and closed bind fingers, before solving. The sword stance below the waist
+    # remains intact; the torso faces the opponent instead of the sword's guard.
+    arm_joints = set()
+    for j, parent in enumerate(r["parents"]):
+        if j in (arms[0][0], arms[1][0]) or parent in arm_joints:
+            arm_joints.add(j)
+            initial[j] = source["bind_pose"][j]
+    # The clavicles are outside those subtrees. Retaining a sword-side shrug
+    # here raises/rolls the shoulder even when the elbow target is correct.
+    for ids in arms:
+        joint = r["parents"][ids[0]]
+        while joint != body[1]:
+            initial[joint] = source["bind_pose"][joint]
+            joint = r["parents"][joint]
+    # Coarse rigs use a single finger pad plus thumb, rather than five chains.
+    # Their bind finger pad is open; flex it at its real joint to make a fist.
+    for ids, side in zip(arms, (1., -1.)):
+        fingers = [j for j, parent in enumerate(r["parents"]) if parent == ids[2]]
+        if len(fingers) == 2 and all(j not in r["parents"] for j in fingers):
+            pad = max(fingers, key=lambda j: r["rest"][j][1])
+            initial[pad] = qm(initial[pad], axis((0., 0., 1.), -side * 1.1))
 
-    def apply_arms(q, root, left_tgt, right_tgt, left_pole, right_pole, blend_weight=1.0):
-        before = list(q)
-        limb(r, q, root, body[3:6], left_tgt, left_pole)
-        limb(r, q, root, body[6:9], right_tgt, right_pole)
-        for ids in (body[3:6], body[6:9]):
-            for j in ids[:2]:
-                q[j] = blend(before[j], q[j], blend_weight)
-
-    # One canonical guard is the exact boundary pose of every action.
-    guard = list(initial)
-    apply_arms(guard, origin, guard_l, guard_r,
-               (0.7, -0.6, -0.2), (-0.7, -0.6, -0.2), 0.95)
-
-    def from_guard(q, weight):
-        return [blend(a, b, weight) for a, b in zip(guard, q)]
-
-    # 1. Unarmed Idle: slight rhythmic breathing/bounce with high hands
-    idle_poses = []
-    idle_frames = 30
-    for f in range(idle_frames):
-        t = f / (idle_frames - 1)
-        phase = 0.0 if f in (0, idle_frames - 1) else math.sin(2.0 * math.pi * t)
-        root = add(origin, (0.0, 0.015 * height * phase, 0.0))
+    def pose(yaw=0., pitch=0., roll=0., hips=0., shift=(0., 0., 0.),
+             punch=None, extension=0., upper=(0., 0.), block=0.):
+        root = add(origin, scale(shift, height))
         q = list(initial)
-        # Gentle torso breathing
-        q[body[1]] = qm(q[body[1]], axis((1, 0, 0), math.radians(2.0 * phase)))
-        ltgt = add(guard_l, (0.0, 0.01 * height * phase, 0.01 * height * phase))
-        rtgt = add(guard_r, (0.0, 0.01 * height * phase, 0.0))
-        apply_arms(q, root, ltgt, rtgt, (0.7, -0.6, -0.2), (-0.7, -0.6, -0.2), 0.95)
-        idle_poses.append((root, from_guard(q, abs(phase))))
+        if hips:
+            global_orientation(r, q, root, body[0],
+                qm(axis((0., 1., 0.), math.radians(hips)), feet_world[body[0]]))
+        turn = axis((0., 1., 0.), math.radians(-18. + yaw))
+        tilt = qm(axis((0., 0., 1.), math.radians(roll)),
+                  axis((1., 0., 0.), math.radians(pitch)))
+        global_orientation(r, q, root, body[1], qm(qm(tilt, turn), bind_world[body[1]]))
+        # Keep eyes toward the opponent and chin slightly tucked.
+        global_orientation(r, q, root, body[2],
+                           qm(axis((1., 0., 0.), math.radians(6.)), bind_world[body[2]]))
+        # Same solve at rest and in motion; switching IK on only after the root
+        # moves would snap the knees on the first breathing/strike sample.
+        for ids, pole in zip(legs, leg_poles):
+            limb(r, q, root, ids, planted[ids[2]], pole)
+            global_orientation(r, q, root, ids[2], feet_world[ids[2]])
 
-    # 2. Fast Attack: Left Jab (15 frames: 0-5 windup, 6-7 impact extension, 8-14 snap back)
-    jab_poses = []
-    jab_frames = 15
-    for f in range(jab_frames):
-        t = f / (jab_frames - 1)
-        q = list(initial)
-        # Advance slightly during jab
-        if t <= 0.45:
-            ext = smooth(t / 0.45)
-        else:
-            ext = 1.0 - smooth((t - 0.45) / 0.55)
-        root = add(origin, (0.02 * height * ext, 0.0, 0.15 * height * ext))
-        # Torso rotation into left punch
-        torso_yaw = math.radians(-22.0 * ext)
-        q[body[1]] = qm(q[body[1]], axis((0, 1, 0), torso_yaw))
-        # Left fist extends straight ahead at head height
-        left_reach = (0.08 * height, head_pos[1] - 0.02 * height, chest_pos[2] + (0.32 + 0.48 * ext) * height)
-        # Right hand stays tightly glued to chin defending
-        right_def = (-0.12 * height, head_pos[1] - 0.10 * height, chest_pos[2] + 0.20 * height)
-        apply_arms(q, root, left_reach, right_def, (0.5, -0.4, 0.1), (-0.7, -0.6, -0.2), 0.95)
-        jab_poses.append((root, from_guard(q, ext)))
+        p, _ = fk(r, q, root)
+        head = p[body[2]]
+        for hand, (ids, side) in enumerate(zip(arms, (1., -1.))):
+            # Targets travel with the upper body. Keeping the elbow below the
+            # wrist produces a compact guard rather than sideways chicken wings.
+            offset = (side * .085, -.075 + .045 * block,
+                      (.13 if hand == 0 else .10) - .015 * block)
+            target = add(head, rotate(turn, scale(offset, height)))
+            pole = rotate(turn, (side * .18, -1., .05))
+            if punch == hand:
+                shoulder = p[ids[0]]
+                reach = math.dist(p[ids[0]], p[ids[1]]) + math.dist(p[ids[1]], p[ids[2]])
+                aim = add(head, (side * .025 * height, -.075 * height, reach))
+                # A small remaining bend avoids the straight-arm IK singularity.
+                end = add(shoulder, scale(unit(sub(aim, shoulder)), .98 * reach))
+                target = add(target, scale(sub(end, target), extension))
+            if hand == 1:
+                load, drive = upper
+                chamber = add(p[body[0]], rotate(turn, scale((-.11, .075, .14), height)))
+                target = add(target, scale(sub(chamber, target), load))
+                target = add(target, (0., .025 * height * drive, .095 * height * drive))
+            limb(r, q, root, ids, target, pole)
+        return root, [unit(rotation) for rotation in q]
 
-    # 3. Force Attack: Right Cross / Power Hook (20 frames: windup 0-7, heavy impact 8-11, follow-through/recovery 12-19)
-    cross_poses = []
-    cross_frames = 20
-    for f in range(cross_frames):
-        t = f / (cross_frames - 1)
-        q = list(initial)
-        if t <= 0.45:
-            ext = smooth(t / 0.45)
-        else:
-            ext = 1.0 - smooth((t - 0.45) / 0.55)
-        # Step forward with right side driving
-        root = add(origin, (-0.03 * height * ext, -0.02 * height * ext, 0.22 * height * ext))
-        # Torso turns strongly to left driving the right arm forward
-        torso_yaw = math.radians(38.0 * ext)
-        q[body[1]] = qm(q[body[1]], axis((0, 1, 0), torso_yaw))
-        # Left hand guards jaw
-        left_def = (0.12 * height, head_pos[1] - 0.08 * height, chest_pos[2] + 0.22 * height)
-        # Right fist drives through center line
-        right_reach = (0.02 * height, head_pos[1] - 0.04 * height, chest_pos[2] + (0.22 + 0.54 * ext) * height)
-        apply_arms(q, root, left_def, right_reach, (0.7, -0.6, -0.2), (-0.4, -0.5, 0.2), 0.95)
-        cross_poses.append((root, from_guard(q, ext)))
+    guard = pose()
 
-    # 4. Break Attack: Right Uppercut (22 frames: crouch/drop 0-6, explosive vertical drive 7-12, apex 13-14, recovery 15-21)
-    upper_poses = []
-    upper_frames = 22
-    for f in range(upper_frames):
-        t = f / (upper_frames - 1)
-        q = list(initial)
-        if t < 0.30:
-            crouch = smooth(t / 0.30)
-            rise = 0.0
-        elif t <= 0.60:
-            crouch = 1.0 - smooth((t - 0.30) / 0.30)
-            rise = smooth((t - 0.30) / 0.30)
-        else:
-            crouch = 0.0
-            rise = 1.0 - smooth((t - 0.60) / 0.40)
-        root = add(origin, (0.0, (-0.06 * crouch + 0.04 * rise) * height, (0.08 * crouch + 0.18 * rise) * height))
-        torso_pitch = math.radians(-12.0 * crouch + 15.0 * rise)
-        torso_yaw = math.radians(20.0 * rise)
-        q[body[1]] = qm(qm(q[body[1]], axis((1, 0, 0), torso_pitch)), axis((0, 1, 0), torso_yaw))
-        left_def = (0.14 * height, head_pos[1] - 0.06 * height, chest_pos[2] + 0.24 * height)
-        # Right fist rises vertically from below waist up to opponent's chin
-        fist_y = head_pos[1] - 0.35 * height * (1.0 - rise) + 0.05 * height * rise
-        fist_z = chest_pos[2] + (0.15 + 0.32 * rise) * height
-        right_upper = (0.04 * height, fist_y, fist_z)
-        apply_arms(q, root, left_def, right_upper, (0.7, -0.6, -0.2), (-0.2, -0.9, 0.3), 0.95)
-        upper_poses.append((root, from_guard(q, max(crouch, rise))))
+    def action(count, sample):
+        # Exact common boundaries; interpolate targets BEFORE IK, never solved
+        # shoulder/elbow rotations independently through the chest.
+        return [guard if f in (0, count-1) else sample(f / (count-1)) for f in range(count)]
 
-    # 5. Guard Block: Tight high guard protecting against blades and punches
-    block_poses = []
-    block_frames = 10
-    for f in range(block_frames):
-        q = list(initial)
-        root = origin
-        q[body[1]] = qm(q[body[1]], axis((1, 0, 0), math.radians(8.0)))
-        left_block = (0.09 * height, head_pos[1] - 0.03 * height, chest_pos[2] + 0.20 * height)
-        right_block = (-0.09 * height, head_pos[1] - 0.03 * height, chest_pos[2] + 0.20 * height)
-        apply_arms(q, root, left_block, right_block, (0.8, -0.3, -0.1), (-0.8, -0.3, -0.1), 0.98)
-        t = f / (block_frames - 1)
-        amount = smooth(t / 0.3) if t < 0.3 else (1.0 if t <= 0.7 else smooth((1.0-t) / 0.3))
-        block_poses.append((root, from_guard(q, amount)))
+    idle = action(30, lambda t: pose(pitch=.4 * math.sin(2 * math.pi * t),
+                  shift=(0., .0015 * math.sin(2 * math.pi * t), 0.)))
 
-    # Duck off the center line, keeping both feet and the hands near guard.
-    # The peak is frame 6; the longer recovery finishes exactly in guard.
-    def dodge(side):
-        poses = []
-        for f in range(16):
-            amount = smooth(f / 6) if f <= 6 else smooth((15 - f) / 9)
-            root = add(origin, (side * .10 * height * amount,
-                                -.09 * height * amount, 0.0))
-            q = list(guard)
-            q[body[1]] = qm(qm(q[body[1]], axis((0, 0, 1),
-                                   math.radians(-side * 15 * amount))),
-                            axis((1, 0, 0), math.radians(-8 * amount)))
-            for ids in (body[9:12], body[12:15]):
-                before = list(q)
-                limb(r, q, root, ids, p0[ids[2]], (0., 0., 1.))
-                for j in ids[:2]:
-                    q[j] = blend(before[j], q[j], amount)
-                global_orientation(r, q, root, ids[2], g0[ids[2]])
-                q[ids[2]] = blend(before[ids[2]], q[ids[2]], amount)
-            # Move the guard with the head instead of reaching toward a fixed world point.
-            p, _ = fk(r, q, root)
-            delta = sub(p[body[2]], head_pos)
-            apply_arms(q, root, add(guard_l, delta), add(guard_r, delta),
-                       (0.7, -0.6, -0.2), (-0.7, -0.6, -0.2), amount)
-            poses.append((root, q))
-        return poses
+    def strike(t, hand, contact):
+        ext = curve(((0., 0.), (.13, .02), (contact, 1.), (.72, .28), (1., 0.)), t)[0]
+        return pose(yaw=(-12. if hand == 0 else 38.) * ext, hips=(-4. if hand == 0 else 12.) * ext,
+                    shift=(0., -.008 * ext, (.025 if hand == 0 else .045) * ext),
+                    punch=hand, extension=ext)
+
+    def uppercut(t):
+        load, drive = curve(((0., 0., 0.), (.28, 1., 0.),
+                             (13/21, 0., 1.), (.82, 0., .25), (1., 0., 0.)), t)
+        return pose(yaw=-10. * load + 30. * drive, hips=-6. * load + 14. * drive,
+                    pitch=10. * load - 3. * drive, roll=9. * load - 2. * drive,
+                    shift=(-.025 * load, -.045 * load, .04 * drive), upper=(load, drive))
+
+    def blocking(t):
+        amount = curve(((0., 0.), (.3, 1.), (.7, 1.), (1., 0.)), t)[0]
+        return pose(pitch=3. * amount, block=amount)
+
+    def dodge(t, side):
+        amount = curve(((0., 0.), (.4, 1.), (1., 0.)), t)[0]
+        return pose(pitch=5. * amount, roll=-side * 8. * amount,
+                    shift=(side * .055 * amount, -.035 * amount, 0.))
 
     return {
-        "unarmed_idle": idle_poses,
-        "unarmed_jab": jab_poses,
-        "unarmed_cross": cross_poses,
-        "unarmed_uppercut": upper_poses,
-        "unarmed_block": block_poses,
-        "unarmed_dodge_left": dodge(1),
-        "unarmed_dodge_right": dodge(-1),
+        "unarmed_idle": idle,
+        "unarmed_jab": action(15, lambda t: strike(t, 0, 6/14)),
+        "unarmed_cross": action(20, lambda t: strike(t, 1, 9/19)),
+        "unarmed_uppercut": action(22, uppercut),
+        "unarmed_block": action(10, blocking),
+        "unarmed_dodge_left": action(16, lambda t: dodge(t, 1)),
+        "unarmed_dodge_right": action(16, lambda t: dodge(t, -1)),
     }
 
 def prepare(write_manifest=True, expected_manifest=None):

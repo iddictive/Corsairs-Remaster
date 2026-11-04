@@ -1,123 +1,149 @@
 #!/usr/bin/env python3
-"""Render the offline skeletal mesh atlas for Unarmed Combat actions.
+"""Offline real-GM unarmed inspection; never starts or captures the game.
 
-Generates a clear 7-row visual panel:
-Row 1: Unarmed Boxing Stance (Idle)
-Row 2: Left Jab (Fast Attack / LMB)
-Row 3: Right Cross / Hook (Force Attack / RMB)
-Row 4: Right Uppercut (Break Attack / MMB)
-Row 5: High Double-Forearm Guard (Block / Space)
-Rows 6–7: Left and right guarded duck/side slip
+Uses native two-weight skinning and depth-tested triangles, not a Metal frame.
 """
 from __future__ import annotations
-
+import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
-import struct
-import sys
-
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from prepare_roundhouse import SOURCES, animated_mesh, bind_skin, skin_coordinates
+from prepare_port_rowboat import rig, fk
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
-from prepare_roundhouse import SOURCES, source_rig, animated_mesh, bind_skin, skin_coordinates
-from prepare_port_rowboat import rig, fk, add, sub, scale, dot, cross, unit
+BANKS = ROOT / "experiments/native-metal/.cache/unarmed"
+INPUTS = ROOT / "docs/evidence/roundhouse-kick/inputs"
+EVIDENCE = ROOT / "docs/evidence/unarmed-boxing"
+ACTIONS = (
+    ("Стойка", "unarmed_idle", .5),
+    ("Джеб", "unarmed_jab", 6/14),
+    ("Кросс", "unarmed_cross", 9/19),
+    ("Апперкот", "unarmed_uppercut", 13/21),
+    ("Блок", "unarmed_block", .5),
+    ("Уклон влево", "unarmed_dodge_left", .4),
+    ("Уклон вправо", "unarmed_dodge_right", .4),
+)
 
-UNARMED_DIR = ROOT / "experiments/native-metal/.cache/unarmed"
-EVIDENCE_DIR = ROOT / "docs/evidence/unarmed-boxing"
-EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+def panel(points, faces, angle, size, label, detail=False):
+    width, height = size
+    a = math.radians(angle)
+    right = np.array((math.cos(a), 0., -math.sin(a)))
+    toward_camera = np.array((math.sin(a), 0., math.cos(a)))
+    points = np.asarray(points)
+    zoom = min(width/1.8, (height-45)/1.9) * (1.5 if detail else 1.)
+    centered = points - np.array((0., 0., .25 if detail else 0.))
+    xy = np.column_stack((width/2 + centered @ right * zoom,
+                          height-30 - (points[:, 1]-(.75 if detail else 0.))*zoom))
+    depth = points @ toward_camera
+    pixels = np.empty((height, width, 3), dtype=np.uint8)
+    pixels[:] = (25, 30, 38)
+    zbuffer = np.full((height, width), -np.inf)
+    light = np.array((.3, .65, .7)); light /= np.linalg.norm(light)
+    for face in faces:
+        tri = xy[list(face)]
+        lo = np.maximum(np.floor(tri.min(axis=0)).astype(int), (0, 0))
+        hi = np.minimum(np.ceil(tri.max(axis=0)).astype(int), (width-1, height-1))
+        if np.any(lo > hi):
+            continue
+        x0, y0 = tri[0]; x1, y1 = tri[1]; x2, y2 = tri[2]
+        det = (y1-y2)*(x0-x2) + (x2-x1)*(y0-y2)
+        if abs(det) < 1e-8:
+            continue
+        y, x = np.mgrid[lo[1]:hi[1]+1, lo[0]:hi[0]+1] + .5
+        u = ((y1-y2)*(x-x2) + (x2-x1)*(y-y2))/det
+        v = ((y2-y0)*(x-x2) + (x0-x2)*(y-y2))/det
+        w = 1-u-v
+        z = u*depth[face[0]] + v*depth[face[1]] + w*depth[face[2]]
+        area = np.s_[lo[1]:hi[1]+1, lo[0]:hi[0]+1]
+        mask = (u >= 0) & (v >= 0) & (w >= 0) & (z > zbuffer[area])
+        normal = np.cross(points[face[1]]-points[face[0]], points[face[2]]-points[face[0]])
+        brightness = .38 + .62*abs(normal @ light)/max(np.linalg.norm(normal), 1e-9)
+        pixels[area][mask] = np.array((190, 201, 214))*brightness
+        zbuffer[area][mask] = z[mask]
+    image = Image.fromarray(pixels)
+    font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 16)
+    ImageDraw.Draw(image).text((8, 8), label, fill=(230, 235, 245), font=font)
+    return image
 
-sources = json.load(open(SOURCES))
-man_src = sources["rigs"]["man"]
-mesh_data = (ROOT / "docs/evidence/roundhouse-kick/inputs/Blad_0.gm").read_bytes()
-vertices, faces = animated_mesh(mesh_data)
-bound_vertices = bind_skin(man_src, vertices)
+def load(name, bank_root):
+    sources = json.loads(SOURCES.read_text())["rigs"]
+    inputs = json.loads((INPUTS/"meshes.json").read_text())
+    entry = inputs[name]
+    data = (INPUTS/(entry["model"]+".gm")).read_bytes()
+    if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+        raise ValueError("Real mesh input changed")
+    vertices, faces = animated_mesh(data)
+    bound = bind_skin(sources[name], vertices)
+    animation = rig((bank_root/f"RESOURCE/animation/Unarmed_{name}.an").read_bytes())
+    manifest = json.loads((ROOT/"src/assets/unarmed/manifest.json").read_text())
+    def points(frame):
+        p, q = fk(animation, animation["pose"](frame), animation["roots"][frame])
+        return skin_coordinates(p, q, bound)
+    return points, faces, animation, manifest["banks"][name]["actions"]
 
-an_path = Path(sys.argv[1]) if len(sys.argv) > 1 else UNARMED_DIR / "RESOURCE/animation/Unarmed_man.an"
-an_data = an_path.read_bytes()
-parsed_an = rig(an_data)
 
-def deform_frame(frame):
-    p, q = fk(parsed_an, parsed_an["pose"](frame), parsed_an["roots"][frame])
-    return skin_coordinates(p, q, bound_vertices)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--rig", default="man", help="Rig name, or all for the six real-mesh peak overview")
+    parser.add_argument("--angle", type=float, default=-50.)
+    parser.add_argument("--bank-root", type=Path, default=BANKS)
+    parser.add_argument("--output", type=Path, default=EVIDENCE/"boxing-pose-atlas.png")
+    parser.add_argument("--motion", action="store_true", help="All baked frames, three views, GIF")
+    parser.add_argument("--all-frames", action="store_true", help="Every baked frame, upper-body sheet")
+    parser.add_argument("--action", action="append", choices=[a[1] for a in ACTIONS], help="Select actions (repeatable)")
+    args = parser.parse_args()
+    selected = [a for a in ACTIONS if args.action is None or a[1] in args.action]
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    size = (320, 360)
+    if args.rig == "all":
+        if args.motion or args.all_frames:
+            parser.error("all is a peak overview; select one rig for full-frame/motion inspection")
+        names = list(json.loads((INPUTS/"meshes.json").read_text()))
+        canvas = Image.new("RGB", (size[0]*len(selected), size[1]*len(names)))
+        for row, name in enumerate(names):
+            points, faces, _, actions = load(name, args.bank_root)
+            for col, (title, action, contact) in enumerate(selected):
+                first, last = actions[action]
+                frame = first+round((last-first)*contact)
+                canvas.paste(panel(points(frame), faces, args.angle, size,
+                    f"{name} · {title} · {args.angle:g}°"), (col*size[0], row*size[1]))
+        canvas.save(args.output)
+        print(args.output)
+        return
+    points, faces, animation, actions = load(args.rig, args.bank_root)
+    if args.motion:
+        frames = []
+        for title, action, _ in selected:
+            first, last = actions[action]
+            for frame in range(first, last+1):
+                canvas = Image.new("RGB", (size[0]*3, size[1]))
+                mesh = points(frame)
+                for col, angle in enumerate((0., -55., 90.)):
+                    canvas.paste(panel(mesh, faces, angle, size,
+                        f"{args.rig}: {title} {frame-first}/{last-first} · {angle:g}°"), (col*size[0], 0))
+                frames.append(canvas)
+        frames[0].save(args.output, save_all=True, append_images=frames[1:],
+                      duration=1000/animation["fps"], loop=0, optimize=False)
+    else:
+        rows = []
+        for title, action, contact in selected:
+            first, last = actions[action]
+            phases = (0., .28, contact, .82, 1.) if action == "unarmed_uppercut" else (0., .21, contact, .79, 1.)
+            samples = range(first, last+1) if args.all_frames else [
+                first+round((last-first)*t) for t in phases]
+            rows.extend((frame, f"{title} {frame-first}/{last-first}") for frame in samples)
+        cols = 8 if args.all_frames else 5
+        canvas = Image.new("RGB", (cols*size[0], math.ceil(len(rows)/cols)*size[1]), (16, 20, 26))
+        for i, (frame, title) in enumerate(rows):
+            canvas.paste(panel(points(frame), faces, args.angle, size,
+                f"{args.rig} · {title} · {args.angle:g}°", args.all_frames),
+                ((i % cols)*size[0], (i // cols)*size[1]))
+        canvas.save(args.output)
+    print(args.output)
 
-manifest = json.loads((ROOT / "src/assets/unarmed/manifest.json").read_text())
-ranges = manifest["banks"]["man"]["actions"]
-actions = []
-for title, name, phases in [
-    ("Боксёрская стойка", "unarmed_idle", (0, .25, .5, .75, 1)),
-    ("Левый джеб", "unarmed_jab", (0, .25, .45, .7, 1)),
-    ("Правый кросс", "unarmed_cross", (0, .25, .45, .7, 1)),
-    ("Правый апперкот", "unarmed_uppercut", (0, .3, .6, .8, 1)),
-    ("Защита предплечьями", "unarmed_block", (0, .3, .5, .7, 1)),
-    ("Уклон влево", "unarmed_dodge_left", (0, .2, .4, .7, 1)),
-    ("Уклон вправо", "unarmed_dodge_right", (0, .2, .4, .7, 1)),
-]:
-    first, last = ranges[name]
-    actions.append((title, [first + round((last-first)*p) for p in phases]))
-
-cols = 5
-rows = len(actions)
-cell_w, cell_h = 240, 280
-pad_x, pad_y = 20, 40
-img_w = cols * cell_w + pad_x * 2
-img_h = rows * cell_h + pad_y * 2 + 50
-
-canvas = Image.new("RGB", (img_w, img_h), (16, 20, 26))
-draw = ImageDraw.Draw(canvas)
-font_path = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
-font = ImageFont.truetype(font_path, 16)
-heading = ImageFont.truetype(font_path, 20)
-
-# Title
-draw.text((pad_x, 15), "Кулачный бой — фазы скелетной анимации", font=heading, fill=(240, 244, 250))
-
-light = unit((0.4, 0.7, 0.6))
-azimuth = -50
-a = math.radians(azimuth)
-right = (math.cos(a), 0.0, -math.sin(a))
-forward = (math.sin(a), 0.15, math.cos(a))
-zoom = min(cell_w / 2.2, (cell_h - 40) / 2.1)
-
-for r_idx, (act_name, frame_list) in enumerate(actions):
-    y_base = pad_y + 40 + r_idx * cell_h
-    # Section header
-    draw.text((pad_x, y_base - 23), act_name, font=font, fill=(200, 220, 245))
-    
-    for c_idx, frame in enumerate(frame_list):
-        x_base = pad_x + c_idx * cell_w
-        box = (x_base + 4, y_base, cell_w - 8, cell_h - 16)
-        bx, by, bw, bh = box
-        draw.rectangle((bx, by, bx + bw - 1, by + bh - 1), fill=(22, 27, 35), outline=(45, 55, 68))
-        
-        # Project function
-        def project(pt):
-            return (bx + bw * 0.5 + dot(pt, right) * zoom, by + bh - 32 - pt[1] * zoom)
-        
-        # Ground
-        ground = [project((-0.8, 0, -0.6)), project((0.8, 0, -0.6)), project((0.8, 0, 0.8)), project((-0.8, 0, 0.8))]
-        draw.polygon(ground, fill=(30, 38, 48))
-        
-        # Deform
-        points = deform_frame(frame)
-        face_depths = []
-        for face in faces:
-            pts = [points[i] for i in face]
-            depth = sum(dot(p, forward) for p in pts)
-            face_depths.append((depth, pts))
-        
-        for _, tri in sorted(face_depths, key=lambda x: x[0]):
-            norm = cross(sub(tri[1], tri[0]), sub(tri[2], tri[0]))
-            length = math.sqrt(dot(norm, norm))
-            if length < 1e-9: continue
-            brightness = 0.35 + 0.65 * abs(dot(scale(norm, 1.0 / length), light))
-            base_col = (185, 198, 215)
-            color = tuple(int(v * brightness) for v in base_col)
-            draw.polygon([project(p) for p in tri], fill=color)
-        
-        draw.text((bx + 10, by + bh - 24), f"Кадр {frame}", font=font, fill=(180, 195, 215))
-
-output_png = EVIDENCE_DIR / "boxing-pose-atlas.png"
-canvas.save(output_png)
-print(f"Saved atlas image: {output_png} ({img_w}x{img_h})")
+if __name__ == "__main__":
+    main()

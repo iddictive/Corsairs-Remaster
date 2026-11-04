@@ -197,6 +197,8 @@ The [resident camera continuity evidence](evidence/sea-map-transition-20261023/R
 records stale camera state and the first-frame yaw discontinuity at mode changes.
 The [spinning heel kick](roundhouse-kick.md) records animation, contact, physical
 fall and recovery owners, with reproducible CPU and skinned-mesh evidence.
+The [unarmed pose evidence](evidence/unarmed-boxing/README.md) records the baked
+pose owner, real-mesh views and native interpolation measurements.
 
 ## Verification and troubleshooting
 

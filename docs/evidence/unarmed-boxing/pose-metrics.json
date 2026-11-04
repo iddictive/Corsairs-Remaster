@@ -1,0 +1,3094 @@
+{
+  "baseline": {
+    "Angellica": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.03932464122772217,
+          "contact_right_wrist_minus_head_y_m": -0.10883557796478271,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": -0.02426159381866455,
+          "contact_right_wrist_minus_head_y_m": 0.015287995338439941,
+          "loaded_right_wrist_above_pelvis_m": 0.06599336862564087,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6061006188392639,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        13.450509668369275,
+        177.16049407863557
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.34632020912175254,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.06889323085721417,
+      "minimum_wrist_separation_m": 0.2934548631202589,
+      "sha256": "1acbcba8037284af942b6eca1d6ab756dde9cfa189c148eb00f16d1fc4852554"
+    },
+    "Danielle": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.05443072319030762,
+          "contact_right_wrist_minus_head_y_m": -0.15857326984405518,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.08949780464172363,
+          "contact_right_wrist_minus_head_y_m": 0.031070470809936523,
+          "loaded_right_wrist_above_pelvis_m": 0.1397201418876648,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6496874094009399,
+          "samples": 85
+        }
+      },
+      "bones": 128,
+      "bytes": 269860,
+      "elbow_internal_degrees": [
+        36.361024006324165,
+        178.55615003944004
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.37811263832264047,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07217666484855582,
+      "minimum_wrist_separation_m": 0.32407013117970584,
+      "sha256": "ccb42b1b965e30073cfcd25b53fd016ad41036c381b753ad977a3420ab158795"
+    },
+    "Jessika": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.02032637596130371,
+          "contact_right_wrist_minus_head_y_m": -0.11545443534851074,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.007110953330993652,
+          "contact_right_wrist_minus_head_y_m": -0.02328968048095703,
+          "loaded_right_wrist_above_pelvis_m": 0.009426355361938477,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6052056550979614,
+          "samples": 85
+        }
+      },
+      "bones": 49,
+      "bytes": 104276,
+      "elbow_internal_degrees": [
+        37.004540839884875,
+        178.7173720117097
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.35611504753436346,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.060560967254884246,
+      "minimum_wrist_separation_m": 0.30365175606973654,
+      "sha256": "8b35dc9468a1c9e7577325f21c40c649da6fff9ef3786dfcbc7ea169cbeaa68b"
+    },
+    "Lo_Man": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "contact_right_elbow_above_shoulder_m": 0.039977192878723145,
+          "contact_right_wrist_minus_head_y_m": -0.1313185691833496,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.380840067432558e-08,
+          "contact_right_elbow_above_shoulder_m": 0.007818937301635742,
+          "contact_right_wrist_minus_head_y_m": -0.009049057960510254,
+          "loaded_right_wrist_above_pelvis_m": 0.10853326320648193,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.639319896697998,
+          "samples": 85
+        }
+      },
+      "bones": 27,
+      "bytes": 58164,
+      "elbow_internal_degrees": [
+        32.571113633162966,
+        177.387459335246
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.37368491673813603,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04957875692234516,
+      "minimum_wrist_separation_m": 0.28539696893720407,
+      "sha256": "01bdf225e29700d168e62b9f447ce8e6b699453878737a46bef5c42844a556b8"
+    },
+    "ManKSM": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.04032552242279053,
+          "contact_right_wrist_minus_head_y_m": -0.11275267601013184,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": -0.02508091926574707,
+          "contact_right_wrist_minus_head_y_m": 0.015619039535522461,
+          "loaded_right_wrist_above_pelvis_m": 0.06686294078826904,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6268690228462219,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        13.500178479822647,
+        177.16046352579707
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.35830803008800755,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07119867315747881,
+      "minimum_wrist_separation_m": 0.30368210483811886,
+      "sha256": "5c3de4b8453bc76913e2aac9baeccc2b30b4ac2ca47ed0634bab4de285b1a408"
+    },
+    "Milenace": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.03742778301239014,
+          "contact_right_wrist_minus_head_y_m": -0.10499787330627441,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": -0.02334892749786377,
+          "contact_right_wrist_minus_head_y_m": 0.014524459838867188,
+          "loaded_right_wrist_above_pelvis_m": 0.061823904514312744,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5834739804267883,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        13.758549419949379,
+        177.1604781511766
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.33351291273666744,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.06628500582914706,
+      "minimum_wrist_separation_m": 0.28241598623890424,
+      "sha256": "2a1118c1cd271d794b9467ee25b0b7af1c095bbd242b3460132ddbbc0322221c"
+    },
+    "Moscovit": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "contact_right_elbow_above_shoulder_m": 0.06277716159820557,
+          "contact_right_wrist_minus_head_y_m": -0.0983353853225708,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.9851816857041626e-07,
+          "contact_right_elbow_above_shoulder_m": -0.03558540344238281,
+          "contact_right_wrist_minus_head_y_m": 0.01639425754547119,
+          "loaded_right_wrist_above_pelvis_m": 0.08120071887969971,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6372599601745605,
+          "samples": 85
+        }
+      },
+      "bones": 42,
+      "bytes": 89604,
+      "elbow_internal_degrees": [
+        6.147444799680683,
+        176.5301794138762
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3619596128484212,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.08942137292220004,
+      "minimum_wrist_separation_m": 0.2871610244160267,
+      "sha256": "82875c094597f326126a7eac677bc91ef1a55aee7f75a6923bcb30262001d9bb"
+    },
+    "YokoDias": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.038443684577941895,
+          "contact_right_wrist_minus_head_y_m": -0.10697329044342041,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": -0.023822307586669922,
+          "contact_right_wrist_minus_head_y_m": 0.014934539794921875,
+          "loaded_right_wrist_above_pelvis_m": 0.06402283906936646,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.595349133014679,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        13.59335952002445,
+        177.16045534346878
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.34023945834703706,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.06765337582514075,
+      "minimum_wrist_separation_m": 0.28819271821448955,
+      "sha256": "94028ae2cb53cbda8460e63e936b35681f2f178c4a77fdabe09d2a4ee75aa6d2"
+    },
+    "beatrice2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.03742778301239014,
+          "contact_right_wrist_minus_head_y_m": -0.10499787330627441,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": -0.02334892749786377,
+          "contact_right_wrist_minus_head_y_m": 0.014524459838867188,
+          "loaded_right_wrist_above_pelvis_m": 0.061823904514312744,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5834739804267883,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        13.758549419949379,
+        177.1604781511766
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.33351291273666744,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.06628500582914706,
+      "minimum_wrist_separation_m": 0.28241598623890424,
+      "sha256": "2a1118c1cd271d794b9467ee25b0b7af1c095bbd242b3460132ddbbc0322221c"
+    },
+    "genres": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.048709869384765625,
+          "contact_right_wrist_minus_head_y_m": -0.14797425270080566,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.05058169364929199,
+          "contact_right_wrist_minus_head_y_m": -0.013020753860473633,
+          "loaded_right_wrist_above_pelvis_m": 0.14320409297943115,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6588883399963379,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        33.938706506104374,
+        177.56331805018576
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.38472949710709076,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07775416876181412,
+      "minimum_wrist_separation_m": 0.2924570958832091,
+      "sha256": "189289cf778032cbee6fbdfd92298b96285d61894c55a0efc0007e85a2d2678a"
+    },
+    "man": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.05756568908691406,
+          "contact_right_wrist_minus_head_y_m": -0.11003530025482178,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": -0.010636210441589355,
+          "contact_right_wrist_minus_head_y_m": 0.02703225612640381,
+          "loaded_right_wrist_above_pelvis_m": 0.10857987403869629,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6411467790603638,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        5.226873305656739,
+        178.61354545054382
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3736849645293371,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07469526278019238,
+      "minimum_wrist_separation_m": 0.3202258950092964,
+      "sha256": "a80e017773735cd5511ce557546bff5bcefe6be86f86ce89212d776b316de4e7"
+    },
+    "man1": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "contact_right_elbow_above_shoulder_m": 0.03409147262573242,
+          "contact_right_wrist_minus_head_y_m": -0.08526790142059326,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "contact_right_elbow_above_shoulder_m": -0.07544338703155518,
+          "contact_right_wrist_minus_head_y_m": 0.023095369338989258,
+          "loaded_right_wrist_above_pelvis_m": 0.06269234418869019,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6155478358268738,
+          "samples": 85
+        }
+      },
+      "bones": 79,
+      "bytes": 167156,
+      "elbow_internal_degrees": [
+        5.23218326304788,
+        178.5807676654645
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.35842292882865523,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07178433624804291,
+      "minimum_wrist_separation_m": 0.3054926770668086,
+      "sha256": "b50898441e479e9d05ac1490fc6fbf3964f52de8e69f8e6763259e4324545f39"
+    },
+    "man2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "contact_right_elbow_above_shoulder_m": 0.03409147262573242,
+          "contact_right_wrist_minus_head_y_m": -0.08526790142059326,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "contact_right_elbow_above_shoulder_m": -0.07544338703155518,
+          "contact_right_wrist_minus_head_y_m": 0.023095369338989258,
+          "loaded_right_wrist_above_pelvis_m": 0.06269234418869019,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6155478358268738,
+          "samples": 85
+        }
+      },
+      "bones": 79,
+      "bytes": 167156,
+      "elbow_internal_degrees": [
+        5.23218326304788,
+        178.5807676654645
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.35842292882865523,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07178433624804291,
+      "minimum_wrist_separation_m": 0.3054926770668086,
+      "sha256": "b50898441e479e9d05ac1490fc6fbf3964f52de8e69f8e6763259e4324545f39"
+    },
+    "man_B": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "contact_right_elbow_above_shoulder_m": 0.03409147262573242,
+          "contact_right_wrist_minus_head_y_m": -0.08526790142059326,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.205792662556831e-08,
+          "contact_right_elbow_above_shoulder_m": -0.07544338703155518,
+          "contact_right_wrist_minus_head_y_m": 0.023095369338989258,
+          "loaded_right_wrist_above_pelvis_m": 0.06269234418869019,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6155478358268738,
+          "samples": 85
+        }
+      },
+      "bones": 79,
+      "bytes": 167156,
+      "elbow_internal_degrees": [
+        5.23218326304788,
+        178.5807676654645
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.35842292882865523,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07178433624804291,
+      "minimum_wrist_separation_m": 0.3054926770668086,
+      "sha256": "b50898441e479e9d05ac1490fc6fbf3964f52de8e69f8e6763259e4324545f39"
+    },
+    "man_kvl2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": 0.04173159599304199,
+          "contact_right_wrist_minus_head_y_m": -0.11528098583221436,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.717058928374371e-07,
+          "contact_right_elbow_above_shoulder_m": -0.025719404220581055,
+          "contact_right_wrist_minus_head_y_m": 0.016171693801879883,
+          "loaded_right_wrist_above_pelvis_m": 0.07009142637252808,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6423217058181763,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        13.264145670846144,
+        177.15494878176634
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3670242377654426,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07298084635002446,
+      "minimum_wrist_separation_m": 0.31117774481862415,
+      "sha256": "102df5e6e613f0854a6d76c0f7ca4982b38df4dd237e6c1706e4b78a64b39e1e"
+    },
+    "mushketer": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "contact_right_elbow_above_shoulder_m": 0.05539262294769287,
+          "contact_right_wrist_minus_head_y_m": -0.17900562286376953,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 6.95827280239314e-08,
+          "contact_right_elbow_above_shoulder_m": 0.12705576419830322,
+          "contact_right_wrist_minus_head_y_m": -0.04781496524810791,
+          "loaded_right_wrist_above_pelvis_m": 0.14213138818740845,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6034786701202393,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        31.085880271198373,
+        175.1368092960394
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3854191234939285,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05916143265130338,
+      "minimum_wrist_separation_m": 0.32620180983743263,
+      "sha256": "b1f2caebfc4fb27d7f13386f7e7f3ae7bf439a014a2710c3f9c84a6ccef6e45c"
+    },
+    "mushketer_whisper": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "contact_right_elbow_above_shoulder_m": 0.007772564888000488,
+          "contact_right_wrist_minus_head_y_m": -0.09220421314239502,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "contact_right_elbow_above_shoulder_m": -0.013238906860351562,
+          "contact_right_wrist_minus_head_y_m": 0.005882143974304199,
+          "loaded_right_wrist_above_pelvis_m": 0.08278554677963257,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5619823336601257,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        22.84186013591302,
+        174.22238922761136
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.33349514510379646,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05024846093745162,
+      "minimum_wrist_separation_m": 0.2790985573603897,
+      "sha256": "81e52313db42d1f2f9dd62a49977884be085fde418b08cbbbc06af2793052aee"
+    },
+    "mushketer_whisper_short": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "contact_right_elbow_above_shoulder_m": 0.007772564888000488,
+          "contact_right_wrist_minus_head_y_m": -0.09220421314239502,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 9.955653912374629e-08,
+          "contact_right_elbow_above_shoulder_m": -0.013238906860351562,
+          "contact_right_wrist_minus_head_y_m": 0.005882143974304199,
+          "loaded_right_wrist_above_pelvis_m": 0.08278554677963257,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5619823336601257,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        22.84186013591302,
+        174.22238922761136
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.33349514510379646,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05024846093745162,
+      "minimum_wrist_separation_m": 0.2790985573603897,
+      "sha256": "81e52313db42d1f2f9dd62a49977884be085fde418b08cbbbc06af2793052aee"
+    },
+    "skeleton": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.05756568908691406,
+          "contact_right_wrist_minus_head_y_m": -0.11003530025482178,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": -0.010636210441589355,
+          "contact_right_wrist_minus_head_y_m": 0.02703225612640381,
+          "loaded_right_wrist_above_pelvis_m": 0.10857987403869629,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6411467790603638,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        5.226873305656739,
+        178.61354545054382
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3736849645293371,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.07469526278019238,
+      "minimum_wrist_separation_m": 0.3202258950092964,
+      "sha256": "a80e017773735cd5511ce557546bff5bcefe6be86f86ce89212d776b316de4e7"
+    },
+    "towngirl3": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "contact_right_elbow_above_shoulder_m": 0.024814844131469727,
+          "contact_right_wrist_minus_head_y_m": -0.11074304580688477,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "contact_right_elbow_above_shoulder_m": -0.03324437141418457,
+          "contact_right_wrist_minus_head_y_m": -0.005218505859375,
+          "loaded_right_wrist_above_pelvis_m": 0.06859636306762695,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5712082982063293,
+          "samples": 85
+        }
+      },
+      "bones": 44,
+      "bytes": 93796,
+      "elbow_internal_degrees": [
+        25.016453051656438,
+        177.4131352913839
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.33351292309699804,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0555887593159549,
+      "minimum_wrist_separation_m": 0.28039268719328625,
+      "sha256": "973c94f24e083d2e94818fa8eb7d34cbf1a1a9ef055012c8a5d192d11db6fa8f"
+    },
+    "woman": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "contact_right_elbow_above_shoulder_m": 0.04080235958099365,
+          "contact_right_wrist_minus_head_y_m": -0.16862976551055908,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.979483841400679e-08,
+          "contact_right_elbow_above_shoulder_m": 0.1016007661819458,
+          "contact_right_wrist_minus_head_y_m": -0.046462178230285645,
+          "loaded_right_wrist_above_pelvis_m": 0.13636696338653564,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5703179836273193,
+          "samples": 85
+        }
+      },
+      "bones": 128,
+      "bytes": 269860,
+      "elbow_internal_degrees": [
+        43.46629430017475,
+        178.55967085357636
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3556931454599358,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.057811565368970384,
+      "minimum_wrist_separation_m": 0.3030070100193206,
+      "sha256": "e9d31bb0b1eceea4b1eb14c946abb57613d7cd2e8813d70183e4c59fa6778856"
+    },
+    "woman2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "contact_right_elbow_above_shoulder_m": 0.050240159034729004,
+          "contact_right_wrist_minus_head_y_m": -0.141701340675354,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 2.6603773317646073e-07,
+          "contact_right_elbow_above_shoulder_m": 0.07223701477050781,
+          "contact_right_wrist_minus_head_y_m": 0.010889649391174316,
+          "loaded_right_wrist_above_pelvis_m": 0.12942063808441162,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6025421023368835,
+          "samples": 85
+        }
+      },
+      "bones": 84,
+      "bytes": 177636,
+      "elbow_internal_degrees": [
+        35.293754350188124,
+        178.54513585752898
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3505551406602804,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.06738203027764324,
+      "minimum_wrist_separation_m": 0.30050816454612495,
+      "sha256": "bcb191d781b25609b567b75e4268228da5951e2765881e0bd0c4acbd12328fe8"
+    },
+    "woman_A2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.05181717872619629,
+          "contact_right_wrist_minus_head_y_m": -0.15206968784332275,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.6609750796980904e-07,
+          "contact_right_elbow_above_shoulder_m": 0.08563482761383057,
+          "contact_right_wrist_minus_head_y_m": 0.02967393398284912,
+          "loaded_right_wrist_above_pelvis_m": 0.13218778371810913,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.6230208277702332,
+          "samples": 85
+        }
+      },
+      "bones": 128,
+      "bytes": 269860,
+      "elbow_internal_degrees": [
+        36.249764748507886,
+        178.55614978657698
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.3625586037206052,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0693091859982971,
+      "minimum_wrist_separation_m": 0.31070739145121096,
+      "sha256": "83277f27bba01d2cd6961cc64378a202f6b40fbe8a00d3c8d6e50389b67a0f43"
+    },
+    "woman_B": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "contact_right_elbow_above_shoulder_m": 0.024814844131469727,
+          "contact_right_wrist_minus_head_y_m": -0.11074304580688477,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 1.37399579713815e-07,
+          "contact_right_elbow_above_shoulder_m": -0.03324437141418457,
+          "contact_right_wrist_minus_head_y_m": -0.005218505859375,
+          "loaded_right_wrist_above_pelvis_m": 0.06859636306762695,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5712082982063293,
+          "samples": 85
+        }
+      },
+      "bones": 44,
+      "bytes": 93796,
+      "elbow_internal_degrees": [
+        25.016453051656438,
+        177.4131352913839
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.33351292309699804,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0555887593159549,
+      "minimum_wrist_separation_m": 0.28039268719328625,
+      "sha256": "973c94f24e083d2e94818fa8eb7d34cbf1a1a9ef055012c8a5d192d11db6fa8f"
+    }
+  },
+  "candidate": {
+    "Angellica": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "contact_right_elbow_above_shoulder_m": -0.0289309024810791,
+          "contact_right_wrist_minus_head_y_m": -0.1157914400100708,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.702210503777394e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1592482328414917,
+          "contact_right_wrist_minus_head_y_m": -0.07809364795684814,
+          "loaded_right_wrist_above_pelvis_m": 0.1174919605255127,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4182455539703369,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        36.955930509722506,
+        156.97631454874818
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005558515380876974,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04603490001538685,
+      "minimum_wrist_separation_m": 0.22953109939513125,
+      "sha256": "6faea8889f6382437b5a38464dde80a82fb7154ecacaec9e060f1f3226ceb911"
+    },
+    "Danielle": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": 0.03132331371307373,
+          "contact_right_wrist_minus_head_y_m": -0.1281440258026123,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.030077338218688965,
+          "contact_right_wrist_minus_head_y_m": -0.08524858951568604,
+          "loaded_right_wrist_above_pelvis_m": 0.1283155083656311,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.513304591178894,
+          "samples": 85
+        }
+      },
+      "bones": 128,
+      "bytes": 269860,
+      "elbow_internal_degrees": [
+        50.02437519830429,
+        157.04679017702387
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005732664469801573,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04372307247249135,
+      "minimum_wrist_separation_m": 0.25101812979408955,
+      "sha256": "c1cc3633aaa19b99871c87eb25ff50259abc7562804d4a983c5576fcb1915269"
+    },
+    "Jessika": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.04017627239227295,
+          "contact_right_wrist_minus_head_y_m": -0.12006044387817383,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.13875865936279297,
+          "contact_right_wrist_minus_head_y_m": -0.08032608032226562,
+          "loaded_right_wrist_above_pelvis_m": 0.12075245380401611,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.34805965423583984,
+          "samples": 85
+        }
+      },
+      "bones": 49,
+      "bytes": 104276,
+      "elbow_internal_degrees": [
+        37.51485183870081,
+        156.8108434360885
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0006524781816087917,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.039268984745263955,
+      "minimum_wrist_separation_m": 0.23371451614207683,
+      "sha256": "b4975d517399d71b4fa84ad6a8335208de806f51d31a36397f7f2e175f00764d"
+    },
+    "Lo_Man": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "contact_right_elbow_above_shoulder_m": -0.010364294052124023,
+          "contact_right_wrist_minus_head_y_m": -0.12990224361419678,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.4385406067503084e-08,
+          "contact_right_elbow_above_shoulder_m": -0.12224400043487549,
+          "contact_right_wrist_minus_head_y_m": -0.08438456058502197,
+          "loaded_right_wrist_above_pelvis_m": 0.12672394514083862,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.47666656970977783,
+          "samples": 85
+        }
+      },
+      "bones": 27,
+      "bytes": 58164,
+      "elbow_internal_degrees": [
+        44.66441809997295,
+        156.90177192530518
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0036244590514199577,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.03714026855724825,
+      "minimum_wrist_separation_m": 0.2493270715413178,
+      "sha256": "9cc86b37f5fde37cf335c333ec3efd6ca556cc979517ac185622fb4989139a2b"
+    },
+    "ManKSM": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.030020475387573242,
+          "contact_right_wrist_minus_head_y_m": -0.1197885274887085,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1643073558807373,
+          "contact_right_wrist_minus_head_y_m": -0.08082985877990723,
+          "loaded_right_wrist_above_pelvis_m": 0.12157541513442993,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4311256408691406,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        37.03924288577225,
+        156.9788520728776
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005425499907155863,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.047142460181744686,
+      "minimum_wrist_separation_m": 0.2374662497005011,
+      "sha256": "a791a4a140639b2d6fa23d74b24fad0066a4e99d6941b319b764e97a55596154"
+    },
+    "Milenace": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.027972698211669922,
+          "contact_right_wrist_minus_head_y_m": -0.11148929595947266,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.152795672416687,
+          "contact_right_wrist_minus_head_y_m": -0.0752255916595459,
+          "loaded_right_wrist_above_pelvis_m": 0.11313867568969727,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.40087759494781494,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        37.06448691332018,
+        156.97641387470406
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005306863593707109,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0440843079676739,
+      "minimum_wrist_separation_m": 0.22100705657595537,
+      "sha256": "b871a51096ffc602680f60c5fbf6f092592c514e63805c5ad7de80a92d93cad0"
+    },
+    "Moscovit": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "contact_right_elbow_above_shoulder_m": -0.007161498069763184,
+          "contact_right_wrist_minus_head_y_m": -0.11005139350891113,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6862359931741935e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1740342378616333,
+          "contact_right_wrist_minus_head_y_m": -0.08169698715209961,
+          "loaded_right_wrist_above_pelvis_m": 0.12277936935424805,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4452025890350342,
+          "samples": 85
+        }
+      },
+      "bones": 42,
+      "bytes": 89604,
+      "elbow_internal_degrees": [
+        18.956545960487954,
+        156.99382905634138
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.00039187835587060796,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.06153718127326129,
+      "minimum_wrist_separation_m": 0.24067035523636407,
+      "sha256": "b169bd2138a9e482a8af2a26d6410c903c66fd0de6345c012865b99a2110178c"
+    },
+    "YokoDias": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.028477072715759277,
+          "contact_right_wrist_minus_head_y_m": -0.11374795436859131,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.15618360042572021,
+          "contact_right_wrist_minus_head_y_m": -0.07675361633300781,
+          "loaded_right_wrist_above_pelvis_m": 0.11543315649032593,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.40996038913726807,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        37.00763257098265,
+        156.97615445341688
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.000540002131142651,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04511136548733714,
+      "minimum_wrist_separation_m": 0.2254927479590198,
+      "sha256": "e0ef50aa160d8eb0d735b264d8ac22770780d2690cc9b79edc95dbcd723949fb"
+    },
+    "beatrice2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.027972698211669922,
+          "contact_right_wrist_minus_head_y_m": -0.11148929595947266,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.152795672416687,
+          "contact_right_wrist_minus_head_y_m": -0.0752255916595459,
+          "loaded_right_wrist_above_pelvis_m": 0.11313867568969727,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.40087759494781494,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        37.06448691332018,
+        156.97641387470406
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005306863593707109,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0440843079676739,
+      "minimum_wrist_separation_m": 0.22100705657595537,
+      "sha256": "b871a51096ffc602680f60c5fbf6f092592c514e63805c5ad7de80a92d93cad0"
+    },
+    "genres": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": 0.007010698318481445,
+          "contact_right_wrist_minus_head_y_m": -0.13173580169677734,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.09918022155761719,
+          "contact_right_wrist_minus_head_y_m": -0.08692729473114014,
+          "loaded_right_wrist_above_pelvis_m": 0.1304726004600525,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.5213450193405151,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        42.603993483737476,
+        156.90245004611708
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0038500251144998805,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05164264536519728,
+      "minimum_wrist_separation_m": 0.2560582866406277,
+      "sha256": "70d28da31af123c291a802cdcfda744a45f0eb09f5ede82aa52c438b68f8f33d"
+    },
+    "man": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.016729116439819336,
+          "contact_right_wrist_minus_head_y_m": -0.12625932693481445,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1415998935699463,
+          "contact_right_wrist_minus_head_y_m": -0.08432769775390625,
+          "loaded_right_wrist_above_pelvis_m": 0.12673407793045044,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4727858304977417,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        39.6923553861364,
+        156.9022022767875
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.00046936565165195523,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05417899967407375,
+      "minimum_wrist_separation_m": 0.24785827942424687,
+      "sha256": "95a450659d11230263cd76ea0b89d8eeb1a37337d89a4affc7010930154cf407"
+    },
+    "man1": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "contact_right_elbow_above_shoulder_m": -0.05316126346588135,
+          "contact_right_wrist_minus_head_y_m": -0.12119114398956299,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1992812156677246,
+          "contact_right_wrist_minus_head_y_m": -0.08087670803070068,
+          "loaded_right_wrist_above_pelvis_m": 0.12151330709457397,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4085789918899536,
+          "samples": 85
+        }
+      },
+      "bones": 79,
+      "bytes": 167156,
+      "elbow_internal_degrees": [
+        36.24737437899687,
+        156.90214013032522
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.000413951633960446,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05458096233214954,
+      "minimum_wrist_separation_m": 0.23856750742931904,
+      "sha256": "0790e1209a3100621251b656597535c523e35b1f1f1a4d25505dad40a85a68d2"
+    },
+    "man2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "contact_right_elbow_above_shoulder_m": -0.05316126346588135,
+          "contact_right_wrist_minus_head_y_m": -0.12119114398956299,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1992812156677246,
+          "contact_right_wrist_minus_head_y_m": -0.08087670803070068,
+          "loaded_right_wrist_above_pelvis_m": 0.12151330709457397,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4085789918899536,
+          "samples": 85
+        }
+      },
+      "bones": 79,
+      "bytes": 167156,
+      "elbow_internal_degrees": [
+        36.24737437899687,
+        156.90214013032522
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.000413951633960446,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05458096233214954,
+      "minimum_wrist_separation_m": 0.23856750742931904,
+      "sha256": "0790e1209a3100621251b656597535c523e35b1f1f1a4d25505dad40a85a68d2"
+    },
+    "man_B": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "contact_right_elbow_above_shoulder_m": -0.05316126346588135,
+          "contact_right_wrist_minus_head_y_m": -0.12119114398956299,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.627997978763233e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1992812156677246,
+          "contact_right_wrist_minus_head_y_m": -0.08087670803070068,
+          "loaded_right_wrist_above_pelvis_m": 0.12151330709457397,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4085789918899536,
+          "samples": 85
+        }
+      },
+      "bones": 79,
+      "bytes": 167156,
+      "elbow_internal_degrees": [
+        36.24737437899687,
+        156.90214013032522
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.000413951633960446,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05458096233214954,
+      "minimum_wrist_separation_m": 0.23856750742931904,
+      "sha256": "0790e1209a3100621251b656597535c523e35b1f1f1a4d25505dad40a85a68d2"
+    },
+    "man_kvl2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.030647754669189453,
+          "contact_right_wrist_minus_head_y_m": -0.12272071838378906,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.1317873839273886e-08,
+          "contact_right_elbow_above_shoulder_m": -0.16883647441864014,
+          "contact_right_wrist_minus_head_y_m": -0.08278131484985352,
+          "loaded_right_wrist_above_pelvis_m": 0.12453997135162354,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4433901309967041,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        36.94587952637144,
+        156.97920324760952
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005540741695095097,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04853577180782726,
+      "minimum_wrist_separation_m": 0.24328829746017322,
+      "sha256": "72d9656cbc9d379985e913e306478d1ea88ce7570b7351446b45b20d26a58747"
+    },
+    "mushketer": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": 0.006174802780151367,
+          "contact_right_wrist_minus_head_y_m": -0.1310979127883911,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.10194766521453857,
+          "contact_right_wrist_minus_head_y_m": -0.08698999881744385,
+          "loaded_right_wrist_above_pelvis_m": 0.130682110786438,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.519798994064331,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        43.27060731913442,
+        156.90350322520186
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.000983212218379051,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.051814871764151914,
+      "minimum_wrist_separation_m": 0.25668760573681304,
+      "sha256": "58f8882d6c5b6fff572beccd790373a4a201abc9adceb5a3820a0ff26bbdb614"
+    },
+    "mushketer_whisper": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "contact_right_elbow_above_shoulder_m": -0.02615070343017578,
+          "contact_right_wrist_minus_head_y_m": -0.11067652702331543,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "contact_right_elbow_above_shoulder_m": -0.15307414531707764,
+          "contact_right_wrist_minus_head_y_m": -0.07522404193878174,
+          "loaded_right_wrist_above_pelvis_m": 0.11311274766921997,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4034872055053711,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        35.650951505360375,
+        156.97640569029568
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0009474905112108817,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04515391316927244,
+      "minimum_wrist_separation_m": 0.22093461851542712,
+      "sha256": "7dfbdec0411b19a94330e6413959f36dbb721bd6a290a24459a8084efbbd4af3"
+    },
+    "mushketer_whisper_short": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "contact_right_elbow_above_shoulder_m": -0.02615070343017578,
+          "contact_right_wrist_minus_head_y_m": -0.11067652702331543,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.70685676493099e-08,
+          "contact_right_elbow_above_shoulder_m": -0.15307414531707764,
+          "contact_right_wrist_minus_head_y_m": -0.07522404193878174,
+          "loaded_right_wrist_above_pelvis_m": 0.11311274766921997,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4034872055053711,
+          "samples": 85
+        }
+      },
+      "bones": 40,
+      "bytes": 85412,
+      "elbow_internal_degrees": [
+        35.650951505360375,
+        156.97640569029568
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0009474905112108817,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04515391316927244,
+      "minimum_wrist_separation_m": 0.22093461851542712,
+      "sha256": "7dfbdec0411b19a94330e6413959f36dbb721bd6a290a24459a8084efbbd4af3"
+    },
+    "skeleton": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.016729116439819336,
+          "contact_right_wrist_minus_head_y_m": -0.12625932693481445,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1415998935699463,
+          "contact_right_wrist_minus_head_y_m": -0.08432769775390625,
+          "loaded_right_wrist_above_pelvis_m": 0.12673407793045044,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4727858304977417,
+          "samples": 85
+        }
+      },
+      "bones": 123,
+      "bytes": 259380,
+      "elbow_internal_degrees": [
+        39.6923553861364,
+        156.9022022767875
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.00046936565165195523,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.05417899967407375,
+      "minimum_wrist_separation_m": 0.24785827942424687,
+      "sha256": "95a450659d11230263cd76ea0b89d8eeb1a37337d89a4affc7010930154cf407"
+    },
+    "towngirl3": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "contact_right_elbow_above_shoulder_m": -0.027994155883789062,
+          "contact_right_wrist_minus_head_y_m": -0.11151528358459473,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1528170108795166,
+          "contact_right_wrist_minus_head_y_m": -0.07525444030761719,
+          "loaded_right_wrist_above_pelvis_m": 0.11309832334518433,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4010716676712036,
+          "samples": 85
+        }
+      },
+      "bones": 44,
+      "bytes": 93796,
+      "elbow_internal_degrees": [
+        37.43177701346024,
+        156.97649030195245
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.006913712940925775,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0440993815683941,
+      "minimum_wrist_separation_m": 0.22100806654704475,
+      "sha256": "a3d9e929c842babe63509647323b7abe2af902e75d7b7ee6245f1e99632a13c7"
+    },
+    "woman": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": 0.024968266487121582,
+          "contact_right_wrist_minus_head_y_m": -0.1266481876373291,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.01869022846221924,
+          "contact_right_wrist_minus_head_y_m": -0.08022964000701904,
+          "loaded_right_wrist_above_pelvis_m": 0.12067168951034546,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.48457133769989014,
+          "samples": 85
+        }
+      },
+      "bones": 128,
+      "bytes": 269860,
+      "elbow_internal_degrees": [
+        56.305467048461914,
+        157.0487926415133
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0008989171558310298,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.03956870735370626,
+      "minimum_wrist_separation_m": 0.23697137387243625,
+      "sha256": "a73b0b48d42499051813ce580932854f47cbdab514338b86cc5ab9ce7f249e00"
+    },
+    "woman2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "contact_right_elbow_above_shoulder_m": 0.028257012367248535,
+          "contact_right_wrist_minus_head_y_m": -0.09737980365753174,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.6744561161004015e-08,
+          "contact_right_elbow_above_shoulder_m": -0.06975901126861572,
+          "contact_right_wrist_minus_head_y_m": -0.07903766632080078,
+          "loaded_right_wrist_above_pelvis_m": 0.11895740032196045,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.45353323221206665,
+          "samples": 85
+        }
+      },
+      "bones": 84,
+      "bytes": 177636,
+      "elbow_internal_degrees": [
+        36.9023039406159,
+        157.04676613623155
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005658647095840032,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.04973386484268549,
+      "minimum_wrist_separation_m": 0.23005181049601564,
+      "sha256": "023536d4e93e9b0dc304106ae7241b6cd78101658556f780010ae5b25c02787a"
+    },
+    "woman_A2": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": 0.02977931499481201,
+          "contact_right_wrist_minus_head_y_m": -0.12284255027770996,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 7.524409173509383e-08,
+          "contact_right_elbow_above_shoulder_m": -0.028636455535888672,
+          "contact_right_wrist_minus_head_y_m": -0.08173048496246338,
+          "loaded_right_wrist_above_pelvis_m": 0.12302809953689575,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.49043500423431396,
+          "samples": 85
+        }
+      },
+      "bones": 128,
+      "bytes": 269860,
+      "elbow_internal_degrees": [
+        50.16081389542434,
+        157.04730706926003
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.0005918998494480199,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.041735402930649874,
+      "minimum_wrist_separation_m": 0.24063307663561753,
+      "sha256": "36ddc57bb020a6e1905f2bfc2125784e81628fecd167d49f5d42695fd49de143"
+    },
+    "woman_B": {
+      "actions": {
+        "unarmed_block": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 37
+        },
+        "unarmed_cross": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "contact_right_elbow_above_shoulder_m": -0.027994155883789062,
+          "contact_right_wrist_minus_head_y_m": -0.11151528358459473,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 77
+        },
+        "unarmed_dodge_left": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_dodge_right": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 61
+        },
+        "unarmed_idle": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 117
+        },
+        "unarmed_jab": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "native_boundary_joint_error_m": 0.0,
+          "samples": 57
+        },
+        "unarmed_uppercut": {
+          "boundary_root_error_m": 0.0,
+          "boundary_rotation_error": 5.615146803084059e-08,
+          "contact_right_elbow_above_shoulder_m": -0.1528170108795166,
+          "contact_right_wrist_minus_head_y_m": -0.07525444030761719,
+          "loaded_right_wrist_above_pelvis_m": 0.11309832334518433,
+          "native_boundary_joint_error_m": 0.0,
+          "right_wrist_rise_load_to_contact_m": 0.4010716676712036,
+          "samples": 85
+        }
+      },
+      "bones": 44,
+      "bytes": 93796,
+      "elbow_internal_degrees": [
+        37.43177701346024,
+        156.97649030195245
+      ],
+      "fps": 30.0,
+      "frames": 130,
+      "maximum_foot_drift_m": 0.006913712940925775,
+      "maximum_joint_displacement_per_quarter_frame_m": 0.0440993815683941,
+      "minimum_wrist_separation_m": 0.22100806654704475,
+      "sha256": "a3d9e929c842babe63509647323b7abe2af902e75d7b7ee6245f1e99632a13c7"
+    }
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+  "generator_sha256": "36a898dc0dbb475b038b3477a5711405b07b19ab695131bc1f88bd4779375aca",
+  "native_inputs_sha256": {
+    "docs/evidence/roundhouse-kick/native-animation-cpu-probe.cpp": "0990c0c3557b40f48decd4cf1310b3f5eff0bde53f40fc67b87493f450bdf0c8",
+    "docs/evidence/roundhouse-kick/run-native-animation-cpu-probe.py": "c7f6508958d56f9e5c0ded65a9944faa64925ce7bd7e7e7cb5b86b11ff80f31a",
+    "docs/evidence/unarmed-boxing/inspect-poses.py": "16c19e42f086acae521cf026c501417061c36b683e6c28c88cf327e43f079605",
+    "docs/evidence/unarmed-boxing/native-pose-sampler.cpp.inc": "6701938ab6a584839fbf140a55d567fc4611e654fbcf20a24a639b13f637f613",
+    "experiments/native-metal/.cache/build/native-engine/storm/libs/animation/CMakeFiles/animation.dir/src/action_info.cpp.o": "a4efe51036237695cf839f0a6139d813a79be3059d9aa147eb172db557c5e76d",
+    "experiments/native-metal/.cache/build/native-engine/storm/libs/animation/CMakeFiles/animation.dir/src/action_player_imp.cpp.o": "76b812fd37081b766f0ea1dee42c6f141217c6e09a91f43e8b2a558052ef4067",
+    "experiments/native-metal/.cache/build/native-engine/storm/libs/animation/CMakeFiles/animation.dir/src/animation_imp.cpp.o": "0ac80a9fcc47957394c7a556d3944ed4bc8e2174b595484e9c787f1761a166b1",
+    "experiments/native-metal/.cache/build/native-engine/storm/libs/animation/CMakeFiles/animation.dir/src/animation_info.cpp.o": "a4ccea4dbf3645ae56d01995b6bd0e2a3ff887806ae4eb7c8a06ef4340be7688",
+    "experiments/native-metal/.cache/build/native-engine/storm/libs/animation/CMakeFiles/animation.dir/src/animation_timer_imp.cpp.o": "dcbbc3bc0629298e7b980dad553e0cee148262e41b4a9a1f316d70cefc461ea5",
+    "experiments/native-metal/.cache/build/native-engine/storm/libs/animation/CMakeFiles/animation.dir/src/bone.cpp.o": "2140d694bcc859851a0c610f8d244bb18f301005b48cf40b3aebcd9fad8e069e"
+  },
+  "sampling": "Actual cached Release AnimationImp::EvaluatePose, Bone compression + native interpolation; 4 samples per baked interval. Geometry metrics do not establish rendered acceptance.",
+  "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283"
+}
