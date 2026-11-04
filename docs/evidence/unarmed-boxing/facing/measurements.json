@@ -1,0 +1,3327 @@
+{
+  "baseline_commit": "b09b887374411b2fc99b30d49aa774519848f092",
+  "conditions": "Offline actual GM skin and native AN round-trip; no gameplay",
+  "source_sha256": {
+    "src/assets/roundhouse/rigs.json": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
+    "tools/boxing_mocap.py": "4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3",
+    "src/assets/unarmed/mocap/recipe.json": "8d0fdad9b931199d73ca5ec0e4e0b642745b69e2d2832b7dc206ca76d0aef365"
+  },
+  "rigs": {
+    "Angellica": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764619661404,
+          "forward_y": -0.13766163115735092
+        },
+        "neck": {
+          "yaw_degrees": 55.085555692342055,
+          "forward_y": -0.5127726985195401
+        },
+        "head": {
+          "yaw_degrees": 56.735247602897175,
+          "forward_y": -0.30259392892680814
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764619661404,
+          "forward_y": -0.13766163115735092
+        },
+        "neck": {
+          "yaw_degrees": 28.983823098307045,
+          "forward_y": -0.5127726985195401
+        },
+        "head": {
+          "yaw_degrees": 1.1679480454307533e-14,
+          "forward_y": -0.3025939289268081
+        }
+      },
+      "max_face_yaw_degrees": 1.6761340590426578e-14,
+      "max_adjacent_yaw_degrees": 37.39865332978764,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699490666033,
+              "forward_y": -0.1529042970656543
+            },
+            "neck": {
+              "yaw_degrees": 70.8399315476101,
+              "forward_y": -0.29384911296805893
+            },
+            "head": {
+              "yaw_degrees": 75.58402992166928,
+              "forward_y": -0.16237018729810623
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699490666033,
+              "forward_y": -0.1529042970656543
+            },
+            "neck": {
+              "yaw_degrees": 37.03849745333016,
+              "forward_y": -0.293849112968059
+            },
+            "head": {
+              "yaw_degrees": -1.0475817721650665e-14,
+              "forward_y": -0.1623701872981063
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.696759222245156,
+              "forward_y": -0.4709984338772756
+            },
+            "neck": {
+              "yaw_degrees": -35.782575989591685,
+              "forward_y": -0.6954538377409627
+            },
+            "head": {
+              "yaw_degrees": -20.608641352124284,
+              "forward_y": -0.5676093465026953
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.696759222245156,
+              "forward_y": -0.4709984338772756
+            },
+            "neck": {
+              "yaw_degrees": -17.34837961112258,
+              "forward_y": -0.6954538377409629
+            },
+            "head": {
+              "yaw_degrees": 4.828984468771846e-16,
+              "forward_y": -0.5676093465026955
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.158223909331255,
+              "forward_y": 0.08301291053037618
+            },
+            "neck": {
+              "yaw_degrees": -39.86569984071425,
+              "forward_y": -0.08736074219953352
+            },
+            "head": {
+              "yaw_degrees": -18.88310396332056,
+              "forward_y": -0.20787718194313975
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.158223909331255,
+              "forward_y": 0.08301291053037618
+            },
+            "neck": {
+              "yaw_degrees": -26.579111954665628,
+              "forward_y": -0.08736074219953355
+            },
+            "head": {
+              "yaw_degrees": 1.1583774354281789e-14,
+              "forward_y": -0.2078771819431398
+            }
+          }
+        }
+      }
+    },
+    "Danielle": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 54.4981134333006,
+          "forward_y": -0.18235211761844808
+        },
+        "neck": {
+          "yaw_degrees": 52.16949283733128,
+          "forward_y": -0.5648795297353586
+        },
+        "head": {
+          "yaw_degrees": 53.19864563669597,
+          "forward_y": -0.31942915086405016
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 54.4981134333006,
+          "forward_y": -0.18235211761844808
+        },
+        "neck": {
+          "yaw_degrees": 27.24905671665032,
+          "forward_y": -0.5648795297353585
+        },
+        "head": {
+          "yaw_degrees": 9.544748719648919e-15,
+          "forward_y": -0.31942915086405016
+        }
+      },
+      "max_face_yaw_degrees": 1.2707784320813049e-14,
+      "max_adjacent_yaw_degrees": 37.164332386987624,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 70.85592823497598,
+              "forward_y": -0.20271394468744808
+            },
+            "neck": {
+              "yaw_degrees": 68.09318564503263,
+              "forward_y": -0.35068608045433125
+            },
+            "head": {
+              "yaw_degrees": 72.09478044350702,
+              "forward_y": -0.17450863222208363
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 70.85592823497598,
+              "forward_y": -0.20271394468744808
+            },
+            "neck": {
+              "yaw_degrees": 35.42796411748799,
+              "forward_y": -0.35068608045433125
+            },
+            "head": {
+              "yaw_degrees": -3.5329418652231015e-16,
+              "forward_y": -0.17450863222208354
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -39.17685101060706,
+              "forward_y": -0.49788632134554367
+            },
+            "neck": {
+              "yaw_degrees": -40.3209204681904,
+              "forward_y": -0.7310956534159829
+            },
+            "head": {
+              "yaw_degrees": -24.8683885904929,
+              "forward_y": -0.5713564482686453
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -39.17685101060706,
+              "forward_y": -0.49788632134554367
+            },
+            "neck": {
+              "yaw_degrees": -19.58842550530352,
+              "forward_y": -0.7310956534159831
+            },
+            "head": {
+              "yaw_degrees": 8.961877604776674e-15,
+              "forward_y": -0.5713564482686457
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -57.20874636524217,
+              "forward_y": 0.05759006167821692
+            },
+            "neck": {
+              "yaw_degrees": -43.49722219936042,
+              "forward_y": -0.1282852973427262
+            },
+            "head": {
+              "yaw_degrees": -22.434511972450306,
+              "forward_y": -0.19953908805284898
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -57.20874636524217,
+              "forward_y": 0.05759006167821692
+            },
+            "neck": {
+              "yaw_degrees": -28.604373182621085,
+              "forward_y": -0.12828529734272617
+            },
+            "head": {
+              "yaw_degrees": -1.2171855836476986e-14,
+              "forward_y": -0.19953908805284884
+            }
+          }
+        }
+      }
+    },
+    "Jessika": {
+      "gaze_joints": [
+        14,
+        19,
+        24
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 58.69640542638691,
+          "forward_y": -0.4570483541257628
+        },
+        "neck": {
+          "yaw_degrees": 54.511965092454815,
+          "forward_y": -0.4898136908860701
+        },
+        "head": {
+          "yaw_degrees": 56.73524784173754,
+          "forward_y": -0.30259392774392446
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 58.69640542638691,
+          "forward_y": -0.4570483541257628
+        },
+        "neck": {
+          "yaw_degrees": 29.34820271319345,
+          "forward_y": -0.48981369088606974
+        },
+        "head": {
+          "yaw_degrees": -1.3347977656806509e-14,
+          "forward_y": -0.3025939277439242
+        }
+      },
+      "max_face_yaw_degrees": 1.80692704259653e-14,
+      "max_adjacent_yaw_degrees": 38.80034540621025,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 3.3306690738754696e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 76.796163365837,
+              "forward_y": -0.4682488266680047
+            },
+            "neck": {
+              "yaw_degrees": 70.39589985190582,
+              "forward_y": -0.26802958448184544
+            },
+            "head": {
+              "yaw_degrees": 75.58403015818752,
+              "forward_y": -0.16237018645234785
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 76.796163365837,
+              "forward_y": -0.4682488266680047
+            },
+            "neck": {
+              "yaw_degrees": 38.398081682918516,
+              "forward_y": -0.26802958448184555
+            },
+            "head": {
+              "yaw_degrees": -1.208748198481512e-14,
+              "forward_y": -0.162370186452348
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -39.60890496321658,
+              "forward_y": -0.7314603026046586
+            },
+            "neck": {
+              "yaw_degrees": -36.01948805621995,
+              "forward_y": -0.6752480787622134
+            },
+            "head": {
+              "yaw_degrees": -20.608641063769507,
+              "forward_y": -0.5676093461756002
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -39.60890496321658,
+              "forward_y": -0.7314603026046586
+            },
+            "neck": {
+              "yaw_degrees": -19.804452481608287,
+              "forward_y": -0.6752480787622135
+            },
+            "head": {
+              "yaw_degrees": 3.863187573959307e-15,
+              "forward_y": -0.5676093461756004
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -58.45111225446894,
+              "forward_y": -0.23863761140372652
+            },
+            "neck": {
+              "yaw_degrees": -39.74009221989212,
+              "forward_y": -0.05960951724468669
+            },
+            "head": {
+              "yaw_degrees": -18.883103721659275,
+              "forward_y": -0.20787718248335926
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -58.45111225446894,
+              "forward_y": -0.23863761140372652
+            },
+            "neck": {
+              "yaw_degrees": -29.22555612723447,
+              "forward_y": -0.05960951724468664
+            },
+            "head": {
+              "yaw_degrees": -1.1177326132636438e-15,
+              "forward_y": -0.2078771824833593
+            }
+          }
+        }
+      },
+      "authored_max_face_yaw_by_action": {
+        "unarmed_idle": 3.704855979824902e-14,
+        "unarmed_jab": 1.80692704259653e-14,
+        "unarmed_cross": 1.4158206855473905e-14,
+        "unarmed_uppercut": 1.7568057989512423e-14,
+        "unarmed_block": 1.947591366692857e-14,
+        "unarmed_dodge_left": 3.3177549157813093,
+        "unarmed_dodge_right": 3.3177549157813253
+      },
+      "native_an_face_yaw_degrees": -1.864622740093813e-07
+    },
+    "Lo_Man": {
+      "gaze_joints": [
+        5,
+        13,
+        18
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.846057627239574,
+          "forward_y": -0.1363325725390889
+        },
+        "neck": {
+          "yaw_degrees": 56.13783259423923,
+          "forward_y": -0.5610859465436041
+        },
+        "head": {
+          "yaw_degrees": 56.66178813332033,
+          "forward_y": -0.3029574309901585
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.846057627239574,
+          "forward_y": -0.1363325725390889
+        },
+        "neck": {
+          "yaw_degrees": 28.923028813619784,
+          "forward_y": -0.561085946543604
+        },
+        "head": {
+          "yaw_degrees": 3.493839623762831e-15,
+          "forward_y": -0.3029574309901584
+        }
+      },
+      "max_face_yaw_degrees": 1.7325870589789015e-14,
+      "max_adjacent_yaw_degrees": 37.33426944465611,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 73.94843859199996,
+              "forward_y": -0.1517767519674273
+            },
+            "neck": {
+              "yaw_degrees": 71.60275376803983,
+              "forward_y": -0.3487521605052136
+            },
+            "head": {
+              "yaw_degrees": 75.51129031768194,
+              "forward_y": -0.1626301382961115
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 73.94843859199996,
+              "forward_y": -0.1517767519674273
+            },
+            "neck": {
+              "yaw_degrees": 36.974219296,
+              "forward_y": -0.3487521605052137
+            },
+            "head": {
+              "yaw_degrees": 1.0476273040997352e-14,
+              "forward_y": -0.16263013829611145
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.81182545071018,
+              "forward_y": -0.46945013652242906
+            },
+            "neck": {
+              "yaw_degrees": -35.52810813314296,
+              "forward_y": -0.7367915483916999
+            },
+            "head": {
+              "yaw_degrees": -20.697326535687584,
+              "forward_y": -0.5677094315366359
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.81182545071018,
+              "forward_y": -0.46945013652242906
+            },
+            "neck": {
+              "yaw_degrees": -17.405912725355087,
+              "forward_y": -0.7367915483917001
+            },
+            "head": {
+              "yaw_degrees": 4.323813056870354e-15,
+              "forward_y": -0.5677094315366361
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.24995777413502,
+              "forward_y": 0.08492283006115514
+            },
+            "neck": {
+              "yaw_degrees": -40.335921441433044,
+              "forward_y": -0.14573138519051704
+            },
+            "head": {
+              "yaw_degrees": -18.957419366942496,
+              "forward_y": -0.20771086273972944
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.24995777413502,
+              "forward_y": 0.08492283006115514
+            },
+            "neck": {
+              "yaw_degrees": -26.624978887067503,
+              "forward_y": -0.14573138519051707
+            },
+            "head": {
+              "yaw_degrees": 4.064335734841705e-15,
+              "forward_y": -0.20771086273972947
+            }
+          }
+        }
+      }
+    },
+    "ManKSM": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764670771116,
+          "forward_y": -0.13766162930240256
+        },
+        "neck": {
+          "yaw_degrees": 55.08555588435759,
+          "forward_y": -0.5127726957256415
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002087,
+          "forward_y": -0.302593925622803
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764670771116,
+          "forward_y": -0.13766162930240256
+        },
+        "neck": {
+          "yaw_degrees": 28.983823353855573,
+          "forward_y": -0.5127726957256414
+        },
+        "head": {
+          "yaw_degrees": -6.256864522207384e-15,
+          "forward_y": -0.3025939256228027
+        }
+      },
+      "max_face_yaw_degrees": 2.2937977903556828e-14,
+      "max_adjacent_yaw_degrees": 37.39865357931255,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699540662566,
+              "forward_y": -0.15290429441244768
+            },
+            "neck": {
+              "yaw_degrees": 70.83993172909328,
+              "forward_y": -0.29384910999076425
+            },
+            "head": {
+              "yaw_degrees": 75.5840305823069,
+              "forward_y": -0.1623701849357529
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699540662566,
+              "forward_y": -0.15290429441244768
+            },
+            "neck": {
+              "yaw_degrees": 37.038497703312835,
+              "forward_y": -0.29384910999076425
+            },
+            "head": {
+              "yaw_degrees": 1.0072901651464985e-14,
+              "forward_y": -0.16237018493575284
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.6967586356269,
+              "forward_y": -0.47099843390109886
+            },
+            "neck": {
+              "yaw_degrees": -35.78257571142351,
+              "forward_y": -0.695453835881249
+            },
+            "head": {
+              "yaw_degrees": -20.608640546697995,
+              "forward_y": -0.5676093455890596
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.6967586356269,
+              "forward_y": -0.47099843390109886
+            },
+            "neck": {
+              "yaw_degrees": -17.34837931781345,
+              "forward_y": -0.6954538358812493
+            },
+            "head": {
+              "yaw_degrees": -6.036230581346592e-15,
+              "forward_y": -0.56760934558906
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.158223392649056,
+              "forward_y": 0.08301290963283442
+            },
+            "neck": {
+              "yaw_degrees": -39.8656996157805,
+              "forward_y": -0.08736074031623688
+            },
+            "head": {
+              "yaw_degrees": -18.883103288317507,
+              "forward_y": -0.2078771834520696
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.158223392649056,
+              "forward_y": 0.08301290963283442
+            },
+            "neck": {
+              "yaw_degrees": -26.57911169632454,
+              "forward_y": -0.08736074031623689
+            },
+            "head": {
+              "yaw_degrees": -8.230576517582741e-15,
+              "forward_y": -0.2078771834520695
+            }
+          }
+        }
+      }
+    },
+    "Milenace": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 55.08555599708742,
+          "forward_y": -0.5127726804888931
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002092,
+          "forward_y": -0.3025939256228029
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 28.98382342811057,
+          "forward_y": -0.512772680488893
+        },
+        "head": {
+          "yaw_degrees": 5.005491617765908e-15,
+          "forward_y": -0.3025939256228027
+        }
+      },
+      "max_face_yaw_degrees": 1.5643554102816525e-14,
+      "max_adjacent_yaw_degrees": 37.398653647548144,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 2.7755575615628914e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 70.83993188046765,
+              "forward_y": -0.29384909312185625
+            },
+            "head": {
+              "yaw_degrees": 75.5840305823069,
+              "forward_y": -0.1623701849357527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 37.03849777186361,
+              "forward_y": -0.2938490931218562
+            },
+            "head": {
+              "yaw_degrees": 1.470643641113888e-14,
+              "forward_y": -0.1623701849357526
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -35.78257528665929,
+              "forward_y": -0.6954538236559964
+            },
+            "head": {
+              "yaw_degrees": -20.608640546697945,
+              "forward_y": -0.5676093455890598
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -17.34837922221374,
+              "forward_y": -0.6954538236559962
+            },
+            "head": {
+              "yaw_degrees": -6.277679804600453e-15,
+              "forward_y": -0.5676093455890597
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -39.865699131915996,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": -18.88310328831746,
+              "forward_y": -0.20787718345206968
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -26.57911160798962,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": 2.2354652269977805e-15,
+              "forward_y": -0.20787718345206968
+            }
+          }
+        }
+      }
+    },
+    "Moscovit": {
+      "gaze_joints": [
+        14,
+        17,
+        22
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 83.46362631860048,
+          "forward_y": 0.12539697503346628
+        },
+        "neck": {
+          "yaw_degrees": 73.18039580258984,
+          "forward_y": -0.09873280688298743
+        },
+        "head": {
+          "yaw_degrees": 82.34700848883125,
+          "forward_y": -0.14312666169689942
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 83.46362631860048,
+          "forward_y": 0.12539697503346628
+        },
+        "neck": {
+          "yaw_degrees": 41.73181315930024,
+          "forward_y": -0.09873280688298747
+        },
+        "head": {
+          "yaw_degrees": -4.017052211557055e-15,
+          "forward_y": -0.14312666169689928
+        }
+      },
+      "max_face_yaw_degrees": 1.3935320606371046e-14,
+      "max_adjacent_yaw_degrees": 49.37233109308176,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 3.3306690738754696e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 98.08226121950092,
+              "forward_y": 0.14970246905928722
+            },
+            "neck": {
+              "yaw_degrees": 90.09699160552128,
+              "forward_y": 0.11471310677587787
+            },
+            "head": {
+              "yaw_degrees": 101.63964636867416,
+              "forward_y": -0.05407762901317917
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 98.08226121950092,
+              "forward_y": 0.14970246905928722
+            },
+            "neck": {
+              "yaw_degrees": 49.04113060975046,
+              "forward_y": 0.11471310677587779
+            },
+            "head": {
+              "yaw_degrees": -1.3935320606371046e-14,
+              "forward_y": -0.05407762901317922
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -5.459208564099806,
+              "forward_y": -0.27541700220028537
+            },
+            "neck": {
+              "yaw_degrees": -11.343591885433495,
+              "forward_y": -0.364567401737171
+            },
+            "head": {
+              "yaw_degrees": 9.798187408768484,
+              "forward_y": -0.47218189039499886
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -5.459208564099806,
+              "forward_y": -0.27541700220028537
+            },
+            "neck": {
+              "yaw_degrees": -2.7296042820499036,
+              "forward_y": -0.3645674017371712
+            },
+            "head": {
+              "yaw_degrees": 8.569267768256006e-15,
+              "forward_y": -0.4721818903949992
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -23.826415091294365,
+              "forward_y": 0.17783529793268985
+            },
+            "neck": {
+              "yaw_degrees": -13.349100145780124,
+              "forward_y": 0.1735117602090897
+            },
+            "head": {
+              "yaw_degrees": 8.38074946329139,
+              "forward_y": -0.2439976783764625
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -23.826415091294365,
+              "forward_y": 0.17783529793268985
+            },
+            "neck": {
+              "yaw_degrees": -11.91320754564718,
+              "forward_y": 0.17351176020908965
+            },
+            "head": {
+              "yaw_degrees": -7.994222544759584e-15,
+              "forward_y": -0.2439976783764625
+            }
+          }
+        }
+      }
+    },
+    "YokoDias": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764695900563,
+          "forward_y": -0.13766162703561577
+        },
+        "neck": {
+          "yaw_degrees": 55.085556154238866,
+          "forward_y": -0.5127726733423589
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002089,
+          "forward_y": -0.30259392562280296
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764695900563,
+          "forward_y": -0.13766162703561577
+        },
+        "neck": {
+          "yaw_degrees": 28.983823479502828,
+          "forward_y": -0.5127726733423587
+        },
+        "head": {
+          "yaw_degrees": 9.593858934051327e-15,
+          "forward_y": -0.3025939256228027
+        }
+      },
+      "max_face_yaw_degrees": 1.8263214659396624e-14,
+      "max_adjacent_yaw_degrees": 37.398653698153794,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.996003610813204e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.0769956450864,
+              "forward_y": -0.15290429176207262
+            },
+            "neck": {
+              "yaw_degrees": 70.83993204502232,
+              "forward_y": -0.2938490852803121
+            },
+            "head": {
+              "yaw_degrees": 75.5840305823069,
+              "forward_y": -0.16237018493575245
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.0769956450864,
+              "forward_y": -0.15290429176207262
+            },
+            "neck": {
+              "yaw_degrees": 37.0384978225432,
+              "forward_y": -0.2938490852803121
+            },
+            "head": {
+              "yaw_degrees": 4.633534759673895e-15,
+              "forward_y": -0.1623701849357525
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.69675832851941,
+              "forward_y": -0.4709984327332297
+            },
+            "neck": {
+              "yaw_degrees": -35.78257496554342,
+              "forward_y": -0.6954538181544182
+            },
+            "head": {
+              "yaw_degrees": -20.608640546697966,
+              "forward_y": -0.5676093455890597
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.69675832851941,
+              "forward_y": -0.4709984327332297
+            },
+            "neck": {
+              "yaw_degrees": -17.3483791642597,
+              "forward_y": -0.6954538181544183
+            },
+            "head": {
+              "yaw_degrees": 7.243476697615908e-16,
+              "forward_y": -0.5676093455890597
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.15822311471201,
+              "forward_y": 0.08301291049013104
+            },
+            "neck": {
+              "yaw_degrees": -39.86569882207296,
+              "forward_y": -0.08736071791540002
+            },
+            "head": {
+              "yaw_degrees": -18.88310328831749,
+              "forward_y": -0.2078771834520695
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.15822311471201,
+              "forward_y": 0.08301291049013104
+            },
+            "neck": {
+              "yaw_degrees": -26.579111557355997,
+              "forward_y": -0.08736071791540007
+            },
+            "head": {
+              "yaw_degrees": 2.0322411154525286e-16,
+              "forward_y": -0.20787718345206957
+            }
+          }
+        }
+      }
+    },
+    "beatrice2": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 55.08555599708742,
+          "forward_y": -0.5127726804888931
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002092,
+          "forward_y": -0.3025939256228029
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 28.98382342811057,
+          "forward_y": -0.512772680488893
+        },
+        "head": {
+          "yaw_degrees": 5.005491617765908e-15,
+          "forward_y": -0.3025939256228027
+        }
+      },
+      "max_face_yaw_degrees": 1.5643554102816525e-14,
+      "max_adjacent_yaw_degrees": 37.398653647548144,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 2.7755575615628914e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 70.83993188046765,
+              "forward_y": -0.29384909312185625
+            },
+            "head": {
+              "yaw_degrees": 75.5840305823069,
+              "forward_y": -0.1623701849357527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 37.03849777186361,
+              "forward_y": -0.2938490931218562
+            },
+            "head": {
+              "yaw_degrees": 1.470643641113888e-14,
+              "forward_y": -0.1623701849357526
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -35.78257528665929,
+              "forward_y": -0.6954538236559964
+            },
+            "head": {
+              "yaw_degrees": -20.608640546697945,
+              "forward_y": -0.5676093455890598
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -17.34837922221374,
+              "forward_y": -0.6954538236559962
+            },
+            "head": {
+              "yaw_degrees": -6.277679804600453e-15,
+              "forward_y": -0.5676093455890597
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -39.865699131915996,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": -18.88310328831746,
+              "forward_y": -0.20787718345206968
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -26.57911160798962,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": 2.2354652269977805e-15,
+              "forward_y": -0.20787718345206968
+            }
+          }
+        }
+      }
+    },
+    "genres": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.98127582878482,
+          "forward_y": -0.19184129979726897
+        },
+        "neck": {
+          "yaw_degrees": 56.66052237258974,
+          "forward_y": -0.5720487185568458
+        },
+        "head": {
+          "yaw_degrees": 56.6167648646774,
+          "forward_y": -0.3031799821338033
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.98127582878482,
+          "forward_y": -0.19184129979726897
+        },
+        "neck": {
+          "yaw_degrees": 28.990637914392394,
+          "forward_y": -0.5720487185568456
+        },
+        "head": {
+          "yaw_degrees": 5.423675535025852e-15,
+          "forward_y": -0.303179982133803
+        }
+      },
+      "max_face_yaw_degrees": 2.3554346858049782e-14,
+      "max_adjacent_yaw_degrees": 37.56130481388726,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.38906962151458,
+              "forward_y": -0.20668239422317983
+            },
+            "neck": {
+              "yaw_degrees": 72.01870454848734,
+              "forward_y": -0.36155086979481305
+            },
+            "head": {
+              "yaw_degrees": 75.4667138461598,
+              "forward_y": -0.16278932602976431
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.38906962151458,
+              "forward_y": -0.20668239422317983
+            },
+            "neck": {
+              "yaw_degrees": 37.19453481075729,
+              "forward_y": -0.36155086979481316
+            },
+            "head": {
+              "yaw_degrees": -6.648580118717043e-15,
+              "forward_y": -0.16278932602976445
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -35.45474331810422,
+              "forward_y": -0.5176862339116022
+            },
+            "neck": {
+              "yaw_degrees": -35.14363764748675,
+              "forward_y": -0.7465862320445577
+            },
+            "head": {
+              "yaw_degrees": -20.75167834048688,
+              "forward_y": -0.5677703951222796
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -35.45474331810422,
+              "forward_y": -0.5176862339116022
+            },
+            "neck": {
+              "yaw_degrees": -17.727371659052103,
+              "forward_y": -0.7465862320445578
+            },
+            "head": {
+              "yaw_degrees": -3.6750508504517525e-15,
+              "forward_y": -0.5677703951222796
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -54.101997754332054,
+              "forward_y": 0.0306840115055692
+            },
+            "neck": {
+              "yaw_degrees": -40.243523820763606,
+              "forward_y": -0.16074939495279011
+            },
+            "head": {
+              "yaw_degrees": -19.002955682809837,
+              "forward_y": -0.2076088115944278
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -54.101997754332054,
+              "forward_y": 0.0306840115055692
+            },
+            "neck": {
+              "yaw_degrees": -27.050998877166027,
+              "forward_y": -0.1607493949527902
+            },
+            "head": {
+              "yaw_degrees": -1.0160613041060318e-14,
+              "forward_y": -0.20760881159442796
+            }
+          }
+        }
+      }
+    },
+    "man": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.900715316778744,
+          "forward_y": -0.13630087417171693
+        },
+        "neck": {
+          "yaw_degrees": 54.38105656620051,
+          "forward_y": -0.48682454470715003
+        },
+        "head": {
+          "yaw_degrees": 56.616764864677386,
+          "forward_y": -0.3031799821338036
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.900715316778744,
+          "forward_y": -0.13630087417171693
+        },
+        "neck": {
+          "yaw_degrees": 28.950357658389365,
+          "forward_y": -0.4868245447071501
+        },
+        "head": {
+          "yaw_degrees": -4.119907377567714e-15,
+          "forward_y": -0.30317998213380365
+        }
+      },
+      "max_face_yaw_degrees": 1.5931666746895466e-14,
+      "max_adjacent_yaw_degrees": 37.36142740547223,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.00281180318328,
+              "forward_y": -0.1516586023960686
+            },
+            "neck": {
+              "yaw_degrees": 70.28646997080118,
+              "forward_y": -0.2646464824218533
+            },
+            "head": {
+              "yaw_degrees": 75.46671384615983,
+              "forward_y": -0.16278932602976437
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.00281180318328,
+              "forward_y": -0.1516586023960686
+            },
+            "neck": {
+              "yaw_degrees": 37.001405901591646,
+              "forward_y": -0.26464648242185324
+            },
+            "head": {
+              "yaw_degrees": -1.3095688112624483e-15,
+              "forward_y": -0.1627893260297644
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.751437189231865,
+              "forward_y": -0.4695984053891965
+            },
+            "neck": {
+              "yaw_degrees": -36.116391024704036,
+              "forward_y": -0.6724690937014319
+            },
+            "head": {
+              "yaw_degrees": -20.751678340486905,
+              "forward_y": -0.5677703951222791
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.751437189231865,
+              "forward_y": -0.4695984053891965
+            },
+            "neck": {
+              "yaw_degrees": -17.375718594615932,
+              "forward_y": -0.6724690937014319
+            },
+            "head": {
+              "yaw_degrees": 1.2021264896857577e-14,
+              "forward_y": -0.567770395122279
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.19762024573136,
+              "forward_y": 0.08466737694621541
+            },
+            "neck": {
+              "yaw_degrees": -39.77100571944003,
+              "forward_y": -0.055689448067935056
+            },
+            "head": {
+              "yaw_degrees": -19.002955682809834,
+              "forward_y": -0.20760881159442782
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.19762024573136,
+              "forward_y": 0.08466737694621541
+            },
+            "neck": {
+              "yaw_degrees": -26.598810122865686,
+              "forward_y": -0.055689448067935014
+            },
+            "head": {
+              "yaw_degrees": -1.82891034739086e-15,
+              "forward_y": -0.20760881159442773
+            }
+          }
+        }
+      },
+      "authored_max_face_yaw_by_action": {
+        "unarmed_idle": 1.462338854893137e-14,
+        "unarmed_jab": 1.5931666746895466e-14,
+        "unarmed_cross": 1.4525448362535176e-14,
+        "unarmed_uppercut": 1.0911316462638081e-14,
+        "unarmed_block": 6.605964195288309e-15,
+        "unarmed_dodge_left": 3.323491271528096,
+        "unarmed_dodge_right": 3.3234912715281055
+      },
+      "native_an_face_yaw_degrees": 3.89617196872764e-06
+    },
+    "man1": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.932472671039214,
+          "forward_y": -0.15739935676614283
+        },
+        "neck": {
+          "yaw_degrees": 54.38105455622541,
+          "forward_y": -0.48682448842467946
+        },
+        "head": {
+          "yaw_degrees": 56.61676306004875,
+          "forward_y": -0.303179954900007
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.932472671039214,
+          "forward_y": -0.15739935676614283
+        },
+        "neck": {
+          "yaw_degrees": 28.966236335519596,
+          "forward_y": -0.4868244884246793
+        },
+        "head": {
+          "yaw_degrees": -3.5462498216615048e-15,
+          "forward_y": -0.30317995490000677
+        }
+      },
+      "max_face_yaw_degrees": 2.0579875799832168e-14,
+      "max_adjacent_yaw_degrees": 37.43738163055732,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.1496223626226,
+              "forward_y": -0.17256479458845783
+            },
+            "neck": {
+              "yaw_degrees": 70.28646814667415,
+              "forward_y": -0.26464645151751426
+            },
+            "head": {
+              "yaw_degrees": 75.46671205952485,
+              "forward_y": -0.1627893129976527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.1496223626226,
+              "forward_y": -0.17256479458845783
+            },
+            "neck": {
+              "yaw_degrees": 37.07481118131131,
+              "forward_y": -0.2646464515175143
+            },
+            "head": {
+              "yaw_degrees": 1.5412619402024137e-14,
+              "forward_y": -0.16278931299765273
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -35.01111511938654,
+              "forward_y": -0.48800160978990703
+            },
+            "neck": {
+              "yaw_degrees": -36.11639337853859,
+              "forward_y": -0.6724690103359868
+            },
+            "head": {
+              "yaw_degrees": -20.75168051897246,
+              "forward_y": -0.5677703298604396
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -35.01111511938654,
+              "forward_y": -0.48800160978990703
+            },
+            "neck": {
+              "yaw_degrees": -17.505557559693262,
+              "forward_y": -0.6724690103359868
+            },
+            "head": {
+              "yaw_degrees": 1.0338439991147755e-15,
+              "forward_y": -0.5677703298604397
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.53954251088594,
+              "forward_y": 0.06423405423103157
+            },
+            "neck": {
+              "yaw_degrees": -39.77100738968773,
+              "forward_y": -0.05568943165062239
+            },
+            "head": {
+              "yaw_degrees": -19.002957507826558,
+              "forward_y": -0.2076087827474685
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.53954251088594,
+              "forward_y": 0.06423405423103157
+            },
+            "neck": {
+              "yaw_degrees": -26.76977125544297,
+              "forward_y": -0.0556894316506224
+            },
+            "head": {
+              "yaw_degrees": 2.0321228486980323e-16,
+              "forward_y": -0.20760878274746852
+            }
+          }
+        }
+      }
+    },
+    "man2": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.932472671039214,
+          "forward_y": -0.15739935676614283
+        },
+        "neck": {
+          "yaw_degrees": 54.38105455622541,
+          "forward_y": -0.48682448842467946
+        },
+        "head": {
+          "yaw_degrees": 56.61676306004875,
+          "forward_y": -0.303179954900007
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.932472671039214,
+          "forward_y": -0.15739935676614283
+        },
+        "neck": {
+          "yaw_degrees": 28.966236335519596,
+          "forward_y": -0.4868244884246793
+        },
+        "head": {
+          "yaw_degrees": -3.5462498216615048e-15,
+          "forward_y": -0.30317995490000677
+        }
+      },
+      "max_face_yaw_degrees": 2.0579875799832168e-14,
+      "max_adjacent_yaw_degrees": 37.43738163055732,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.1496223626226,
+              "forward_y": -0.17256479458845783
+            },
+            "neck": {
+              "yaw_degrees": 70.28646814667415,
+              "forward_y": -0.26464645151751426
+            },
+            "head": {
+              "yaw_degrees": 75.46671205952485,
+              "forward_y": -0.1627893129976527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.1496223626226,
+              "forward_y": -0.17256479458845783
+            },
+            "neck": {
+              "yaw_degrees": 37.07481118131131,
+              "forward_y": -0.2646464515175143
+            },
+            "head": {
+              "yaw_degrees": 1.5412619402024137e-14,
+              "forward_y": -0.16278931299765273
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -35.01111511938654,
+              "forward_y": -0.48800160978990703
+            },
+            "neck": {
+              "yaw_degrees": -36.11639337853859,
+              "forward_y": -0.6724690103359868
+            },
+            "head": {
+              "yaw_degrees": -20.75168051897246,
+              "forward_y": -0.5677703298604396
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -35.01111511938654,
+              "forward_y": -0.48800160978990703
+            },
+            "neck": {
+              "yaw_degrees": -17.505557559693262,
+              "forward_y": -0.6724690103359868
+            },
+            "head": {
+              "yaw_degrees": 1.0338439991147755e-15,
+              "forward_y": -0.5677703298604397
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.53954251088594,
+              "forward_y": 0.06423405423103157
+            },
+            "neck": {
+              "yaw_degrees": -39.77100738968773,
+              "forward_y": -0.05568943165062239
+            },
+            "head": {
+              "yaw_degrees": -19.002957507826558,
+              "forward_y": -0.2076087827474685
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.53954251088594,
+              "forward_y": 0.06423405423103157
+            },
+            "neck": {
+              "yaw_degrees": -26.76977125544297,
+              "forward_y": -0.0556894316506224
+            },
+            "head": {
+              "yaw_degrees": 2.0321228486980323e-16,
+              "forward_y": -0.20760878274746852
+            }
+          }
+        }
+      }
+    },
+    "man_B": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.932472671039214,
+          "forward_y": -0.15739935676614283
+        },
+        "neck": {
+          "yaw_degrees": 54.38105455622541,
+          "forward_y": -0.48682448842467946
+        },
+        "head": {
+          "yaw_degrees": 56.61676306004875,
+          "forward_y": -0.303179954900007
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.932472671039214,
+          "forward_y": -0.15739935676614283
+        },
+        "neck": {
+          "yaw_degrees": 28.966236335519596,
+          "forward_y": -0.4868244884246793
+        },
+        "head": {
+          "yaw_degrees": -3.5462498216615048e-15,
+          "forward_y": -0.30317995490000677
+        }
+      },
+      "max_face_yaw_degrees": 2.0579875799832168e-14,
+      "max_adjacent_yaw_degrees": 37.43738163055732,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.1496223626226,
+              "forward_y": -0.17256479458845783
+            },
+            "neck": {
+              "yaw_degrees": 70.28646814667415,
+              "forward_y": -0.26464645151751426
+            },
+            "head": {
+              "yaw_degrees": 75.46671205952485,
+              "forward_y": -0.1627893129976527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.1496223626226,
+              "forward_y": -0.17256479458845783
+            },
+            "neck": {
+              "yaw_degrees": 37.07481118131131,
+              "forward_y": -0.2646464515175143
+            },
+            "head": {
+              "yaw_degrees": 1.5412619402024137e-14,
+              "forward_y": -0.16278931299765273
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -35.01111511938654,
+              "forward_y": -0.48800160978990703
+            },
+            "neck": {
+              "yaw_degrees": -36.11639337853859,
+              "forward_y": -0.6724690103359868
+            },
+            "head": {
+              "yaw_degrees": -20.75168051897246,
+              "forward_y": -0.5677703298604396
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -35.01111511938654,
+              "forward_y": -0.48800160978990703
+            },
+            "neck": {
+              "yaw_degrees": -17.505557559693262,
+              "forward_y": -0.6724690103359868
+            },
+            "head": {
+              "yaw_degrees": 1.0338439991147755e-15,
+              "forward_y": -0.5677703298604397
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.53954251088594,
+              "forward_y": 0.06423405423103157
+            },
+            "neck": {
+              "yaw_degrees": -39.77100738968773,
+              "forward_y": -0.05568943165062239
+            },
+            "head": {
+              "yaw_degrees": -19.002957507826558,
+              "forward_y": -0.2076087827474685
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.53954251088594,
+              "forward_y": 0.06423405423103157
+            },
+            "neck": {
+              "yaw_degrees": -26.76977125544297,
+              "forward_y": -0.0556894316506224
+            },
+            "head": {
+              "yaw_degrees": 2.0321228486980323e-16,
+              "forward_y": -0.20760878274746852
+            }
+          }
+        }
+      }
+    },
+    "man_kvl2": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764662804369,
+          "forward_y": -0.1376616334509991
+        },
+        "neck": {
+          "yaw_degrees": 55.08555576402701,
+          "forward_y": -0.512772702346154
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002086,
+          "forward_y": -0.3025939256228031
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764662804369,
+          "forward_y": -0.1376616334509991
+        },
+        "neck": {
+          "yaw_degrees": 28.98382331402185,
+          "forward_y": -0.5127727023461542
+        },
+        "head": {
+          "yaw_degrees": -4.1712430148049207e-16,
+          "forward_y": -0.302593925622803
+        }
+      },
+      "max_face_yaw_degrees": 1.9141297622542036e-14,
+      "max_adjacent_yaw_degrees": 37.39865355136946,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699534966208,
+              "forward_y": -0.15290429866012797
+            },
+            "neck": {
+              "yaw_degrees": 70.83993159930766,
+              "forward_y": -0.2938491172722104
+            },
+            "head": {
+              "yaw_degrees": 75.58403058230687,
+              "forward_y": -0.16237018493575275
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699534966208,
+              "forward_y": -0.15290429866012797
+            },
+            "neck": {
+              "yaw_degrees": 37.03849767483104,
+              "forward_y": -0.2938491172722105
+            },
+            "head": {
+              "yaw_degrees": 1.4102062312050977e-14,
+              "forward_y": -0.1623701849357528
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.69675878028535,
+              "forward_y": -0.4709984372578143
+            },
+            "neck": {
+              "yaw_degrees": -35.78257597938512,
+              "forward_y": -0.6954538410341812
+            },
+            "head": {
+              "yaw_degrees": -20.60864054669802,
+              "forward_y": -0.5676093455890602
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.69675878028535,
+              "forward_y": -0.4709984372578143
+            },
+            "neck": {
+              "yaw_degrees": -17.348379390142668,
+              "forward_y": -0.6954538410341812
+            },
+            "head": {
+              "yaw_degrees": 1.1831011939439317e-14,
+              "forward_y": -0.5676093455890601
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.15822354126427,
+              "forward_y": 0.0830129060732607
+            },
+            "neck": {
+              "yaw_degrees": -39.86569988274225,
+              "forward_y": -0.08736074670842144
+            },
+            "head": {
+              "yaw_degrees": -18.88310328831752,
+              "forward_y": -0.20787718345206949
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.15822354126427,
+              "forward_y": 0.0830129060732607
+            },
+            "neck": {
+              "yaw_degrees": -26.57911177063213,
+              "forward_y": -0.08736074670842145
+            },
+            "head": {
+              "yaw_degrees": 7.011231848311222e-15,
+              "forward_y": -0.20787718345206954
+            }
+          }
+        }
+      }
+    },
+    "mushketer": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.97490389582312,
+          "forward_y": -0.18718778370236422
+        },
+        "neck": {
+          "yaw_degrees": 57.55114918896339,
+          "forward_y": -0.6014087959350569
+        },
+        "head": {
+          "yaw_degrees": 56.61677004138329,
+          "forward_y": -0.30317995656199137
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.97490389582312,
+          "forward_y": -0.18718778370236422
+        },
+        "neck": {
+          "yaw_degrees": 28.987451947911527,
+          "forward_y": -0.6014087959350569
+        },
+        "head": {
+          "yaw_degrees": -2.706622671774976e-14,
+          "forward_y": -0.30317995656199137
+        }
+      },
+      "max_face_yaw_degrees": 2.706622671774976e-14,
+      "max_adjacent_yaw_degrees": 37.54455510178305,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 8.881784197001252e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.35671156689288,
+              "forward_y": -0.20207346002275217
+            },
+            "neck": {
+              "yaw_degrees": 72.66683297203245,
+              "forward_y": -0.3957267814962535
+            },
+            "head": {
+              "yaw_degrees": 75.46671897124946,
+              "forward_y": -0.16278930773594957
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.35671156689288,
+              "forward_y": -0.20207346002275217
+            },
+            "neck": {
+              "yaw_degrees": 37.178355783446456,
+              "forward_y": -0.3957267814962535
+            },
+            "head": {
+              "yaw_degrees": -6.144899787895136e-15,
+              "forward_y": -0.1627893077359495
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -35.39327595665672,
+              "forward_y": -0.5137016409855262
+            },
+            "neck": {
+              "yaw_degrees": -34.7502014702419,
+              "forward_y": -0.7714001153335209
+            },
+            "head": {
+              "yaw_degrees": -20.75167209134587,
+              "forward_y": -0.5677703881411669
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -35.39327595665672,
+              "forward_y": -0.5137016409855262
+            },
+            "neck": {
+              "yaw_degrees": -17.696637978328354,
+              "forward_y": -0.7714001153335216
+            },
+            "head": {
+              "yaw_degrees": 4.8975523367394e-15,
+              "forward_y": -0.5677703881411671
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -54.02563096840982,
+              "forward_y": 0.035231190790590075
+            },
+            "neck": {
+              "yaw_degrees": -40.428917060345434,
+              "forward_y": -0.19837645717124944
+            },
+            "head": {
+              "yaw_degrees": -19.00295044761932,
+              "forward_y": -0.2076088233374323
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -54.02563096840982,
+              "forward_y": 0.035231190790590075
+            },
+            "neck": {
+              "yaw_degrees": -27.012815484204904,
+              "forward_y": -0.19837645717124938
+            },
+            "head": {
+              "yaw_degrees": -5.8931555788293514e-15,
+              "forward_y": -0.20760882333743227
+            }
+          }
+        }
+      }
+    },
+    "mushketer_whisper": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.967618329050495,
+          "forward_y": -0.13765074913353026
+        },
+        "neck": {
+          "yaw_degrees": 55.08446438883824,
+          "forward_y": -0.5127304345766655
+        },
+        "head": {
+          "yaw_degrees": 56.73524270778774,
+          "forward_y": -0.30259395317038934
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.967618329050495,
+          "forward_y": -0.13765074913353026
+        },
+        "neck": {
+          "yaw_degrees": 28.983809164525237,
+          "forward_y": -0.5127304345766653
+        },
+        "head": {
+          "yaw_degrees": -1.585072360170347e-14,
+          "forward_y": -0.3025939531703891
+        }
+      },
+      "max_face_yaw_degrees": 3.0818144623615e-14,
+      "max_adjacent_yaw_degrees": 37.39860855837879,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07690797379148,
+              "forward_y": -0.15289353069212708
+            },
+            "neck": {
+              "yaw_degrees": 70.83909178410642,
+              "forward_y": -0.2938013724889112
+            },
+            "head": {
+              "yaw_degrees": 75.58402507415238,
+              "forward_y": -0.16237020463218949
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07690797379148,
+              "forward_y": -0.15289353069212708
+            },
+            "neck": {
+              "yaw_degrees": 37.03845398689576,
+              "forward_y": -0.29380137248891125
+            },
+            "head": {
+              "yaw_degrees": 5.439366909657857e-15,
+              "forward_y": -0.16237020463218957
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.69663975852727,
+              "forward_y": -0.47098886951348845
+            },
+            "neck": {
+              "yaw_degrees": -35.78303889726981,
+              "forward_y": -0.695416796753775
+            },
+            "head": {
+              "yaw_degrees": -20.608647262047462,
+              "forward_y": -0.567609353206617
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.69663975852727,
+              "forward_y": -0.47098886951348845
+            },
+            "neck": {
+              "yaw_degrees": -17.34831987926364,
+              "forward_y": -0.6954167967537751
+            },
+            "head": {
+              "yaw_degrees": -1.0865215115732834e-14,
+              "forward_y": -0.5676093532066168
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.1580583487329,
+              "forward_y": 0.0830234873605757
+            },
+            "neck": {
+              "yaw_degrees": -39.865473831767055,
+              "forward_y": -0.08730921611981983
+            },
+            "head": {
+              "yaw_degrees": -18.883108916245657,
+              "forward_y": -0.2078771708711639
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.1580583487329,
+              "forward_y": 0.0830234873605757
+            },
+            "neck": {
+              "yaw_degrees": -26.579029174366447,
+              "forward_y": -0.08730921611981989
+            },
+            "head": {
+              "yaw_degrees": 4.877378663754233e-15,
+              "forward_y": -0.20787717087116392
+            }
+          }
+        }
+      }
+    },
+    "mushketer_whisper_short": {
+      "gaze_joints": [
+        13,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.967618329050495,
+          "forward_y": -0.13765074913353026
+        },
+        "neck": {
+          "yaw_degrees": 55.08446438883824,
+          "forward_y": -0.5127304345766655
+        },
+        "head": {
+          "yaw_degrees": 56.73524270778774,
+          "forward_y": -0.30259395317038934
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.967618329050495,
+          "forward_y": -0.13765074913353026
+        },
+        "neck": {
+          "yaw_degrees": 28.983809164525237,
+          "forward_y": -0.5127304345766653
+        },
+        "head": {
+          "yaw_degrees": -1.585072360170347e-14,
+          "forward_y": -0.3025939531703891
+        }
+      },
+      "max_face_yaw_degrees": 3.0818144623615e-14,
+      "max_adjacent_yaw_degrees": 37.39860855837879,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07690797379148,
+              "forward_y": -0.15289353069212708
+            },
+            "neck": {
+              "yaw_degrees": 70.83909178410642,
+              "forward_y": -0.2938013724889112
+            },
+            "head": {
+              "yaw_degrees": 75.58402507415238,
+              "forward_y": -0.16237020463218949
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07690797379148,
+              "forward_y": -0.15289353069212708
+            },
+            "neck": {
+              "yaw_degrees": 37.03845398689576,
+              "forward_y": -0.29380137248891125
+            },
+            "head": {
+              "yaw_degrees": 5.439366909657857e-15,
+              "forward_y": -0.16237020463218957
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.69663975852727,
+              "forward_y": -0.47098886951348845
+            },
+            "neck": {
+              "yaw_degrees": -35.78303889726981,
+              "forward_y": -0.695416796753775
+            },
+            "head": {
+              "yaw_degrees": -20.608647262047462,
+              "forward_y": -0.567609353206617
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.69663975852727,
+              "forward_y": -0.47098886951348845
+            },
+            "neck": {
+              "yaw_degrees": -17.34831987926364,
+              "forward_y": -0.6954167967537751
+            },
+            "head": {
+              "yaw_degrees": -1.0865215115732834e-14,
+              "forward_y": -0.5676093532066168
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.1580583487329,
+              "forward_y": 0.0830234873605757
+            },
+            "neck": {
+              "yaw_degrees": -39.865473831767055,
+              "forward_y": -0.08730921611981983
+            },
+            "head": {
+              "yaw_degrees": -18.883108916245657,
+              "forward_y": -0.2078771708711639
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.1580583487329,
+              "forward_y": 0.0830234873605757
+            },
+            "neck": {
+              "yaw_degrees": -26.579029174366447,
+              "forward_y": -0.08730921611981989
+            },
+            "head": {
+              "yaw_degrees": 4.877378663754233e-15,
+              "forward_y": -0.20787717087116392
+            }
+          }
+        }
+      }
+    },
+    "skeleton": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.900715316778744,
+          "forward_y": -0.13630087417171693
+        },
+        "neck": {
+          "yaw_degrees": 54.38105656620051,
+          "forward_y": -0.48682454470715003
+        },
+        "head": {
+          "yaw_degrees": 56.616764864677386,
+          "forward_y": -0.3031799821338036
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.900715316778744,
+          "forward_y": -0.13630087417171693
+        },
+        "neck": {
+          "yaw_degrees": 28.950357658389365,
+          "forward_y": -0.4868245447071501
+        },
+        "head": {
+          "yaw_degrees": -4.119907377567714e-15,
+          "forward_y": -0.30317998213380365
+        }
+      },
+      "max_face_yaw_degrees": 1.5931666746895466e-14,
+      "max_adjacent_yaw_degrees": 37.36142740547223,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 4.440892098500626e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.00281180318328,
+              "forward_y": -0.1516586023960686
+            },
+            "neck": {
+              "yaw_degrees": 70.28646997080118,
+              "forward_y": -0.2646464824218533
+            },
+            "head": {
+              "yaw_degrees": 75.46671384615983,
+              "forward_y": -0.16278932602976437
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.00281180318328,
+              "forward_y": -0.1516586023960686
+            },
+            "neck": {
+              "yaw_degrees": 37.001405901591646,
+              "forward_y": -0.26464648242185324
+            },
+            "head": {
+              "yaw_degrees": -1.3095688112624483e-15,
+              "forward_y": -0.1627893260297644
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.751437189231865,
+              "forward_y": -0.4695984053891965
+            },
+            "neck": {
+              "yaw_degrees": -36.116391024704036,
+              "forward_y": -0.6724690937014319
+            },
+            "head": {
+              "yaw_degrees": -20.751678340486905,
+              "forward_y": -0.5677703951222791
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.751437189231865,
+              "forward_y": -0.4695984053891965
+            },
+            "neck": {
+              "yaw_degrees": -17.375718594615932,
+              "forward_y": -0.6724690937014319
+            },
+            "head": {
+              "yaw_degrees": 1.2021264896857577e-14,
+              "forward_y": -0.567770395122279
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.19762024573136,
+              "forward_y": 0.08466737694621541
+            },
+            "neck": {
+              "yaw_degrees": -39.77100571944003,
+              "forward_y": -0.055689448067935056
+            },
+            "head": {
+              "yaw_degrees": -19.002955682809834,
+              "forward_y": -0.20760881159442782
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.19762024573136,
+              "forward_y": 0.08466737694621541
+            },
+            "neck": {
+              "yaw_degrees": -26.598810122865686,
+              "forward_y": -0.055689448067935014
+            },
+            "head": {
+              "yaw_degrees": -1.82891034739086e-15,
+              "forward_y": -0.20760881159442773
+            }
+          }
+        }
+      }
+    },
+    "towngirl3": {
+      "gaze_joints": [
+        9,
+        16,
+        25
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 55.08555599708742,
+          "forward_y": -0.5127726804888931
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002092,
+          "forward_y": -0.3025939256228029
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 28.98382342811057,
+          "forward_y": -0.512772680488893
+        },
+        "head": {
+          "yaw_degrees": 5.005491617765908e-15,
+          "forward_y": -0.3025939256228027
+        }
+      },
+      "max_face_yaw_degrees": 1.5643554102816525e-14,
+      "max_adjacent_yaw_degrees": 37.398653647548144,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 2.7755575615628914e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 70.83993188046765,
+              "forward_y": -0.29384909312185625
+            },
+            "head": {
+              "yaw_degrees": 75.5840305823069,
+              "forward_y": -0.1623701849357527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 37.03849777186361,
+              "forward_y": -0.2938490931218562
+            },
+            "head": {
+              "yaw_degrees": 1.470643641113888e-14,
+              "forward_y": -0.1623701849357526
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -35.78257528665929,
+              "forward_y": -0.6954538236559964
+            },
+            "head": {
+              "yaw_degrees": -20.608640546697945,
+              "forward_y": -0.5676093455890598
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -17.34837922221374,
+              "forward_y": -0.6954538236559962
+            },
+            "head": {
+              "yaw_degrees": -6.277679804600453e-15,
+              "forward_y": -0.5676093455890597
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -39.865699131915996,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": -18.88310328831746,
+              "forward_y": -0.20787718345206968
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -26.57911160798962,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": 2.2354652269977805e-15,
+              "forward_y": -0.20787718345206968
+            }
+          }
+        }
+      }
+    },
+    "woman": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 54.49788840153065,
+          "forward_y": -0.18234609129705223
+        },
+        "neck": {
+          "yaw_degrees": 52.16854983040002,
+          "forward_y": -0.5648509880377784
+        },
+        "head": {
+          "yaw_degrees": 53.198428400767064,
+          "forward_y": -0.3194302953631581
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 54.49788840153065,
+          "forward_y": -0.18234609129705223
+        },
+        "neck": {
+          "yaw_degrees": 27.248944200765347,
+          "forward_y": -0.564850988037778
+        },
+        "head": {
+          "yaw_degrees": -2.5172960533483663e-15,
+          "forward_y": -0.31943029536315787
+        }
+      },
+      "max_face_yaw_degrees": 1.9526306582932258e-14,
+      "max_adjacent_yaw_degrees": 37.164429063526754,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 3.3306690738754696e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 70.85566983870999,
+              "forward_y": -0.20270832364207358
+            },
+            "neck": {
+              "yaw_degrees": 68.09243052437428,
+              "forward_y": -0.35065312208474
+            },
+            "head": {
+              "yaw_degrees": 72.09456690264997,
+              "forward_y": -0.17450943720673695
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 70.85566983870999,
+              "forward_y": -0.20270832364207358
+            },
+            "neck": {
+              "yaw_degrees": 35.42783491935499,
+              "forward_y": -0.3506531220847401
+            },
+            "head": {
+              "yaw_degrees": -1.5443997650639914e-14,
+              "forward_y": -0.17450943720673687
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -39.17700184881954,
+              "forward_y": -0.49788044354700906
+            },
+            "neck": {
+              "yaw_degrees": -40.321338670639314,
+              "forward_y": -0.7310706681997329
+            },
+            "head": {
+              "yaw_degrees": -24.868649481269617,
+              "forward_y": -0.571356884233669
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -39.17700184881954,
+              "forward_y": -0.49788044354700906
+            },
+            "neck": {
+              "yaw_degrees": -19.588500924409786,
+              "forward_y": -0.7310706681997329
+            },
+            "head": {
+              "yaw_degrees": -8.416895713477478e-15,
+              "forward_y": -0.5713568842336693
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -57.20885577898637,
+              "forward_y": 0.05759709139431274
+            },
+            "neck": {
+              "yaw_degrees": -43.49721149214789,
+              "forward_y": -0.1282482051504435
+            },
+            "head": {
+              "yaw_degrees": -22.434728471620346,
+              "forward_y": -0.19953865080858463
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -57.20885577898637,
+              "forward_y": 0.05759709139431274
+            },
+            "neck": {
+              "yaw_degrees": -28.604427889493174,
+              "forward_y": -0.1282482051504435
+            },
+            "head": {
+              "yaw_degrees": 1.9474957894405413e-14,
+              "forward_y": -0.19953865080858474
+            }
+          }
+        }
+      }
+    },
+    "woman2": {
+      "gaze_joints": [
+        7,
+        16,
+        21
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 54.6189578639706,
+          "forward_y": -0.33643421647736527
+        },
+        "neck": {
+          "yaw_degrees": 125.46905579182116,
+          "forward_y": -0.9801030312761441
+        },
+        "head": {
+          "yaw_degrees": 53.19864112267252,
+          "forward_y": -0.3194290930412589
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 54.6189578639706,
+          "forward_y": -0.33643421647736527
+        },
+        "neck": {
+          "yaw_degrees": 27.309478931985353,
+          "forward_y": -0.9801030312761437
+        },
+        "head": {
+          "yaw_degrees": 4.195495003714115e-15,
+          "forward_y": -0.319429093041259
+        }
+      },
+      "max_face_yaw_degrees": 3.9535339333326285e-14,
+      "max_adjacent_yaw_degrees": 37.4627749260382,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 6.661338147750939e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 71.8791139733463,
+              "forward_y": -0.3550532764206963
+            },
+            "neck": {
+              "yaw_degrees": 97.54125431075896,
+              "forward_y": -0.9437021680681642
+            },
+            "head": {
+              "yaw_degrees": 72.09477600626379,
+              "forward_y": -0.17450860436732704
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 71.8791139733463,
+              "forward_y": -0.3550532764206963
+            },
+            "neck": {
+              "yaw_degrees": 35.939556986673146,
+              "forward_y": -0.9437021680681641
+            },
+            "head": {
+              "yaw_degrees": -0.0,
+              "forward_y": -0.17450860436732674
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -41.81481399984243,
+              "forward_y": -0.6259525251298023
+            },
+            "neck": {
+              "yaw_degrees": 139.03550740003,
+              "forward_y": -0.9846306767235875
+            },
+            "head": {
+              "yaw_degrees": -24.86839401163728,
+              "forward_y": -0.5713563113629705
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -41.81481399984243,
+              "forward_y": -0.6259525251298023
+            },
+            "neck": {
+              "yaw_degrees": -20.907406999921232,
+              "forward_y": -0.984630676723587
+            },
+            "head": {
+              "yaw_degrees": 2.4221296841266835e-15,
+              "forward_y": -0.57135631136297
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -59.754242014633746,
+              "forward_y": -0.09570744952416807
+            },
+            "neck": {
+              "yaw_degrees": -55.8541248956096,
+              "forward_y": -0.86262309358874
+            },
+            "head": {
+              "yaw_degrees": -22.434516471166464,
+              "forward_y": -0.19953902799083637
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -59.754242014633746,
+              "forward_y": -0.09570744952416807
+            },
+            "neck": {
+              "yaw_degrees": -29.877121007316862,
+              "forward_y": -0.8626230935887398
+            },
+            "head": {
+              "yaw_degrees": 2.1909345835331394e-14,
+              "forward_y": -0.1995390279908363
+            }
+          }
+        }
+      }
+    },
+    "woman_A2": {
+      "gaze_joints": [
+        7,
+        11,
+        16
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 54.49811345330429,
+          "forward_y": -0.1823521193689856
+        },
+        "neck": {
+          "yaw_degrees": 52.16949292025677,
+          "forward_y": -0.5648795577255552
+        },
+        "head": {
+          "yaw_degrees": 53.198645797655786,
+          "forward_y": -0.31942915012892936
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 54.49811345330429,
+          "forward_y": -0.1823521193689856
+        },
+        "neck": {
+          "yaw_degrees": 27.249056726652146,
+          "forward_y": -0.564879557725555
+        },
+        "head": {
+          "yaw_degrees": 1.258648182481709e-15,
+          "forward_y": -0.3194291501289293
+        }
+      },
+      "max_face_yaw_degrees": 2.3523888111128935e-14,
+      "max_adjacent_yaw_degrees": 37.164332381129924,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 5.551115123125783e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 70.85592826461212,
+              "forward_y": -0.20271394639229856
+            },
+            "neck": {
+              "yaw_degrees": 68.09318564491365,
+              "forward_y": -0.3506861122402172
+            },
+            "head": {
+              "yaw_degrees": 72.09478060172904,
+              "forward_y": -0.17450863168730812
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 70.85592826461212,
+              "forward_y": -0.20271394639229856
+            },
+            "neck": {
+              "yaw_degrees": 35.42796413230607,
+              "forward_y": -0.3506861122402173
+            },
+            "head": {
+              "yaw_degrees": 6.86400133748705e-15,
+              "forward_y": -0.17450863168730815
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -39.17685101654574,
+              "forward_y": -0.49788632291607693
+            },
+            "neck": {
+              "yaw_degrees": -40.32092104132259,
+              "forward_y": -0.7310956761003742
+            },
+            "head": {
+              "yaw_degrees": -24.86838839718722,
+              "forward_y": -0.5713564481475428
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -39.17685101654574,
+              "forward_y": -0.49788632291607693
+            },
+            "neck": {
+              "yaw_degrees": -19.58842550827287,
+              "forward_y": -0.7310956761003742
+            },
+            "head": {
+              "yaw_degrees": 1.1020687323660805e-14,
+              "forward_y": -0.571356448147543
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -57.20874637600527,
+              "forward_y": 0.05759005987775471
+            },
+            "neck": {
+              "yaw_degrees": -43.49722285464953,
+              "forward_y": -0.12828532906851525
+            },
+            "head": {
+              "yaw_degrees": -22.434511812036334,
+              "forward_y": -0.1995390884473419
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -57.20874637600527,
+              "forward_y": 0.05759005987775471
+            },
+            "neck": {
+              "yaw_degrees": -28.604373188002647,
+              "forward_y": -0.12828532906851522
+            },
+            "head": {
+              "yaw_degrees": -9.534620406021973e-15,
+              "forward_y": -0.1995390884473419
+            }
+          }
+        }
+      }
+    },
+    "woman_B": {
+      "gaze_joints": [
+        9,
+        16,
+        25
+      ],
+      "guard_before": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 55.08555599708742,
+          "forward_y": -0.5127726804888931
+        },
+        "head": {
+          "yaw_degrees": 56.73524827002092,
+          "forward_y": -0.3025939256228029
+        }
+      },
+      "guard_after": {
+        "chest": {
+          "yaw_degrees": 57.96764685622111,
+          "forward_y": -0.137661627258962
+        },
+        "neck": {
+          "yaw_degrees": 28.98382342811057,
+          "forward_y": -0.512772680488893
+        },
+        "head": {
+          "yaw_degrees": 5.005491617765908e-15,
+          "forward_y": -0.3025939256228027
+        }
+      },
+      "max_face_yaw_degrees": 1.5643554102816525e-14,
+      "max_adjacent_yaw_degrees": 37.398653647548144,
+      "max_root_error_m": 0.0,
+      "max_wrist_error_m": 0.0,
+      "max_non_gaze_local_quat_error": 0.0,
+      "max_head_tilt_error": 2.7755575615628914e-16,
+      "actions": {
+        "unarmed_jab": {
+          "frames": 15,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 70.83993188046765,
+              "forward_y": -0.29384909312185625
+            },
+            "head": {
+              "yaw_degrees": 75.5840305823069,
+              "forward_y": -0.1623701849357527
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": 74.07699554372724,
+              "forward_y": -0.15290429214693613
+            },
+            "neck": {
+              "yaw_degrees": 37.03849777186361,
+              "forward_y": -0.2938490931218562
+            },
+            "head": {
+              "yaw_degrees": 1.470643641113888e-14,
+              "forward_y": -0.1623701849357526
+            }
+          }
+        },
+        "unarmed_cross": {
+          "frames": 20,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -35.78257528665929,
+              "forward_y": -0.6954538236559964
+            },
+            "head": {
+              "yaw_degrees": -20.608640546697945,
+              "forward_y": -0.5676093455890598
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -34.696758444427466,
+              "forward_y": -0.4709984325980999
+            },
+            "neck": {
+              "yaw_degrees": -17.34837922221374,
+              "forward_y": -0.6954538236559962
+            },
+            "head": {
+              "yaw_degrees": -6.277679804600453e-15,
+              "forward_y": -0.5676093455890597
+            }
+          }
+        },
+        "unarmed_uppercut": {
+          "frames": 22,
+          "contact_before": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -39.865699131915996,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": -18.88310328831746,
+              "forward_y": -0.20787718345206968
+            }
+          },
+          "contact_after": {
+            "chest": {
+              "yaw_degrees": -53.15822321597926,
+              "forward_y": 0.08301291081412124
+            },
+            "neck": {
+              "yaw_degrees": -26.57911160798962,
+              "forward_y": -0.08736072465830504
+            },
+            "head": {
+              "yaw_degrees": 2.2354652269977805e-15,
+              "forward_y": -0.20787718345206968
+            }
+          }
+        }
+      }
+    }
+  },
+  "summary": {
+    "max_face_yaw_degrees": 3.9535339333326285e-14,
+    "max_adjacent_yaw_degrees": 49.37233109308176,
+    "max_root_error_m": 0.0,
+    "max_wrist_error_m": 0.0,
+    "max_non_gaze_local_quat_error": 0.0,
+    "max_head_tilt_error": 8.881784197001252e-16
+  },
+  "authoring_performance": {
+    "consumer": "make_strikes(man)+make_strikes(Jessika), all57 frames each, repeated warm authoring; includes parsing/calibration/floor support",
+    "ms": {
+      "baseline": [
+        524.8621249920689,
+        517.1365419519134,
+        529.6561669674702,
+        527.6442920439877,
+        518.9683339558542
+      ],
+      "candidate": [
+        573.4804169624113,
+        546.3250830071047,
+        554.4966669986024,
+        549.8995420057327,
+        543.6914580059238
+      ]
+    },
+    "median_ms": {
+      "baseline": 524.8621249920689,
+      "candidate": 549.8995420057327
+    },
+    "runtime_effect": "None: baked action frame counts and animation update path unchanged"
+  }
+}

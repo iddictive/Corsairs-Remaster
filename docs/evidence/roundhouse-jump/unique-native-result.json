@@ -1,0 +1,44 @@
+[
+  {
+    "case": "fighter",
+    "exit": 0,
+    "seconds": 0.5257111249957234,
+    "stdout": "DURATION 2 strike=0.86..1.52\ncase=fighter supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.176376 hits=1 hp=442.000000 ragdolls=1 physical_displacement=1.249021 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=41.831000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "jump",
+    "exit": 0,
+    "seconds": 0.24433970800600946,
+    "stdout": "DURATION 1.4 strike=0.602..1.064\ncase=jump supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.185788 hits=1 hp=385.000000 ragdolls=1 physical_displacement=1.433838 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=41.752000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "wall",
+    "exit": 0,
+    "seconds": 0.20030500000575557,
+    "stdout": "DURATION 1.4 strike=0.602..1.064\ncase=wall supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.032795 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=1 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.771000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "far",
+    "exit": 0,
+    "seconds": 0.21039262495469302,
+    "stdout": "DURATION 1.4 strike=0.602..1.064\ncase=far supervisor_spacing=1.500000 final_spacing=2.400000 heel_head_min=0.907872 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.688000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "immortal",
+    "exit": 0,
+    "seconds": 0.20094583398895338,
+    "stdout": "DURATION 1.4 strike=0.602..1.064\ncase=immortal supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.032795 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.719000 frames=140\n",
+    "stderr": ""
+  },
+  {
+    "case": "same-group",
+    "exit": 0,
+    "seconds": 0.20823279197793454,
+    "stdout": "DURATION 1.4 strike=0.602..1.064\ncase=same-group supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.032795 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1\nnative_selected=1 final_yaw=0.000000 replay_cpu_ms=0.772000 frames=140\n",
+    "stderr": ""
+  }
+]

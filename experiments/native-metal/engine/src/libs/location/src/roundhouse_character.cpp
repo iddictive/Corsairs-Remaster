@@ -205,6 +205,14 @@ bool Character::StartRoundhouse(bool jumping)
     int32_t allowed = 0;
     auto *answer = core.Event("Roundhouse_TryStart", "il", GetId(), jumping ? 1 : 0);
     if (!answer || !answer->Get(allowed) || !allowed) return false;
+    // Each authored action owns its tempo. Preserve the contact phase when
+    // alternating K and L; the airborne clip has its own shorter duration.
+    const float strikeStart = state.strikeStartTime/state.kickDuration;
+    const float strikeEnd = state.strikeEndTime/state.kickDuration;
+    const auto &player = state.bank->Player(0);
+    state.kickDuration = player.GetFrames()/(state.bank->GetFPS()*player.GetDefSpeed());
+    state.strikeStartTime = strikeStart*state.kickDuration;
+    state.strikeEndTime = strikeEnd*state.kickDuration;
     CapturePalette(*Model()->GetAnimation(), state.blendFrom);
     state.strikeOrigin = JointWorld(*Model()->GetAnimation(),Model()->mtx,state.rig.bodies[1].joint).Pos();
     ClearUnarmedPose();

@@ -158,6 +158,8 @@ class Retargeter:
         # Detailed rigs' semantic head is the face/finger-like fan attachment.
         if sum(parent == head for parent in r["parents"]) >= 3: head = r["parents"][head]
         neck = r["parents"][head]
+        self.gaze_joints = (body[1], neck, head)
+        self.forward = {j: rotate(qi(bg[j]), (0., 0., 1.)) for j in self.gaze_joints}
         if neck != body[1]:
             mapping(neck, "Neck", sub(bp[head], bp[neck]), lateral_t,
                     sub(sp[ids["Head"]], sp[ids["Neck"]]), lateral_s)
@@ -220,6 +222,29 @@ class Retargeter:
             world.append(qm(parent_q, q[joint]))
         return self.supported(root, q)
 
+    def combat_gaze(self, root, q):
+        """Aim the native face at the opponent after captured-pose blending."""
+        q = list(q)
+        _, world = fk(self.rig, q, root)
+        chest, neck, head = self.gaze_joints
+
+        def heading(joint):
+            forward = rotate(world[joint], self.forward[joint])
+            return math.atan2(forward[0], forward[2])
+
+        # Combat gaze is native-owned: the capture's single head end defines up,
+        # not its facial heading. Share the chest-to-opponent turn evenly across
+        # the actual neck/head; world-Y turns retain the recorded tilt and leave
+        # the captured chest, arms, fists and foot contacts untouched.
+        neck_world = qm(axis((0., 1., 0.), heading(chest) * .5 - heading(neck)), world[neck])
+        head_world = qm(axis((0., 1., 0.), -heading(head)), world[head])
+        if neck != chest:
+            q[neck] = unit(qm(qi(world[self.rig["parents"][neck]]), neck_world))
+        else:
+            neck_world = world[neck]
+        q[head] = unit(qm(qi(neck_world), head_world))
+        return root, q
+
     def supported(self, root, q):
         """Preserve sole support after native guard transitions as well."""
         native, native_q = fk(self.rig, q, root)
@@ -254,7 +279,8 @@ def make_guard(source, hand_pose=None):
     """The shared orthodox guard, captured before the right cross loading."""
     recipe = json.loads(RECIPE.read_text())
     row = recipe["actions"][recipe["guard"]["action"]]
-    return Retargeter(source, load_capture(row), hand_pose).pose(recipe["guard"]["source_frame"])
+    retarget = Retargeter(source, load_capture(row), hand_pose)
+    return retarget.combat_gaze(*retarget.pose(recipe["guard"]["source_frame"]))
 
 
 def make_strikes(source, hand_pose=None, guard=None):
@@ -268,6 +294,12 @@ def make_strikes(source, hand_pose=None, guard=None):
     """
     recipe = json.loads(RECIPE.read_text()); actions = {}
     guard = make_guard(source, hand_pose) if guard is None else guard
+    guard_row = recipe["actions"][recipe["guard"]["action"]]
+    guard_retarget = Retargeter(source, load_capture(guard_row), hand_pose)
+    recorded_guard = guard_retarget.pose(recipe["guard"]["source_frame"])
+    transition_guard = list(guard[1])
+    for joint in guard_retarget.gaze_joints[1:]:
+        transition_guard[joint] = recorded_guard[1][joint]
     guard_points, _ = fk(source_rig(source), guard[1], guard[0])
     for action, row in recipe["actions"].items():
         capture = load_capture(row)
@@ -286,7 +318,7 @@ def make_strikes(source, hand_pose=None, guard=None):
             if amount < 1.:
                 amount = amount*amount*(3-2*amount)
                 root = add(guard[0], scale(sub(root, guard[0]), amount))
-                pose = [blend(a,b,amount) for a,b in zip(guard[1],pose)]
+                pose = [blend(a,b,amount) for a,b in zip(transition_guard,pose)]
             # Different leg proportions cannot preserve captured contact from
             # rotations alone. Transfer recorded ankle displacement and knee
             # plane to metric native legs; hands remain fully capture-driven.
@@ -315,6 +347,6 @@ def make_strikes(source, hand_pose=None, guard=None):
                 foot_rotation = world[native[2]]
                 limb(retarget.rig, pose, root, native, target, pole)
                 global_orientation(retarget.rig, pose, root, native[2], foot_rotation)
-            frames[index] = retarget.supported(root, pose)
+            frames[index] = retarget.combat_gaze(*retarget.supported(root, pose))
         actions[action] = frames
     return actions

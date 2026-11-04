@@ -532,27 +532,63 @@ def kick(source, spec):
     return poses, offset, checks
 
 
-def jump_kick(source, spec, ground_poses):
-    """Lift the authored spin off its support foot while retaining its heel path."""
+def jump_kick(source, spec):
+    """A separate aerial hook: crouch, tucked turn, heel release and landing."""
     r = source_rig(source)
     body = source["body"]["joints"]
-    striking = body[12:15]
+    support, striking = body[9:12], body[12:15]
     _, bindg = fk(r, source["bind_pose"], source["bind_root"])
+    aerial = dict(spec, **spec["jump_choreography"])
+    # Reuse the metric contact/leg/landing solver with independently authored
+    # body and leg curves. K's pose sequence is not an input to this action.
+    seed, offset, checks = kick(source, aerial)
+    takeoff, landing = aerial["flight_interval"]
+    corrections = [[0., 0., 0., 0.], [.22, 0., 0., 0.]]
+    for frame, target in ((spec["near_contact_frame"], checks["near_head_animation_xyz"]),
+                          (spec["contact_frame"], checks["heel_target_xyz"])):
+        p, g = fk(r, seed[frame][1], seed[frame][0])
+        heel = add(p[striking[2]], rotate(g[striking[2]], offset))
+        corrections.append([frame/(len(seed)-1), *sub(target, heel)])
+    corrections += [[.76, 0., 0., 0.], [1., 0., 0., 0.]]
     result = []
-    for frame, (ground_root, ground_q) in enumerate(ground_poses):
-        t = frame / (len(ground_poses) - 1)
-        flight = max(0., min(1., (t-.12)/.71))
-        height = spec["jump_height_m"] * 4 * flight * (1-flight)
+    for frame, (ground_root, ground_q) in enumerate(seed):
+        t = frame / (len(seed) - 1)
+        flight = max(0., min(1., (t-takeoff)/(landing-takeoff)))
+        height = aerial["height_m"] * 4 * flight * (1-flight)
         root = add(ground_root, (0., height, 0.))
         q = list(ground_q)
-        # Preserve the ground spin's actual striking-foot trajectory in the
-        # contact window, so the same physical sweep reaches the target.
-        weight = smooth((t-.32)/.10) * (1-smooth((t-.72)/.10))
+        air = smooth((t-takeoff)/.08)*(1-smooth((t-(landing-.12))/.12))
+        # The launch leg folds beneath the pelvis in flight; it is not the
+        # planted pivot retained by the ordinary spinning heel kick.
+        before = list(q)
+        authored_leg(r, q, support, curve(aerial["support_leg_keys"], t, True), source, bindg)
+        for joint in support: q[joint] = blend(before[joint], q[joint], air)
+        # Tuck both arms during the turn, then open them for counterbalance.
+        p, g = fk(r, q, root)
+        spread = curve(aerial["arm_spread_keys"], t, True)[0]
+        for ids, side in ((body[3:6], 1.), (body[6:9], -1.)):
+            target = add(p[body[1]], rotate(g[body[1]], rotate(qi(bindg[body[1]]),
+                         scale((side*(.10+.14*spread), -.03-.04*spread, .14-.20*spread), source["body"]["height"]))))
+            pole = rotate(g[body[1]], rotate(qi(bindg[body[1]]), (side, -.6, -.2)))
+            before = list(q)
+            limb(r, q, root, ids, target, pole)
+            for joint in ids[:2]: q[joint] = blend(before[joint], q[joint], air)
+        # The independent seed closes the same near/far contact contract.
+        # Adapt the leg to the jump height without moving the animated heel
+        # away from that strike path while it can deliver damage.
+        weight = smooth((t-.30)/.10) * (1-smooth((t-.70)/.06))
         if weight:
             p, g = fk(r, ground_q, ground_root)
             before = list(q)
             pole = bend_pole(p, striking)
-            hinge_leg(r, q, root, striking, p[striking[2]], pole, source, bindg)
+            target = add(p[striking[2]], curve(corrections, t, True))
+            current, _ = fk(r, q, root)
+            reach = sum(math.sqrt(dot(r["rest"][j], r["rest"][j])) for j in striking[1:])*.995
+            delta = sub(target, current[striking[0]])
+            distance = math.sqrt(dot(delta, delta))
+            if distance > reach:
+                root = add(root, scale(delta, weight*(distance-reach)/distance))
+            hinge_leg(r, q, root, striking, target, pole, source, bindg)
             global_orientation(r, q, root, striking[2], g[striking[2]])
             for joint in striking:
                 q[joint] = blend(before[joint], q[joint], weight)
@@ -666,7 +702,7 @@ def prepare(write_manifest=True, expected_manifest=None):
         if name in hero_rigs:
             poses, offset, check = kick(source, spec)
             actions["roundhouse_kick"] = poses
-            actions["roundhouse_jump"] = jump_kick(source, spec, poses)
+            actions["roundhouse_jump"] = jump_kick(source, spec)
         support = bind_skin(source, source["support_mesh"]["vertices"]) if "support_mesh" in source else None
         actions.update(getup_front=getup(source, spec, True, support), getup_back=getup(source, spec, False, support))
         data, ranges = pack(source, actions, spec["fps"])
@@ -692,7 +728,8 @@ def prepare(write_manifest=True, expected_manifest=None):
         save(f"RESOURCE/animation/{bank}.an", data)
         text = f"animation = {bank}.an\n\n"
         for action, (first, last) in ranges.items():
-            text += (f"[{action}]\nspeed = 1.0\nloop = false\ntype = normal\nstart_time = {first}\nend_time = {last}\n"
+            speed = f'{(last-first)/(spec["fps"]*spec["jump_choreography"]["duration_s"]):.9g}' if action == "roundhouse_jump" else "1.0"
+            text += (f"[{action}]\nspeed = {speed}\nloop = false\ntype = normal\nstart_time = {first}\nend_time = {last}\n"
                      f'data = "Blend time", "0.0"\n\n')
         save(f"RESOURCE/animation/{bank}.ani", text.encode("ascii"))
         banks[name] = {"bank": bank, "heel_offset": offset, "actions": ranges}

@@ -35,12 +35,12 @@ def deform(vertices, source, animation, frame):
     return skin_coordinates(p, q, bind_skin(source, vertices))
 
 
-def panel(canvas, box, points, faces, label, target=None, azimuth=-55, target_mesh=None):
+def panel(canvas, box, points, faces, label, target=None, azimuth=-55, target_mesh=None, view_height=2.25):
     x, y, width, height = box
     draw = ImageDraw.Draw(canvas)
     draw.rectangle((x, y, x+width-1, y+height-1), fill=(24,29,37), outline=(57,65,78))
     a = math.radians(azimuth); right = (math.cos(a), 0., -math.sin(a)); forward = (math.sin(a), .15, math.cos(a))
-    zoom = min(width/2.4, (height-40)/2.25)
+    zoom = min(width/2.4, (height-40)/view_height)
     center = (0., 0., .55) if target_mesh is not None else (0., 0., 0.)
     def project(p): return (x+width*.5+dot(sub(p,center),right)*zoom, y+height-26-p[1]*zoom)
     ground = [project((-1,0,-.7)),project((1,0,-.7)),project((1,0,1)),project((-1,0,1))]

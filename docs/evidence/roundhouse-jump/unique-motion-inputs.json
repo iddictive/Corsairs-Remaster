@@ -1,0 +1,20 @@
+{
+  "baseline_commit": "b09b887374411b2fc99b30d49aa774519848f092",
+  "conditions": "CPU real native character/animation/Jolt/gameplay VM; no game window or player state; candidate resources overlaid in isolated scratch",
+  "source_sha256": {
+    "tools/prepare_roundhouse.py": "dc12757fcf6a89f396a0b81ce1c8a0fb1d490397ff192bc128e7611591fe6db8",
+    "src/assets/roundhouse/recipe.json": "487d445b18507bc433aad9caf2c11a0a7916d25f4ec25b4988a16958ff8ba8a2",
+    "src/assets/roundhouse/manifest.json": "32e8163f5dee51c574e662da610410a1ae27b8e2cb0e63b65a87399063c33a22",
+    "experiments/native-metal/engine/src/libs/location/src/roundhouse_character.cpp": "a196ca069ad01e5ba8d25c1ccc31c6e24cf5df218b5a82266287a5061f847357"
+  },
+  "fixture_sha256": "02c6aafe0c0019064ee05ece30d30e422f060216843ad40cde73f13c0621721e",
+  "old_K_frames_unchanged": {
+    "Danielle": true,
+    "Jessika": true,
+    "YokoDias": true,
+    "man": true,
+    "man1": true,
+    "man2": true
+  },
+  "jump_duration_s": 1.4
+}

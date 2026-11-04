@@ -2,6 +2,15 @@
 
 ## Recorded boxing and native strike timing, 2026-11-04
 
+The subsequent facing repair keeps every recorded body/arm/root sample intact
+and aims the native face at the opponent through the actual neck and head.
+The previous guard faced about 57° sideways. [Facing measurements and the
+full-body comparison](facing/measurements.json) cover all 24 rigs; the
+[comparison image](facing/guard-full-body.png) shows man and Jessika.
+Reproduce with `python3 docs/evidence/unarmed-boxing/facing/replay.py /caller-owned-output`.
+The body-motion sheets and native measurements below precede this gaze-only
+correction; they continue to describe the unchanged body and strike timing.
+
 The earlier procedural candidate in `fb4ae910` was rejected in gameplay for
 body rotation, slow attacks and insufficient extension. Its historical
 [pose measurements](pose-metrics.json) remain evidence of that candidate,

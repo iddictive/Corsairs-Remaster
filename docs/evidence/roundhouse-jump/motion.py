@@ -14,5 +14,5 @@ for i in range(31):
     points=r.deform(vertices,source[name],anim,first+phase)
     for view,angle in enumerate((-55,65)):
         x=(i%8)*200; y=(i//8)*460+view*230
-        r.panel(sheet,(x,y,200,230),points,faces,f'{phase/60:.2f}s / {angle}',azimuth=angle,target_mesh=target)
+        r.panel(sheet,(x,y,200,230),points,faces,f'{phase/120*recipe["jump_choreography"]["duration_s"]:.2f}s / {angle}',azimuth=angle,target_mesh=target,view_height=3.1)
 sheet.save(OUTPUT/'motion.png')
