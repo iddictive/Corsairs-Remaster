@@ -1,6 +1,12 @@
 object	AIBalls;
 aref	Grapes, Knippels, Balls, Bombs;
 
+void Ball_CreateNavalEffect(string name, float x, float y, float z, float rx, float ry, float rz, int category)
+{
+	if (!CreateParticleEntity()) return;
+	SendMessage(&Particles, "lsffffffll", PS_CREATE_NAVAL_EFFECT, name, x, y, z, rx, ry, rz, 5, category);
+}
+
 // ------------------- Current Ball Info -------------------
 // AIBalls.CurrentBallType = GOOD_BALLS, GOOD_KNIPPELS, ... etc
 // AIBalls.CurrentBallCannonType = CANNON_TYPE_CULVERINE_LBS8, CANNON_TYPE_CULVERINE_LBS12, ... etc
@@ -226,7 +232,7 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 
 	fCannons = 15.0 + MOD_SKILL_ENEMY_RATE - fCannons;
 
-	if (fCannons > 0.0 && RealShips[sti(aCharacter.ship.type)].BaseName != "fort") // fix
+	if (fCannons > 0.0 && !Cannon_HasDebugUnlimitedAmmo(aCharacter) && RealShips[sti(aCharacter.ship.type)].BaseName != "fort") // fix
 	{
 		if (fCannons > rand(100))
 		{
@@ -289,7 +295,7 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 		if (sti(aCharacter.ship.type) >= SHIP_CORVETTE)	{ sParticleName = "cancloud_fire_big"; }
 	}
 	//if (rand(1) == 0) // boal оптимизация дыма
-	CreateParticleSystem(sParticleName, fX, fY, fZ, -fHeightAng - (fCannonHeightMultiply - 1.0) * 0.1, fDirAng, 0.0, 5);
+	Ball_CreateNavalEffect(sParticleName, fX, fY, fZ, -fHeightAng - (fCannonHeightMultiply - 1.0) * 0.1, fDirAng, 0.0, 1);
 	Play3DSound(rCannon.Sound, fX, fY, fZ);
 }
 
@@ -315,18 +321,18 @@ void Ball_WaterHitEvent()
 
 	if (sti(AIBalls.CurrentAirburstFragment))
 	{
-		CreateParticleSystem("splash", X, Y, Z, 0.0, 0.0, 0.0, 5);
+		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 2);
 	}
 	else if (sti(AIBalls.CurrentBallCannonType) >= 0)
 	{
 		ref rCannon = GetCannonByType(sti(AIBalls.CurrentBallCannonType));
 
-		if (sti(rCannon.BigBall))	{ CreateParticleSystem("splash_big", X, Y, Z, 0.0, 0.0, 0.0, 5); }
-		else						{ CreateParticleSystem("splash", X, Y, Z, 0.0, 0.0, 0.0, 5); }
+		if (sti(rCannon.BigBall))	{ Ball_CreateNavalEffect("splash_big", X, Y, Z, 0.0, 0.0, 0.0, 2); }
+		else						{ Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 2); }
 	}
 	else
 	{
-		CreateParticleSystem("splash", X, Y, Z, 0.0, 0.0, 0.0, 5);
+		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 2);
 	}
 
 	Play3DSound("ball_splash", x, y, z);

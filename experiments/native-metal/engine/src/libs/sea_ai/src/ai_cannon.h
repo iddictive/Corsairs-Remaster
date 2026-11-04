@@ -62,6 +62,7 @@ class AICannon
     void Init(AIAttributesHolder *_pAHolder, entid_t eid, GEOS::LABEL &lbl);
 
     void Execute(float fDeltaTime);
+    void FinishQueuedFireNow();
 
     static float CalcMaxFireDistance(float fFireHeight, float fSpeedV0, float fAngle);
     static bool UsesFixedBallisticFrame(ATTRIBUTES *character);

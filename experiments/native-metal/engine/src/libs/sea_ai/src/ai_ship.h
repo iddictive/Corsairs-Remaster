@@ -211,6 +211,9 @@ class AIShip : public VAI_INNEROBJ
     AIShipSpeedController *pSpeedController;
 
     DTimer dtFireTime, dtCheckSituation, dtUpdateSeaAIAttributes;
+    bool heldFireArmed = false;
+    uint32_t heldFireMode = 0;
+    double heldFireSeconds = 0.0, heldFireDebt = 0.0;
 
     std::string sGroupName;
     entid_t eidShip;

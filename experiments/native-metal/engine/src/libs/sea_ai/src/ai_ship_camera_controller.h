@@ -19,12 +19,8 @@ class AIShipCameraController
     AIShip *pOurAIShip;
     ATTRIBUTES *pACrosshair;
 
-    bool isCameraOutside() const
-    {
-        return bCameraOutside;
-    };
-
   public:
+    bool isCameraOutside() const { return bCameraOutside; }
     bool References(ATTRIBUTES *character) const { return pTargetAPointer == character; }
     void ForgetCharacter(ATTRIBUTES *character)
     {

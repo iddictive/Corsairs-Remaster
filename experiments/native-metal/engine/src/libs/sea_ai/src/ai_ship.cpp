@@ -115,6 +115,65 @@ void AIShip::Execute(float fDeltaTime)
     if (!isDead())
     {
         GetCannonController()->Execute(fDeltaTime);
+        if (isMainCharacter() && !isAIControlled() && core.Controls && pCameraController)
+        {
+            CONTROL_STATE fire{};
+            core.Controls->GetControlState("Ship_Fire", fire);
+            auto *character = GetACharacter();
+            if (auto *cancel = character->FindAClass(character, "Ship.Cannons.CancelHeldFire"))
+            {
+                character->DeleteAttributeClassX(cancel);
+                heldFireArmed = false;
+            }
+            if (fire.state != CST_ACTIVE && fire.state != CST_ACTIVATED) { heldFireArmed = false; }
+            else
+            {
+                auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+                auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
+                const bool active = phonk && phonk->GetAttributeAsDword("Active");
+                const uint32_t weapon = active ? phonk->GetAttributeAsDword("Weapon", 6) : 0;
+                auto *cheats = character->FindAClass(character, "DebugCheats");
+                const bool instant = cheats && cheats->GetAttributeAsDword("InstantCannonReload", 0);
+                const uint32_t mode = (active ? 0x100u + weapon : 0u) | (pCameraController->isCameraOutside() ? 0x1000u : 0u) |
+                    (GetCannonController()->IsSingleFireMode() ? 0x2000u : 0u) | (instant ? 0x4000u : 0u);
+                const bool special = active && (weapon == 6 || weapon == 7);
+                auto *allowed = core.Event("Ship_CanRepeatFire");
+                const bool canRepeat = allowed && allowed->GetInt() && !special;
+                if (!canRepeat) heldFireArmed = false;
+                else if (fire.state == CST_ACTIVATED) { heldFireArmed = true; heldFireMode = mode; }
+                else if (heldFireMode != mode) heldFireArmed = false;
+                else if (heldFireArmed && instant)
+                {
+                    // Complete the ordinary press's already queued salvo through each
+                    // gun's normal shot/load lifecycle before scheduling repeats.
+                    auto *controller = GetCannonController();
+                    controller->FinishQueuedFireNow();
+                    if (!character->FindAClass(character, "DebugCheats.Pending"))
+                    {
+                        const double dt = std::max(0.0, double(fDeltaTime));
+                        const double before = std::min(heldFireSeconds, 10.0);
+                        const double after = std::min(heldFireSeconds + dt, 10.0);
+                        const double afterRamp = std::max(0.0, heldFireSeconds + dt - 10.0) -
+                                                 std::max(0.0, heldFireSeconds - 10.0);
+                        heldFireDebt += 2.0 * dt + 2.9 * (after * after - before * before) + 58.0 * afterRamp;
+                        heldFireSeconds += dt;
+                        // Preserve excess debt for the next frame if a long frame stalls.
+                        for (int n = 0; n < 120 && heldFireDebt + 1e-9 >= 1.0; ++n)
+                        {
+                            if (!controller->HasReadyFire()) { heldFireDebt = 0.0; break; }
+                            Fire(pCameraController->isCameraOutside());
+                            if (!controller->HasPendingFire()) { heldFireDebt = 0.0; break; }
+                            controller->FinishQueuedFireNow();
+                            heldFireDebt -= 1.0;
+                        }
+                    }
+                }
+                else if (heldFireArmed && !GetCannonController()->HasPendingFire() && GetCannonController()->HasReadyFire())
+                    Fire(pCameraController->isCameraOutside());
+            }
+        }
+        else heldFireArmed = false;
+        if (!heldFireArmed) { heldFireSeconds = 0.0; heldFireDebt = 0.0; }
         if (!GetMoveController()->ExecuteTsunami(fDeltaTime))
         {
             GetTaskController()->Execute(fDeltaTime);
@@ -131,6 +190,7 @@ void AIShip::Execute(float fDeltaTime)
                 Fire(true);
         }
     }
+    else { heldFireArmed = false; heldFireSeconds = 0.0; heldFireDebt = 0.0; }
     auto *pShip = static_cast<SHIP_BASE *>(GetShipPointer());
     Assert(pShip);
 

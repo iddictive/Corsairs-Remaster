@@ -288,11 +288,7 @@ void AIShipCannonController::Execute(float fDeltaTime)
     if (GetAIShip()->isMainCharacter() &&
         GetAIShip()->GetACharacter()->FindAClass(GetAIShip()->GetACharacter(), "DebugCheats.Pending"))
     {
-        bool queued = false;
-        for (const auto &bort : aShipBorts)
-            for (const auto &cannon : bort.aCannons)
-                queued |= cannon.isFired();
-        if (!queued)
+        if (!HasPendingFire())
         {
             Reload(); // Return/discard all rounds under the old policy before flipping flags.
             core.Event("Cannon_ApplyPendingCheats", "a", GetAIShip()->GetACharacter());
@@ -357,7 +353,10 @@ void AIShipCannonController::Execute(float fDeltaTime)
                     dwReadyCannonsBefore++;
 
                 if (pC->isDamaged())
+                {
+                    if (pC->isFired()) pC->Unload();
                     continue;
+                }
 
                 pC->Execute(fDeltaTime);
                 bort.fChargePercent += pC->GetRechargePercent();
@@ -415,8 +414,35 @@ bool AIShipCannonController::HasPendingFire() const
 {
     for (const auto &bort : aShipBorts)
         for (const auto &cannon : bort.aCannons)
-            if (cannon.isFired()) return true;
+            if (cannon.isFired() && !cannon.isDamaged() && !cannon.isEmpty()) return true;
     return false;
+}
+
+bool AIShipCannonController::HasReadyFire() const
+{
+    const bool single = IsSingleFireMode();
+    for (const auto &bort : aShipBorts)
+    {
+        if (!single && !bort.isCharged()) continue;
+        for (const auto &cannon : bort.aCannons)
+            if (cannon.isReady2Fire() && !cannon.isFired() && !cannon.isRecharged() && !cannon.isEmpty())
+                return true;
+    }
+    return false;
+}
+
+void AIShipCannonController::FinishQueuedFireNow()
+{
+    for (auto &bort : aShipBorts)
+    {
+        for (auto &cannon : bort.aCannons) cannon.FinishQueuedFireNow();
+        const auto intact = GetBortIntactCannonsNum(bort);
+        bort.fChargePercent = 0.f;
+        if (!intact) continue;
+        for (auto &cannon : bort.aCannons)
+            if (!cannon.isDamaged()) bort.fChargePercent += cannon.GetRechargePercent();
+        bort.fChargePercent /= intact;
+    }
 }
 
 float AIShipCannonController::GetBortMaxFireAngle(const AISHIP_BORT &bort) const
@@ -2137,8 +2163,7 @@ void AIShipCannonController::Unload(int charge)
         for (auto &aCannon : bort.aCannons)
         {
             AICannon *pC = &aCannon;
-            if (!pC->isDamaged())
-                pC->Unload();
+            pC->Unload(); // Also clear cancelled shots from guns destroyed during a salvo.
         }
     }
     if (restore) type->SetValue(desired);

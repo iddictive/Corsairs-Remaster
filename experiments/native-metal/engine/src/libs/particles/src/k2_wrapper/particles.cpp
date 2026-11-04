@@ -78,6 +78,44 @@ uint64_t PARTICLES::ProcessMessage(MESSAGE &message)
         DeleteAll();
         break;
     }
+    // Only explicitly marked naval effects participate in spatial admission.
+    case PS_CREATE_NAVAL_EFFECT: {
+        const std::string &name = message.String();
+        pos.x = message.Float();
+        pos.y = message.Float();
+        pos.z = message.Float();
+        angles.x = message.Float();
+        angles.y = message.Float();
+        angles.z = message.Float();
+        lifetime = message.Long();
+        const auto category = static_cast<uint32_t>(message.Long());
+        if (category != 1 && category != 2)
+            return 0;
+
+        // Five units matches the maximum splash half-size and smoke footprint.
+        uint32_t nearby = 0;
+        for (const auto &system : CreatedSystems)
+        {
+            if (system.NavalEffect != category || !system.pSystem->GetSystem()->IsAlive())
+                continue;
+            const float dx = system.NavalX - pos.x;
+            const float dz = system.NavalZ - pos.z;
+            if (dx * dx + dz * dz <= 25.0f && ++nearby == 3)
+                return 0;
+        }
+
+        auto *system = CreateSystem(name.c_str(), lifetime);
+        if (!system)
+            return 0;
+        auto &info = CreatedSystems.back();
+        info.NavalEffect = category;
+        info.NavalX = pos.x;
+        info.NavalZ = pos.z;
+        system->SetEmitter(pos, angles);
+        system->SetDelay(0);
+        system->SetLifeTime(lifetime);
+        return reinterpret_cast<uintptr_t>(system);
+    }
         // create system (string name, float x, y, z position, float rx, ry, rz rotation, float life_time lifetime)
     case PS_CREATE_RIC: {
         const std::string &ps_name = message.String();

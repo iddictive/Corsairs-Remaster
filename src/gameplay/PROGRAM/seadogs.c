@@ -1107,6 +1107,9 @@ void ProcessControls()
 {
 	string ControlName;
 	ControlName = GetEventData();
+	if (bSeaActive && (ControlName == "MainMenu" || ControlName == "MainMenuDouble" ||
+		ControlName == "Interface" || ControlName == "BOAL_Control" || ControlName == "VK_PAUSETimePause"))
+		pchar.Ship.Cannons.CancelHeldFire = true;
 	// boal -->
  	aref  arItm;
     int   itmIdx;

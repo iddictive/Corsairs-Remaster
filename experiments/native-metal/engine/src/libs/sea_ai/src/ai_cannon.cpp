@@ -53,6 +53,14 @@ void AICannon::Execute(float fDeltaTime)
     }
 }
 
+void AICannon::FinishQueuedFireNow()
+{
+    if (!isFired() || isDamaged() || isEmpty()) return;
+    RealFire();
+    // Zero-time reload still goes through the ordinary ammunition load event.
+    Execute(0.f);
+}
+
 bool AICannon::UsesFixedBallisticFrame(ATTRIBUTES *character)
 {
     auto *cannons = character ? character->FindAClass(character, "Ship.Cannons") : nullptr;

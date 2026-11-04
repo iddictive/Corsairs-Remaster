@@ -20,6 +20,9 @@ class PARTICLES : public Entity
         PARTICLE_SYSTEM *pSystem;
         uint32_t LifeTime;
         uint32_t PassedTime;
+        uint32_t NavalEffect = 0;
+        float NavalX = 0.0f;
+        float NavalZ = 0.0f;
 
         SystemInfo()
         {

@@ -355,6 +355,9 @@ void BillBoardProcessor::Draw()
 #ifdef STORM_METAL_PARTICLE_BRIDGE
     std::vector<StormMetalAdvancedParticle> nativeParticles;
     nativeParticles.reserve(Particles.size());
+    // Separate alpha blending can alter the destination even for a zero source.
+    uint32_t separateAlphaBlend = 1;
+    pRS->GetRenderState(storm_render::RenderSeparateAlphaBlend, &separateAlphaBlend);
 #else
     auto *pVerts = static_cast<RECT_VERTEX *>(pRS->LockVertexBuffer(pVBuffer, storm_render::lock::discard));
 #endif
@@ -446,6 +449,10 @@ void BillBoardProcessor::Draw()
         dwColor = dwColor | dwAlpha;
 
 #ifdef STORM_METAL_PARTICLE_BRIDGE
+        // The bridge disables depth writes and uses premultiplied alpha.
+        // Preserve orientation updates above, but omit fragments with no effect.
+        if (dwAlpha == 0 && !separateAlphaBlend)
+            continue;
         StormMetalAdvancedParticle native{};
         native.center[0] = vPos.x;
         native.center[1] = vPos.y;

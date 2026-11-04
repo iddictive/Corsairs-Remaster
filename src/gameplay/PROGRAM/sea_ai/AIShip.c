@@ -76,6 +76,7 @@ void DeleteRiggingEnvironment()
 
 void DeleteShipEnvironment()
 {
+	DelEventHandler("Ship_CanRepeatFire", "Ship_CanRepeatFire");
 	Ship_ClearBortsReloadedEvent(GetMainCharacter());
 	if (iBortReloadSoundID != -1) StopSound(iBortReloadSoundID, 100);
 	iBortReloadSoundID = -1;
@@ -166,6 +167,7 @@ void Sea_ClearCheckFlag()
 
 void CreateShipEnvironment()
 {
+	SetEventHandler("Ship_CanRepeatFire", "Ship_CanRepeatFire", 0);
 	Ship_ClearBortsReloadedEvent(GetMainCharacter());
 	iBortReloadSoundID = -1;
 	bSeaTravelSuperiority = false;
@@ -1474,6 +1476,12 @@ void Ship_DoFire()
 {
 	int bCameraOutside = SeaCameras_isCameraOutside();
 	SendMessage(&AISea, "lal", AI_MESSAGE_CANNON_FIRE, &Characters[nMainCharacterIndex], bCameraOutside);
+}
+
+bool Ship_CanRepeatFire()
+{
+	return bSeaActive && !bAbordageStarted && !bSeaReloadStarted && !dialogRun &&
+		!sti(InterfaceStates.Launched) && !CheckAttribute(pchar, "pause") && !IsEntity(&worldMap);
 }
 
 void Ship_StartLoad()
@@ -2856,7 +2864,8 @@ void Ship_NotEnoughBalls()
 int Ship_GetCurrentBallsNum()
 {
 	aref aCharacter = GetEventData();
-	if (Cannon_HasUnlimitedAmmo(aCharacter)) return GetCannonsNum(aCharacter);
+	// Native batteries count model-mounted guns, which can differ from ship metadata.
+	if (Cannon_HasUnlimitedAmmo(aCharacter)) return 2147483647;
 	return GetCargoGoods(aCharacter,sti(aCharacter.Ship.Cannons.Charge.Type));
 }
 

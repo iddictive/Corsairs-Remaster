@@ -1,10 +1,14 @@
 #define MAX_CANNON_DAMAGE_DISTANCE				3.0
 
+bool Cannon_HasDebugUnlimitedAmmo(aref character)
+{
+	return CheckAttribute(character, "index") && sti(character.index) == GetMainCharacterIndex() &&
+		CheckAttribute(character, "DebugCheats.UnlimitedAmmo") && sti(character.DebugCheats.UnlimitedAmmo) != 0;
+}
+
 bool Cannon_HasUnlimitedAmmo(aref character)
 {
-	return SeaPhonk_HasUnlimitedAmmo(character) ||
-		(CheckAttribute(character, "index") && sti(character.index) == GetMainCharacterIndex() &&
-		CheckAttribute(character, "DebugCheats.UnlimitedAmmo") && sti(character.DebugCheats.UnlimitedAmmo) != 0);
+	return SeaPhonk_HasUnlimitedAmmo(character) || Cannon_HasDebugUnlimitedAmmo(character);
 }
 
 void Cannon_ApplyPendingCheatFlag(aref character, string name)
