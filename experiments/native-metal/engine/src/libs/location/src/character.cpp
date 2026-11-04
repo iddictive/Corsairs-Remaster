@@ -67,6 +67,13 @@
 #define FGT_ATTACK_FEINT "feint"
 #define FGT_ATTACK_PARRY "parry" // for breakout "hit_parry" boal
 
+static bool UsesUnarmedCombat(bool forced, bool equipped, const std::string &rig)
+{
+    const bool musketeer = rig.size() >= 9 && storm::iEquals(rig, "mushketer", 9) &&
+                           (rig.size() == 9 || rig[9] == '_');
+    return forced || (equipped && !musketeer);
+}
+
 // Table of the possibility of changing one action by another
 uint8_t Character::fightTbl[fgt_max][fgt_max] = {
     // Set type
@@ -2886,7 +2893,7 @@ void Character::ActionEvent(Animation *animation, int32_t playerIndex, const cha
                      storm::iEquals(alliace, "attack_round") || storm::iEquals(alliace, "attack_break") ||
                      storm::iEquals(alliace, "attack_feint") || storm::iEquals(alliace, "attack_feintc"))
             {
-                PlaySound("ambush_punch");
+                // Impact is played only when the strike actually connects.
             }
             else
             {
@@ -3324,6 +3331,8 @@ bool Character::zLoadModel(MESSAGE &message)
     const std::string &name = message.String();
     const std::string &ani = message.String();
     unarmedRig = ani;
+    isFightWOWps = UsesUnarmedCombat(isUnarmedForced, isUnarmedEquipped, ani);
+    if (core.GetEntityPointer(blade)) UpdateWeapons();
     // Path to textures
     auto *gs = static_cast<VGEOMETRY *>(core.GetService("geometry"));
     if (gs)
@@ -3478,13 +3487,14 @@ bool Character::zSetBlade(MESSAGE &message)
     if (nBladeIdx == 0)
     {
         const bool newUnarmedEquipped = storm::iEquals(name, "unarmed");
-        if ((isUnarmedForced || newUnarmedEquipped) != isFightWOWps)
+        const bool unarmed = UsesUnarmedCombat(isUnarmedForced, newUnarmedEquipped, unarmedRig);
+        if (unarmed != isFightWOWps)
         {
             if (unarmedStrikePending) StopFightAnimation();
             else ClearUnarmedPose();
         }
         isUnarmedEquipped = newUnarmedEquipped;
-        isFightWOWps = isUnarmedForced || isUnarmedEquipped;
+        isFightWOWps = unarmed;
         isBladeSet = !name.empty();
         if (name.empty()) SetFightMode(false);
     }
@@ -3728,13 +3738,14 @@ uint32_t Character::zExMessage(MESSAGE &message)
         if (storm::iEquals(msg, "SetFightWOWeapon"))
         {
             const bool newUnarmedForced = message.Long() != 0;
-            if ((newUnarmedForced || isUnarmedEquipped) != isFightWOWps)
+            const bool unarmed = UsesUnarmedCombat(newUnarmedForced, isUnarmedEquipped, unarmedRig);
+            if (unarmed != isFightWOWps)
             {
                 if (unarmedStrikePending) StopFightAnimation();
                 else ClearUnarmedPose();
             }
             isUnarmedForced = newUnarmedForced;
-            isFightWOWps = isUnarmedForced || isUnarmedEquipped;
+            isFightWOWps = unarmed;
             UpdateWeapons();
             return 1;
         }
@@ -5082,13 +5093,13 @@ void Character::UpdateAnimation()
                 case fgt_strafe_l: // Bounce to the left
                     core.Send_Message(blade, "ll", MSG_BLADE_TRACE_OFF, 0);
                     recoilSound = SOUND_INVALID_ID; // PlaySound("recoil", true);
-                    vd = core.Event("GetCharacterRecoilDistance", "is", GetId(), "strafe");
-                    recoilDist = 15.0f;
-                    if (vd)
+                    if (!isFightWOWps)
                     {
-                        vd->Get(recoilDist);
+                        vd = core.Event("GetCharacterRecoilDistance", "is", GetId(), "strafe");
+                        recoilDist = 15.0f;
+                        if (vd) vd->Get(recoilDist);
+                        impulse += recoilDist * CVECTOR(-cosf(ay), 0.0f, sinf(ay));
                     }
-                    impulse += recoilDist * CVECTOR(-cosf(ay), 0.0f, sinf(ay));
                     if (!(isSet = SetAction(strafe_l.name, strafe_l.tblend, 0.0f, 0.0f)))
                     {
                         core.Trace("Character animation: not set recoil action: \"%s\"", strafe_l.name);
@@ -5097,13 +5108,13 @@ void Character::UpdateAnimation()
                 case fgt_strafe_r: // Bounce to the left
                     core.Send_Message(blade, "ll", MSG_BLADE_TRACE_OFF, 0);
                     recoilSound = SOUND_INVALID_ID; // PlaySound("recoil", true);
-                    vd = core.Event("GetCharacterRecoilDistance", "is", GetId(), "strafe");
-                    recoilDist = 15.0f;
-                    if (vd)
+                    if (!isFightWOWps)
                     {
-                        vd->Get(recoilDist);
+                        vd = core.Event("GetCharacterRecoilDistance", "is", GetId(), "strafe");
+                        recoilDist = 15.0f;
+                        if (vd) vd->Get(recoilDist);
+                        impulse -= recoilDist * CVECTOR(-cosf(ay), 0.0f, sinf(ay));
                     }
-                    impulse -= recoilDist * CVECTOR(-cosf(ay), 0.0f, sinf(ay));
                     if (!(isSet = SetAction(strafe_r.name, strafe_r.tblend, 0.0f, 0.0f)))
                     {
                         core.Trace("Character animation: not set recoil action: \"%s\"", strafe_l.name);
@@ -5587,13 +5598,16 @@ inline void Character::CheckAttackHit(bool isGunBlade)
             }
             else
             {
-                if (fc.c->fgtCurType >= fgt_attack_fast && fc.c->fgtCurType <= fgt_attack_feintc)
+                const bool fistContact = isFightWOWps && !isGunBlade;
+                if (fistContact)
+                    fc.c->PlaySound("ambush_punch");
+                else if (fc.c->fgtCurType >= fgt_attack_fast && fc.c->fgtCurType <= fgt_attack_feintc)
                 {
-                    if (isFightWOWps || fc.c->isFightWOWps)
-                        fc.c->PlaySound("ambush_punch");
-                    else
-                        fc.c->PlaySound("fgt_collision");
+                    fc.c->PlaySound(fc.c->isFightWOWps ? "ambush_punch" : "fgt_collision");
                 }
+                if (fistContact && !fc.c->IsPlayer() && !fc.c->priorityAction.name &&
+                    fc.c->fgtCurType >= fgt_attack_fast && fc.c->fgtCurType <= fgt_attack_feintc)
+                    fc.c->StopFightAnimation();
                 else
                 {
                     // fc.c->PlaySound("fgt_blockbreak");

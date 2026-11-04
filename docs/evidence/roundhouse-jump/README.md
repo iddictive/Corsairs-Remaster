@@ -1,5 +1,12 @@
 # Jumping heel kick: offline evidence
 
+Follow-up on the ordinary K kick: the authored arm IK was removed, its
+recovery blends back to the guard, and its action duration is 1.3 seconds.
+The six model probes retained the foot-contact gate, and
+`heel-followup-native.txt` records real native K/L contacts and wall, far,
+immortal and same-group negatives. These checks do not establish the perceived
+quality of the installed animation.
+
 The installed procedural revision below was rejected in gameplay: its pelvis
 and forced heel arc turn in opposite directions, and free arm IK changes the
 elbow bend plane. Contact counts did not establish motion quality. The current

@@ -172,23 +172,33 @@ void Player::Move(float dltTime)
                 core.Controls->GetControlState("ChrRoundhouseJump", kickControl);
                 if (kickControl.state == CST_ACTIVATED && StartRoundhouse(true)) return;
                 const bool heldBlock = IsDoBlock();
+                const bool parry = IsDoParry();
+                bool randomDodge = false;
+                if (isFightWOWps && parry)
+                {
+                    const bool ready = strafeWait <= 0.0f;
+                    if (rand() % 2) StrafeLeft();
+                    else StrafeRight();
+                    randomDodge = ready && strafeWait > 0.0f &&
+                                  (fgtSetType == fgt_strafe_l || fgtSetType == fgt_strafe_r);
+                }
                 bool unarmedDodge = false;
                 if (isFightWOWps && heldBlock)
                 {
                     // Movement is sampled above. A fresh dodge must survive the
                     // held guard, which otherwise overwrites its requested action.
                     const auto dodge = fgtSetType;
-                    bool freshDodge = false;
+                    bool freshDodge = randomDodge;
                     CONTROL_STATE direction;
                     if (dodge == fgt_strafe_l)
                     {
                         core.Controls->GetControlState("ChrStrafeLeft", direction);
-                        freshDodge = direction.state == CST_ACTIVATED;
+                        freshDodge |= direction.state == CST_ACTIVATED;
                     }
                     else if (dodge == fgt_strafe_r)
                     {
                         core.Controls->GetControlState("ChrStrafeRight", direction);
-                        freshDodge = direction.state == CST_ACTIVATED;
+                        freshDodge |= direction.state == CST_ACTIVATED;
                     }
                     else if (dodge == fgt_recoil)
                     {
@@ -225,7 +235,7 @@ void Player::Move(float dltTime)
                 {
                     // Keep the dodge through its ordinary end, then resume guard.
                 }
-                else if (!isFightWOWps && IsDoParry())
+                else if (!isFightWOWps && parry)
                 {
                     // boal -->
                     if (fgtCurType == fgt_block || fgtCurType == fgt_blockhit || fgtCurType == fgt_blockbreak ||

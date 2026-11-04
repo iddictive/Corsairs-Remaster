@@ -504,8 +504,8 @@
     "Angellica": {},
     "Danielle": {
       "contact_window_seconds": [
-        0.86,
-        1.52
+        0.559,
+        0.9880000000000001
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.90196889480241,
@@ -537,13 +537,13 @@
         0.04472119095596239
       ],
       "serialized_heel_contact_error_m": 0.00473671730639101,
-      "serialized_support_ankle_error_max_m": 0.0010309774990434682,
+      "serialized_support_ankle_error_max_m": 0.008397801395226251,
       "striking_knee_xyz": [
         0.11454892529033636,
         1.277204791456448,
         1.257237249385433
       ],
-      "support_ankle_error_max_m": 0.0010309098610883525,
+      "support_ankle_error_max_m": 0.008397788086135033,
       "support_foot_xyz": [
         0.2656555969585174,
         0.08253161700313616,
@@ -558,8 +558,8 @@
     },
     "Jessika": {
       "contact_window_seconds": [
-        0.86,
-        1.52
+        0.559,
+        0.9880000000000001
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.9000000000000004,
@@ -591,13 +591,13 @@
         -0.3309587090553172
       ],
       "serialized_heel_contact_error_m": 1.1712732566247886e-07,
-      "serialized_support_ankle_error_max_m": 0.00019044740814540723,
+      "serialized_support_ankle_error_max_m": 0.0072298583423433425,
       "striking_knee_xyz": [
         0.197827763188394,
         1.1954056691488346,
         1.107394506064828
       ],
-      "support_ankle_error_max_m": 0.00019037959357884402,
+      "support_ankle_error_max_m": 0.007229857325714807,
       "support_foot_xyz": [
         0.1754571769006667,
         0.1436619626524458,
@@ -616,8 +616,8 @@
     "Moscovit": {},
     "YokoDias": {
       "contact_window_seconds": [
-        0.86,
-        1.52
+        0.559,
+        0.9880000000000001
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8978686522942595,
@@ -649,13 +649,13 @@
         -0.3649672558978678
       ],
       "serialized_heel_contact_error_m": 6.423804490062906e-08,
-      "serialized_support_ankle_error_max_m": 2.5436194876701494e-07,
+      "serialized_support_ankle_error_max_m": 0.007234667499416657,
       "striking_knee_xyz": [
         0.155866992441122,
         1.1501539527451312,
         1.0657897327468961
       ],
-      "support_ankle_error_max_m": 1.6018544386262496e-07,
+      "support_ankle_error_max_m": 0.00723466812162976,
       "support_foot_xyz": [
         0.1832958190795383,
         0.0806507440392335,
@@ -672,8 +672,8 @@
     "genres": {},
     "man": {
       "contact_window_seconds": [
-        0.86,
-        1.52
+        0.559,
+        0.9880000000000001
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8928126515469675,
@@ -705,13 +705,13 @@
         -0.5579864342412328
       ],
       "serialized_heel_contact_error_m": 4.187717637400427e-08,
-      "serialized_support_ankle_error_max_m": 0.0002854631502122663,
+      "serialized_support_ankle_error_max_m": 0.009175113527319784,
       "striking_knee_xyz": [
         0.16034383414375383,
         1.2277300167977385,
         0.9850487196275817
       ],
-      "support_ankle_error_max_m": 0.0002853903343751684,
+      "support_ankle_error_max_m": 0.009175122134478485,
       "support_foot_xyz": [
         0.12401961381937227,
         0.08240482794204107,
@@ -726,8 +726,8 @@
     },
     "man1": {
       "contact_window_seconds": [
-        0.86,
-        1.52
+        0.559,
+        0.9880000000000001
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8927756202770969,
@@ -759,13 +759,13 @@
         -0.5310867733032016
       ],
       "serialized_heel_contact_error_m": 4.6722748615713e-08,
-      "serialized_support_ankle_error_max_m": 0.0002853909519568068,
+      "serialized_support_ankle_error_max_m": 0.009165696869066167,
       "striking_knee_xyz": [
         0.1630358169309188,
         1.1595449238242033,
         1.001796838692847
       ],
-      "support_ankle_error_max_m": 0.000285338442847994,
+      "support_ankle_error_max_m": 0.009165699714305345,
       "support_foot_xyz": [
         0.1244545428008832,
         0.08207909067794966,
@@ -780,8 +780,8 @@
     },
     "man2": {
       "contact_window_seconds": [
-        0.86,
-        1.52
+        0.559,
+        0.9880000000000001
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8927756202770969,
@@ -813,13 +813,13 @@
         -0.5310867733032016
       ],
       "serialized_heel_contact_error_m": 4.6722748615713e-08,
-      "serialized_support_ankle_error_max_m": 0.0002853909519568068,
+      "serialized_support_ankle_error_max_m": 0.009165696869066167,
       "striking_knee_xyz": [
         0.1630358169309188,
         1.1595449238242033,
         1.001796838692847
       ],
-      "support_ankle_error_max_m": 0.000285338442847994,
+      "support_ankle_error_max_m": 0.009165699714305345,
       "support_foot_xyz": [
         0.1244545428008832,
         0.08207909067794966,
@@ -846,8 +846,8 @@
   },
   "files": {
     "RESOURCE/INI/roundhouse-rigs.ini": {
-      "bytes": 53435,
-      "sha256": "cb9920920d1cee039350f50aabe364d61ea3401d95b938688fa1317800b09bdc"
+      "bytes": 53645,
+      "sha256": "0b78acd63773974e1e979764163a8bfea1f1754570a0c255ce0bfd3a01c9c82c"
     },
     "RESOURCE/animation/Roundhouse_Angellica.an": {
       "bytes": 159088,
@@ -859,19 +859,19 @@
     },
     "RESOURCE/animation/Roundhouse_Danielle.an": {
       "bytes": 1001160,
-      "sha256": "da5e8e7c4d162514a311f2e7b94a09e6f83cb432abf02e6941323ddcdaca9a1c"
+      "sha256": "ffa2dc843e43c7e715f9d75a54de0663b1915450b83158bfb95ac6e9d840918d"
     },
     "RESOURCE/animation/Roundhouse_Danielle.ani": {
-      "bytes": 613,
-      "sha256": "dfa276b1528467edffcdb02d3b4e8546bd6c5ec7d431c39348a66eda81d449ae"
+      "bytes": 620,
+      "sha256": "c0c5e34daa92b8f671472280be4b0dcee1ac02ff5dcb9e6250187e6a19798e48"
     },
     "RESOURCE/animation/Roundhouse_Jessika.an": {
       "bytes": 386856,
-      "sha256": "e8b8341184b1c870d1995c86009104d74e1d4b3acf6f15b47a5ddbbc83522fc4"
+      "sha256": "b4e38e7dccb13de587c63d7de7394ac6ba5ca0f7de4d2ed3f00225332c66f4fb"
     },
     "RESOURCE/animation/Roundhouse_Jessika.ani": {
-      "bytes": 612,
-      "sha256": "61f0a5fbcdb99e1a33fbc2193ab528db2112f46b7f8a0c056469ccd5325e5eb0"
+      "bytes": 619,
+      "sha256": "5cefe41bcf2ee5ccf0d3c90050c1de7864142a0541051a5969f8daf4dc6f7dff"
     },
     "RESOURCE/animation/Roundhouse_Lo_Man.an": {
       "bytes": 108336,
@@ -907,11 +907,11 @@
     },
     "RESOURCE/animation/Roundhouse_YokoDias.an": {
       "bytes": 316872,
-      "sha256": "9ad44bddf463bb1d750af68490df448903d07400a74649fb1bf69a725d53d615"
+      "sha256": "d204ad470ef8505ec2f312a634a14e9f5620d7aadd36d0228d344e9c1d48950a"
     },
     "RESOURCE/animation/Roundhouse_YokoDias.ani": {
-      "bytes": 613,
-      "sha256": "59e21db538d78a2ba9f69c339ddaed0b3a5b0bdce4c6a901da474680210c408c"
+      "bytes": 620,
+      "sha256": "c1b735a28b7b7988a9b345434965d4f3b6ba4385ea970a3dc31eaf91c4d6b815"
     },
     "RESOURCE/animation/Roundhouse_beatrice2.an": {
       "bytes": 159088,
@@ -931,27 +931,27 @@
     },
     "RESOURCE/animation/Roundhouse_man.an": {
       "bytes": 962280,
-      "sha256": "c24c4e2420a2ca8847fc5751ee8d885526b0a58532648fa673dc270e89be565e"
+      "sha256": "69f41cc4dca38097421104bc4d36591e1c0baa10d0aa61ebf70976ae85f3fa69"
     },
     "RESOURCE/animation/Roundhouse_man.ani": {
-      "bytes": 608,
-      "sha256": "d1068c3f7ab0e970fe39768b4b51319da2852e6d3bab0c18f6010efe586cf573"
+      "bytes": 615,
+      "sha256": "1243ed0b2a46781951d9c7d97121af29d19d23743c5d920b71fb6254b8508715"
     },
     "RESOURCE/animation/Roundhouse_man1.an": {
       "bytes": 620136,
-      "sha256": "559df473fc6ae95aabac0f64a5d36bbb4f08a72b599a6f5d80e77a80fcd32f3b"
+      "sha256": "fb4f43cac123a14188ab29231730366aa1c671aae2f3729b92cd3554a9afed5a"
     },
     "RESOURCE/animation/Roundhouse_man1.ani": {
-      "bytes": 609,
-      "sha256": "b9f0c650b5d80fbb3da6b21ef265a780efec2a6d4d51edd07fe722d3667b91f2"
+      "bytes": 616,
+      "sha256": "f6be5780004c5d28e9eb74baba25d0c025a4d1a1043e60e164fee2b286274ada"
     },
     "RESOURCE/animation/Roundhouse_man2.an": {
       "bytes": 620136,
-      "sha256": "086fb1e1412c952480379de31f2a78965ad98cabbbb9e49ed26026f0f436c5c6"
+      "sha256": "358e169996e2b0dc7e1abd8f0e7f48e6b02a1bfd1efd8ac555377d677959767a"
     },
     "RESOURCE/animation/Roundhouse_man2.ani": {
-      "bytes": 609,
-      "sha256": "f915a5d1c863fa772f1c42f277a8e56f65559441adc64d242f87fa4f50cccf85"
+      "bytes": 616,
+      "sha256": "84540a89e931825a048ae5fbc4c6b29d6743dd4cf56181808eacf358c3d10f03"
     },
     "RESOURCE/animation/Roundhouse_man_B.an": {
       "bytes": 311344,
@@ -1042,14 +1042,14 @@
       "sha256": "dc061fc1c0a1500b8a62141786cd5ef07ceb6ad56bd56ac9f4590a695f77bd07"
     }
   },
-  "generator_sha256": "43b58a6244b3394200196b87b1c6253d12d15739bddf9101e9a86ac0ca2d4ddf",
+  "generator_sha256": "a6312441d93435e49806a4c34e77ec2152164e00c93ff99bfc582cc1f0992971",
   "mocap_inputs": {
     "src/assets/roundhouse/mocap/87_01.bvh": "48e3cd06cbf4953f5d559f95d8d51c2fd8fa48d14c69d493a6a0f8c779b67799",
     "src/assets/roundhouse/mocap/recipe.json": "3fba3a99915e6ab4714845d7e70e3bf5574a770f611a146d4fa11c6de5f21a4d",
     "tools/boxing_mocap.py": "4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3",
     "tools/roundhouse_mocap.py": "e90769167aea32a737a65bfc799b0ca89548d6cac25d50984681b3ac2864cd0b"
   },
-  "recipe_sha256": "7308850c5726a2f76ab994876709a7020c387b569a120bd8297478e2574c9068",
+  "recipe_sha256": "012b37e00caee67f1ab373214a650be171ec4d77def23c085d493d00dd541039",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "version": 1
 }

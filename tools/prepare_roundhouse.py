@@ -361,7 +361,7 @@ def kick(source, spec):
     r = source_rig(source); body = source["body"]["joints"]
     initial = source["guard_pose"]; origin = source["guard_root"]
     p0, g0 = fk(r, initial, origin)
-    bindp, bindg = fk(r, source["bind_pose"], source["bind_root"])
+    _, bindg = fk(r, source["bind_pose"], source["bind_root"])
     support, striking = body[9:12], body[12:15]
     height = source["body"]["height"]
     offset = rotate(qi(bindg[striking[2]]), tuple(spec["heel_bind_offset"]))
@@ -395,21 +395,8 @@ def kick(source, spec):
         authored_leg(r, q, striking, curve(spec["leg_keys"], t, True), source, bindg)
         for joint in striking:
             q[joint] = blend(initial[joint], q[joint], lift)
-        # Shared action choreography replaces the source guards' heterogeneous
-        # arm heights. Local hand/finger poses stay intact for held equipment.
-        arm_weight = smooth(t/.10)*(1-smooth((t-.88)/.12))
-        for ids, side in ((body[3:6], 1), (body[6:9], -1)):
-            p, g = fk(r, q, root)
-            if side == 1:
-                desired = (side*.14*height, bindp[body[2]][1]-.13, bindp[body[1]][2]+.13)
-            else:
-                desired = (side*.30*height, bindp[body[1]][1]+.10, bindp[body[1]][2]-.14)
-            delta = rotate(qi(bindg[body[1]]), sub(desired, bindp[body[1]]))
-            target = add(p[body[1]], rotate(g[body[1]], delta))
-            pole = rotate(g[body[1]], rotate(qi(bindg[body[1]]), (side*.7, -.6, -.15)))
-            before = list(q)
-            limb(r, q, root, ids, target, pole)
-            for joint in ids[:2]: q[joint] = blend(before[joint], q[joint], arm_weight)
+        # Preserve each rig's established guard instead of forcing both arms
+        # through world-space targets while the torso rotates.
         return root, q, yaw, lift
     correction_keys = [[0., 0., 0., 0.], [.22, 0., 0., 0.]]
     for frame, target in ((spec["near_contact_frame"], near_heel), (spec["contact_frame"], target_heel)):
@@ -498,6 +485,14 @@ def kick(source, spec):
         weight *= smooth((facing+.4)/.8)
         weight *= smooth(t/.12)*(1-smooth((t-.86)/.14))
         global_orientation(r, q, root, head, blend(g[head], desired, weight))
+        # Settle the solved joints into the original guard continuously; the
+        # old last-frame replacement could snap out of a twisted IK pose.
+        settle = smooth((t-.90)/.10)
+        for joint in striking:
+            q[joint] = blend(q[joint], initial[joint], settle)
+        support_settle = smooth((t-.97)/.03)
+        for joint in support:
+            q[joint] = blend(q[joint], initial[joint], support_settle)
         if frame in (0, samples-1):
             root, q = origin, list(initial)
         p, g = fk(r, q, root)
@@ -519,7 +514,7 @@ def kick(source, spec):
     checks["victim_separation_m"] = spec["victim_separation_m"]
     checks["victim_head_animation_xyz"] = target_heel
     checks["face_capsule_radius_m"] = spec["face_capsule_radius_m"]
-    checks["contact_window_seconds"] = [t*(samples-1)/spec["fps"] for t in spec["contact_window"]]
+    checks["contact_window_seconds"] = [t*spec["kick_duration_s"] for t in spec["contact_window"]]
     checks["heel_to_head_sweep_min_m"] = min(segment_distance(target_heel, heel_path[i], heel_path[i+1]) for i in range(first, last))
     checks["near_victim_separation_m"] = spec["near_victim_separation_m"]
     checks["near_head_animation_xyz"] = near_heel
@@ -680,7 +675,9 @@ def prepare(write_manifest=True, expected_manifest=None):
         save(f"RESOURCE/animation/{bank}.an", data)
         text = f"animation = {bank}.an\n\n"
         for action, (first, last) in ranges.items():
-            speed = f'{(last-first)/(spec["fps"]*spec["jump_choreography"]["duration_s"]):.9g}' if action == "roundhouse_jump" else "1.0"
+            duration = (spec["jump_choreography"]["duration_s"] if action == "roundhouse_jump"
+                        else spec["kick_duration_s"] if action == "roundhouse_kick" else None)
+            speed = f'{(last-first)/(spec["fps"]*duration):.9g}' if duration else "1.0"
             text += (f"[{action}]\nspeed = {speed}\nloop = false\ntype = normal\nstart_time = {first}\nend_time = {last}\n"
                      f'data = "Blend time", "0.0"\n')
             if action in ("roundhouse_kick", "roundhouse_jump"):
@@ -701,9 +698,9 @@ def prepare(write_manifest=True, expected_manifest=None):
         authored = banks.get(name)
         text += f"bank = {authored['bank'] if authored else ''}\n"
         text += f"kick_supported = {int(name in hero_rigs)}\n"
-        text += f"kick_duration = {(spec['kick_samples']-1)/spec['fps']:.9g}\ncontact_time = {spec['contact_frame']/spec['fps']:.9g}\n"
-        text += f"strike_start_time = {spec['contact_window'][0]*(spec['kick_samples']-1)/spec['fps']:.9g}\n"
-        text += f"strike_end_time = {spec['contact_window'][1]*(spec['kick_samples']-1)/spec['fps']:.9g}\n"
+        text += f"kick_duration = {spec['kick_duration_s']:.9g}\ncontact_time = {spec['contact_frame']*spec['kick_duration_s']/(spec['kick_samples']-1):.9g}\n"
+        text += f"strike_start_time = {spec['contact_window'][0]*spec['kick_duration_s']:.9g}\n"
+        text += f"strike_end_time = {spec['contact_window'][1]*spec['kick_duration_s']:.9g}\n"
         text += f"getup_duration = {(spec['getup_samples']-1)/spec['fps']:.9g}\n"
         heel = authored["heel_offset"] if authored else (0., 0., 0.)
         for axis_name, v in zip("xyz", heel): text += f"heel_offset_{axis_name} = {v:.9g}\n"

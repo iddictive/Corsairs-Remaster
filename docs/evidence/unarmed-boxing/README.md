@@ -174,6 +174,16 @@ scheduled event transport, final weapon draw, or rendered gameplay.
 
 ## Connected combos and guard escape
 
+Follow-up: unarmed side dodges have no recoil impulse; X chooses a side, while
+armed parry remains available. Three musketeer animation variants retain their
+weapon state instead of inferring boxing from an unarmed blade slot. Native
+component replays covered the three rigs, explicit forced mode and both side
+dodges; X dispatch and hit-sound gating were source-checked. A full armed
+gameplay VM impact fixture could not initialize the headless renderer, so it
+does not establish rendered weapon-contact behavior. Swing-only punch sounds
+were moved to actual unblocked contact and attacking NPC interruption is scoped
+to unarmed contacts.
+
 Follow-up after the reported stance snap and X parry: a native replay of all
 13 earlier combo/dodge cases still passes. Separate real Player input probes
 confirm X does not start parry unarmed and still starts it armed; stance entry

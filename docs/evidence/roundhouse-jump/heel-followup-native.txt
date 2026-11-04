@@ -1,0 +1,18 @@
+fighter 0 case=fighter supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.143816 hits=1 hp=442.000000 ragdolls=1 physical_displacement=1.250826 crossed_windup=0 no_window=1
+native_selected=1 final_yaw=0.000000 replay_cpu_ms=46.160000 frames=140
+ 
+jump 0 case=jump supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=1.622532 hits=1 hp=385.000000 ragdolls=1 physical_displacement=1.601340 crossed_windup=0 no_window=1
+native_selected=1 final_yaw=0.001065 replay_cpu_ms=47.366000 frames=140
+ 
+wall 0 case=wall supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.012971 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=1 no_window=1
+native_selected=1 final_yaw=0.000000 replay_cpu_ms=0.799000 frames=140
+ 
+far 0 case=far supervisor_spacing=1.500000 final_spacing=2.400000 heel_head_min=0.893024 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1
+native_selected=1 final_yaw=0.000000 replay_cpu_ms=0.705000 frames=140
+ 
+immortal 0 case=immortal supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.012971 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1
+native_selected=1 final_yaw=0.000000 replay_cpu_ms=0.816000 frames=140
+ 
+same-group 0 case=same-group supervisor_spacing=1.500000 final_spacing=1.500000 heel_head_min=0.012971 hits=0 hp=500.000000 ragdolls=0 physical_displacement=0.000000 crossed_windup=0 no_window=1
+native_selected=1 final_yaw=0.000000 replay_cpu_ms=0.766000 frames=140
+ 
