@@ -39,19 +39,6 @@ bool CanAimRoundhouse(Character &actor, Character *target)
 
 CMatrix Inverse(CMatrix matrix) { matrix.Transposition(); return matrix; }
 
-CMatrix Interpolate(const CMatrix &a, const CMatrix &b, float blend)
-{
-    Matrix first, second, result;
-    std::copy(std::begin(a.matrix), std::end(a.matrix), first.matrix);
-    std::copy(std::begin(b.matrix), std::end(b.matrix), second.matrix);
-    Quaternion rotation;
-    rotation.SLerp(Quaternion(first), Quaternion(second), blend).GetMatrix(result);
-    CMatrix matrix;
-    matrix = result;
-    matrix.Pos() = a.v.pos + (b.v.pos - a.v.pos) * blend;
-    return matrix;
-}
-
 void CapturePalette(Animation &animation, std::vector<CMatrix> &pose)
 {
     pose.resize(animation.GetNumBones());
@@ -524,13 +511,13 @@ bool Character::UpdateRoundhouse(float seconds)
     else curPos = oldPos = state.origin;
     model->mtx.BuildMatrix(CVECTOR(0,ay,0),curPos);
     const float blend = std::clamp(state.time/0.16f,0.0f,1.0f);
-    for (std::size_t i = 0; i < state.pose.size() && i < state.blendFrom.size(); ++i)
+    roundhouse::BlendPose(*animation, state.blendFrom, state.pose, blend, state.blendScratch);
+    if (kick && state.jumping)
     {
-        state.pose[i] = Interpolate(state.blendFrom[i],state.pose[i],blend);
-        if (kick && state.jumping)
+        const float recovery = std::clamp((state.time-(duration-0.22f))/0.22f,0.0f,1.0f);
+        if (recovery > 0.f)
         {
-            const float recovery = std::clamp((state.time-(duration-0.22f))/0.22f,0.0f,1.0f);
-            state.pose[i] = Interpolate(state.pose[i],state.blendFrom[i],recovery);
+            roundhouse::BlendPose(*animation, state.blendFrom, state.pose, 1.f-recovery, state.blendScratch);
         }
     }
     animation->SetPoseOverride(state.pose.data(),static_cast<int>(state.pose.size()));

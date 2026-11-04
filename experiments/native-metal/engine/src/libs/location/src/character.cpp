@@ -10,6 +10,7 @@
 
 #include "character.h"
 #include "roundhouse_character.h"
+#include "roundhouse_pose.hpp"
 #include "characters_groups.h"
 #include "lights.h"
 
@@ -4338,34 +4339,16 @@ bool Character::PrepareUnarmedStrike(Animation &animation, const char *baseActio
     return true;
 }
 
-namespace
-{
-CMatrix BlendUnarmedMatrix(const CMatrix &from, const CMatrix &to, float amount)
-{
-    Matrix first, second, result;
-    std::copy(std::begin(from.matrix), std::end(from.matrix), first.matrix);
-    std::copy(std::begin(to.matrix), std::end(to.matrix), second.matrix);
-    Quaternion rotation;
-    rotation.SLerp(Quaternion(first), Quaternion(second), amount).GetMatrix(result);
-    CMatrix blended;
-    blended = result;
-    blended.Pos() = from.v.pos + (to.v.pos - from.v.pos) * amount;
-    return blended;
-}
-}
-
 void Character::SampleUnarmedPose(Animation &animation, float phase)
 {
     unarmedBank->Player(0).SetPosition(std::clamp(phase, 0.0f, 1.0f));
     unarmedBank->EvaluatePose();
     unarmedPalette.resize(unarmedBank->GetNumBones());
     for (int i = 0; i < unarmedBank->GetNumBones(); ++i)
-    {
         unarmedPalette[i] = unarmedBank->GetAnimationMatrix(i);
-        if (unarmedTransition && i < static_cast<int>(unarmedTransitionFrom.size()))
-            unarmedPalette[i] = BlendUnarmedMatrix(unarmedTransitionFrom[i], unarmedPalette[i],
-                                                  std::min(unarmedTransitionTime / 0.2f, 1.0f));
-    }
+    if (unarmedTransition)
+        roundhouse::BlendPose(animation, unarmedTransitionFrom, unarmedPalette,
+                              std::min(unarmedTransitionTime / 0.2f, 1.0f), unarmedBlendScratch);
     animation.SetPoseOverride(unarmedPalette.data(), static_cast<int>(unarmedPalette.size()));
     unarmedPoseActive = true;
 }
@@ -4384,8 +4367,9 @@ void Character::UpdateUnarmedPose(float seconds)
         if (unarmedTransitionTime >= 0.2f) { ClearUnarmedPose(); return; }
         unarmedPalette.resize(animation->GetNumBones());
         for (int i = 0; i < animation->GetNumBones(); ++i)
-            unarmedPalette[i] = BlendUnarmedMatrix(unarmedTransitionFrom[i], animation->GetAnimationMatrix(i),
-                                                  unarmedTransitionTime / 0.2f);
+            unarmedPalette[i] = animation->GetAnimationMatrix(i);
+        roundhouse::BlendPose(*animation, unarmedTransitionFrom, unarmedPalette,
+                              unarmedTransitionTime / 0.2f, unarmedBlendScratch);
         animation->SetPoseOverride(unarmedPalette.data(), static_cast<int>(unarmedPalette.size()));
         unarmedPoseActive = true;
         return;

@@ -49,6 +49,7 @@ struct RoundhouseState
     std::unique_ptr<Animation> bank;
     std::vector<CMatrix> blendFrom;
     std::vector<CMatrix> pose;
+    std::vector<CMatrix> blendScratch;
     entid_t aimTarget = invalid_entity;
     entid_t fallAttacker = invalid_entity;
     std::vector<entid_t> hitTargets;

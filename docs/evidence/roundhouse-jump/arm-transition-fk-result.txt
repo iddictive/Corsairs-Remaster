@@ -1,0 +1,23 @@
+2026-11-04, repository root, Python 3, no game UI or rendered frame.
+Command: PYTHONPATH=tools python3 docs/evidence/roundhouse-jump/arm-transition-fk.py
+
+ManKSM K: old midpoint 74.5 mm; local 25/50/75% 0.000060/0.000060/0.000060 mm
+ManKSM L: old midpoint 74.3 mm; local 25/50/75% 0.000060/0.000060/0.000060 mm
+Lo_Man K: old midpoint 236.9 mm; local 25/50/75% 0.000048/0.000048/0.000048 mm
+Lo_Man L: old midpoint 226.1 mm; local 25/50/75% 0.000048/0.000048/0.000048 mm
+
+Conditions: boxing guard to middle K sample or middle of 25 L samples;
+maximum change from bind length among both shoulder-to-elbow and elbow-to-hand
+semantic segments. Old result reconstructs independently interpolated skinning
+palettes at 50%; local result blends local quaternions and runs FK. This shows
+geometric distortion in the former transition, not the artistic quality of the
+gesture, actual native execution, skinned rendering, or performance.
+
+SHA-256 inputs:
+9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283  src/assets/roundhouse/rigs.json
+bb04a9c6714fb1f1131a938d0bfe1690c431bbde43aa8592f9a82a218dbbc5ea  src/assets/roundhouse/recipe.json
+4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3  tools/boxing_mocap.py
+a6312441d93435e49806a4c34e77ec2152164e00c93ff99bfc582cc1f0992971  tools/prepare_roundhouse.py
+e90769167aea32a737a65bfc799b0ca89548d6cac25d50984681b3ac2864cd0b  tools/roundhouse_mocap.py
+22b558a0fd28c08050b3214518d278f8f6eb39cfdce89ea93da09e837f0cdf6b  tools/prepare_port_rowboat.py
+1b490b0f946792f039764e990fb6d38d55d4570c308de859bc7bed725f984d31  docs/evidence/roundhouse-jump/arm-transition-fk.py

@@ -1,11 +1,20 @@
 # Jumping heel kick: offline evidence
 
 Follow-up on the ordinary K kick: the authored arm IK was removed, its
-recovery blends back to the guard, and its action duration is 1.3 seconds.
+recovery blends back to the guard, and its action duration is 1.65 seconds.
 The six model probes retained the foot-contact gate, and
 `heel-followup-native.txt` records real native K/L contacts and wall, far,
 immortal and same-group negatives. These checks do not establish the perceived
 quality of the installed animation.
+
+The previous 1.3-second K was rejected as too fast; the airborne L is now
+1.4 seconds, down from 2.1. Guard and K/L transitions now blend local joint
+transforms through the skeleton hierarchy rather than separate skinning
+matrices. `arm-transition-fk.py` and its result record the two-rig shoulder
+and forearm length falsifier. A same-consumer L crowd replay still hit three
+victims once each (52.68 ms CPU for 140 frames, versus 52.918 ms before the
+blend change). These checks do not establish perceived animation quality or
+interactive frame time.
 
 The installed procedural revision below was rejected in gameplay: its pelvis
 and forced heel arc turn in opposite directions, and free arm IK changes the

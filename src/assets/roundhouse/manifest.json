@@ -504,8 +504,8 @@
     "Angellica": {},
     "Danielle": {
       "contact_window_seconds": [
-        0.559,
-        0.9880000000000001
+        0.7094999999999999,
+        1.254
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.90196889480241,
@@ -558,8 +558,8 @@
     },
     "Jessika": {
       "contact_window_seconds": [
-        0.559,
-        0.9880000000000001
+        0.7094999999999999,
+        1.254
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.9000000000000004,
@@ -616,8 +616,8 @@
     "Moscovit": {},
     "YokoDias": {
       "contact_window_seconds": [
-        0.559,
-        0.9880000000000001
+        0.7094999999999999,
+        1.254
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8978686522942595,
@@ -672,8 +672,8 @@
     "genres": {},
     "man": {
       "contact_window_seconds": [
-        0.559,
-        0.9880000000000001
+        0.7094999999999999,
+        1.254
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8928126515469675,
@@ -726,8 +726,8 @@
     },
     "man1": {
       "contact_window_seconds": [
-        0.559,
-        0.9880000000000001
+        0.7094999999999999,
+        1.254
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8927756202770969,
@@ -780,8 +780,8 @@
     },
     "man2": {
       "contact_window_seconds": [
-        0.559,
-        0.9880000000000001
+        0.7094999999999999,
+        1.254
       ],
       "face_capsule_radius_m": 0.22,
       "far_head_sweep_min_m": 0.8927756202770969,
@@ -846,8 +846,8 @@
   },
   "files": {
     "RESOURCE/INI/roundhouse-rigs.ini": {
-      "bytes": 53645,
-      "sha256": "0b78acd63773974e1e979764163a8bfea1f1754570a0c255ce0bfd3a01c9c82c"
+      "bytes": 53477,
+      "sha256": "e4ad75d47848a0baa47249f294e4cabc612c8e4c6a38cce7aab7086b0030cd77"
     },
     "RESOURCE/animation/Roundhouse_Angellica.an": {
       "bytes": 159088,
@@ -863,7 +863,7 @@
     },
     "RESOURCE/animation/Roundhouse_Danielle.ani": {
       "bytes": 619,
-      "sha256": "ce8ba7d6cceee1bb8b0973b25fe53ae6d95add5f0b649fbfa1a0accfa4a609cf"
+      "sha256": "8ad1c056f37342e0eccf05568585a1f628e84519323892c488fa98af91cff42c"
     },
     "RESOURCE/animation/Roundhouse_Jessika.an": {
       "bytes": 386856,
@@ -871,7 +871,7 @@
     },
     "RESOURCE/animation/Roundhouse_Jessika.ani": {
       "bytes": 618,
-      "sha256": "3f2e88bcc197939f77323d62fa86fab45cfbcf7d00f6f9d17eeaf992d48eec7f"
+      "sha256": "7bd8fcc190ab391f24a176e4d1e4d1c77a7fb998b0ac0209779107364514e6fa"
     },
     "RESOURCE/animation/Roundhouse_Lo_Man.an": {
       "bytes": 108336,
@@ -911,7 +911,7 @@
     },
     "RESOURCE/animation/Roundhouse_YokoDias.ani": {
       "bytes": 619,
-      "sha256": "ebacb88e3dceeec7496952118c41d568ab7dcf67babae0ce54b2c47cc8ce0dbf"
+      "sha256": "ac4c1eceaf809a0c497e43d5aa9ee3cd455fbf37644feb40b6bf2d6bc8db0719"
     },
     "RESOURCE/animation/Roundhouse_beatrice2.an": {
       "bytes": 159088,
@@ -935,7 +935,7 @@
     },
     "RESOURCE/animation/Roundhouse_man.ani": {
       "bytes": 614,
-      "sha256": "d1bf81b91d0d1cc8a1db9db544aa739ec7f9bb4645802e0034932f6449082561"
+      "sha256": "94f3420b8eca9fb89b4c3e0b7f08984970bf882638ab5169be917e2a77e15ac4"
     },
     "RESOURCE/animation/Roundhouse_man1.an": {
       "bytes": 620136,
@@ -943,7 +943,7 @@
     },
     "RESOURCE/animation/Roundhouse_man1.ani": {
       "bytes": 615,
-      "sha256": "7f2db7e98f73d8ddebb671f977392f2c1b6d2d164318e6b6572c2563e9c0a820"
+      "sha256": "74f0f9b9a1c606de25af88a3473cb46623570c099e63d1e601af89139f38a6cf"
     },
     "RESOURCE/animation/Roundhouse_man2.an": {
       "bytes": 620136,
@@ -951,7 +951,7 @@
     },
     "RESOURCE/animation/Roundhouse_man2.ani": {
       "bytes": 615,
-      "sha256": "39a4fad31bdda7774a5ef41351c5978a00bcf9e23adce36982b0b4a2098c4a29"
+      "sha256": "5be076956c0bb48482b4de87cda165b885fb1583be731f4265b18220a95fb151"
     },
     "RESOURCE/animation/Roundhouse_man_B.an": {
       "bytes": 311344,
@@ -1049,7 +1049,7 @@
     "tools/boxing_mocap.py": "4b2e99d77ee9c538c2d5ce993957fe16b3d30fd6a6c179c596b2455b370a89e3",
     "tools/roundhouse_mocap.py": "e90769167aea32a737a65bfc799b0ca89548d6cac25d50984681b3ac2864cd0b"
   },
-  "recipe_sha256": "dae9ae1715b4d2235a07df557e43106a63a02d06fdb5dbfb30859fe12411a9a6",
+  "recipe_sha256": "bb04a9c6714fb1f1131a938d0bfe1690c431bbde43aa8592f9a82a218dbbc5ea",
   "sources_sha256": "9bdd2810b983968a3f6cc07d48d1519a8366ce42b29d49b0a32c83223eba8283",
   "version": 1
 }

@@ -514,6 +514,7 @@ class Character : public Entity
     std::string unarmedRig;
     std::unique_ptr<Animation> unarmedBank;
     std::vector<CMatrix> unarmedPalette;
+    std::vector<CMatrix> unarmedBlendScratch;
     std::vector<CMatrix> unarmedTransitionFrom;
     float unarmedTransitionTime = 0.0f;
     bool unarmedTransition = false;
