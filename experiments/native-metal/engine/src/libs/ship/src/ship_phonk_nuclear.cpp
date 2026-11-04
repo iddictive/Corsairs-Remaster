@@ -11,11 +11,12 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
     if (!std::isfinite(radius) || radius <= 0.f || !std::isfinite(center.x) ||
         !std::isfinite(center.y) || !std::isfinite(center.z)) return;
     const auto sourceId = GetId();
+    const auto generation = phonkOrdnanceGeneration;
     const auto seed = blast.seed;
     const auto blastSeaId = sea_id;
     auto *const blastSea = pSea;
     const auto sourceLive = [&] {
-        return core.GetEntityPointer(sourceId) == this && blast.seed == seed &&
+        return core.GetEntityPointer(sourceId) == this && phonkOrdnanceGeneration == generation && blast.seed == seed &&
                pSea == blastSea && core.GetEntityPointer(blastSeaId) == blastSea &&
                core.GetEntityId("sea") == blastSeaId;
     };
@@ -103,6 +104,7 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
     const float front = nuclearPressureFront(blast.yield, blast.age);
     const float reach = blast.yield.effectRadius;
     const auto sourceId = GetId();
+    const auto generation = phonkOrdnanceGeneration;
     const auto blastSeaId = sea_id;
     auto *const blastSea = pSea;
     const auto center = blast.center;
@@ -129,6 +131,7 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
         const auto characterIndex = character->GetAttributeAsDword("index", uint32_t(-1));
         auto *accepted = core.Event("SeaPhonk_NuclearWave", "alf", character, owner, damage);
         if (core.GetEntityPointer(sourceId) != this) return;
+        if (phonkOrdnanceGeneration != generation) return;
         if (pSea != blastSea || core.GetEntityPointer(blastSeaId) != blastSea ||
             core.GetEntityId("sea") != blastSeaId) return;
         if (blast.seed != seed) return;

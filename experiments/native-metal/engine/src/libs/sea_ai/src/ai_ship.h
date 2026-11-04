@@ -12,6 +12,7 @@
 #include "ai_flow_graph.h"
 #include "ai_helper.h"
 #include "shared/sea_ai/player_autopilot.hpp"
+#include "shared/sea_ai/held_fire_ramp.hpp"
 
 enum AI_OBJTYPE
 {

@@ -301,7 +301,8 @@ bool AirburstArmedStart(const CVECTOR &src, const CVECTOR &dst, const CVECTOR &f
 
 }
 
-bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments)
+bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments,
+                          std::vector<CVECTOR> &visualBursts)
 {
     if (AirburstGood(ball) < 0 || ~(dst-src) < 1e-8f)
         return false;
@@ -396,10 +397,14 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
             pSail->SetCannonTraceRadius(0.0f);
         }
     }
-    // Cosmetic shot uses the existing saved Bombs lane/physics, with a marker
-    // that suppresses damage and chooses the existing grapeshot sprite/tracer.
-    // Queue until Execute finishes: appending here would invalidate this ball.
-    for (int fragment = 0; fragment < 16; ++fragment)
+    // These fragments are cosmetic: the blast damage and sail traces above are
+    // applied for every shell. Avoid duplicating the same visual burst in a
+    // crowded volley; the admission list lasts only for this Execute frame.
+    unsigned nearbyVisualBursts = 0;
+    for (const auto &other : visualBursts)
+        if (~(other - burst) <= 25.0f && ++nearbyVisualBursts == 3) break;
+    if (nearbyVisualBursts < 3) visualBursts.push_back(burst);
+    for (int fragment = 0; nearbyVisualBursts < 3 && fragment < 16; ++fragment)
     {
         BALL_PARAMS shot{};
         const int pair = fragment / 2;
@@ -418,6 +423,7 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
         shot.dwCannonType = ball.dwCannonType;
         fragments.push_back(shot);
     }
+    AttributesPointer->SetAttributeUseDword("AirburstVisualLimited", nearbyVisualBursts >= 3);
     core.Event("Ball_AirburstExplosion", "lfff", ball.iBallOwner, burst.x, burst.y, burst.z);
     for (const auto id : ships)
     {
@@ -698,6 +704,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
     entid_t EID;
 
     std::vector<BALL_PARAMS> fragments;
+    std::vector<CVECTOR> visualBursts;
     const auto grapes = std::find_if(aBallTypes.begin(), aBallTypes.end(),
         [](const BALL_TYPE &type) { return storm::iEquals(type.sName, "Grapes"); });
     if (!pIsland && (EID = core.GetEntityId("island")))
@@ -742,18 +749,20 @@ void AIBalls::Execute(uint32_t Delta_Time)
             const bool dart = pBall->dartGood >= 0;
             // An unarmed/direct shell uses the ordinary native Bombs contract,
             // including forts and rigging. Only the radial burst changes goods.
-            AttributesPointer->SetAttributeUseDword("CurrentBallType", dart ? pBall->dartGood : pBallsType->dwGoodIndex);
-            AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", 0.0f);
-            AttributesPointer->SetAttributeUseFloat("CurrentBombBlastDistance", -1.0f);
-            ResetAirburstHull(AttributesPointer);
-            AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
-            AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", fragment ? 1 : 0);
-            AttributesPointer->SetAttributeUseDword("CurrentBallHeated", heated ? 1 : 0);
-            AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",0.f);
-
-            AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
-            AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
-            AttributesPointer->SetAttributeUseFloat("CurrentMaxBallDistance", pBall->fMaxFireDistance);
+            if (!fragment)
+            {
+                AttributesPointer->SetAttributeUseDword("CurrentBallType", dart ? pBall->dartGood : pBallsType->dwGoodIndex);
+                AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", 0.0f);
+                AttributesPointer->SetAttributeUseFloat("CurrentBombBlastDistance", -1.0f);
+                ResetAirburstHull(AttributesPointer);
+                AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
+                AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", 0);
+                AttributesPointer->SetAttributeUseDword("CurrentBallHeated", heated ? 1 : 0);
+                AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",0.f);
+                AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
+                AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
+                AttributesPointer->SetAttributeUseFloat("CurrentMaxBallDistance", pBall->fMaxFireDistance);
+            }
 
             // update ball time
             pBall->fTime += fDeltaTime * fDeltaTimeMultiplier * pBall->fTimeSpeedMultiply;
@@ -791,7 +800,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
             float fRes = 2.0f;
 
-            const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst, fragments);
+            const bool burst = airburstGood >= 0 && TryAirburst(*pBall, vSrc, vDst, fragments, visualBursts);
             if (burst) fRes = 0.0f;
             // Bound every damage-producing ordinary trace before a detached
             // piece. A hit on distant material must never reach its old hull.
@@ -851,7 +860,10 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 {
                     const float water = pSea->Trace(vSrc, vDst);
                     if (water <= 1.0f && water < fRes)
+                    {
+                        AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", 1);
                         fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                    }
                 }
                 if (pBall->fTime > 3.0f) fRes = 0.0f;
             }

@@ -150,13 +150,7 @@ void AIShip::Execute(float fDeltaTime)
                     controller->FinishQueuedFireNow();
                     if (!character->FindAClass(character, "DebugCheats.Pending"))
                     {
-                        const double dt = std::max(0.0, double(fDeltaTime));
-                        const double before = std::min(heldFireSeconds, 10.0);
-                        const double after = std::min(heldFireSeconds + dt, 10.0);
-                        const double afterRamp = std::max(0.0, heldFireSeconds + dt - 10.0) -
-                                                 std::max(0.0, heldFireSeconds - 10.0);
-                        heldFireDebt += 2.0 * dt + 2.9 * (after * after - before * before) + 58.0 * afterRamp;
-                        heldFireSeconds += dt;
+                        AdvanceHeldFireRamp(heldFireSeconds, heldFireDebt, fDeltaTime);
                         // Preserve excess debt for the next frame if a long frame stalls.
                         for (int n = 0; n < 120 && heldFireDebt + 1e-9 >= 1.0; ++n)
                         {

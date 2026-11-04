@@ -82,7 +82,8 @@ class AIBalls : public Entity
     VDX9RENDER *rs{};
 
     void AddBall(ATTRIBUTES *pABall);
-    bool TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments);
+    bool TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments,
+                     std::vector<CVECTOR> &visualBursts);
     void BombBlast(BALL_PARAMS &ball, const CVECTOR &burst, entid_t directShip);
 
     // inherited functions from Entity

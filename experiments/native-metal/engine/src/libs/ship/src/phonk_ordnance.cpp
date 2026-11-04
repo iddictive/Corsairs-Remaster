@@ -3,6 +3,7 @@
 #include "phonk_targeting.hpp"
 #include "ship_debris_bridge.hpp"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
+#include "shared/sea_ai/held_fire_ramp.hpp"
 #include <array>
 #include <limits>
 
@@ -154,6 +155,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     using namespace storm::ship::phonk;
     if (!bMounted || !GetACharacter() || !pSea || !pRS) return;
     auto &state = phonkOrdnance;
+    const auto generation = phonkOrdnanceGeneration;
     const auto sourceId = GetId();
     const auto simulationSeaId = sea_id;
     auto *const simulationSea = pSea;
@@ -173,6 +175,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     // Delta0 is a paused frame: neither a launch nor flight/damage may advance.
     if (!deltaTime) {
         state.charging = false; state.charge = 0.f;
+        state.burstArmed = false; state.burstSeconds = state.burstDebt = 0.0;
         state.triggerHeld = true; // A paused release must not become a later shot.
         if (active)
             pSea->AttributesPointer->VerifyAttributeClass("Phonk")->SetAttributeUseDword("NuclearChargeTier", 0);
@@ -204,10 +207,13 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             blast.age += seconds;
             if (pressure) AdvancePhonkNuclearPressure(blast, receivers);
             if (core.GetEntityPointer(sourceId) != this) return;
+            if (phonkOrdnanceGeneration != generation) return;
             if (pressure && !seaLive()) return;
             if (blast.seed != seed) continue;
             blast.active = blast.age < nuclearBlastLife;
         }
+    state.blasts.erase(std::remove_if(state.blasts.begin(), state.blasts.end(),
+        [](const auto &blast) { return !blast.active; }), state.blasts.end());
     for (auto &missile : state.missiles)
     {
         if (!missile.active) continue;
@@ -221,32 +227,33 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             if (hit > 1.f && missile.age < missile.duration) continue;
             const auto impact = hit <= 1.f ? before + (after - before) * hit : missile.target;
             missile.active = false;
-            auto *blast = &*std::max_element(state.blasts.begin(), state.blasts.end(),
-                [](const auto &a, const auto &b) { return a.age < b.age; });
-            // Inactive slots win; only an explicitly bounded oldest visual retires.
-            for (auto &slot : state.blasts) if (!slot.active) { blast = &slot; break; }
-            *blast = {};
+            state.blasts.emplace_back();
+            auto *blast = &state.blasts.back();
             blast->center = impact; blast->active = true;
             blast->seed = float(++state.blastSerial); blast->owner = missile.owner;
             blast->yield = missile.yield;
             const float seed = blast->seed;
             ApplyPhonkNuclearImpact(impact, blast->yield.radius, missile.owner, *blast);
             if (core.GetEntityPointer(sourceId) != this) return;
+            if (phonkOrdnanceGeneration != generation) return;
             if (!seaLive()) return;
             if (blast->seed != seed) continue;
             // Water and the visible detonation retire the same bounded slot.
             // The validated pointer belongs to this exact sea entity/frame.
-            simulationSea->StartNuclearWave(impact.x, impact.z, unsigned(blast - state.blasts.data()),
+            simulationSea->StartNuclearWave(impact.x, impact.z, unsigned(state.blastSerial % 4),
                 std::abs(impact.y - simulationSea->WaveXZ(impact.x, impact.z)) <= blast->yield.radius,
                 float(blast->yield.tier));
         }
     }
+    state.missiles.erase(std::remove_if(state.missiles.begin(), state.missiles.end(),
+        [](const auto &missile) { return !missile.active; }), state.missiles.end());
     if (!active)
     {
         state.triggerHeld = false;
         state.charging = false; state.charge = 0.f;
         state.targetValid = false;
         state.targetClock = 0.f;
+        state.burstArmed = false; state.burstSeconds = state.burstDebt = 0.0;
         return;
     }
     EnsureCutFragments(); // Shared late scene owner also renders missiles and blasts.
@@ -258,16 +265,30 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     const bool fire = held("Ship_Fire");
     const bool automatic = outsideCamera();
     const bool pressed = fire && !state.triggerHeld;
-    if (state.weapon != 7 || automatic || automatic != state.targetOutside) {
+    auto *character = GetACharacter();
+    auto *cheats = character ? character->FindAClass(character, "DebugCheats") : nullptr;
+    const bool instant = cheats && cheats->GetAttributeAsDword("InstantCannonReload", 0);
+    auto *allowed = instant ? core.Event("Ship_CanRepeatFire") : nullptr;
+    const bool canBurst = instant && allowed && allowed->GetInt() && state.weapon == 7 &&
+        !character->FindAClass(character, "DebugCheats.Pending");
+    if (!fire || !canBurst || automatic != state.targetOutside) {
+        state.burstArmed = false; state.burstSeconds = state.burstDebt = 0.0;
+    }
+    if (fire && canBurst && pressed) state.burstArmed = true;
+    else if (fire && canBurst && state.burstArmed) {
+        AdvanceHeldFireRamp(state.burstSeconds, state.burstDebt, seconds);
+    }
+    if (state.weapon != 7 || automatic || automatic != state.targetOutside || canBurst) {
         state.charging = false; state.charge = 0.f;
     }
-    if (state.weapon == 7 && !automatic && pressed && state.reload <= 0.f) {
+    if (state.weapon == 7 && !automatic && !canBurst && pressed && state.reload <= 0.f) {
         state.charging = true; state.charge = 0.f;
     }
     if (state.charging && fire)
         state.charge = std::min(nuclearChargeTime, state.charge + seconds);
     const bool release = !fire && state.triggerHeld && state.charging;
-    const bool launchRequested = automatic ? pressed : release;
+    const bool launchRequested = canBurst ? state.burstArmed && (pressed || state.burstDebt >= 1.0) :
+                                           (automatic ? pressed : release);
     auto *ai = dynamic_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
     const CVECTOR launch = GetModel()->mtx * CVECTOR(0.f, std::max(4.f, State.vBoxSize.y * .35f), 0.f);
     state.targetClock += seconds;
@@ -282,7 +303,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         {
             const auto missile = missileTo(launch, state.target, -1);
             state.targetValid = blastClearOfOwner(*this, ai, state.target, missile.duration);
-            if (state.targetValid && launchRequested && state.reload <= 0.f)
+            if (state.targetValid && launchRequested && (canBurst || state.reload <= 0.f))
                 state.targetValid = clearTrajectory(pSea, pIsland, receivers, *this, ai, missile);
         }
     }
@@ -295,10 +316,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         attributes->SetAttributeUseFloat("NuclearTargetZ", state.target.z);
         attributes->SetAttributeUseFloat("NuclearRadius", nuclearRadius);
     }
-    if (state.weapon == 7 && launchRequested && state.reload <= 0.f && state.targetValid)
-        for (auto &missile : state.missiles)
+    if (state.weapon == 7 && launchRequested && (canBurst || state.reload <= 0.f) && state.targetValid)
+    {
+        const int launches = canBurst ? std::min(120, (pressed ? 1 : 0) + int(state.burstDebt)) : 1;
+        for (int shot = 0; shot < launches; ++shot)
         {
-            if (missile.active) continue;
             auto *launchCharacter = GetACharacter();
             if (!ATTRIBUTES::IsLive(launchCharacter)) return;
             const auto owner = launchCharacter->GetAttributeAsDword("index", uint32_t(-1));
@@ -307,19 +329,22 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             // held charge. Neither aim nor rendering rerolls the chosen yield.
             auto *sample = automatic ? core.Event("SeaPhonk_NuclearPower") : nullptr;
             if (core.GetEntityPointer(sourceId) != this || !seaLive()) return;
+            if (phonkOrdnanceGeneration != generation) return;
             launchCharacter = GetACharacter();
             if (!ATTRIBUTES::IsLive(launchCharacter) ||
                 launchCharacter->GetAttributeAsDword("index", uint32_t(-1)) != owner ||
                 !ATTRIBUTES::IsLive(simulationSea->AttributesPointer) || !PhonkActive()) return;
-            if (missile.active) continue;
             const auto yield = automatic ? nuclearYield(sample ? sample->GetFloat() : -1.f) :
                                           nuclearChargedYield(state.charge);
             attributes = simulationSea->AttributesPointer->VerifyAttributeClass("Phonk");
-            missile = missileTo(launch, target, int32_t(owner));
+            auto missile = missileTo(launch, target, int32_t(owner));
             missile.yield = yield;
-            state.reload = nuclearReload;
-            break;
+            state.missiles.push_back(missile);
+            if (canBurst && !(pressed && shot == 0)) state.burstDebt -= 1.0;
+            if (!canBurst) state.reload = nuclearReload;
         }
+    }
+    else if (canBurst && launchRequested && !state.targetValid) state.burstDebt = 0.0;
     if (!fire) { state.charging = false; state.charge = 0.f; }
     state.triggerHeld = fire;
     attributes->SetAttributeUseFloat("NuclearReload", state.reload);
@@ -334,7 +359,7 @@ void SHIP::DrawPhonkOrdnance()
     pRS->GetTransform(storm_render::TransformWorld, previous);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     struct Vertex { CVECTOR position; uint32_t color; };
-    std::array<Vertex, std::tuple_size_v<decltype(phonkOrdnance.missiles)> * 14 * 12> vertices{};
+    std::vector<Vertex> vertices(phonkOrdnance.missiles.size() * 14 * 12);
     unsigned at = 0;
     CVECTOR camera, angles; float perspective;
     pRS->GetCamera(camera, angles, perspective);
@@ -373,8 +398,12 @@ void SHIP::DrawPhonkOrdnance()
         storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
         at / 3, vertices.data(), sizeof(Vertex), "PhonkLaser");
     pRS->SetTransform(storm_render::TransformWorld, previous);
-    for (const auto &blast : phonkOrdnance.blasts)
+    const auto firstVisible = phonkOrdnance.blasts.size() > 4 ? phonkOrdnance.blasts.size() - 4 : 0;
+    for (size_t i = firstVisible; i < phonkOrdnance.blasts.size(); ++i)
+    {
+        const auto &blast = phonkOrdnance.blasts[i];
         if (blast.active)
             StormMetalDrawPhonkNuclearBlast(pRS->GetNativeDevice(), &blast.center.x, blast.yield.radius, blast.age,
                                            blast.seed, nuclearPressureFront(blast.yield, blast.age), nuclearPressureLife);
+    }
 }

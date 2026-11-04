@@ -4289,6 +4289,7 @@ void SHIP::Load(CSaveLoad *pSL)
     uint32_t i;
     CancelPhonkLaserWork();
     phonkLaser = {};
+    ++phonkOrdnanceGeneration;
     phonkOrdnance = {};
     collisionStrength = {};
     collisionYaw = 0.f;

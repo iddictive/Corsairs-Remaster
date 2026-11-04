@@ -1,0 +1,36 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=26 tex=SHIPS\\MANOWAR1\\HULL1\\DES2.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=SHIPS\\MANOWAR1\\HULL1\\WOOD_RED.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=SHIPS\\MANOWAR1\\HULL1\\ROPEU1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=22 tex=SHIPS\\MANOWAR1\\HULL1\\INZANEGUN1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=25 tex=SHIPS\\MANOWAR1\\HULL1\\METALU5.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=SHIPS\\MANOWAR1\\HULL1\\VICTORY_HECK.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\\PARUS_COMMON.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SAIL_ROPE.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=894720068 tex=FLAGS\FLAGALL_SHIP_B.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=21 tex=VANT.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=4/2/0 fmt=22 tex=SHIPSFLARES\FLARESUNROAD.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=2 zwrite=1 s0=4/0/2 fmt=22 tex=WEATHER\SEA\PENA\PENA.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=4/2/0 fmt=23 tex=SHIPSFLARES\CORONA.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=6 zwrite=0 s0=4/2/0 fmt=21 tex=WATER1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=0 s0=4/2/1 fmt=21 tex=SEAFOAM_2.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=49167 bounds_miss=1788 bounds_bypass=18240 bounds_skip=0 indices_scanned=27161568 indices_avoided=206475960 bounds_cpu_ms=43.730 view_hit=87680 view_miss=850 sampling_shared=48536 sampling_fallback=0 sampling_bytes_saved=169293568
+[StormMetal] submission-cache enabled=1 raster_skipped=419123 shadow_textures_skipped=482930 sampler_reused=500295
+[StormMetal] ffp-specialize enabled=1 frames=120 used=54094 fallback=54 ready=12 variants=12
+[StormMetal] diag: origin=(-600.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.14 pitch=-8.0 draws=88431 verts=342517488 uploadMB=1208.0 legacy3D=0 legacyShadow=0
+direct target=1 armed=1 missiles=16 blasts=8 peak=16 point 600.0 3.3 182.4
+outside=0 weapon=7
+nuclear target=1 armed=1 missiles=16 blasts=32 debt=0.059 max=16
+view 600.0 40.0 -80.0 dir 0.00 -0.14 0.99 sea=1
+point 600.0 10.8 128.5 ship 210.0 3.2 100.0
+scene_backbuffer=640x480 ships=8 hidden=1
+animated_draws=74
+pilot_complete=1 performance_acceptance=0

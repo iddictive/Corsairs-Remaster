@@ -166,6 +166,7 @@ class SHIP : public SHIP_BASE
     storm::ship::phonk::LaserState phonkLaser;
     storm::ship::phonk::LaserCutQueue phonkLaserWork;
     storm::ship::phonk::OrdnanceState phonkOrdnance;
+    uint64_t phonkOrdnanceGeneration = 0;
     float phonkSeconds = 0.f;
     SeaWhirlpoolMotion whirlpoolMotion; // transient; ordinary buoyancy follows the actual bowl
     unsigned emergenceSerial = 0; // rebound to the restored field, never serialized

@@ -1,10 +1,10 @@
 object	AIBalls;
 aref	Grapes, Knippels, Balls, Bombs;
 
-void Ball_CreateNavalEffect(string name, float x, float y, float z, float rx, float ry, float rz, int category)
+void Ball_CreateNavalEffect(string name, float x, float y, float z, float rx, float ry, float rz, int lifetime, int category)
 {
 	if (!CreateParticleEntity()) return;
-	SendMessage(&Particles, "lsffffffll", PS_CREATE_NAVAL_EFFECT, name, x, y, z, rx, ry, rz, 5, category);
+	SendMessage(&Particles, "lsffffffll", PS_CREATE_NAVAL_EFFECT, name, x, y, z, rx, ry, rz, lifetime, category);
 }
 
 // ------------------- Current Ball Info -------------------
@@ -124,11 +124,14 @@ void Ball_AirburstExplosion()
 	float x = GetEventData();
 	float y = GetEventData();
 	float z = GetEventData();
-	// Four finite authored cones cover the sphere; every shell gets fire and smoke.
-	CreateParticleSystem("blast_inv", x, y, z, 0.9553166, 0.7853982, 0.0, 0);
-	CreateParticleSystem("blast_inv", x, y, z, 0.9553166, -2.3561945, 0.0, 0);
-	CreateParticleSystem("blast_inv", x, y, z, 2.1862760, 2.3561945, 0.0, 0);
-	CreateParticleSystem("blast_inv", x, y, z, 2.1862760, -0.7853982, 0.0, 0);
+	// The native owner coalesces overlapping visual bursts, not blast damage.
+	if (!sti(AIBalls.AirburstVisualLimited))
+	{
+		Ball_CreateNavalEffect("blast_inv", x, y, z, 0.9553166, 0.7853982, 0.0, 0, 3);
+		Ball_CreateNavalEffect("blast_inv", x, y, z, 0.9553166, -2.3561945, 0.0, 0, 4);
+		Ball_CreateNavalEffect("blast_inv", x, y, z, 2.1862760, 2.3561945, 0.0, 0, 5);
+		Ball_CreateNavalEffect("blast_inv", x, y, z, 2.1862760, -0.7853982, 0.0, 0, 6);
+	}
 	// Audio stays bounded during dense broadsides.
 	if (!sti(AIBalls.AirburstFxBusy))
 	{
@@ -295,7 +298,7 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 		if (sti(aCharacter.ship.type) >= SHIP_CORVETTE)	{ sParticleName = "cancloud_fire_big"; }
 	}
 	//if (rand(1) == 0) // boal оптимизация дыма
-	Ball_CreateNavalEffect(sParticleName, fX, fY, fZ, -fHeightAng - (fCannonHeightMultiply - 1.0) * 0.1, fDirAng, 0.0, 1);
+	Ball_CreateNavalEffect(sParticleName, fX, fY, fZ, -fHeightAng - (fCannonHeightMultiply - 1.0) * 0.1, fDirAng, 0.0, 5, 1);
 	Play3DSound(rCannon.Sound, fX, fY, fZ);
 }
 
@@ -321,18 +324,18 @@ void Ball_WaterHitEvent()
 
 	if (sti(AIBalls.CurrentAirburstFragment))
 	{
-		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 2);
+		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 5, 2);
 	}
 	else if (sti(AIBalls.CurrentBallCannonType) >= 0)
 	{
 		ref rCannon = GetCannonByType(sti(AIBalls.CurrentBallCannonType));
 
-		if (sti(rCannon.BigBall))	{ Ball_CreateNavalEffect("splash_big", X, Y, Z, 0.0, 0.0, 0.0, 2); }
-		else						{ Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 2); }
+		if (sti(rCannon.BigBall))	{ Ball_CreateNavalEffect("splash_big", X, Y, Z, 0.0, 0.0, 0.0, 5, 2); }
+		else						{ Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 5, 2); }
 	}
 	else
 	{
-		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 2);
+		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 5, 2);
 	}
 
 	Play3DSound("ball_splash", x, y, z);

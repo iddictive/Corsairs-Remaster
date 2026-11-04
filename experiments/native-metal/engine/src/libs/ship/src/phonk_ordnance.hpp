@@ -101,11 +101,13 @@ struct OrdnanceState
     unsigned weapon = 6;
     bool triggerHeld = false, targetValid = false, targetOutside = false, charging = false;
     float reload = 0.f, targetClock = 0.f, charge = 0.f;
+    double burstSeconds = 0.0, burstDebt = 0.0;
+    bool burstArmed = false;
     uint32_t blastSerial = 0;
     CVECTOR target = CVECTOR(0.f);
     // A six-kilometre flight takes over six seconds at the one-second cadence.
-    std::array<NuclearMissile, 8> missiles{};
-    std::array<NuclearBlast, 4> blasts{};
+    std::vector<NuclearMissile> missiles;
+    std::vector<NuclearBlast> blasts;
 };
 inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
 {
