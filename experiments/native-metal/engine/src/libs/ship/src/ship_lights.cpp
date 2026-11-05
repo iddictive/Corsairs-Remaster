@@ -477,9 +477,10 @@ void ShipLights::SetLights(VAI_OBJBASE *pObject)
             }
             else
                 aLights[i].vCurPos = *(aLights[i].pObject->GetMatrix()) * aLights[i].vPos;
-
-            aLights[i].fCurDistance = sqrtf(~(pObject->GetPos() - aLights[i].vCurPos));
         }
+        // Dynamic flashes already have world positions, but still need a
+        // receiver-relative distance before competing for limited light slots.
+        aLights[i].fCurDistance = sqrtf(~(pObject->GetPos() - aLights[i].vCurPos));
         aLights[i].Light.Position.x = aLights[i].vCurPos.x;
         aLights[i].Light.Position.y = aLights[i].vCurPos.y;
         aLights[i].Light.Position.z = aLights[i].vCurPos.z;
