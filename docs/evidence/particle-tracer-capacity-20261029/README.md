@@ -1,5 +1,8 @@
 # Projectile tracer capacity
 
+The later [field-cache comparison](field-cache-20261105/README.md) records
+paired native workloads and descriptor lifecycle checks.
+
 The actual K2 default particle manager shared a fixed 4096-slot billboard pool
 between cannon tracers, smoke, fire and other effects. Exhaustion silently
 discarded particles. Projectile creation itself had no matching shot limit.

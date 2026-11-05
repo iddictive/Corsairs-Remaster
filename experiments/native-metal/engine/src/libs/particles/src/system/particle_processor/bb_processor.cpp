@@ -6,7 +6,9 @@
 #include "../../i_common/i_emitter.h"
 #include "../../i_common/names.h"
 #include "../data_source/data_color.h"
+#include "../data_source/data_bool.h"
 #include "../data_source/data_graph.h"
+#include "../data_source/data_string.h"
 #include "../data_source/data_uv.h"
 #include "../particle_system/particle_system.h"
 #include "physic.h"
@@ -130,9 +132,24 @@ void BillBoardProcessor::FreeParticle(BB_ParticleData *pItem)
 #endif
 }
 
+void BillboardFields::Refresh(FieldList &f)
+{
+    trackX = f.FindGraph(PARTICLE_TRACK_X); trackY = f.FindGraph(PARTICLE_TRACK_Y); trackZ = f.FindGraph(PARTICLE_TRACK_Z);
+    speedOriented = f.FindBool(PARTICLE_DIR_ORIENT);
+    life = f.FindGraph(PARTICLE_LIFE_TIME); mass = f.FindGraph(PARTICLE_MASS); spin = f.FindGraph(PARTICLE_SPIN);
+    velocity = f.FindGraph(PARTICLE_VELOCITY_POWER); spinDrag = f.FindGraph(PARTICLE_SPIN_DRAG);
+    size = f.FindGraph(PARTICLE_SIZE); frames = f.FindGraph(PARTICLE_ANIMFRAME);
+    color = f.FindColor(PARTICLE_COLOR); uv = f.FindUV(PARTICLE_FRAMES);
+    transparency = f.FindGraph(PARTICLE_TRANSPARENCY); drag = f.FindGraph(PARTICLE_DRAG);
+    physBlend = f.FindGraph(PARTICLE_PHYSIC_BLEND); gravity = f.FindGraph(PARTICLE_GRAVITATION_K);
+    addPower = f.FindGraph(PARTICLE_ADDPOWER); attachedEmitter = f.FindString(ATTACHEDEMITTER_NAME);
+    revision = f.GetRevision();
+    initialized = true;
+}
+
 void BillBoardProcessor::AddParticle(ParticleSystem *pSystem, const Vector &velocity_dir, const Vector &pos,
                                      const Matrix &matWorld, float EmitterTime, float EmitterLifeTime,
-                                     FieldList *pFields, uint32_t *pActiveCount, uint32_t dwGUID)
+                                     FieldList *pFields, uint32_t *pActiveCount, uint32_t dwGUID, BillboardFields &fields)
 {
     auto *pData = AllocParticle();
 
@@ -143,16 +160,18 @@ void BillBoardProcessor::AddParticle(ParticleSystem *pSystem, const Vector &velo
         return;
     }
 
-    pData->Graph_TrackX = pFields->FindGraph(PARTICLE_TRACK_X);
-    pData->Graph_TrackY = pFields->FindGraph(PARTICLE_TRACK_Y);
-    pData->Graph_TrackZ = pFields->FindGraph(PARTICLE_TRACK_Z);
+    if (!fields.initialized || fields.revision != pFields->GetRevision())
+        fields.Refresh(*pFields);
+    pData->Graph_TrackX = fields.trackX;
+    pData->Graph_TrackY = fields.trackY;
+    pData->Graph_TrackZ = fields.trackZ;
 
     Vector PositionOffset;
     PositionOffset.x = pData->Graph_TrackX->GetRandomValue(0.0f, 100.0f);
     PositionOffset.y = pData->Graph_TrackY->GetRandomValue(0.0f, 100.0f);
     PositionOffset.z = pData->Graph_TrackZ->GetRandomValue(0.0f, 100.0f);
 
-    pData->SpeedOriented = pFields->GetBool(PARTICLE_DIR_ORIENT, false);
+    pData->SpeedOriented = fields.speedOriented ? fields.speedOriented->GetValue() : false;
     pData->EmitterGUID = dwGUID;
     pData->ActiveCount = pActiveCount;
     pData->RenderPos = (pos + PositionOffset) * matWorld;
@@ -168,25 +187,25 @@ void BillBoardProcessor::AddParticle(ParticleSystem *pSystem, const Vector &velo
     pData->OldRenderPos = pData->RenderPos;
     pData->OldRenderAngle = pData->RenderAngle;
 
-    pData->LifeTime = pFields->GetRandomGraphVal(PARTICLE_LIFE_TIME, EmitterTime, EmitterLifeTime);
-    pData->Mass = pFields->GetRandomGraphVal(PARTICLE_MASS, EmitterTime, EmitterLifeTime);
-    pData->Spin = pFields->GetRandomGraphVal(PARTICLE_SPIN, EmitterTime, EmitterLifeTime);
+    pData->LifeTime = fields.life ? fields.life->GetRandomValue(EmitterTime, EmitterLifeTime) : 0.0f;
+    pData->Mass = fields.mass ? fields.mass->GetRandomValue(EmitterTime, EmitterLifeTime) : 0.0f;
+    pData->Spin = fields.spin ? fields.spin->GetRandomValue(EmitterTime, EmitterLifeTime) : 0.0f;
     pData->Spin = pData->Spin * MUL_DEGTORAD;
 
-    const auto VelocityPower = pFields->GetRandomGraphVal(PARTICLE_VELOCITY_POWER, EmitterTime, EmitterLifeTime);
+    const auto VelocityPower = fields.velocity ? fields.velocity->GetRandomValue(EmitterTime, EmitterLifeTime) : 0.0f;
     pData->Velocity = pData->Velocity * VelocityPower;
     pData->UMass = fabsf(pData->Mass);
 
-    pData->Graph_SpinDrag = pFields->FindGraph(PARTICLE_SPIN_DRAG);
-    pData->Graph_Size = pFields->FindGraph(PARTICLE_SIZE);
-    pData->Graph_Frames = pFields->FindGraph(PARTICLE_ANIMFRAME);
-    pData->Graph_Color = pFields->FindColor(PARTICLE_COLOR);
-    pData->Graph_UV = pFields->FindUV(PARTICLE_FRAMES);
-    pData->Graph_Transparency = pFields->FindGraph(PARTICLE_TRANSPARENCY);
-    pData->Graph_Drag = pFields->FindGraph(PARTICLE_DRAG);
-    pData->Graph_PhysBlend = pFields->FindGraph(PARTICLE_PHYSIC_BLEND);
-    pData->graph_GravK = pFields->FindGraph(PARTICLE_GRAVITATION_K);
-    pData->graph_AddPower = pFields->FindGraph(PARTICLE_ADDPOWER);
+    pData->Graph_SpinDrag = fields.spinDrag;
+    pData->Graph_Size = fields.size;
+    pData->Graph_Frames = fields.frames;
+    pData->Graph_Color = fields.color;
+    pData->Graph_UV = fields.uv;
+    pData->Graph_Transparency = fields.transparency;
+    pData->Graph_Drag = fields.drag;
+    pData->Graph_PhysBlend = fields.physBlend;
+    pData->graph_GravK = fields.gravity;
+    pData->graph_AddPower = fields.addPower;
 
     pData->DragK = FRAND(1.0f);
     pData->SpinDragK = FRAND(1.0f);
@@ -202,7 +221,7 @@ void BillBoardProcessor::AddParticle(ParticleSystem *pSystem, const Vector &velo
     pData->KTrackY = FRAND(1.0f);
     pData->KTrackZ = FRAND(1.0f);
 
-    const auto *const pEmitterName = pFields->GetString(ATTACHEDEMITTER_NAME);
+    const auto *const pEmitterName = fields.attachedEmitter ? fields.attachedEmitter->GetValue() : "";
     if (storm::iEquals(pEmitterName, "none"))
     {
         pData->AttachedEmitter = nullptr;

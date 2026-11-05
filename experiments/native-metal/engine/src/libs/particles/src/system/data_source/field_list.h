@@ -38,6 +38,7 @@ class FieldList
 
   private:
     std::vector<FieldDesc> Fields;
+    uint64_t Revision = 0;
 
     void DeleteFieldData(const FieldDesc &pData);
 
@@ -66,6 +67,7 @@ class FieldList
     ~FieldList();
 
     void DelAll();
+    uint64_t GetRevision() const { return Revision; }
 
     // Save / Load ...
     void Load(MemFile *File);

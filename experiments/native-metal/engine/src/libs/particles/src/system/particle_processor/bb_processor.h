@@ -20,6 +20,20 @@
 
 class ParticleSystem;
 
+// Per-emitter references to the descriptor fields; values stay live in the editor.
+struct BillboardFields
+{
+    uint64_t revision = 0;
+    bool initialized = false;
+    DataGraph *trackX = nullptr, *trackY = nullptr, *trackZ = nullptr, *life = nullptr, *mass = nullptr, *spin = nullptr, *velocity = nullptr;
+    DataGraph *spinDrag = nullptr, *size = nullptr, *frames = nullptr, *transparency = nullptr, *drag = nullptr, *physBlend = nullptr, *gravity = nullptr, *addPower = nullptr;
+    DataColor *color = nullptr;
+    DataUV *uv = nullptr;
+    DataBool *speedOriented = nullptr;
+    DataString *attachedEmitter = nullptr;
+    void Refresh(FieldList &fields);
+};
+
 class BillBoardProcessor
 {
     static storm_render::VertexLayout *vertexDecl_;
@@ -81,7 +95,7 @@ class BillBoardProcessor
 
     void AddParticle(ParticleSystem *pSystem, const Vector &velocity_dir, const Vector &pos, const Matrix &matWorld,
                      float EmitterTime, float EmitterLifeTime, FieldList *pFields, uint32_t *pActiveCount,
-                     uint32_t dwGUID);
+                     uint32_t dwGUID, BillboardFields &fieldsCache);
 
     void Process(float DeltaTime);
     void Draw();

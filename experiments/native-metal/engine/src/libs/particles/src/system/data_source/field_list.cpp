@@ -21,6 +21,7 @@ FieldList::~FieldList()
 
 void FieldList::Load(MemFile *File)
 {
+    ++Revision;
     uint32_t DataFieldsCount = 0;
     File->ReadType(DataFieldsCount);
 
@@ -284,6 +285,7 @@ void FieldList::CreateColorField(MemFile *pMemFile)
 
 void FieldList::DelAll()
 {
+    ++Revision;
     for (uint32_t n = 0; n < Fields.size(); n++)
     {
         DeleteFieldData(Fields[n]);
@@ -518,6 +520,7 @@ const FieldList::FieldDesc &FieldList::GetFieldByIndex(uint32_t Index)
 
 void FieldList::Convert(DataDescripion *pDataDescriptor)
 {
+    ++Revision;
     for (uint32_t i = 0; i < Fields.size(); i++)
     {
         Fields[i].MarkForDelete = true;

@@ -1,0 +1,28 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+field lifecycle parity: passed
+asset=balls_tracer emitter=0 life=0.100 looping=1 max0=100
+name=balls_tracer systems=1 particles=15 empty=0 first=15 last=15 wall_ms=247.995 encode_ms=0.722 peak=16 sizeof_particle=352
+name=balls_tracer systems=64 particles=960 empty=0 first=15 last=15 wall_ms=250.038 encode_ms=22.275 peak=1024 sizeof_particle=352
+name=balls_tracer systems=256 particles=3840 empty=0 first=15 last=15 wall_ms=249.400 encode_ms=76.750 peak=4096 sizeof_particle=352
+name=balls_tracer systems=512 particles=7680 empty=0 first=15 last=15 wall_ms=248.987 encode_ms=72.676 peak=8192 sizeof_particle=352
+asset=grapes_tracer emitter=0 life=0.100 looping=1 max0=100
+name=grapes_tracer systems=1 particles=4 empty=0 first=4 last=4 wall_ms=248.993 encode_ms=0.727 peak=4 sizeof_particle=352
+name=grapes_tracer systems=64 particles=256 empty=0 first=4 last=4 wall_ms=248.936 encode_ms=19.665 peak=256 sizeof_particle=352
+name=grapes_tracer systems=256 particles=1024 empty=0 first=4 last=4 wall_ms=249.595 encode_ms=58.165 peak=1024 sizeof_particle=352
+name=grapes_tracer systems=512 particles=2048 empty=0 first=4 last=4 wall_ms=250.012 encode_ms=76.923 peak=2048 sizeof_particle=352
+asset=knippels_tracer emitter=0 life=0.100 looping=1 max0=100
+name=knippels_tracer systems=1 particles=27 empty=0 first=27 last=27 wall_ms=247.898 encode_ms=1.206 peak=28 sizeof_particle=352
+name=knippels_tracer systems=64 particles=1728 empty=0 first=27 last=27 wall_ms=250.424 encode_ms=48.614 peak=1792 sizeof_particle=352
+name=knippels_tracer systems=256 particles=6912 empty=0 first=27 last=27 wall_ms=249.703 encode_ms=85.838 peak=7168 sizeof_particle=352
+name=knippels_tracer systems=512 particles=13824 empty=0 first=27 last=27 wall_ms=249.568 encode_ms=107.352 peak=14336 sizeof_particle=352
+asset=bomb_smoke emitter=0 life=0.100 looping=1 max0=200 max1=100
+name=bomb_smoke systems=1 particles=65 empty=0 first=65 last=65 wall_ms=247.281 encode_ms=1.201 peak=73 sizeof_particle=352
+name=bomb_smoke systems=64 particles=4153 empty=0 first=65 last=65 wall_ms=249.386 encode_ms=64.066 peak=4637 sizeof_particle=352
+name=bomb_smoke systems=256 particles=16553 empty=0 first=65 last=64 wall_ms=249.723 encode_ms=104.930 peak=18503 sizeof_particle=352
+name=bomb_smoke systems=512 particles=33071 empty=0 first=64 last=66 wall_ms=293.627 encode_ms=212.881 peak=37039 sizeof_particle=352
+mixed_repetition=0 systems=256 particles=7029 empty=0
+paused_repetition=0 particles=0
+mixed_repetition=1 systems=256 particles=7030 empty=0
+paused_repetition=1 particles=0

@@ -20,6 +20,7 @@ class BaseEmitter : public IEmitter
         DataGraph *EmissionRate;    // Graph defining the rate of emission of particles
 
         FieldList *pFields;
+        BillboardFields BillboardCache;
 
         structParticleType()
             : Visible(false), MaxParticlesCount(0)

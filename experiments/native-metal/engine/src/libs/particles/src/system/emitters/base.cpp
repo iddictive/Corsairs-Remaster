@@ -96,7 +96,8 @@ void BaseEmitter::BornParticles(float DeltaTime)
                         ParticleTypes[n].ActiveCount++;
                         GetManager()->GetBBProcessor()->AddParticle(pMaster, VelDir, ParticlePos, matWorldTransform,
                                                                     ElapsedTime, LifeTime, ParticleTypes[n].pFields,
-                                                                    &ParticleTypes[n].ActiveCount, (Unique_GUID + n));
+                                                                    &ParticleTypes[n].ActiveCount, (Unique_GUID + n),
+                                                                    ParticleTypes[n].BillboardCache);
                         break;
                     case MODEL_PARTICLE:
                         ParticleTypes[n].ActiveCount++;
