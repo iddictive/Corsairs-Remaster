@@ -9,7 +9,7 @@
 
 namespace storm::ship::phonk
 {
-inline constexpr float nuclearRange = 6000.f;
+inline constexpr float nuclearRange = 9000.f;
 inline constexpr float nuclearRadius = 220.f;
 inline constexpr float nuclearReload = 1.f;
 inline constexpr float nuclearChargeTime = 3.f;
