@@ -1716,7 +1716,21 @@ void AIShipCannonController::DrawManualAimOverlay(const CVECTOR &direction,const
             const double weight=weights[yaw]*weights[v]*weights[elevation];
             const float limit=curve.timeToHeight(-world.waveBound-1.f);
             densitySamples.push_back({curve,weight,limit,{curve,axis,limit}});
-            const float waterTime=curve.timeToHeight(0.f);
+            float waterTime=curve.timeToHeight(0.f);
+            // Reproject each sample to the current wave, not the y=0 plane.
+            // Successive height samples account for the horizontal shift of
+            // the descending trajectory without tracing world geometry again.
+            if(world.sea)
+                for(int iteration=0;iteration<3 && waterTime>0.f;++iteration)
+                {
+                    const auto p=curve.at(waterTime);
+                    const float waveHeight=world.sea->WaveXZ(p.x,p.z);
+                    if(!std::isfinite(waveHeight))break;
+                    const float adjusted=curve.timeToHeight(waveHeight);
+                    if(!std::isfinite(adjusted)||adjusted<=0.f)break;
+                    if(std::fabs(adjusted-waterTime)<1e-4f){waterTime=adjusted;break;}
+                    waterTime=adjusted;
+                }
             if(std::isfinite(waterTime)&&waterTime>0.f)
             {const auto point=curve.at(waterTime);waterMoments[group].add(point,weight);allWater.add(point,weight);}
             float contactTime=std::numeric_limits<float>::infinity();
