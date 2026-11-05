@@ -467,15 +467,28 @@ bool Sea_ResidentSuspended()
     return bSeaResidentSuspended && IsEntity(&Sea) && IsEntity(&AISea) && IsEntity(&SeaTraffic) && Sea_HasAtlasFrame();
 }
 
+string Sea_ResidentMissingReason()
+{
+    if (!bSeaResidentSuspended) return "suspended-flag-clear";
+    if (!IsEntity(&Sea)) return "sea-missing";
+    if (!IsEntity(&AISea)) return "ai-sea-missing";
+    if (!IsEntity(&SeaTraffic)) return "traffic-missing";
+    if (!Sea_HasAtlasFrame()) return "atlas-frame-missing";
+    return "none";
+}
+
 bool Sea_ResidentSuspend()
 {
-    if (!Sea_HasAtlasFrame() || !IsEntity(&SeaTraffic) || CheckAttribute(&worldMap, "directSail")) return false;
+    if (!Sea_HasAtlasFrame()) { Sea_TransitionTrace("sea-suspend:atlas-frame-missing"); return false; }
+    if (!IsEntity(&SeaTraffic)) { Sea_TransitionTrace("sea-suspend:traffic-missing"); return false; }
+    if (CheckAttribute(&worldMap, "directSail")) { Sea_TransitionTrace("sea-suspend:direct-sail"); return false; }
     // Snapshot the live roster for SAVE without handing physical ownership to
     // a second simulation. Cannon refunds belong only to the copied SAVE roster.
     bSeaRetainingForMap = true;
     WdmFleetSeaSave();
     bSeaRetainingForMap = false;
     bSeaResidentSuspended = true;
+    Sea_TransitionTrace("sea-suspend:retained");
     bSeaActive = false;
     bSeaLoaded = false;
     DeleteBattleInterface();

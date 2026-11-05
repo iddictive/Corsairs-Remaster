@@ -15,6 +15,8 @@ void wdmReloadToSea()
     if (WdmTryResidentSea()) return;
     string residentRejection = "unclassified";
     if (CheckAttribute(&wdmLoginToSea, "residentRejection")) residentRejection = wdmLoginToSea.residentRejection;
+    string residentMissing = "";
+    if (residentRejection == "scene-not-retained") residentMissing = Sea_ResidentMissingReason();
     if (Sea_ResidentSuspended()) Sea_ResidentDiscard();
 	// расчёты ВМЛ -->
 	EmptyAllFantomCharacter();
@@ -78,6 +80,7 @@ void wdmReloadToSea()
 	if (IsEntity(&SeaMapTransition))
 	{
 		Sea_TransitionTrace("cold-admission:" + residentRejection);
+        if (residentMissing != "") Sea_TransitionTrace("resident-missing:" + residentMissing);
 		SetEventHandler("Wdm_SeaTransitionCommit", "WdmSeaTransitionCommit", 0);
 		SetEventHandler("Sea_MapTransitionDone", "Sea_MapTransitionDone", 0);
 		return;
