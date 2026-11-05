@@ -1,5 +1,31 @@
 # Airburst workload comparison
 
+## 2026-11-05 fleet and airburst pilots
+
+At source `6b674af7cef8642aba7f3cf902bf11a93cea5be8`, the native
+`sea-fleet-benchmark` was built from the current source and run while the game
+was closed on Apple M5 Max. A pilot with eight ships, 160 frames, 1280×800 and
+32 warmup frames produced CPU median 8.792 ms and GPU command-union median
+5.478 ms. It is ordinary fleet rendering, not a firing scenario. Its
+`manifest.json`, `summary.json`, `cpu-frames.csv`, and `renderer-frames.csv`
+retain input hashes, settings, and observations. Reproduce with
+`python3 tools/run_sea_benchmark.py --frames 160 --warmup 32 --width 1280 --height 800 --ships 8`.
+
+The same binary then ran the existing airburst `fixture.c`, 160 frames at
+640×480, using `engine.ini`, `day.c`, `ship-lights.c` and `ship-type.c` from
+`docs/evidence/cannon-darts-20261021/native-fixture/`, and the installed
+RESOURCE tree. It used `STORM_METAL_PROFILE=1`, `STORM_METAL_MODERN_EFFECTS=1`,
+`STORM_QUIET_CLIENT=1`, and a fresh absolute `STORM_METAL_FRAME_TRACE` path.
+The fixed fixture launches four shells per frame for the first 110 frames and
+completed with seven ships. Frames 32–109 have CPU mean/median 8.312/8.446 ms;
+frames 110–159 have 8.310/8.218 ms. Raw CPU and renderer rows are
+`airburst-20261105-cpu.csv` and `airburst-20261105-renderer.csv`. Binary SHA-256
+was `13d02b629619af3ddc1720cb1c78f03586b66ca3500723f3b509edb7ea0a6440`;
+the fixture SHA-256 was `b84361d7af0c363a9eabea94d4ad83a288f6182a5193e41581c0cd698f71cf3e`.
+This synthetic fixture stubs script damage and part of the explosion effects;
+it does not represent a held 60-salvo burst or establish real-game FPS. These
+are current observations, not a paired comparison with the earlier runs below.
+
 The retained fixture runs the native 640×480 `sea-fleet-benchmark` for 160
 frames, with eight mounted ships and four airburst shells spawned per frame for
 the first 110 frames. At least one real airburst must occur or the fixture

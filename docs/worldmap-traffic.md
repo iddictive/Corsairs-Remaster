@@ -1,5 +1,8 @@
 # World-map traffic
 
+The [traffic lookup comparison](evidence/worldmap-lookup-20261105/README.md)
+records source-derived cases and the limits of its isolated timing.
+
 ## Relation query admission
 
 `WdmMilitaryEffectiveRelation` skips colonies without a participation identity

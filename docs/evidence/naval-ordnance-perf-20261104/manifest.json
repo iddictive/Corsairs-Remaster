@@ -1,0 +1,52 @@
+{
+  "pilot": true,
+  "performance_acceptance": false,
+  "binary_sha256": "13d02b629619af3ddc1720cb1c78f03586b66ca3500723f3b509edb7ea0a6440",
+  "native_source_sha256": "fd7f6bc12e69c7f46776438f38826b093436a84dd43b9a0a3ae202dcd0b9b1d0",
+  "inputs": {
+    "ship-catalog": "82dc783d804692b19067d2655e43b54b578381a8c8c273852b365905e6495cbd",
+    "ship-lights": "74c4723efb08a4c032ead9a5a9910f23dd2e493fdfbd0395ab922a4506a41554",
+    "day": "4dd4a88adb31c2e73acd8735774316bb55b91a6fb3825b9accbd470a27cf119e",
+    "units": "c9b7b9e439b82e64d0cff057b2a6f33ac7ff9e9e6d214f62b0b724462688e09b",
+    "native-declarations": "d50b3ba8c494ba4ddf61c9628940303ccc681c7eb4362fd42d36f7ca141dfdd3",
+    "cannon-declarations": "28fc2dfa86bfb663c8b935a30b4e76ec7b6c92938ff86160fcf7819e0423b7d0",
+    "fixture": "2eea6cd256668963278d5f765921ca8e65dc10cf8a8221376844cdd99d49dbc4"
+  },
+  "model_sha256": "7e33b7ae163d1e5ca2faab7c016cba9935623166b1279c497279ecfd5b41669d",
+  "settings": {
+    "STORM_METAL_DYNAMIC_LIGHTING": "1",
+    "STORM_METAL_MODERN_WATER": "1",
+    "STORM_METAL_MODERN_LIGHTING": "1",
+    "STORM_METAL_CINEMATIC": "1",
+    "STORM_METAL_LIGHT_SHAFTS": "1",
+    "STORM_METAL_DYNAMIC_SKY": "0",
+    "STORM_METAL_ANTIALIASING": "0",
+    "STORM_METAL_SHADOW_QUALITY": "1",
+    "STORM_METAL_UPSCALING": "0",
+    "STORM_METAL_AA_MODE": "0",
+    "STORM_METAL_MODERN_EFFECTS": "1",
+    "STORM_METAL_PROFILE": "1"
+  },
+  "backend_environment": {
+    "STORM_METAL_AA_MODE": "0",
+    "STORM_METAL_ANTIALIASING": "0",
+    "STORM_METAL_CINEMATIC": "1",
+    "STORM_METAL_DYNAMIC_LIGHTING": "1",
+    "STORM_METAL_DYNAMIC_SKY": "0",
+    "STORM_METAL_FRAME_TRACE": "renderer-frames.csv",
+    "STORM_METAL_LIGHT_SHAFTS": "1",
+    "STORM_METAL_MODERN_EFFECTS": "1",
+    "STORM_METAL_MODERN_LIGHTING": "1",
+    "STORM_METAL_MODERN_WATER": "1",
+    "STORM_METAL_PROFILE": "1",
+    "STORM_METAL_SHADOW_QUALITY": "1",
+    "STORM_METAL_UPSCALING": "0"
+  },
+  "resolution": [
+    1280,
+    800
+  ],
+  "frames": 160,
+  "ships": 8,
+  "instrumented": false
+}

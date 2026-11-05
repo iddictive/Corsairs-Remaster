@@ -139,13 +139,13 @@ void WdmMerchantShip::FindMoveForce()
 bool WdmMerchantShip::KillTest()
 {
     if (saveAttribute && saveAttribute->GetAttributeClass("authoredPatrol")) return false;
-    if (GetTrafficData() && (trafficSteering || attack)) return false;
+    auto *data = GetTrafficData();
+    if (data && (trafficSteering || attack)) return false;
     const auto dx = gotoPos.x - mtx.Pos().x;
     const auto dz = gotoPos.z - mtx.Pos().z;
     const auto dl = dx * dx + dz * dz;
-    const float arrivalRad = GetTrafficData() ? std::max(gotoRad, 12.0f) : gotoRad;
+    const float arrivalRad = data ? std::max(gotoRad, 12.0f) : gotoRad;
     if (dl > arrivalRad * arrivalRad) return false;
-    auto *data = GetTrafficData();
     if (data && data->GetAttribute("trafficLifecycle") && wdmObjects->isPause) return false;
     if (data && data->GetAttribute("trafficLifecycle") &&
         (std::strcmp(data->GetAttribute("trafficLifecycle"), "service") == 0 ||

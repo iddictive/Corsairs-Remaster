@@ -97,10 +97,10 @@ void WdmEnemyShip::Update(float dltTime)
         if (deleteAlpha >= 1.0f)
         {
             // Remote check
-            if (!GetTrafficData() && d > wdmObjects->enemyshipDistKill)
+            auto *traffic = GetTrafficData();
+            if (!traffic && d > wdmObjects->enemyshipDistKill)
                 deleteAlpha = 0.999999f;
             // Lifetime check
-            auto *traffic = GetTrafficData();
             // Ordinary resident lifetimes end only on explicit loss/retirement.
             if (!traffic || !traffic->GetAttribute("trafficLifecycle") ||
                 traffic->GetAttributeAsDword("trafficRetired") || liveTime <= 0.0f)
