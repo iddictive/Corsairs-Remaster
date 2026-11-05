@@ -1,0 +1,21 @@
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#import <CoreGraphics/CoreGraphics.h>
+#import <ImageIO/ImageIO.h>
+#include <cstdio>
+#include <vector>
+#include <algorithm>
+int main(int argc,const char**argv){@autoreleasepool{
+ if(argc!=5){fprintf(stderr,"usage: probe shader.metal texture.tx out.png time\n");return 1;}
+ NSError*err=nil; NSString*src=[NSString stringWithContentsOfFile:@(argv[1]) encoding:NSUTF8StringEncoding error:&err];
+ id<MTLDevice>d=MTLCreateSystemDefaultDevice(); id<MTLLibrary>lib=[d newLibraryWithSource:src options:nil error:&err];if(!lib){fprintf(stderr,"%s\n",err.localizedDescription.UTF8String);return 2;}
+ MTLRenderPipelineDescriptor*pd=[MTLRenderPipelineDescriptor new];pd.vertexFunction=[lib newFunctionWithName:@"vs"];pd.fragmentFunction=[lib newFunctionWithName:@"fs"];pd.colorAttachments[0].pixelFormat=MTLPixelFormatRGBA8Unorm;
+ id<MTLRenderPipelineState>p=[d newRenderPipelineStateWithDescriptor:pd error:&err];if(!p){fprintf(stderr,"%s\n",err.localizedDescription.UTF8String);return 3;}
+ NSData*data=[NSData dataWithContentsOfFile:@(argv[2])];const unsigned char*raw=(const unsigned char*)data.bytes;const int*hdr=(const int*)raw;if(data.length<24||hdr[1]!=512||hdr[2]!=512||hdr[3]!=7||hdr[4]!=22){fprintf(stderr,"unexpected texture header\n");return 4;}
+ MTLTextureDescriptor*td=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:512 height:512 mipmapped:YES];td.mipmapLevelCount=7;id<MTLTexture>tex=[d newTextureWithDescriptor:td];unsigned offset=24;for(int i=0;i<7;i++){unsigned n=512>>i;unsigned count=n*n*4;if(offset+count>data.length)return 5;[tex replaceRegion:MTLRegionMake2D(0,0,n,n) mipmapLevel:i withBytes:raw+offset bytesPerRow:n*4];offset+=count;}
+ MTLSamplerDescriptor*sd=[MTLSamplerDescriptor new];sd.sAddressMode=MTLSamplerAddressModeRepeat;sd.tAddressMode=MTLSamplerAddressModeRepeat;sd.minFilter=MTLSamplerMinMagFilterLinear;sd.magFilter=MTLSamplerMinMagFilterLinear;sd.mipFilter=MTLSamplerMipFilterLinear;id<MTLSamplerState>s=[d newSamplerStateWithDescriptor:sd];
+ const unsigned W=1024,H=1024;MTLTextureDescriptor*od=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:W height:H mipmapped:NO];od.usage=MTLTextureUsageRenderTarget;od.storageMode=MTLStorageModeShared;id<MTLTexture>out=[d newTextureWithDescriptor:od];id<MTLCommandQueue>q=[d newCommandQueue];float t=atof(argv[4]);std::vector<double>times;
+ for(int i=0;i<26;i++){id<MTLCommandBuffer>cb=[q commandBuffer];MTLRenderPassDescriptor*rp=[MTLRenderPassDescriptor renderPassDescriptor];rp.colorAttachments[0].texture=out;rp.colorAttachments[0].loadAction=MTLLoadActionDontCare;rp.colorAttachments[0].storeAction=MTLStoreActionStore;id<MTLRenderCommandEncoder>e=[cb renderCommandEncoderWithDescriptor:rp];[e setRenderPipelineState:p];[e setFragmentTexture:tex atIndex:0];[e setFragmentSamplerState:s atIndex:0];[e setFragmentBytes:&t length:sizeof(t) atIndex:0];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[e endEncoding];[cb commit];[cb waitUntilCompleted];if(cb.error){fprintf(stderr,"%s\n",cb.error.localizedDescription.UTF8String);return 6;}if(i>=6)times.push_back((cb.GPUEndTime-cb.GPUStartTime)*1000.);}
+ std::sort(times.begin(),times.end());printf("device=%s size=%ux%u area=180x180m severity=1 density=.8 time=%.2f samples=20 gpu_ms_median=%.4f min=%.4f max=%.4f gpu_ms_sorted=",d.name.UTF8String,W,H,t,(times[9]+times[10])/2,times.front(),times.back());for(size_t i=0;i<times.size();i++)printf("%s%.6f",i?",":"",times[i]);printf("\n");
+ std::vector<unsigned char>pixels(W*H*4);[out getBytes:pixels.data() bytesPerRow:W*4 fromRegion:MTLRegionMake2D(0,0,W,H) mipmapLevel:0];CGColorSpaceRef cs=CGColorSpaceCreateDeviceRGB();CGContextRef ctx=CGBitmapContextCreate(pixels.data(),W,H,8,W*4,cs,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);CGImageRef im=CGBitmapContextCreateImage(ctx);CFURLRef url=CFURLCreateFromFileSystemRepresentation(NULL,(const UInt8*)argv[3],strlen(argv[3]),false);CGImageDestinationRef dest=CGImageDestinationCreateWithURL(url,CFSTR("public.png"),1,NULL);CGImageDestinationAddImage(dest,im,NULL);bool ok=CGImageDestinationFinalize(dest);CFRelease(dest);CFRelease(url);CGImageRelease(im);CGContextRelease(ctx);CGColorSpaceRelease(cs);return ok?0:7;
+}}

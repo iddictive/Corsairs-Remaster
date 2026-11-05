@@ -216,6 +216,9 @@ float4 seaTsunamiFoam(SeaO o,constant SeaU& u,texture2d<float> texture,sampler s
     float2 domain=float2(texture.sample(state,uv*.117f+float2(.371f,.619f)).r,
                          texture.sample(state,uv*.193f+float2(.733f,.127f)).r)-.5f;
     uv+=domain*1.15f;
+    // A smooth, crossed warp disrupts the sampler's regular cell grid without
+    // another texture lookup or a discontinuous change as the wave moves.
+    uv+=float2(sin(uv.y*.43f+sin(uv.x*.17f)),sin(uv.x*.37f+sin(uv.y*.19f)))*.8f;
     float4 pattern=antiTilingSampleNatural(texture,state,uv,0x5453554eu);
     // Native severity modulates the material continuously; it is not inferred
     // from damage or split into renderer-owned grades.

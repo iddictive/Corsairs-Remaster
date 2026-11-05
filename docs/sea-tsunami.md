@@ -465,6 +465,9 @@ dependency is incompatible. Existing SEAFOAM hull intersection/front emitters
 own ship splashes. Only tsunami-owned particles clear on replace/cancel/expiry;
 ordinary storm particle lifecycle remains unchanged.
 
+The [foam repetition comparison](evidence/tsunami-foam-20261104/README.md)
+records the current material, its measured tradeoffs and remaining visible bands.
+
 Disposable checks cover 16,146 evaluator/contact cases, swept/grazing/once/reset
 negatives and finite-difference slopes. Actual SEA/SHIP/SEAFOAM translation units
 compile against canonical inputs. 243 full-profile CMatrix sweeps yield 30 real
