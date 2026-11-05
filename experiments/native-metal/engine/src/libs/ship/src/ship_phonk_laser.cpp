@@ -1742,11 +1742,10 @@ void SHIP_CUT_FRAGMENTS::AdvanceCutFragments()
         CVECTOR velocity(KNOTS2METERS(ship->State.vSpeed.x)*c+KNOTS2METERS(ship->State.vSpeed.z)*s,
             ship->State.vSpeed.y,KNOTS2METERS(ship->State.vSpeed.z)*c-KNOTS2METERS(ship->State.vSpeed.x)*s);
         if(ship->phonkDrift.initialized)velocity=CVECTOR(KNOTS2METERS(ship->phonkDrift.worldX),ship->State.vSpeed.y+ship->phonkFlight.velocity,KNOTS2METERS(ship->phonkDrift.worldZ));
-        if(ship->isDead())velocity=CVECTOR(0.f);
         const float mass=std::max(100.f,float(ship->GetHullContactMass()*50.)); // approximate kg/cwt; same cargo owner as TOUCH
         const float radius=std::max(1.f,ship->State.vBoxSize.x*ship->State.vBoxSize.x+ship->State.vBoxSize.z*ship->State.vBoxSize.z);
-        receivers.push_back({ship,model,bounds,velocity,CVECTOR(0.f),ship->isDead()?0.f:ship->State.vRotate.y,0.f,
-            ship->isDead()?0.f:mass,ship->isDead()?0.f:mass*radius/12.f});
+        receivers.push_back({ship,model,bounds,velocity,CVECTOR(0.f),ship->State.vRotate.y,0.f,
+            mass,mass*radius/12.f});
     }
     // The island owner already enrolls shore, seabed and static world MODELs
     // in ISLAND_TRACE. Its own ISLAND::Clip is deliberately an empty stub.

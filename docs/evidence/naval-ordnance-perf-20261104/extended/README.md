@@ -78,3 +78,45 @@ directory, a prefix, `1 0 5 8 650`, and repeat with `OMIT_OLD=1` for the
 negative. For timing the fully overlapping case, replace the center expression
 with `0.f`, omit the `OMIT_OLD` branch, and use 16 or 256 in place of 5. Use
 the baseline Git revision and its unmodified renderer for the all-full run.
+
+## Rejected nuclear/fire compositing candidate
+
+`composite-rejected-candidate.patch` preserves the rejected candidate against
+`348a7beb174f9ad1af1b82987002f545da78845a`; it was removed from the working
+renderer. `composite-probe.mm` uses the actual nuclear and ship-fire Metal
+renderers with a synthetic scene. Its candidate path reproduces the candidate's
+layer/sort/composite sequence; the baseline submits blasts before ship fire.
+The full game renderer, sea, ships, presentation and refraction are not in this
+fixture. Inputs are 320×180 on Apple M5 Max, one fire emitter, age one second,
+pressure lifetime 0.1 second, and two or four blasts; four-blast timing includes
+one old eight-step plume. Timings are medians of six frames after three warmups.
+
+The overlapping two-blast fixture places large/small centres at z=6/4 or 4/6,
+with radii 2/0.6, fires at z=2 or 9, and also no fire. Both creation orders
+are rendered. The reference is a whole-object centre-ordered pass, which is
+useful for exposing order dependence but is not an oracle for physically
+interpenetrating volumes. The candidate's large-behind case differs from this
+reference at 601 pixels (596 with fire in front); reversing creation order
+changes zero candidate pixels. The reference comparison and the known sorting
+key show the order chosen is wrong for this fixture, not that all overlapping
+volume pixels have a single physically correct object order.
+
+The retained paired logs report baseline 1.004 ms GPU / 1.182 ms wall versus
+candidate 1.698 ms GPU / 1.945 ms wall for this specific effects-only workload.
+An earlier run with reversed execution order gave 1.639 ms baseline and
+1.047 ms candidate GPU. The direction changed between runs, so these samples
+do not establish a performance regression or improvement; neither run measures
+full-frame or gameplay performance.
+The earlier 16×16 single-blast Metal probe separately showed foreground fire
+on 10 pixels, the behind-fire path identical to its control, and 10/10 matching
+foreground-red pixels with an active pressure wave. It did not test refraction
+against a textured moving scene or multiple other blasts.
+
+To repeat, compile `composite-probe.mm` with `xcrun clang++ -std=c++17 -O2
+-fobjc-arc -I experiments/native-metal` and link `-framework Metal -framework
+AppKit`. For the baseline, add `-DBUILD_BASELINE` and put unmodified renderer
+and shader headers from the stated commit first on the include path. For the
+candidate, apply the retained patch only in an isolated checkout of that commit
+and use its renderer headers first. The baseline and candidate commands both
+run the same fixture; `composite-baseline-log.txt` and
+`composite-candidate-log.txt` retain their raw output.

@@ -58,6 +58,7 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         blast.contacts.push_back(contact);
         // Wrecks retain heat and momentum, but never settle another hull death.
         if (ship->isDead()) continue;
+        const bool canFloat = ship->CanFloatPhonkNuclearWreck();
         CVECTOR local; root->glob_mtx.MulToInv(center, local);
         const CVECTOR closest(std::clamp(local.x, info.boxcenter.x - info.boxsize.x * .5f, info.boxcenter.x + info.boxsize.x * .5f),
                               std::clamp(local.y, info.boxcenter.y - info.boxsize.y * .5f, info.boxcenter.y + info.boxsize.y * .5f),
@@ -94,6 +95,11 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         core.Event("SeaPhonk_HullCut", "alfll", character, owner, strength,
                    int32_t(strength >= .4f), int32_t(1));
         if (!sourceLive()) return;
+        ship = static_cast<SHIP *>(core.GetEntityPointer(id));
+        character = ship ? ship->GetACharacter() : nullptr;
+        if (canFloat && strength >= .4f && ship && ship->bMounted && ship->isDead() &&
+            ATTRIBUTES::IsLive(character) && character->GetAttributeAsDword("index", uint32_t(-1)) == characterIndex)
+            ship->PreservePhonkNuclearWreck();
     }
 }
 
@@ -124,7 +130,10 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
             blast.contacts.push_back({}); contact = blast.contacts.end() - 1; contact->ship = id;
         }
         if (!contact->Query(distance, front) || distance >= reach) continue;
-        const float damage = contact->directDamage || ship->isDead() ? 0.f : nuclearPressureDamage(blast.yield, distance);
+        const bool wasDead = ship->isDead();
+        const bool canFloat = !wasDead && ship->CanFloatPhonkNuclearWreck();
+        const float fire = nuclearFireStrength(blast.yield, distance);
+        const float damage = contact->directDamage || wasDead ? 0.f : nuclearPressureDamage(blast.yield, distance);
         // Script owns live/owner/protection admission and the normal HP/death path.
         auto *character = ship->GetACharacter();
         if (!ATTRIBUTES::IsLive(character)) continue;
@@ -140,14 +149,43 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
         character = ship ? ship->GetACharacter() : nullptr;
         if (!ship || !ATTRIBUTES::IsLive(character) || !ship->bMounted ||
             character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
+        if (canFloat && ship->isDead() && fire > 0.f) ship->PreservePhonkNuclearWreck();
         // Strength slots are skipped by passive wreck Move. The shared physical
         // owner updates saved momentum for living, Phonk and dead hulls alike.
         const float impulse = nuclearPressureImpulse(blast.yield, distance) / std::max(.001f, distance);
         ship->ApplyHullContactMotion(CVECTOR(KNOTS2METERS(dx * impulse), 0.f, KNOTS2METERS(dz * impulse)),
                                     0.f, position, 0.f, 0);
-        const float fire = nuclearFireStrength(blast.yield, distance);
         if (fire > 0.f) ship->IgnitePhonkNuclearFire(center, fire, owner, receivers);
     }
+}
+
+bool SHIP::CanFloatPhonkNuclearWreck() const
+{
+    if (!pSea || bGroundSupported || bGroundFalling || bLandContact || phonkJet.active) return false;
+    const float water = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
+    return std::isfinite(water) && std::isfinite(State.vPos.y) &&
+        std::abs(State.vPos.y - water) <= std::max(1.f, State.vBoxSize.y * .1f);
+}
+
+void SHIP::PreservePhonkNuclearWreck()
+{
+    if (!bMounted || !isDead()) return;
+    // SetDead and its script event already settled death and quests. The native
+    // save stream owns these vectors, so this floating pose survives reload.
+    vDeadDir = CVECTOR(0.f);
+    vCurDeadDir.y = 0.f;
+#ifdef STORM_METAL_SHIP_FIRE
+    for (const auto &link : fireHulls) {
+        auto &cell = shipFire.cells[link.cell];
+        if (cell.available && IsHullPositionRetained(CVECTOR(cell.x, cell.y, cell.z)))
+            cell.charred = std::max(cell.charred, .85f);
+    }
+    auto *character = GetACharacter();
+    auto *state = character->CreateSubAClass(character, "Ship.FireState");
+    state->SetAttributeUseDword("nuclearWreck", 1);
+    fireStateDirty = true;
+    SaveShipFire();
+#endif
 }
 
 void SHIP::IgnitePhonkNuclearFire(const CVECTOR &center, float strength, int32_t owner,

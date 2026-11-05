@@ -59,3 +59,6 @@ link recipe, adding the ship source include directory and
 required: the generic benchmark target lacks it. Use the same resource symlink
 and launch variables as above. The normal control is synthetic; no game save or
 player input is used.
+
+The separate [nuclear wreck lifecycle fixture](../nuclear-wreck-20261104/README.md)
+checks native wreck persistence and fire-state restoration.

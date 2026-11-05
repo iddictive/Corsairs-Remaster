@@ -53,7 +53,7 @@ inline float nuclearPressureDamage(const NuclearYield &yield, float distance)
 }
 inline float nuclearPressureImpulse(const NuclearYield &yield, float distance)
 {
-    return 3.f * yield.tier * nuclearPressureStrength(yield, distance);
+    return 18.f * std::sqrt(float(yield.tier)) * nuclearPressureStrength(yield, distance);
 }
 struct NuclearPressureContact
 {

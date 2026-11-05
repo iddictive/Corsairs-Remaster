@@ -1,0 +1,8 @@
+device=Apple M5 Max resolution=320x180
+large=ahead fire=0 creation_order_different_pixels=263 back_to_front_reference_different_pixels=263 fire_changed_pixels=0
+large=ahead fire=2 creation_order_different_pixels=255 back_to_front_reference_different_pixels=255 fire_changed_pixels=6031
+large=ahead fire=9 creation_order_different_pixels=259 back_to_front_reference_different_pixels=259 fire_changed_pixels=1767
+large=behind fire=0 creation_order_different_pixels=601 back_to_front_reference_different_pixels=0 fire_changed_pixels=0
+large=behind fire=2 creation_order_different_pixels=594 back_to_front_reference_different_pixels=0 fire_changed_pixels=5448
+large=behind fire=9 creation_order_different_pixels=600 back_to_front_reference_different_pixels=0 fire_changed_pixels=1375
+4 blasts + fire warmed n=6 gpuMedianMs=1.004 wallMedianMs=1.182

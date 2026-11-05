@@ -1,0 +1,223 @@
+diff --git a/experiments/native-metal/backend.mm b/experiments/native-metal/backend.mm
+index 326898e..f6ce129 100644
+--- a/experiments/native-metal/backend.mm
++++ b/experiments/native-metal/backend.mm
+@@ -356,6 +356,9 @@ void present(id<MTLCommandQueue> queue){
+  storm_metal::SoftAimVolume aimVolume;
+  storm_metal::ShipFireRenderer shipFire;
+  storm_metal::PhonkNuclearRenderer phonkNuclear;
++ struct NuclearDraw {simd_float4x4 view,projection;simd_float3 origin;simd_float4 viewport;float center[3],radius,age,seed,pressureFront,pressureLife,distance;bool light;};
++ std::vector<NuclearDraw> nuclearDraws;
++ id<MTLTexture> fireLayer=nil,sceneBeforeFire=nil;id<MTLRenderPipelineState> fireLayerComposite=nil;MTLPixelFormat fireLayerFormat=MTLPixelFormatInvalid;
+  storm_metal::ShipFireSurfaceScope shipFireSurface;
+  id<MTLLibrary> shipFireMaterialLibrary=nil;bool shipFireMaterialFailed=false,shipFireMaterialDraw=false,shipFireSceneClosed=false;
+  std::string materialShaderSource;
+@@ -532,7 +535,7 @@ bool acceptSkinningVertices(const storm::metal::skinning::AnimatedVertex*vertice
+ void clearSkinningSources(){for(auto&entry:skinningSources)entry.second.buffer->Release();skinningSources.clear();endSkinningPose();skinningShadowPipeline=nil;}
+ Device(void* window,const storm_render::Presentation* pp){const char*submissionCacheMode=std::getenv("STORM_METAL_SUBMISSION_CACHE");submissionCacheEnabled=!submissionCacheMode||std::strcmp(submissionCacheMode,"0")!=0;const char*backendOptMode=std::getenv("STORM_METAL_BACKEND_OPT");backendOptimizationEnabled=!backendOptMode||std::strcmp(backendOptMode,"0")!=0;std::fprintf(stderr,"[StormMetal] backend-opt-20260918: %s\n",backendOptimizationEnabled?"on":"off (baseline)");framePool=objc_autoreleasePoolPush();profileWindow=(SDL_Window*)window;const char*profileMode=std::getenv("STORM_METAL_PROFILE");profile.enabled=profileMode&&std::strcmp(profileMode,"1")==0;profile.last=std::chrono::steady_clock::now();const char* waterMode=std::getenv("STORM_METAL_MODERN_WATER");modernWater=waterMode&&std::strcmp(waterMode,"1")==0;const char* effectsMode=std::getenv("STORM_METAL_MODERN_EFFECTS");modernEffects=effectsMode&&std::strcmp(effectsMode,"1")==0;const char*lightingMode=std::getenv("STORM_METAL_MODERN_LIGHTING");modernLighting=lightingMode&&std::strcmp(lightingMode,"1")==0;const char*cinematicMode=std::getenv("STORM_METAL_CINEMATIC");cinematic=cinematicMode&&std::strcmp(cinematicMode,"1")==0;const char*shaftMode=std::getenv("STORM_METAL_LIGHT_SHAFTS");lightShaftsEnabled=shaftMode&&std::strcmp(shaftMode,"1")==0;const char*skyMode=std::getenv("STORM_METAL_DYNAMIC_SKY");dynamicSkyEnabled=!skyMode||std::strcmp(skyMode,"0")!=0;metal=MTLCreateSystemDefaultDevice();queue=[metal newCommandQueue];view=SDL_Metal_CreateView((SDL_Window*)window);layer=(__bridge CAMetalLayer*)SDL_Metal_GetLayer(view);layer.device=metal;layer.pixelFormat=MTLPixelFormatBGRA8Unorm;layer.framebufferOnly=NO;layer.displaySyncEnabled=pp->vSync;layer.drawableSize=CGSizeMake(pp->width,pp->height);NSError* e=nil;materialShaderSource=std::string(storm_metal::shipFireCommonMSL)+antiTilingMSL+storm_metal::cloudVisibilityMSL+storm_metal::skyFogMSL+storm_metal::skyIrradianceMSL+storm_metal::point_shadow::SamplingMSL+shaders+storm_island_forest::shaderSource+landShaderSource+postprocessShaderSource+LandShadow::materialSource;const auto&source=materialShaderSource;library=[metal newLibraryWithSource:[NSString stringWithUTF8String:source.c_str()] options:nil error:&e];if(!library)fprintf(stderr,"[StormMetal] shader compile: %s\n",e.localizedDescription.UTF8String);back=new Surface(metal,pp->width,pp->height,storm_render::AssetFormat::A8R8G8B8);auto bd=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm width:pp->width height:pp->height mipmapped:NO];bd.storageMode=MTLStorageModeShared;bd.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;back->gpu=[metal newTextureWithDescriptor:bd];depth=new Surface(metal,pp->width,pp->height,storm_render::AssetFormat::D32,true);back->bindOwner(this);depth->bindOwner(this);target=back;zbuffer=depth;vp={0,0,pp->width,pp->height,0,1};initializeStates();skinningProvider={this,[](void*c,const storm::metal::skinning::AnimatedVertex*v,uint32_t n,uint32_t b){return static_cast<Device*>(c)->acceptSkinningVertices(v,n,b);},[](void*c,void*d,const storm::metal::skinning::Matrix4x4*p,uint32_t b){return static_cast<Device*>(c)->beginSkinningPose(d,p,b);},[](void*c,const storm::metal::skinning::AnimatedVertex*v,uint32_t f,uint32_t n,uint32_t t){return static_cast<Device*>(c)->bindSkinningVertices(v,f,n,t);},[](void*c){static_cast<Device*>(c)->endSkinningPose();},[](void*c,const storm::metal::skinning::AnimatedVertex*v){static_cast<Device*>(c)->invalidateSkinningVertices(v);}};storm::metal::skinning::registerProvider(&skinningProvider);int drawableWidth=0,drawableHeight=0;SDL_Metal_GetDrawableSize((SDL_Window*)window,&drawableWidth,&drawableHeight);fprintf(stderr,"[StormMetal] direct Metal device %s; backbuffer %ux%u; SDL drawable %dx%d; samples %lu\n",metal.name.UTF8String,pp->width,pp->height,drawableWidth,drawableHeight,(unsigned long)back->gpu.sampleCount);fprintf(stderr,"[StormMetal] water mode: %s\n",modernWater?"modern Metal":"original shader fidelity");}
+ void initializeStates(){invalidatePreparedStages();authoredWorldValid=false;rawBoundsCache.clear();inverseViewCached=false;landShadow.resetFrame();landShadow.locationActive=false;ambientAssigned=directionalAssigned=false;rs.fill(0);rs[storm_render::RenderVertexColor]=true;rs[storm_render::RenderDiffuseMaterialSource]=storm_render::MaterialSourceDiffuseColor;rs[storm_render::RenderAmbientMaterialSource]=storm_render::MaterialSourceDiffuseColor;memset(ts,0,sizeof(ts));memset(ss,0,sizeof(ss));memset(lights,0,sizeof(lights));memset(enabled,0,sizeof(enabled));memset(vertexConstants,0,sizeof(vertexConstants));memset(pixelConstants,0,sizeof(pixelConstants));material={};matrices.clear();float pointSize=1,pointMax=256;memcpy(&rs[storm_render::RenderPointSize],&pointSize,4);memcpy(&rs[storm_render::RenderPointSizeMin],&pointSize,4);memcpy(&rs[storm_render::RenderPointSizeMax],&pointMax,4);memcpy(&rs[storm_render::RenderPointScaleA],&pointSize,4);for(int i=0;i<8;i++){ts[i][storm_render::StageColorOp]=i?storm_render::TextureOpDisable:storm_render::TextureOpModulate;ts[i][storm_render::StageAlphaOp]=i?storm_render::TextureOpDisable:storm_render::TextureOpSelectArg1;ts[i][storm_render::StageColorArg1]=storm_render::textureArg::texture;ts[i][storm_render::StageColorArg2]=storm_render::textureArg::current;ts[i][storm_render::StageAlphaArg1]=storm_render::textureArg::texture;ts[i][storm_render::StageAlphaArg2]=storm_render::textureArg::current;ts[i][storm_render::StageTexCoordIndex]=i;ts[i][storm_render::StageResultArg]=storm_render::textureArg::current;ts[i][storm_render::StageColorArg0]=storm_render::textureArg::current;ts[i][storm_render::StageAlphaArg0]=storm_render::textureArg::current;}rs[storm_render::RenderTextureFactor]=0xffffffff;rs[storm_render::RenderBlendFactor]=0xffffffff;rs[storm_render::RenderSourceBlendAlpha]=storm_render::BlendOne;rs[storm_render::RenderDestinationBlendAlpha]=storm_render::BlendZero;rs[storm_render::RenderDepthTest]=1;rs[storm_render::RenderDepthWrite]=1;rs[storm_render::RenderDepthCompare]=storm_render::CompareLessEqual;rs[storm_render::RenderSourceBlend]=storm_render::BlendOne;rs[storm_render::RenderDestinationBlend]=storm_render::BlendZero;material.Diffuse={1,1,1,1};for(int i:{storm_render::TransformWorld,storm_render::TransformView,storm_render::TransformProjection,storm_render::TransformTexture0,storm_render::TransformTexture1,storm_render::TransformTexture2,storm_render::TransformTexture3,storm_render::TransformTexture4,storm_render::TransformTexture5,storm_render::TransformTexture6,storm_render::TransformTexture7}){storm_render::Matrix m{};for(int k=0;k<4;k++)m.m[k][k]=1;matrices[i]=m;}}
+-void clearBindings(){if(drained)return;drained=true;synchronize();ffpSpecialization.reset();activeMaterialPipeline=nullptr;activeMaterialGeneric=nil;ffpCache.clear();indexedSpanCache.clear();rawBoundsCache.clear();inverseViewCached=false;rawBuffers.clear();lightShaftMeshes.clear();lightShaftAuthored.clear();lightShafts.reset();aimModelScope={};aimVolume.reset();shipFire.reset();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;finish();sceneColorSnapshot=nil;sceneDepthSnapshot=nil;hudSceneSnapshot=nil;fxaaPass={};cinematicBloomA=nil;cinematicBloomB=nil;for(auto&texture:cinematicLuminance)texture=nil;cinematicLuminancePending=false;sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=hudSceneSnapshotReady=false;for(unsigned i=0;i<8;++i){auto*old=textures[i];textures[i]=nullptr;boundTextures[i]={};if(old)old->Release();}auto release=[](auto*&p){auto*old=p;p=nullptr;if(old)old->Release();};release(vb);for(auto&stream:streams)release(stream.buffer);release(ib);release(vertexShader);release(pixelShader);release(declaration);metalFX.reset();sceneFramePrepared=sceneScaled=metalFXSceneClosed=false;if(target!=back)release(target);else target=nullptr;if(zbuffer!=depth)release(zbuffer);else zbuffer=nullptr;release(back);release(depth);}
++void clearBindings(){if(drained)return;drained=true;synchronize();ffpSpecialization.reset();activeMaterialPipeline=nullptr;activeMaterialGeneric=nil;ffpCache.clear();indexedSpanCache.clear();rawBoundsCache.clear();inverseViewCached=false;rawBuffers.clear();lightShaftMeshes.clear();lightShaftAuthored.clear();lightShafts.reset();aimModelScope={};aimVolume.reset();shipFire.reset();nuclearDraws.clear();fireLayer=nil;sceneBeforeFire=nil;fireLayerComposite=nil;shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;finish();sceneColorSnapshot=nil;sceneDepthSnapshot=nil;hudSceneSnapshot=nil;fxaaPass={};cinematicBloomA=nil;cinematicBloomB=nil;for(auto&texture:cinematicLuminance)texture=nil;cinematicLuminancePending=false;sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=hudSceneSnapshotReady=false;for(unsigned i=0;i<8;++i){auto*old=textures[i];textures[i]=nullptr;boundTextures[i]={};if(old)old->Release();}auto release=[](auto*&p){auto*old=p;p=nullptr;if(old)old->Release();};release(vb);for(auto&stream:streams)release(stream.buffer);release(ib);release(vertexShader);release(pixelShader);release(declaration);metalFX.reset();sceneFramePrepared=sceneScaled=metalFXSceneClosed=false;if(target!=back)release(target);else target=nullptr;if(zbuffer!=depth)release(zbuffer);else zbuffer=nullptr;release(back);release(depth);}
+ uint32_t Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRefs){draining=true;clearBindings();draining=false;}auto remaining=refs;if(!remaining&&!draining){if(framePool){objc_autoreleasePoolPop(framePool);framePool=nullptr;}delete this;}return remaining;}
+ 	 ~Device(){storm::metal::skinning::registerProvider(nullptr);clearSkinningSources();if(markerDevice==this)markerDevice=nullptr;draining=true;clearBindings();gpuCapture.stop("device destroyed during capture");SDL_Metal_DestroyView(view);}
+  void finish(bool finalizeShadowRegistry=false){if(encoder){[encoder endEncoding];encoder=nil;encoderBindings={};}encoderSamples=1;aimDirectPass=false;if(finalizeShadowRegistry&&landShadow.prepass.frame&&landShadow.prepass.finished){if(landShadow.pendingPoint.valid&&!landShadow.packets.empty()){if(!command)command=[queue commandBuffer];landShadow.encodePendingPointCube(metal,command);}landShadow.finishRegistry();}}
+@@ -602,10 +605,21 @@ void bindMaterialUniform(const void*bytes,NSUInteger length){
+   [encoder setVertexBytes:bytes length:length atIndex:1];[encoder setFragmentBytes:bytes length:length atIndex:1];
+  }
+  void flushShipFire(){
+-  if(shipFire.empty())return;
+-  if(!back||target!=back||zbuffer!=depth||!depth||!sceneDepthReady||shipFireSceneClosed||landShadow.prepass.inPass){shipFire.clear();return;}
++  if(shipFire.empty()&&nuclearDraws.empty())return;
++  if(!back||target!=back||zbuffer!=depth||!depth||!sceneDepthReady||shipFireSceneClosed||landShadow.prepass.inPass){shipFire.clear();nuclearDraws.clear();return;}
+   finish();if(!command)command=[queue commandBuffer];
+-  sceneAA().invalidate(true,false);const auto count=shipFire.volumes.size();if(shipFire.encode(metal,command,sceneColor(),sceneDepth(),frameArena)&&profile.enabled){profile.draws+=3;profile.vertices+=count*150+3;profile.bytes+=count*sizeof(storm_metal::ShipFireVolume);}
++  sceneAA().invalidate(true,false);const auto count=shipFire.volumes.size();bool layered=false;
++  if(count&&!nuclearDraws.empty()){
++   auto targetColor=sceneColor();
++   if(!fireLayerComposite||fireLayerFormat!=targetColor.pixelFormat){NSError*error=nil;NSString*source=@"#include <metal_stdlib>\nusing namespace metal; vertex float4 v(uint i [[vertex_id]]){float2 q=float2((i<<1)&2,i&2);return float4(q*float2(2,-2)+float2(-1,1),0,1);} fragment float4 f(float4 p [[position]],texture2d<float,access::read> t [[texture(0)]]){return t.read(uint2(p.xy));}";auto library=[metal newLibraryWithSource:source options:nil error:&error];if(library){auto p=[MTLRenderPipelineDescriptor new];p.vertexFunction=[library newFunctionWithName:@"v"];p.fragmentFunction=[library newFunctionWithName:@"f"];p.colorAttachments[0].pixelFormat=targetColor.pixelFormat;p.colorAttachments[0].blendingEnabled=YES;p.colorAttachments[0].sourceRGBBlendFactor=p.colorAttachments[0].sourceAlphaBlendFactor=MTLBlendFactorOne;p.colorAttachments[0].destinationRGBBlendFactor=p.colorAttachments[0].destinationAlphaBlendFactor=MTLBlendFactorOneMinusSourceAlpha;fireLayerComposite=[metal newRenderPipelineStateWithDescriptor:p error:&error];if(fireLayerComposite)fireLayerFormat=targetColor.pixelFormat;}if(!fireLayerComposite)fprintf(stderr,"[StormMetal] fire layer composite: %s\n",error.localizedDescription.UTF8String);}
++   if(!fireLayer||!sceneBeforeFire||fireLayer.width!=targetColor.width||fireLayer.height!=targetColor.height||fireLayer.pixelFormat!=targetColor.pixelFormat){auto desc=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:targetColor.pixelFormat width:targetColor.width height:targetColor.height mipmapped:NO];desc.storageMode=MTLStorageModePrivate;desc.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;fireLayer=[metal newTextureWithDescriptor:desc];desc.usage=MTLTextureUsageShaderRead;sceneBeforeFire=[metal newTextureWithDescriptor:desc];}
++   if(fireLayerComposite&&fireLayer&&sceneBeforeFire){auto blit=[command blitCommandEncoder];[blit copyFromTexture:targetColor sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0) sourceSize:MTLSizeMake(targetColor.width,targetColor.height,1) toTexture:sceneBeforeFire destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];[blit endEncoding];auto pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=fireLayer;pass.colorAttachments[0].loadAction=MTLLoadActionClear;pass.colorAttachments[0].storeAction=MTLStoreActionStore;pass.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,0);auto clear=[command renderCommandEncoderWithDescriptor:pass];[clear endEncoding];layered=shipFire.encode(metal,command,fireLayer,sceneDepth(),frameArena);if(layered){pass=[MTLRenderPassDescriptor renderPassDescriptor];pass.colorAttachments[0].texture=targetColor;pass.colorAttachments[0].loadAction=MTLLoadActionLoad;pass.colorAttachments[0].storeAction=MTLStoreActionStore;auto e=[command renderCommandEncoderWithDescriptor:pass];[e setRenderPipelineState:fireLayerComposite];[e setFragmentTexture:fireLayer atIndex:0];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[e endEncoding];}}
++  }
++  if(!layered&&!shipFire.empty())shipFire.encode(metal,command,sceneColor(),sceneDepth(),frameArena);
++  if(count&&profile.enabled){profile.draws+=3;profile.vertices+=count*150+3;profile.bytes+=count*sizeof(storm_metal::ShipFireVolume);}
++  std::stable_sort(nuclearDraws.begin(),nuclearDraws.end(),[](const auto&a,const auto&b){return a.distance>b.distance;});
++  for(const auto&n:nuclearDraws)if(phonkNuclear.encode(metal,command,sceneColor(),sceneDepth(),n.view,n.projection,n.origin,n.viewport,n.center,n.radius,n.age,n.seed,n.pressureFront,n.pressureLife,n.light,layered?fireLayer:nil,layered?shipFire.volumeFront:nil,layered?shipFire.budget.renderScale:0.f,layered?sceneBeforeFire:nil)&&profile.enabled){++profile.draws;profile.vertices+=3;}
++  nuclearDraws.clear();
+  }
+  void retireFlight(size_t slot,bool wait){auto&flight=flights[slot];if(!flight.command)return;if(wait&&flight.command.status<MTLCommandBufferStatusCompleted){double waitBegin=profile.enabled?FrameProfile::now():0;[flight.command waitUntilCompleted];if(profile.enabled)profile.waitMs+=FrameProfile::now()-waitBegin;}if(flight.command.status<MTLCommandBufferStatusCompleted)return;if(profile.enabled)profile.commandComplete(flight.command,flight.frame);if(flight.command.GPUStartTime>0&&flight.command.GPUEndTime>=flight.command.GPUStartTime)lightShafts.observeFrameGPU((flight.command.GPUEndTime-flight.command.GPUStartTime)*1000.);if(flight.command.error)fprintf(stderr,"[StormMetal] command error %s\n",flight.command.error.localizedDescription.UTF8String);if(flight.luminancePending&&flight.command.status==MTLCommandBufferStatusCompleted){float luminance=0;auto texture=cinematicLuminance[slot];[texture getBytes:&luminance bytesPerRow:sizeof(luminance) fromRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0];auto now=std::chrono::steady_clock::now();float seconds=cinematicLastFrame.time_since_epoch().count()?std::chrono::duration<float>(now-cinematicLastFrame).count():1.f/60.f;cinematicLastFrame=now;if(std::isfinite(luminance))cinematicExposure.update(luminance,seconds);}frameArena.rewindAfterCompletion(slot,flight.command);flight={};flightRing.retire(slot);}
+  void retireCompletedFlights(){for(size_t slot=0;slot<flights.size();++slot)retireFlight(slot,false);}
+@@ -833,7 +847,7 @@ bool applyGraphicsSettings(uint32_t flags,unsigned shadowQuality){
+  void reportDiagnostics(){if(!profile.enabled||(++diagnosticTick&127u)!=0u)return;const auto&o=landShadow.worldOrigin;const auto&p=landShadow.prepass;simd_float4x4 view;memcpy(&view,&matrices[storm_render::TransformView],64);simd_float4x4 inverse=simd_inverse(view);simd_float3 camera=inverse.columns[3].xyz;simd_float3 aim=simd_mul(inverse,simd_make_float4(0.f,0.f,1.f,0.f)).xyz;float aimLength=simd_length(aim);if(aimLength>1e-5f)aim/=aimLength;float pitch=asin(std::clamp(aim.y,-1.f,1.f))*57.2957795f;unsigned complete=0;for(unsigned i=0;i<p.pointCount;i++)complete+=p.points[i].faces==63;fprintf(stderr,"[StormMetal] diag: origin=(%.1f,%.1f,%.1f) camRel=(%.2f,%.2f,%.2f) focus=(%.1f,%.1f,%.1f) indoor=%d active=%d applied=%d sun=%u lamps=%u complete=%u caster=%u openings=%llu shaftFrames=%llu tier=%u aimY=%.2f pitch=%.1f draws=%llu verts=%llu uploadMB=%.1f legacy3D=%llu legacyShadow=%llu\n",o.x,o.y,o.z,camera.x,camera.y,camera.z,p.focus.x,p.focus.y,p.focus.z,landShadow.indoor?1:0,landShadow.locationActive?1:0,landShadow.applied?1:0,p.sunValid,p.pointCount,complete,p.casterDraws,(unsigned long long)lightShaftMeshes.size(),(unsigned long long)lightShafts.encodedFrames(),lightShafts.budget().tier(),aim.y,pitch,profile.draws,profile.vertices,profile.bytes/1048576.0,profile.legacy3DDraws,profile.legacyShadowDraws);}
+  void publishTelemetry(){if(!StormMetalTelemetryEnabled())return;captureTelemetryCamera(false);StormMetalTelemetryBeginLights(lightingScene.authoredCount(),landShadow.prepass.pointId);for(unsigned i=0;i<lightingScene.authoredCount();i++){const auto&light=lightingScene.authoredLight(i);float positionRange[4],color[4];memcpy(positionRange,&light.positionRange,sizeof(positionRange));memcpy(color,&light.diffuse,sizeof(color));const auto id=lightingScene.authoredId(i);StormMetalTelemetryLight(i,id,positionRange,color,id==landShadow.prepass.pointId,landShadow.shadowSlot(id)!=0);}unsigned complete=0;for(unsigned i=0;i<landShadow.prepass.pointCount;i++)complete+=landShadow.prepass.points[i].faces==63;StormMetalTelemetryShadows(landShadow.prepass.casterDraws,landShadow.prepass.casterVertices,telemetryReceiverDraws,telemetryCasterRejects,telemetryReceiverRejects,landShadow.prepass.pointCount,complete,landShadow.prepass.failed,landShadow.applied);StormMetalTelemetryPublish(telemetryFrame++);}
+ storm_render::Result Present()override {resolveTraversalShadow();flushShipFire();finish(true);if(!hudSceneSnapshotReady&&(sceneScaled||fxaaEnabled||modernLighting||cinematicSceneEnabled(cinematic,landShadow.locationActive,landShadow.indoor)||storm_metal::lightShaftsEnabled(lightShaftsEnabled,landShadow.locationActive,landShadow.indoor,unsigned(lightShaftMeshes.size()),depth&&depth->gpu.pixelFormat==MTLPixelFormatDepth32Float)))markSceneHudBoundary(true);finish();if(!command)command=[queue commandBuffer];double drawableBegin=profile.enabled?FrameProfile::now():0;drawable=[layer nextDrawable];if(profile.enabled)profile.drawableMs+=FrameProfile::now()-drawableBegin;if(drawable){if(!encodeCinematicPresent(command,back->gpu,drawable.texture,nil,false))return storm_render::result::failure;[command presentDrawable:drawable];}const size_t submittedSlot=flightRing.current;[command commit];flights[submittedSlot]={command,cinematicLuminancePending,profile.trace.sequence};flightRing.submitCurrent();command=nil;gpuCapture.present(queue);dynamicRawUploads.clear();drawable=nil;cinematicLuminancePending=false;hudSceneSnapshotReady=false;sceneFramePrepared=sceneScaled=metalFXSceneClosed=false;publishTelemetry();reportDiagnostics();if(profile.trace.output){profile.traceSky=dynamicSkyLibrary&&authoredSkyFrame==dynamicSkyFrame;profile.tracePoints=0;for(const auto&point:landShadow.prepass.points)profile.tracePoints+=point.faces==63;}landShadow.resetFrame();telemetryReceiverDraws=telemetryCasterRejects=telemetryReceiverRejects=0;seaGeometryCandidates=seaRawEligible=seaShadowEligible=seaRawPackets=seaFastReturns=seaConvertedPackets=0;memset(seaCandidateScopes,0,sizeof(seaCandidateScopes));memset(seaRejects,0,sizeof(seaRejects));sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;aimModelScope={};aimVolume.endFrame();prepareFrameSlot();reportBackendOptimization();ffpSpecialization.report(profile.enabled);if(profile.enabled){if(profile.trace.output){profile.traceAnimated=rawSkinnedDraws;profile.traceMemory=metal.currentAllocatedSize;}profile.present((SDL_GetWindowFlags(profileWindow)&SDL_WINDOW_INPUT_FOCUS)!=0);}if(framePool){objc_autoreleasePoolPop(framePool);}framePool=objc_autoreleasePoolPush();return storm_render::result::ok;}
+- storm_render::Result Clear(uint32_t f, storm_render::PackedColor c, float z)override{dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;finish();prepareSceneFrame((f&(storm_render::clear::color|storm_render::clear::depth))==(storm_render::clear::color|storm_render::clear::depth));if(target==back&&(f&(storm_render::clear::color|storm_render::clear::depth))){landShadow.resetFrame();lightingScene.beginFrame();waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;if(f&storm_render::clear::depth){sceneDepthReady=z==1.f;aimModelScope={};aimVolume.beginFrame();}else sceneDepthReady=false;}begin(true,f,c,z);return storm_render::result::ok;}
++ storm_render::Result Clear(uint32_t f, storm_render::PackedColor c, float z)override{if(target==back&&(f&(storm_render::clear::color|storm_render::clear::depth)))nuclearDraws.clear();dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;finish();prepareSceneFrame((f&(storm_render::clear::color|storm_render::clear::depth))==(storm_render::clear::color|storm_render::clear::depth));if(target==back&&(f&(storm_render::clear::color|storm_render::clear::depth))){landShadow.resetFrame();lightingScene.beginFrame();waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;if(f&storm_render::clear::depth){sceneDepthReady=z==1.f;aimModelScope={};aimVolume.beginFrame();}else sceneDepthReady=false;}begin(true,f,c,z);return storm_render::result::ok;}
+  storm_render::Result CreateTexture(uint32_t w, uint32_t h, uint32_t l, uint32_t u, storm_render::AssetFormat f, storm_render::Texture**p)override{auto* resource=new Texture(metal,w,h,l,u,f);resource->bindOwner(this);*p=resource;return storm_render::result::ok;}
+  storm_render::Result CreateCubeTexture(uint32_t edge, uint32_t l, uint32_t u, storm_render::AssetFormat f, storm_render::CubeTexture**p)override{if(!p)return storm_render::result::invalidCall;auto* resource=new CubeTexture(metal,edge,l,u,f);resource->bindOwner(this);*p=resource;return storm_render::result::ok;}
+  storm_render::Result CreateVolumeTexture(uint32_t w, uint32_t h, uint32_t depth, uint32_t l, uint32_t u, storm_render::AssetFormat f, storm_render::VolumeTexture**p)override{if(!p)return storm_render::result::invalidCall;*p=nullptr;if(f!=storm_render::AssetFormat::A8R8G8B8&&f!=storm_render::AssetFormat::X8R8G8B8)return unsupported("volume texture format");auto* resource=new VolumeTexture(metal,w,h,depth,l,u,f);resource->bindOwner(this);*p=resource;return storm_render::result::ok;}
+@@ -1881,10 +1895,12 @@ static bool seaReflectionCaptureValid(Device*d,CubeTexture*cube,uint32_t face){
+  simd_float4x4 view,projection;std::memcpy(&view,&d->matrices[storm_render::TransformView],sizeof(view));
+  std::memcpy(&projection,&d->matrices[storm_render::TransformProjection],sizeof(projection));
+  if(std::abs(projection.columns[2].w)<1.e-6f||std::abs(projection.columns[3].w)>1.e-6f)return;
+- d->finish();if(!d->command)d->command=[d->queue commandBuffer];d->sceneAA().invalidate(true,false);
+  const auto viewport=d->rasterViewport(MTLViewport{double(d->vp.X),double(d->vp.Y),double(d->vp.Width),double(d->vp.Height),0,1});
+- if(d->phonkNuclear.encode(d->metal,d->command,d->sceneColor(),d->sceneDepth(),view,projection,d->landShadow.worldOrigin,
+-     {float(viewport.originX),float(viewport.originY),float(viewport.width),float(viewport.height)},center,radius,age,seed,pressureFront,pressureLife,light)&&d->profile.enabled){++d->profile.draws;d->profile.vertices+=3;}
++ if(!std::isfinite(radius)||radius<=0.f||!std::isfinite(age)||age<0.f||!std::isfinite(seed)||!std::isfinite(pressureFront)||!std::isfinite(pressureLife)||pressureLife<=0.f)return;
++ for(unsigned i=0;i<3;i++)if(!std::isfinite(center[i]))return;
++ Device::NuclearDraw n{};n.view=view;n.projection=projection;n.origin=d->landShadow.worldOrigin;n.viewport={float(viewport.originX),float(viewport.originY),float(viewport.width),float(viewport.height)};std::copy_n(center,3,n.center);n.radius=radius;n.age=age;n.seed=seed;n.pressureFront=pressureFront;n.pressureLife=pressureLife;n.light=light;
++ const auto eye=simd_inverse(view).columns[3].xyz;const auto source=simd_make_float3(center[0],center[1],center[2])+n.origin;n.distance=simd_length(source-eye)-radius*1.6f;
++ if(std::isfinite(n.distance))d->nuclearDraws.push_back(n);
+ }
+ extern "C" void StormMetalDrawParticleSprites(void*pointer,const BridgeSprite*sprites,size_t count,uint32_t plane,uint32_t blend){if(!pointer||(!sprites&&count)||plane>1||blend>1)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));uint32_t oldBlend=d->rs[storm_render::RenderBlend],oldSrc=d->rs[storm_render::RenderSourceBlend],oldDst=d->rs[storm_render::RenderDestinationBlend],oldCull=d->rs[storm_render::RenderCullMode],oldZWrite=d->rs[storm_render::RenderDepthWrite];d->rs[storm_render::RenderBlend]=true;d->rs[storm_render::RenderDepthWrite]=false;d->rs[storm_render::RenderSourceBlend]=blend?storm_render::BlendOne:storm_render::BlendSourceAlpha;d->rs[storm_render::RenderDestinationBlend]=storm_render::BlendInverseSourceAlpha;d->rs[storm_render::RenderCullMode]=storm_render::CullNone;d->drawBridge(sprites,count*sizeof(*sprites),count*6,@"bridge_sprite_vs",3+blend,plane);d->rs[storm_render::RenderBlend]=oldBlend;d->rs[storm_render::RenderDepthWrite]=oldZWrite;d->rs[storm_render::RenderSourceBlend]=oldSrc;d->rs[storm_render::RenderDestinationBlend]=oldDst;d->rs[storm_render::RenderCullMode]=oldCull;}
+ extern "C" void StormMetalDrawAdvancedParticles(void*pointer,const BridgeAdvanced*particles,size_t count,uint32_t blend){if(!pointer||(!particles&&count)||blend>1)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));uint32_t oldBlend=d->rs[storm_render::RenderBlend],oldSrc=d->rs[storm_render::RenderSourceBlend],oldDst=d->rs[storm_render::RenderDestinationBlend],oldCull=d->rs[storm_render::RenderCullMode],oldZWrite=d->rs[storm_render::RenderDepthWrite];d->rs[storm_render::RenderBlend]=true;d->rs[storm_render::RenderDepthWrite]=false;d->rs[storm_render::RenderSourceBlend]=blend?storm_render::BlendOne:storm_render::BlendSourceAlpha;d->rs[storm_render::RenderDestinationBlend]=storm_render::BlendInverseSourceAlpha;d->rs[storm_render::RenderCullMode]=storm_render::CullNone;d->drawBridge(particles,count*sizeof(*particles),count*6,@"bridge_advanced_vs",5+blend,0,{0,0,0,0},MTLPrimitiveTypeTriangle,@"bridge_advanced_fs");d->rs[storm_render::RenderBlend]=oldBlend;d->rs[storm_render::RenderDepthWrite]=oldZWrite;d->rs[storm_render::RenderSourceBlend]=oldSrc;d->rs[storm_render::RenderDestinationBlend]=oldDst;d->rs[storm_render::RenderCullMode]=oldCull;}
+diff --git a/experiments/native-metal/phonk_ordnance_render.hpp b/experiments/native-metal/phonk_ordnance_render.hpp
+index 8b12936..095d6b2 100644
+--- a/experiments/native-metal/phonk_ordnance_render.hpp
++++ b/experiments/native-metal/phonk_ordnance_render.hpp
+@@ -16,9 +16,9 @@ namespace storm_metal
+ struct PhonkNuclearUniforms
+ {
+     simd_float4x4 inverseViewProjection, viewProjection;
+-    simd_float4 eye, sourceRadius, params, viewport;
++    simd_float4 eye, sourceRadius, params, viewport, fireInfo;
+ };
+-static_assert(sizeof(PhonkNuclearUniforms) == 192);
++static_assert(sizeof(PhonkNuclearUniforms) == 208);
+ class PhonkNuclearRenderer
+ {
+     id<MTLLibrary> library = nil;
+@@ -92,7 +92,8 @@ class PhonkNuclearRenderer
+     bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,
+                 const simd_float4x4 &view,const simd_float4x4 &projection,simd_float3 worldOrigin,
+                 simd_float4 viewport,const float *center,float radius,float age,float seed,float pressureFront,float pressureLife,
+-                bool light=false)
++                bool light=false,id<MTLTexture> fire=nil,id<MTLTexture> fireFront=nil,float fireScale=0.f,
++                id<MTLTexture> beforeFire=nil)
+     {
+         if (!device || !command || !target || !depth || !center || target.sampleCount != 1 ||
+             depth.sampleCount != 1 || target.width != depth.width || target.height != depth.height ||
+@@ -112,6 +113,7 @@ class PhonkNuclearRenderer
+         // Age, authoritative pressure-front radius/lifetime, stable blast seed.
+         uniform.params = {age,pressureFront/radius,light ? -pressureLife : pressureLife,seed};
+         uniform.viewport = viewport;
++        uniform.fireInfo = {fire && fireFront && beforeFire ? fireScale : 0.f,0,0,0};
+         if (viewport.z<=0.f || viewport.w<=0.f || !prepare(device,target.pixelFormat)) return false;
+         float minX=viewport.x+viewport.z,minY=viewport.y+viewport.w,maxX=viewport.x,maxY=viewport.y;
+         bool crossesNear=false;
+@@ -162,6 +164,9 @@ class PhonkNuclearRenderer
+         [encoder setFragmentTexture:noise atIndex:1];
+         [encoder setFragmentTexture:smokeSprite atIndex:2];
+         [encoder setFragmentTexture:scene atIndex:3];
++        [encoder setFragmentTexture:fire atIndex:4];
++        [encoder setFragmentTexture:fireFront atIndex:5];
++        [encoder setFragmentTexture:beforeFire atIndex:6];
+         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+         [encoder endEncoding];
+         return true;
+diff --git a/experiments/native-metal/phonk_ordnance_shaders.hpp b/experiments/native-metal/phonk_ordnance_shaders.hpp
+index e3c737b..105c83f 100644
+--- a/experiments/native-metal/phonk_ordnance_shaders.hpp
++++ b/experiments/native-metal/phonk_ordnance_shaders.hpp
+@@ -4,7 +4,7 @@ namespace storm_metal
+ inline constexpr const char *phonkNuclearMSL = R"MSL(
+ struct PhonkNuclearUniforms {
+     float4x4 inverseViewProjection,viewProjection;
+-    float4 eye,sourceRadius,params,viewport;
++    float4 eye,sourceRadius,params,viewport,fireInfo;
+ };
+ vertex float4 phonk_nuclear_vs(uint index [[vertex_id]]) {
+     constexpr float2 corners[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
+@@ -130,7 +130,8 @@ PhonkPressureSample phonkPressureVolume(float3 origin,float3 ray,float stop,floa
+ }
+ float4 phonkPressureComposite(float4 effect,float4 pressure,float2 pixel,float3 ray,
+                               constant PhonkNuclearUniforms&u,depth2d<float,access::read> depth,
+-                              texture2d<float> scene) {
++                              texture2d<float> scene,texture2d<float,access::read> fire,
++                              texture2d<float,access::read> fireFront,texture2d<float> beforeFire,float front) {
+     if(pressure.w<=.001f)return effect;
+     float3 position=u.eye.xyz+ray*pressure.w*u.sourceRadius.w;
+     float4 center=u.viewProjection*float4(position,1);
+@@ -154,11 +155,22 @@ float4 phonkPressureComposite(float4 effect,float4 pressure,float2 pixel,float3
+     }
+     if(discontinuity)shifted=uv;
+     constexpr sampler image(coord::normalized,address::clamp_to_edge,filter::linear);
+-    return float4(effect.rgb+scene.sample(image,shifted).rgb*(1.f-effect.a),1);
++    float3 refracted=scene.sample(image,shifted).rgb;
++    if(u.fireInfo.x>0.f && front<1.f) {
++        uint2 source=min(uint2(pixel*u.fireInfo.x),uint2(fireFront.get_width()-1,fireFront.get_height()-1));
++        if(fireFront.read(source).r<front) {
++            uint2 at=min(uint2(shifted*float2(fire.get_width(),fire.get_height())),uint2(fire.get_width()-1,fire.get_height()-1));
++            float4 foreground=fire.read(at);
++            refracted=foreground.a<.98f?max((refracted-foreground.rgb)/(1.f-foreground.a),0.f):beforeFire.sample(image,shifted).rgb;
++        }
++    }
++    return float4(effect.rgb+refracted*(1.f-effect.a),1);
+ }
+-fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclearUniforms &u [[buffer(0)]],
+-                                depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],
+-                                texture2d<float> smokeSprite [[texture(2)]],texture2d<float> scene [[texture(3)]]) {
++float4 phonkNuclearShade(float4 pixel,constant PhonkNuclearUniforms &u,
++                                depth2d<float,access::read> depth,texture3d<float> noise,
++                                texture2d<float> smokeSprite,texture2d<float> scene,
++                                texture2d<float,access::read> fire,texture2d<float,access::read> fireFront,
++                                texture2d<float> beforeFire,thread float &front) {
+     uint2 location=min(uint2(pixel.xy),uint2(depth.get_width()-1,depth.get_height()-1));
+     float sceneDepth=depth.read(location);
+     float3 ray=normalize(phonkNuclearUnproject(pixel.xy,1.f,u)-u.eye.xyz);
+@@ -185,9 +197,11 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
+         constexpr uint steps=8;
+         float step=(far-near)/float(steps),transmission=1.f;float3 color=0;
+         for(uint i=0;i<steps;i++) {
+-            float3 point=origin+ray*(near+(float(i)+.5f)*step);
++            float distance=near+(float(i)+.5f)*step;
++            float3 point=origin+ray*distance;
+             float2 field=phonkNuclearField(point,u.params.x,variation,noise);
+             float opacity=1.f-exp(-field.x*step*6.f);
++            if(front==1.f && opacity>.003f){float4 clip=u.viewProjection*float4(u.eye.xyz+ray*distance*radius,1);front=saturate(clip.z/clip.w);}
+             float fire=smoothstep(.04f,.65f,field.y);
+             float3 soot=float3(.30f,.285f,.26f)*.55f;
+             float3 emission=mix(float3(1.8f,.19f,.014f),float3(4.4f,2.5f,.7f),fire);
+@@ -241,7 +255,7 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
+     float near=max(0.f,max(max(min(first,last).x,min(first,last).y),min(first,last).z));
+     float far=min(stop/radius,min(min(max(first,last).x,max(first,last).y),max(first,last).z));
+     if(far<=near || age>=9.f)return phonkPressureComposite(mix(ground,sprite+ground*(1.f-sprite.a),faceAmount),
+-        pressure.haze.a*fade>.001f?pressure.bend:float4(0),pixel.xy,ray,u,depth,scene);
++        pressure.haze.a*fade>.001f?pressure.bend:float4(0),pixel.xy,ray,u,depth,scene,fire,fireFront,beforeFire,front);
+     constexpr uint steps=64;
+     float step=(far-near)/float(steps),transmission=1.f;
+     float3 color=0;
+@@ -250,6 +264,7 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
+         float3 point=origin+ray*distance;
+         float2 field=phonkNuclearField(point,u.params.x,variation,noise);
+         float opacity=1.f-exp(-field.x*step*6.f);
++        if(front==1.f && opacity>.003f){float4 clip=u.viewProjection*float4(u.eye.xyz+ray*distance*radius,1);front=saturate(clip.z/clip.w);}
+         if(opacity>.001f) {
+             // Two bounded optical-depth taps, following the volume-fire model.
+             float3 light=float3(-.48f,.81f,-.32f);
+@@ -266,7 +281,24 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
+     }
+     float4 volume=float4(color+ground.rgb*transmission,1.f-transmission*(1.f-ground.a));
+     return phonkPressureComposite(mix(volume,sprite+ground*(1.f-sprite.a),faceAmount),
+-        pressure.haze.a*fade>.001f?pressure.bend:float4(0),pixel.xy,ray,u,depth,scene);
++        pressure.haze.a*fade>.001f?pressure.bend:float4(0),pixel.xy,ray,u,depth,scene,fire,fireFront,beforeFire,front);
++}
++fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclearUniforms &u [[buffer(0)]],
++                                depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],
++                                texture2d<float> smokeSprite [[texture(2)]],texture2d<float> scene [[texture(3)]],
++                                texture2d<float,access::read> fire [[texture(4)]],texture2d<float,access::read> fireFront [[texture(5)]],
++                                texture2d<float> beforeFire [[texture(6)]]) {
++    float front=1.f;
++    float4 effect=phonkNuclearShade(pixel,u,depth,noise,smokeSprite,scene,fire,fireFront,beforeFire,front);
++    if(u.fireInfo.x>0.f && front<1.f) {
++        uint2 p=min(uint2(pixel.xy),uint2(fire.get_width()-1,fire.get_height()-1));
++        uint2 q=min(uint2(pixel.xy*u.fireInfo.x),uint2(fireFront.get_width()-1,fireFront.get_height()-1));
++        float fdepth=fireFront.read(q).r;float4 f=fire.read(p);
++        if(fdepth<front && f.a>0.f) {
++            effect.rgb=effect.rgb*(1.f-f.a)+effect.a*f.rgb;
++        }
++    }
++    return effect;
+ }
+ )MSL";
+ }

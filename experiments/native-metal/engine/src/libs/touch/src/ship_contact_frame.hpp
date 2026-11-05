@@ -221,7 +221,7 @@ inline Event nextConvexPair(const FrameBody &fa, const FrameBody &fb, const Prox
                       double elapsed, double remaining, double seconds, const FrameLimits &limits)
 {
     double lo, hi;
-    if ((fa.wreck && fb.wreck) || (a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
+    if ((a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
         !(a.sweep.mass>0)||!(b.sweep.mass>0)||
         !verticalInterval(fa, fb, elapsed, remaining, seconds, lo, hi)) return {};
     if (!detail::sweptRadiusOverlap(b.sweep.start.position - a.sweep.start.position,
@@ -267,7 +267,7 @@ inline Event nextPair(const FrameBody &fa, const FrameBody &fb, const Proxy &a, 
 {
     const auto envelope = [&] { return nextConvexPair(fa, fb, a, b, elapsed, remaining, seconds, limits); };
     double verticalLo, verticalHi;
-    if ((fa.wreck && fb.wreck) || (a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
+    if ((a.blocked && b.blocked) || a.hull.points.empty() || b.hull.points.empty() ||
         !(a.sweep.mass>0)||!(b.sweep.mass>0)||
         !verticalInterval(fa, fb, elapsed, remaining, seconds, verticalLo, verticalHi) ||
         !detail::sweptRadiusOverlap(b.sweep.start.position - a.sweep.start.position,
@@ -616,7 +616,7 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
             for (std::size_t j = i + 1; j < proxies.size(); ++j)
             {
                 auto &a = proxies[i]; auto &b = proxies[j]; double lo, hi;
-                if (a.hull.points.empty() || b.hull.points.empty() || (bodies[i].wreck && bodies[j].wreck) ||
+                if (a.hull.points.empty() || b.hull.points.empty() ||
                     !frame_detail::verticalInterval(bodies[i], bodies[j], elapsed, 0, seconds, lo, hi)) continue;
                 if (!detail::sweptRadiusOverlap(b.pose.position - a.pose.position, {},
                                                 a.hull.radius, b.hull.radius)) continue;

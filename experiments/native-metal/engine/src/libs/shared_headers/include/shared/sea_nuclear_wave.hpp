@@ -7,23 +7,25 @@
 struct SeaNuclearWave
 {
     static constexpr float speed = 70.f, width = 45.f, radius = 560.f;
-    static constexpr float lifetime = radius / speed, maxHeight = 4.f;
+    static constexpr float lifetime = radius / speed, maxHeight = 8.f;
     float x = 0.f, z = 0.f, age = 0.f, amplitude = 0.f;
     bool active = false;
     float lengthScale = 1.f;
+    float normalizedAmplitude = 0.f;
 
     float Front() const { return age * speed * lengthScale; }
     void Advance(float seconds)
     {
         if (!active || !(seconds > 0.f) || !std::isfinite(seconds)) return;
         age += seconds;
-        if (age >= lifetime) { active = false; amplitude = 0.f; return; }
+        if (age >= lifetime) { active = false; amplitude = normalizedAmplitude = 0.f; return; }
         const auto smooth = [](float t) {
             t = std::clamp(t, 0.f, 1.f);
             return t * t * (3.f - 2.f * t);
         };
-        amplitude = maxHeight * smooth(age / .4f) * smooth((lifetime - age) / 1.5f) *
-                    (1.f - .65f * Front() / (radius * lengthScale));
+        normalizedAmplitude = smooth(age / .4f) * smooth((lifetime - age) / 1.5f) *
+                              (1.f - .65f * Front() / (radius * lengthScale));
+        amplitude = maxHeight * std::sqrt(lengthScale) * normalizedAmplitude;
     }
 };
 
@@ -45,6 +47,6 @@ inline SeaNuclearWaveSample EvaluateSeaNuclearWave(const SeaNuclearWave &wave, f
     const float profile = 1.f - u * u;
     const float height = wave.amplitude * profile * profile;
     const float slope = distance > .001f ? -4.f * wave.amplitude * u * profile / (width * distance) : 0.f;
-    const float load = height / wave.maxHeight;
+    const float load = wave.normalizedAmplitude * profile * profile;
     return {height, slope * dx, slope * dz, load * profile, load};
 }

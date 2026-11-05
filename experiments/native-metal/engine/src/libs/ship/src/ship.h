@@ -256,6 +256,8 @@ class SHIP : public SHIP_BASE
                                 storm::ship::phonk::NuclearBlast &blast);
     void AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
                                     const std::vector<entid_t> &receivers);
+    bool CanFloatPhonkNuclearWreck() const;
+    void PreservePhonkNuclearWreck();
     void IgnitePhonkNuclearFire(const CVECTOR &center, float strength, int32_t owner,
                                const std::vector<entid_t> &receivers);
     bool EnsureCutFragments();

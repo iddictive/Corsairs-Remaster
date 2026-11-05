@@ -1816,7 +1816,10 @@ void SHIP::InitializeShipFire()
     auto *model=GetModel();auto *character=GetACharacter();
     auto *state=character->FindAClass(character,"Ship.FireState");
     const uint32_t schema=state?state->GetAttributeAsDword("schema"):0;
-    const bool saved=state && (schema==1 || schema==2) && state->GetAttribute("model") &&
+    const bool retiredNuclearWreck=state && state->GetAttributeAsDword("nuclearWreck") && !isDead();
+    if (retiredNuclearWreck)
+        if (auto *marker=state->GetAttributeClass("nuclearWreck")) state->DeleteAttributeClassX(marker);
+    const bool saved=!retiredNuclearWreck && state && (schema==1 || schema==2) && state->GetAttribute("model") &&
         !strcmp(state->GetAttribute("model"),cShipIniName);
     struct Record {storm_ship_fire::Cell cell;std::string node;int group=0;uint32_t key=0,order=0;float lastDamage=0.f;};
     std::vector<Record> records;
