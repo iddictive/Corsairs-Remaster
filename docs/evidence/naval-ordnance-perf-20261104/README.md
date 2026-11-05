@@ -62,3 +62,37 @@ player input is used.
 
 The separate [nuclear wreck lifecycle fixture](../nuclear-wreck-20261104/README.md)
 checks native wreck persistence and fire-state restoration.
+
+## Island region type-check proxy
+
+The 2026-11-05 installed-process sample `game-20261105-083534-9434.sample.txt`
+in the local diagnostics cache contained 137 of 1193 main-thread samples under
+`AIBalls::Execute` → `ISLAND::Cannon_Trace`; 53 were under collision tracing
+and 42 directly in `__dynamic_cast`. These are stack sample counts, not elapsed
+time or a full-path before/after measurement. The sample is an ignored local
+diagnostic and may not survive cache cleanup.
+
+`island-rtti-probe.cpp.txt` compares the old cast with a candidate exact-type
+fast path followed by the original dynamic-cast fallback. It models the class
+inheritance and checks two region instances, a base island, another derived
+island, an unrelated entity and null. All six returned identical pointers. It
+also times 9.6 million casts on 64 region pointers for five rounds. On Apple M5
+Max, macOS 27.2, Apple clang 21.0.0, SDK 27.2, using `-O2 -std=c++20`, old
+times were 86.476, 91.946, 92.397, 90.747, 91.336 ms; candidate times were
+7.787, 7.614, 7.723, 7.812, 7.658 ms. To reproduce, compile the retained text
+as C++ and run the resulting executable, for example `xcrun clang++ -x c++
+-O2 -std=c++20 island-rtti-probe.cpp.txt -o /tmp/island-rtti-probe`.
+
+This proxy does not instantiate the real entity manager, island models,
+geometry, live cuts, projectile events or game frame. It cannot establish game
+performance, collision parity or lifecycle safety by itself. The real manager
+constructs an ID from a millisecond timestamp and slot index; in a separate
+source-derived probe two IDs for the same slot in one millisecond matched, so
+a lookup of a replacement of another type could succeed. The fallback remains
+necessary. Full same-consumer timing and collision/event parity remain pending.
+
+## Projectile attribute write proxy
+
+The [attribute write proxy](ball-attributes-proxy.md) records the sampled
+hot path, retained source, reproduction command, raw timings and limits. It
+does not measure game FPS or establish combat event parity.

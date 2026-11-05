@@ -1,0 +1,35 @@
+#include "attributes.h"
+#include "string_compare.hpp"
+#include "string_codec.h"
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <string_view>
+#include <array>
+#include <optional>
+#include "ball_codes.hpp"
+
+void STRING_CODEC::VariableChanged() {}
+static const char *names[] = {"CurrentBallType","CurrentAirburstDistance","CurrentBombBlastDistance","CurrentAirburstHullValid","CurrentAirburstHullDistance","CurrentAirburstHullX","CurrentAirburstHullY","CurrentAirburstHullZ","CurrentAirburstDetonated","CurrentAirburstFragment","CurrentBallHeated","CurrentBallMaterialEnergy","CurrentBallCannonType","CurrentBallDistance","CurrentMaxBallDistance"};
+static bool floats[] = {false,true,true,false,true,true,true,true,false,false,false,true,false,true,true};
+static void update(ATTRIBUTES &a, const BallAttributeCodes *codes, int iteration) {
+    for(int i=0;i<15;++i) {
+        float f = i == 2 || i == 4 ? -1.f : i == 13 ? iteration * .012345f : i == 14 ? 1400.5f : 0.f;
+        uint32_t d = i == 0 ? iteration % 5 : i == 12 ? iteration % 16 : i == 10 ? iteration % 2 : 0;
+        if (!codes) { if(floats[i]) a.SetAttributeUseFloat(names[i], f); else a.SetAttributeUseDword(names[i],d); }
+        else if (floats[i]) codes->Set(a, static_cast<BallAttributeCodes::Field>(i), f);
+        else codes->Set(a, static_cast<BallAttributeCodes::Field>(i), d);
+    }
+}
+int main() {
+    STRING_CODEC codec; ATTRIBUTES original(codec), candidate(codec);
+    BallAttributeCodes codes(candidate);
+    for(int n=0;n<1000;++n) {
+        if(n%17==0) { original.SetAttributeUseDword("CurrentAirburstDetonated",1); candidate.SetAttributeUseDword("CurrentAirburstDetonated",1); original.SetAttributeUseFloat("CurrentBombBlastDistance",42); candidate.SetAttributeUseFloat("CurrentBombBlastDistance",42); }
+        if(n%23==0 && n) { original.DeleteAttributeClassX(original.GetAttributeClass("CurrentBallType")); candidate.DeleteAttributeClassX(candidate.GetAttributeClass("CurrentBallType")); }
+        update(original,nullptr,n); update(candidate,&codes,n);
+        for(int i=0;i<15;++i) if(original.GetAttributeClass(names[i])->GetValue()!=candidate.GetAttributeClass(names[i])->GetValue()) { std::fprintf(stderr,"mismatch %d %d\n",n,i); return 1; }
+    }
+    for(int run=0;run<6;++run) { const bool coded=run%2; auto t=std::chrono::steady_clock::now(); for(int frame=0;frame<200;++frame) { std::optional<BallAttributeCodes> frameCodes; if(coded) frameCodes.emplace(candidate); for(int n=0;n<100;++n) update(coded?candidate:original,coded?&*frameCodes:nullptr,n); } auto dt=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t).count(); std::printf("%s %.3f ms / 20000 updates, 200 frames\n",coded?"coded":"original",dt); }
+}

@@ -1,0 +1,20 @@
+#include <array>
+#include <chrono>
+#include <cstdio>
+#include <typeinfo>
+#include <vector>
+struct Entity { virtual ~Entity() = default; virtual void f() {} };
+struct Collision : Entity {}; struct Cannon : Collision {}; struct Base : Cannon {};
+struct Island : Base { int value=1; }; struct IslandRegion final : Island {};
+struct Other : Entity {}; struct OtherIsland : Island {};
+__attribute__((noinline)) Island* old(Entity* p) { return dynamic_cast<Island*>(p); }
+__attribute__((noinline)) Island* candidate(Entity* p) { if (!p) return nullptr; if (typeid(*p)==typeid(IslandRegion)) return static_cast<Island*>(p); return dynamic_cast<Island*>(p); }
+int main() {
+ IslandRegion a,b; Island c; OtherIsland d; Other e; std::array<Entity*,6> cases{&a,&b,&c,&d,&e,nullptr};
+ for(auto p:cases) if(old(p)!=candidate(p)) return 1;
+ std::array<Entity*,64> entries{}; for(int i=0;i<64;++i) entries[i]= i%2 ? static_cast<Entity*>(&a) : static_cast<Entity*>(&b);
+ volatile unsigned long long sink=0;
+ auto run=[&](auto fn) { auto t=std::chrono::steady_clock::now(); unsigned long long sum=0; for(int n=0;n<150000;++n) for(auto p:entries) { auto q=fn(p); sum+=q ? q->value:0; } sink=sum; return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t).count(); };
+ for(int i=0;i<5;++i) { auto x=run(old),y=run(candidate); std::printf("old_ms=%.3f candidate_ms=%.3f ratio=%.3f\n",x,y,y/x); }
+ std::printf("parity=6/6 sink=%llu\n",sink);
+}

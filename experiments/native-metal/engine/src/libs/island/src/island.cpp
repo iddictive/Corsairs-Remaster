@@ -12,6 +12,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <algorithm>
+#include <typeinfo>
 
 CREATE_CLASS(ISLAND)
 class IslandRegion final : public ISLAND {};
@@ -1395,9 +1396,16 @@ float ISLAND::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
     if (residentRegions.empty()) return LocalTrace(vSrc, vDst);
     aggregateTraceModels.clear();
     if (RegionIntersects(vSrc, vDst)) aggregateTraceModels.insert(aggregateTraceModels.end(), traceModels.begin(), traceModels.end());
-    for (const auto id : residentRegions) if (auto *region = Region(id))
-        if (region->RegionIntersects(vSrc, vDst))
+    for (const auto id : residentRegions)
+    {
+        auto *entity = core.GetEntityPointer(id);
+        // The common resident type is final. Preserve the checked fallback for
+        // other types, including an ID reused by a different entity class.
+        auto *region = entity && typeid(*entity) == typeid(IslandRegion)
+            ? static_cast<ISLAND *>(entity) : dynamic_cast<ISLAND *>(entity);
+        if (region && region->RegionIntersects(vSrc, vDst))
             aggregateTraceModels.insert(aggregateTraceModels.end(), region->traceModels.begin(), region->traceModels.end());
+    }
     if (aggregateTraceModels.empty()) return 2.f;
     return pCollide->Trace(aggregateTraceModels, vSrc, vDst, nullptr, 0);
 }

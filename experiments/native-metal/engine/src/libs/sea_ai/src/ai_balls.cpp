@@ -9,13 +9,47 @@
 #include "ship_hull_hit_admission.hpp"
 #include "sea_base.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 
 namespace
 {
+// Codes belong to the current script codec, so cache them only for this Execute.
+// Keep the same formatting and every write: callbacks can mutate these values.
+struct BallAttributeCodes
+{
+    enum Field { Type, AirburstDistance, BombDistance, HullValid, HullDistance, HullX, HullY, HullZ,
+                 Detonated, Fragment, Heated, Energy, CannonType, Distance, MaxDistance, Count };
+    std::array<uint32_t, Count> codes;
+
+    explicit BallAttributeCodes(ATTRIBUTES &attributes)
+    {
+        const char *names[] = {"CurrentBallType", "CurrentAirburstDistance", "CurrentBombBlastDistance",
+            "CurrentAirburstHullValid", "CurrentAirburstHullDistance", "CurrentAirburstHullX",
+            "CurrentAirburstHullY", "CurrentAirburstHullZ", "CurrentAirburstDetonated",
+            "CurrentAirburstFragment", "CurrentBallHeated", "CurrentBallMaterialEnergy",
+            "CurrentBallCannonType", "CurrentBallDistance", "CurrentMaxBallDistance"};
+        for (size_t i = 0; i < codes.size(); ++i) codes[i] = attributes.GetStringCodec().Convert(names[i]);
+    }
+
+    void Set(ATTRIBUTES &attributes, Field field, uint32_t value) const
+    {
+        const auto text = std::to_string(value);
+        attributes.SetAttribute(codes[field], std::string_view(text));
+    }
+
+    void Set(ATTRIBUTES &attributes, Field field, float value) const
+    {
+        char text[128];
+        sprintf_s(text, "%g", value);
+        attributes.SetAttribute(codes[field], std::string_view(text));
+    }
+};
+
 bool BombContactDetonates(bool liveShip)
 {
     return liveShip || (std::rand() & 1) == 0;
@@ -222,9 +256,18 @@ float AirburstModelDistance(MODEL *model, const CVECTOR &burst, CVECTOR &hit)
     return sqrtf(nearest2);
 }
 
-void ResetAirburstHull(ATTRIBUTES *attributes)
+void ResetAirburstHull(ATTRIBUTES *attributes, const BallAttributeCodes *codes = nullptr)
 {
     if (!attributes) return; // Core/its intrinsic also support attribute-less creation.
+    if (codes)
+    {
+        codes->Set(*attributes, BallAttributeCodes::HullValid, uint32_t{0});
+        codes->Set(*attributes, BallAttributeCodes::HullDistance, -1.0f);
+        codes->Set(*attributes, BallAttributeCodes::HullX, 0.0f);
+        codes->Set(*attributes, BallAttributeCodes::HullY, 0.0f);
+        codes->Set(*attributes, BallAttributeCodes::HullZ, 0.0f);
+        return;
+    }
     attributes->SetAttributeUseDword("CurrentAirburstHullValid", 0);
     attributes->SetAttributeUseFloat("CurrentAirburstHullDistance", -1.0f);
     attributes->SetAttributeUseFloat("CurrentAirburstHullX", 0.0f);
@@ -720,6 +763,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
     std::vector<BALL_PARAMS> fragments;
     std::vector<CVECTOR> visualBursts;
+    std::optional<BallAttributeCodes> ballAttributeCodes;
     const auto grapes = std::find_if(aBallTypes.begin(), aBallTypes.end(),
         [](const BALL_TYPE &type) { return storm::iEquals(type.sName, "Grapes"); });
     if (!pIsland && (EID = core.GetEntityId("island")))
@@ -766,17 +810,20 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // including forts and rigging. Only the radial burst changes goods.
             if (!fragment)
             {
-                AttributesPointer->SetAttributeUseDword("CurrentBallType", dart ? pBall->dartGood : pBallsType->dwGoodIndex);
-                AttributesPointer->SetAttributeUseFloat("CurrentAirburstDistance", 0.0f);
-                AttributesPointer->SetAttributeUseFloat("CurrentBombBlastDistance", -1.0f);
-                ResetAirburstHull(AttributesPointer);
-                AttributesPointer->SetAttributeUseDword("CurrentAirburstDetonated", 0);
-                AttributesPointer->SetAttributeUseDword("CurrentAirburstFragment", 0);
-                AttributesPointer->SetAttributeUseDword("CurrentBallHeated", heated ? 1 : 0);
-                AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",0.f);
-                AttributesPointer->SetAttributeUseDword("CurrentBallCannonType", pBall->dwCannonType);
-                AttributesPointer->SetAttributeUseFloat("CurrentBallDistance", sqrtf(~(pBall->vPos - pBall->vFirstPos)));
-                AttributesPointer->SetAttributeUseFloat("CurrentMaxBallDistance", pBall->fMaxFireDistance);
+                if (!ballAttributeCodes) ballAttributeCodes.emplace(*AttributesPointer);
+                const auto &codes = *ballAttributeCodes;
+                auto &attributes = *AttributesPointer;
+                codes.Set(attributes, BallAttributeCodes::Type, static_cast<uint32_t>(dart ? pBall->dartGood : pBallsType->dwGoodIndex));
+                codes.Set(attributes, BallAttributeCodes::AirburstDistance, 0.0f);
+                codes.Set(attributes, BallAttributeCodes::BombDistance, -1.0f);
+                ResetAirburstHull(AttributesPointer, &codes);
+                codes.Set(attributes, BallAttributeCodes::Detonated, uint32_t{0});
+                codes.Set(attributes, BallAttributeCodes::Fragment, uint32_t{0});
+                codes.Set(attributes, BallAttributeCodes::Heated, uint32_t(heated ? 1 : 0));
+                codes.Set(attributes, BallAttributeCodes::Energy, 0.f);
+                codes.Set(attributes, BallAttributeCodes::CannonType, pBall->dwCannonType);
+                codes.Set(attributes, BallAttributeCodes::Distance, sqrtf(~(pBall->vPos - pBall->vFirstPos)));
+                codes.Set(attributes, BallAttributeCodes::MaxDistance, pBall->fMaxFireDistance);
             }
 
             // update ball time
@@ -925,7 +972,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             if(!burst&&!fragment) {
                 const auto velocity=BallWorldVelocity(*pBall,pBall->fTime,fDeltaTimeMultiplier*pBall->fTimeSpeedMultiply);
                 const float energy=.5f*BallShotMass(*pBall)*(~velocity);
-                AttributesPointer->SetAttributeUseFloat("CurrentBallMaterialEnergy",
+                ballAttributeCodes->Set(*AttributesPointer, BallAttributeCodes::Energy,
                     std::isfinite(energy)&&energy>0.f?energy:0.f);
             }
             auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
