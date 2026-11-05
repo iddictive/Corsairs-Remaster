@@ -341,7 +341,7 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
     if (forts)
     {
         contact = std::min(contact, forts->Trace(src, dst));
-        for (uint32_t f = 0; f < forts->GetNumForts(); ++f)
+        for (uint32_t f = 0; armed && f < forts->GetNumForts(); ++f)
         {
             auto *fort = forts->GetFort(f);
             if (!fort->GetModel() || !fort->GetACharacter() || !fort->isNormalMode() ||
@@ -351,12 +351,22 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
             // every small gun sphere must not fall into the random stock hit FX.
             // Fort nodes can bound hundreds of metres of empty battery frontage.
             // Match the fuze to the live guns that receive the bounded blast.
+            const double minX = std::min(armedSrc.x, dst.x) - double(radius);
+            const double maxX = std::max(armedSrc.x, dst.x) + double(radius);
+            const double minY = std::min(armedSrc.y, dst.y) - double(radius);
+            const double maxY = std::max(armedSrc.y, dst.y) + double(radius);
+            const double minZ = std::min(armedSrc.z, dst.z) - double(radius);
+            const double maxZ = std::max(armedSrc.z, dst.z) + double(radius);
             for (uint32_t gunIndex = 0; gunIndex < fort->GetAllCannonsNum(); ++gunIndex)
             {
                 auto *gun = fort->GetCannon(gunIndex);
-                if (gun->isDamaged()) continue;
+                const auto position = gun->GetPos();
+                // A swept sphere cannot reach a point outside this conservative
+                // box. Avoid the expensive damage/geometry query for misses.
+                if (position.x < minX || position.x > maxX || position.y < minY ||
+                    position.y > maxY || position.z < minZ || position.z > maxZ) continue;
                 float entry = 0.0f;
-                if (armed && AirburstEntry(armedSrc, dst, gun->GetPos(), CVECTOR(0.0f), radius, entry))
+                if (AirburstEntry(armedSrc, dst, position, CVECTOR(0.0f), radius, entry) && !gun->isDamaged())
                     nearest = std::min(nearest, armedStart + (1.0f-armedStart)*entry);
             }
         }
