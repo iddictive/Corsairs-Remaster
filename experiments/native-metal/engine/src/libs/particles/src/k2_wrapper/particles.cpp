@@ -89,7 +89,7 @@ uint64_t PARTICLES::ProcessMessage(MESSAGE &message)
         angles.z = message.Float();
         lifetime = message.Long();
         const auto category = static_cast<uint32_t>(message.Long());
-        if (category < 1 || category > 6)
+        if (category < 1 || category > 8)
             return 0;
 
         // Five units matches the maximum splash half-size and smoke footprint.

@@ -2066,13 +2066,17 @@ void SEA::PublishWhirlpool()
         state->SetAttributeUseFloat("Envelope", frame.envelope);
 }
 
-void SEA::StartNuclearWave(float x, float z, unsigned slot, bool active, float lengthScale)
+void SEA::StartNuclearWave(float x, float z, unsigned /*slot*/, bool active, float lengthScale)
 {
-    if (slot >= nuclearWaves.size() || !std::isfinite(x) || !std::isfinite(z)) return;
-    nuclearWaves[slot] = {x, z, 0.f, 0.f, active,
-        std::isfinite(lengthScale) ? std::clamp(lengthScale, 1.f, 10.f) : 1.f};
-    nuclearWavesActive = std::any_of(nuclearWaves.begin(), nuclearWaves.end(),
-        [](const auto &wave) { return wave.active; });
+    if (!active || !std::isfinite(x) || !std::isfinite(z)) return;
+    const float scale = std::isfinite(lengthScale) ? std::clamp(lengthScale, 1.f, 10.f) : 1.f;
+    unsigned nearby = 0;
+    for (const auto &wave : nuclearWaves) {
+        const float dx = wave.x - x, dz = wave.z - z;
+        if (wave.active && wave.lengthScale == scale && dx * dx + dz * dz <= 25.f && ++nearby == 3) return;
+    }
+    nuclearWaves.push_back({x, z, 0.f, 0.f, true, scale});
+    nuclearWavesActive = true;
 }
 
 void SEA::AdvanceNuclearWaves(float seconds)
@@ -2083,6 +2087,7 @@ void SEA::AdvanceNuclearWaves(float seconds)
         wave.Advance(seconds);
         nuclearWavesActive |= wave.active;
     }
+    std::erase_if(nuclearWaves, [](const auto &wave) { return !wave.active; });
 }
 
 float SEA::NuclearWaveHeightBound() const

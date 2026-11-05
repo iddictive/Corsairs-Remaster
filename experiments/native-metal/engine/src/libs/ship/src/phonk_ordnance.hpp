@@ -120,4 +120,4 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
 // Absolute-world center; age advances only with the game's simulation clock.
 extern "C" void StormMetalDrawPhonkNuclearBlast(void *device, const float *center,
                                                float radius, float age, float seed, float pressureFront,
-                                               float pressureLife);
+                                               float pressureLife, bool light);

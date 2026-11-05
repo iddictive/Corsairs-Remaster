@@ -45,11 +45,9 @@ void BaseEmitter::BornParticles(float DeltaTime)
 
     for (auto i = 0; i < static_cast<int>(INTERPOLATION_STEPS); i++)
     {
-        BlendMatrix(matWorldTransform, matWorldTransformOld, matWorldTransformNew, MatrixBlend);
-
-        const auto TransformPos = Position * matWorldTransform;
-        matWorldTransform.v.pos = TransformPos;
+        const auto blendAtStep = MatrixBlend;
         MatrixBlend += MatrixBlendInc;
+        bool transformReady = false;
 
         const auto DeltaTimeDiv = DeltaTime / INTERPOLATION_STEPS;
         IncreaseTime(DeltaTimeDiv);
@@ -80,6 +78,15 @@ void BaseEmitter::BornParticles(float DeltaTime)
                 ParticleTypes[n].Remain -= 1.0f;
                 if (ParticleTypes[n].ActiveCount < ParticleTypes[n].MaxParticlesCount)
                 {
+                    // Most interpolation steps emit nothing. The transform is
+                    // only consumed by an emitted particle, so defer its slerp
+                    // while preserving all time and random-number updates.
+                    if (!transformReady)
+                    {
+                        BlendMatrix(matWorldTransform, matWorldTransformOld, matWorldTransformNew, blendAtStep);
+                        matWorldTransform.v.pos = Position * matWorldTransform;
+                        transformReady = true;
+                    }
                     auto ParticlePos = GetNewParticlePosition(DeltaTime);
                     GetEmissionDirection(matTransform);
                     auto VelDir = matTransform.v.vy;

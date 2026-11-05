@@ -1,0 +1,48 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000042 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/0/2 fmt=21 tex=WEATHER\SKIES\12\SKY_UP.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA s3=1/2/1 fmt=21 tex=WEATHER\SKIES\STORM02\SKY_UP.TGA
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=26 tex=SHIPS\\MANOWAR1\\HULL1\\DES2.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=21 tex=SHIPS\\MANOWAR1\\HULL1\\WOOD_RED.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=827611204 tex=SHIPS\\MANOWAR1\\HULL1\\ROPEU1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=22 tex=SHIPS\\MANOWAR1\\HULL1\\INZANEGUN1.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=25 tex=SHIPS\\MANOWAR1\\HULL1\\METALU5.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=2 fvf=00000152 test=1 ref=160 func=5 blend=0 src=5 dst=6 zwrite=1 s0=4/0/2 fmt=23 tex=SHIPS\\MANOWAR1\\HULL1\\VICTORY_HECK.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000312 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SHIPS\\PARUS_COMMON.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=4/1/2 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=2/1/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=827611204 tex=SAIL_ROPE.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=894720068 tex=FLAGS\FLAGALL_SHIP_B.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000112 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=1 s0=2/2/2 fmt=21 tex=VANT.TGA s1=2/1/1 fmt=827611204 tex=SHIPS\EMPTYGERALD.TGA s2=1/2/1 fmt=827611204 tex=SHIPS\PARUS_HOLE.TGA s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=4/2/0 fmt=22 tex=SHIPSFLARES\FLARESUNROAD.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=5 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=2 zwrite=1 s0=4/0/2 fmt=22 tex=WEATHER\SEA\PENA\PENA.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=1 s0=4/0/2 fmt=0 tex=- s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=1 ref=160 func=5 blend=1 src=5 dst=6 zwrite=0 s0=2/2/2 fmt=861165636 tex=ALLBALLS.TGA s1=1/2/1 fmt=0 tex=- s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=0 tex=-
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=2 dst=2 zwrite=0 s0=4/2/0 fmt=23 tex=SHIPSFLARES\CORONA.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[StormMetal alpha] role=0 fvf=00000142 test=0 ref=160 func=5 blend=1 src=5 dst=6 zwrite=0 s0=4/2/0 fmt=21 tex=WATER1.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[StormMetal alpha] role=0 fvf=00000142 test=1 ref=0 func=5 blend=1 src=5 dst=6 zwrite=0 s0=4/2/1 fmt=21 tex=SEAFOAM_2.TGA s1=1/2/1 fmt=21 tex=PARTICLES_LIST.TGA s2=1/2/1 fmt=0 tex=- s3=1/2/1 fmt=827611204 tex=PARTICLES_LISTNM
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=132390 bounds_miss=44938 bounds_bypass=18240 bounds_skip=0 indices_scanned=59608059 indices_avoided=703171320 bounds_cpu_ms=148.705 view_hit=215161 view_miss=1088 sampling_shared=184434 sampling_fallback=0 sampling_bytes_saved=643305792
+[StormMetal] submission-cache enabled=1 raster_skipped=1373623 shadow_textures_skipped=1838340 sampler_reused=1593217
+[StormMetal] ffp-specialize enabled=1 frames=120 used=179195 fallback=53 ready=11 variants=11
+[StormMetal] diag: origin=(0.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.14 pitch=-8.0 draws=223647 verts=930003999 uploadMB=2682.4 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=133823 bounds_miss=44678 bounds_bypass=18240 bounds_skip=0 indices_scanned=59765592 indices_avoided=721103058 bounds_cpu_ms=147.638 view_hit=217009 view_miss=1080 sampling_shared=185987 sampling_fallback=0 sampling_bytes_saved=648722656
+[StormMetal] submission-cache enabled=1 raster_skipped=1389013 shadow_textures_skipped=1853870 sampler_reused=1611400
+[StormMetal] ffp-specialize enabled=1 frames=120 used=181535 fallback=0 ready=11 variants=11
+[StormMetal] diag: origin=(0.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.14 pitch=-8.0 draws=449447 verts=1889434479 uploadMB=5539.3 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=137294 bounds_miss=42787 bounds_bypass=18240 bounds_skip=0 indices_scanned=52122891 indices_avoided=757764933 bounds_cpu_ms=132.158 view_hit=218414 view_miss=1080 sampling_shared=187306 sampling_fallback=0 sampling_bytes_saved=653323328
+[StormMetal] submission-cache enabled=1 raster_skipped=1395741 shadow_textures_skipped=1867060 sampler_reused=1620552
+[StormMetal] ffp-specialize enabled=1 frames=120 used=182679 fallback=0 ready=11 variants=11
+[StormMetal] diag: origin=(0.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.14 pitch=-8.0 draws=676622 verts=2872463865 uploadMB=8234.7 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=137598 bounds_miss=42882 bounds_bypass=18240 bounds_skip=0 indices_scanned=52736013 indices_avoided=757665387 bounds_cpu_ms=132.547 view_hit=218826 view_miss=1080 sampling_shared=187569 sampling_fallback=0 sampling_bytes_saved=654240672
+[StormMetal] submission-cache enabled=1 raster_skipped=1397445 shadow_textures_skipped=1869690 sampler_reused=1622760
+[StormMetal] ffp-specialize enabled=1 frames=120 used=182955 fallback=0 ready=11 variants=11
+[StormMetal] diag: origin=(0.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.14 pitch=-8.0 draws=904176 verts=3855384501 uploadMB=10928.2 legacy3D=0 legacyShadow=0
+[StormMetal] backend-opt-20260918 enabled=1 frames=120 bounds_hit=137656 bounds_miss=42876 bounds_bypass=18240 bounds_skip=0 indices_scanned=52693911 indices_avoided=757588977 bounds_cpu_ms=132.779 view_hit=218932 view_miss=1080 sampling_shared=187885 sampling_fallback=0 sampling_bytes_saved=655342880
+[StormMetal] submission-cache enabled=1 raster_skipped=1400035 shadow_textures_skipped=1872850 sampler_reused=1625720
+[StormMetal] ffp-specialize enabled=1 frames=120 used=183325 fallback=0 ready=11 variants=11
+[StormMetal] diag: origin=(0.0,-40.0,80.0) camRel=(0.00,0.00,0.00) focus=(0.0,0.0,0.0) indoor=0 active=0 applied=0 sun=0 lamps=0 complete=0 caster=0 openings=0 shaftFrames=0 tier=0 aimY=-0.14 pitch=-8.0 draws=1131662 verts=4833060321 uploadMB=13562.9 legacy3D=0 legacyShadow=0
+scene_backbuffer=640x480 ships=7 hidden=1
+animated_draws=216840
+pilot_complete=1 performance_acceptance=0

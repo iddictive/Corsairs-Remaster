@@ -91,7 +91,8 @@ class PhonkNuclearRenderer
   public:
     bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,
                 const simd_float4x4 &view,const simd_float4x4 &projection,simd_float3 worldOrigin,
-                simd_float4 viewport,const float *center,float radius,float age,float seed,float pressureFront,float pressureLife)
+                simd_float4 viewport,const float *center,float radius,float age,float seed,float pressureFront,float pressureLife,
+                bool light=false)
     {
         if (!device || !command || !target || !depth || !center || target.sampleCount != 1 ||
             depth.sampleCount != 1 || target.width != depth.width || target.height != depth.height ||
@@ -109,7 +110,7 @@ class PhonkNuclearRenderer
         uniform.eye.w = (8.f+std::min(age,8.f)*2.5f)/radius;
         uniform.sourceRadius = simd_make_float4(simd_make_float3(center[0],center[1],center[2])+worldOrigin,radius);
         // Age, authoritative pressure-front radius/lifetime, stable blast seed.
-        uniform.params = {age,pressureFront/radius,pressureLife,seed};
+        uniform.params = {age,pressureFront/radius,light ? -pressureLife : pressureLife,seed};
         uniform.viewport = viewport;
         if (viewport.z<=0.f || viewport.w<=0.f || !prepare(device,target.pixelFormat)) return false;
         float minX=viewport.x+viewport.z,minY=viewport.y+viewport.w,maxX=viewport.x,maxY=viewport.y;
@@ -134,7 +135,7 @@ class PhonkNuclearRenderer
         if (right<=left || bottom<=top) return true;
         // Pressure is clear refracting air with condensation, so retain the
         // current scene rather than painting an opaque ring over its detail.
-        if (age<pressureLife) {
+        if (age<pressureLife && !light) {
             if (!scene || scene.width!=target.width || scene.height!=target.height || scene.pixelFormat!=target.pixelFormat) {
                 auto snapshot=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:target.pixelFormat
                     width:target.width height:target.height mipmapped:NO];

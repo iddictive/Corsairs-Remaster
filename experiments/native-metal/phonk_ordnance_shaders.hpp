@@ -165,6 +165,38 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
     float stop=sceneDepth<1.f?max(0.f,dot(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.eye.xyz,ray)):1.e8f;
     float radius=u.sourceRadius.w;
     float3 origin=(u.eye.xyz-u.sourceRadius.xyz)/radius;
+    // Older overlapping blasts retain their plume and pressure haze with a
+    // shorter march. Negative lifetime selects this representation; it never
+    // changes the simulation lifetime or the blast's damage.
+    if (u.params.z < 0.f) {
+        float seed=shipFireHash(u.params.w*float3(.13f,.71f,.37f));
+        float4 variation=fract(sin(float4(seed,seed+1.3f,seed+2.7f,seed+4.1f))*43758.5453f);
+        float life=-u.params.z;
+        float fade=smoothstep(0.f,.12f,u.params.x)*(1.f-smoothstep(max(0.f,life-.5f),life,u.params.x));
+        float4 ground=0;
+        if (u.params.x<life)
+            ground=phonkPressureVolume(origin,ray,stop/radius,u.params.y,u.eye.w,u.params.x,variation,noise).haze*fade;
+        float3 inverse=1.f/select(ray,float3(1.e-7f),abs(ray)<1.e-7f);
+        float3 first=(float3(-1.6f,-.25f,-1.6f)-origin)*inverse;
+        float3 last=(float3(1.6f,3.f,1.6f)-origin)*inverse;
+        float near=max(0.f,max(max(min(first,last).x,min(first,last).y),min(first,last).z));
+        float far=min(stop/radius,min(min(max(first,last).x,max(first,last).y),max(first,last).z));
+        if (far<=near || u.params.x>=9.f) return ground;
+        constexpr uint steps=8;
+        float step=(far-near)/float(steps),transmission=1.f;float3 color=0;
+        for(uint i=0;i<steps;i++) {
+            float3 point=origin+ray*(near+(float(i)+.5f)*step);
+            float2 field=phonkNuclearField(point,u.params.x,variation,noise);
+            float opacity=1.f-exp(-field.x*step*6.f);
+            float fire=smoothstep(.04f,.65f,field.y);
+            float3 soot=float3(.30f,.285f,.26f)*.55f;
+            float3 emission=mix(float3(1.8f,.19f,.014f),float3(4.4f,2.5f,.7f),fire);
+            color+=transmission*opacity*(soot+emission*pow(field.y,1.7f)*3.f);
+            transmission*=1.f-opacity;
+            if(transmission<.015f)break;
+        }
+        return float4(color+ground.rgb*transmission,1.f-transmission*(1.f-ground.a));
+    }
     // sourceRadius is camera-rebased: it must never seed a blast's identity.
     float seed=shipFireHash(u.params.w*float3(.13f,.71f,.37f));
     float4 variation=fract(sin(float4(seed,seed+1.3f,seed+2.7f,seed+4.1f))*43758.5453f);

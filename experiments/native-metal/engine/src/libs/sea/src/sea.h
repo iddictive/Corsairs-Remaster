@@ -10,6 +10,7 @@
 #include "shared/sea_tsunami.hpp"
 #include "shared/sea_nuclear_wave.hpp"
 #include <array>
+#include <vector>
 
 
 class SEA : public SEA_BASE
@@ -112,14 +113,13 @@ class SEA : public SEA_BASE
     void AdvanceWhirlpool(float seconds);
     void ResetWhirlpool() { whirlpool.Clear(); whirlpoolContacts.clear(); whirlpoolDebris.clear(); PublishWhirlpool(); }
     SeaTsunami tsunami;
-    // MainCharacter is the sole Phonk launcher. Slots mirror its four blast
-    // slots, including explicit oldest-slot retirement under saturation.
-    std::array<SeaNuclearWave, 4> nuclearWaves{};
+    // Distinct impact locations retain their own waves until natural expiry.
+    std::vector<SeaNuclearWave> nuclearWaves;
     bool nuclearWavesActive = false;
     SeaNuclearWaveSample NuclearWaveSample(float x, float z) const;
     float NuclearWaveHeightBound() const;
     void AdvanceNuclearWaves(float seconds);
-    void ResetNuclearWaves() { nuclearWaves = {}; nuclearWavesActive = false; }
+    void ResetNuclearWaves() { nuclearWaves.clear(); nuclearWavesActive = false; }
     bool tsunamiPlayerPassed = false;
     struct TsunamiShipContact { entid_t ship; SeaTsunamiContact contact; bool capsizeReported = false; };
     std::vector<TsunamiShipContact> tsunamiContacts;

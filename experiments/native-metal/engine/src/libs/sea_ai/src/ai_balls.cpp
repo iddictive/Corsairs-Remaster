@@ -690,9 +690,14 @@ void AIBalls::AddBall(ATTRIBUTES *pABall)
         entid_t eidParticle;
         if (eidParticle = core.GetEntityId("particles"))
         {
-            pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
-                eidParticle, "lsffffffl", PS_CREATE_RIC, (char *)aBallTypes[i].sParticleName.c_str(), pBall->vPos.x,
-                pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000);
+            if (AirburstGood(*pBall) >= 0)
+                pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+                    eidParticle, "lsffffffll", PS_CREATE_NAVAL_EFFECT, aBallTypes[i].sParticleName.c_str(),
+                    pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000, 8);
+            else
+                pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+                    eidParticle, "lsffffffl", PS_CREATE_RIC, aBallTypes[i].sParticleName.c_str(), pBall->vPos.x,
+                    pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000);
         }
     }
 }
@@ -1077,8 +1082,8 @@ void AIBalls::Execute(uint32_t Delta_Time)
             {
                 if (auto particle = core.GetEntityId("particles"))
                     shot.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
-                        particle, "lsffffffl", PS_CREATE_RIC, "grapes_tracer", shot.vPos.x,
-                        shot.vPos.y, shot.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
+                        particle, "lsffffffll", PS_CREATE_NAVAL_EFFECT, "grapes_tracer", shot.vPos.x,
+                        shot.vPos.y, shot.vPos.z, 0.0f, 1.0f, 0.0f, 100000, 7);
                 type.Balls.push_back(shot);
             }
             break;
@@ -1343,10 +1348,19 @@ void AIBalls::Load(CSaveLoad *pSL)
                 pB.pParticle = nullptr;
                 if (auto eidParticle = core.GetEntityId("particles"))
                 {
-                    pB.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
-                        eidParticle, "lsffffffl", PS_CREATE_RIC,
-                        AirburstFragment(pB) ? "grapes_tracer" : aBallType.sParticleName.c_str(), pB.vPos.x,
-                        pB.vPos.y, pB.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
+                    if (AirburstFragment(pB) || AirburstGood(pB) >= 0)
+                    {
+                        const bool fragment = AirburstFragment(pB);
+                        pB.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+                            eidParticle, "lsffffffll", PS_CREATE_NAVAL_EFFECT,
+                            fragment ? "grapes_tracer" : aBallType.sParticleName.c_str(),
+                            pB.vFirstPos.x, pB.vFirstPos.y, pB.vFirstPos.z, 0.0f, 1.0f, 0.0f, 100000, fragment ? 7 : 8);
+                        if (pB.pParticle) pB.pParticle->SetEmitter(pB.vPos, CVECTOR(0.0f, 1.0f, 0.0f));
+                    }
+                    else
+                        pB.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+                            eidParticle, "lsffffffl", PS_CREATE_RIC, aBallType.sParticleName.c_str(),
+                            pB.vPos.x, pB.vPos.y, pB.vPos.z, 0.0f, 1.0f, 0.0f, 100000);
                 }
             }
             else if (pB.dartGood >= 0) pB.pParticle = nullptr;

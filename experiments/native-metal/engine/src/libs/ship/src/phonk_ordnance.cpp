@@ -399,11 +399,12 @@ void SHIP::DrawPhonkOrdnance()
         at / 3, vertices.data(), sizeof(Vertex), "PhonkLaser");
     pRS->SetTransform(storm_render::TransformWorld, previous);
     const auto firstVisible = phonkOrdnance.blasts.size() > 4 ? phonkOrdnance.blasts.size() - 4 : 0;
-    for (size_t i = firstVisible; i < phonkOrdnance.blasts.size(); ++i)
+    for (size_t i = 0; i < phonkOrdnance.blasts.size(); ++i)
     {
         const auto &blast = phonkOrdnance.blasts[i];
         if (blast.active)
             StormMetalDrawPhonkNuclearBlast(pRS->GetNativeDevice(), &blast.center.x, blast.yield.radius, blast.age,
-                                           blast.seed, nuclearPressureFront(blast.yield, blast.age), nuclearPressureLife);
+                                           blast.seed, nuclearPressureFront(blast.yield, blast.age), nuclearPressureLife,
+                                           i < firstVisible);
     }
 }
