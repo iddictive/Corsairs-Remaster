@@ -1,0 +1,42 @@
+"""Replay baseline and working-tree SHIP in isolated archives; no shared build writes."""
+from pathlib import Path
+import hashlib, re, shlex, shutil, subprocess, sys
+root = Path(__file__).resolve().parents[3]
+evidence = Path(__file__).resolve().parent
+native = root / 'experiments/native-metal'
+build = native / '.cache/build'
+work = Path(sys.argv[1]).resolve()
+source = native / 'engine/src/libs/ship/src/ship.cpp'
+relative = source.relative_to(root).as_posix()
+commands = subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'), '-C', str(build), '-t', 'commands', 'lib/libship.a'], text=True).splitlines()
+original = next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/ship.cpp'))
+runner = (evidence/'native-consumer-runner.py.txt').read_text()
+runner = runner.replace('root=Path(__file__).resolve().parents[3]', f'root=Path({str(root)!r})')
+runner = runner.replace("(evidence/'native-consumer-component.cpp.txt').read_text()", "(evidence/'neighbor-cache-component.cpp.txt').read_text()")
+runner = runner.replace("(evidence/'native-consumer-body.cpp.txt').read_text()", "(evidence/'neighbor-cache-body.cpp.txt').read_text()")
+runner = runner.replace('(evidence/filename).write_text(out)', '(work/filename).write_text(out)')
+runner = runner.replace("(work/'build.py').write_text(driver)", "driver=driver.replace('for command in [compile,link]:', \"link=[str(work/'libship.a') if x.endswith('lib/libship.a') else x for x in link]\\nfor command in [compile,link]:\")\n(work/'build.py').write_text(driver)")
+(work/'runner.py').write_text(runner)
+baseline = subprocess.check_output(['git', 'show', 'f5232a2:'+relative], cwd=root)
+candidate = source.read_bytes()
+print('base_sha256', hashlib.sha256(baseline).hexdigest(), 'candidate_sha256', hashlib.sha256(candidate).hexdigest(), flush=True)
+print('archive_sha256', hashlib.sha256((build/'lib/libship.a').read_bytes()).hexdigest(), flush=True)
+results = {}
+for name, data in [('baseline',baseline),('candidate',candidate)]:
+    d = work/name; d.mkdir()
+    src = d/'ship.cpp'; src.write_bytes(data)
+    obj = d/'ship.cpp.o'; command = original.copy()
+    command[1:1] = ['-iquote', str(source.parent)]
+    command[command.index('-c')+1] = str(src)
+    for flag, value in [('-o',obj),('-MF',str(obj)+'.d'),('-MT',obj)]:
+        if flag in command: command[command.index(flag)+1] = str(value)
+    result = subprocess.run([c for c in command if c != '-v'], cwd=build, capture_output=True, text=True, timeout=120)
+    if result.returncode: raise RuntimeError(result.stderr[-7000:])
+    shutil.copy2(build/'lib/libship.a',d/'libship.a')
+    subprocess.run(['/usr/bin/ar','r',str(d/'libship.a'),str(obj)], check=True)
+    subprocess.run([sys.executable,str(work/'runner.py'),str(d)],check=True,timeout=120)
+    output=(d/'native-consumer-output.txt').read_text()
+    results[name]=[line.split()[1:2]+line.split()[3:] for line in output.splitlines() if line.startswith('SCENE ')]
+    if len(results[name]) != 9 or 'NATIVE_PASS' not in output or 'EXIT 0' not in output: raise RuntimeError(name+' incomplete')
+if results['baseline'] != results['candidate']: raise RuntimeError('predicted state mismatch')
+print('PARITY_PASS nine scene states, including contact and revision transition')

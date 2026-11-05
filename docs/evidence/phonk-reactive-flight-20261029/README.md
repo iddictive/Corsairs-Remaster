@@ -1,5 +1,46 @@
 # Reactive ship flight, 2026-10-29
 
+## Neighbor projection cache, 2026-11-05
+
+Two registered Brig1 neighbors each use the native 44,206-piece retained hull.
+The isolated `TouchMove` replay compares source `f5232a2` with the working
+candidate using the same configured archive and real Jolt consumer. The nine
+returned position, angle, velocity and rotation vectors match exactly between
+the two runs, including a 16 ms overlapping contact, a material revision change,
+removal and a new entity. Both complete the existing native save/restore,
+terrain and cleanup lifecycle. The prediction leaves native ship and tested
+neighbor state unchanged.
+
+In this fixture the 650 ms warm dry prediction changed from 749.22 ms to
+0.110 ms; the 16 ms overlapping-contact prediction changed from 1375.11 ms
+to 584.74 ms. Initial neighboring shape preparation remains 732.48 ms, and
+contact solver work remains substantial. These are isolated native consumer
+timings, not whole-game FPS. Jolt's step cadence and CCD are unchanged; this
+run is not a new high-speed CCD acceptance test. The material-cut fixture
+replaces the immutable prepared snapshot and revision but does not publish the
+cut through `GEOM`; its collision projection therefore falls back to retained
+prisms. Live geometry publication and gameplay remain unverified.
+
+Raw results are [baseline](neighbor-cache-baseline-output.txt),
+[candidate](neighbor-cache-candidate-output.txt), and the
+[full replay](neighbor-cache-replay-output.txt). The baseline source SHA-256 is
+`e2f62bc2f9153314b73f3083307312530cef1e613ea29189595c467a4a0c5218`, the
+candidate is `4f13ae1d5da245c77b12124f59aab4a24fce8a7db24a8dc0902d63b1cd642d75`,
+and the shared input archive is
+`c8f5212e334db657dbbd49f3a797831fd2de4303a82f20645251d693c9389874`.
+Apple clang 21, macOS deployment target 15, configured `.cache/build` and staged
+resources were used. Reproduce in an empty task-owned directory:
+
+```sh
+python3 docs/evidence/phonk-reactive-flight-20261029/neighbor-cache-replay.py.txt "$workdir"
+```
+
+The runner recompiles both ship sources into separate temporary archives and
+does not write the shared build. It compares all nine returned state vectors and
+requires the native lifecycle to finish. The first experimental fixture used
+`_Exit` and produced invalid earlier state; it was rejected. The accepted
+fixture returns normally, removes its registered ships/factory and exits zero.
+
 ## Current installed successor
 
 Engine `f0a0d3f910fee9582ab1dc4a7d09726d8a6647c8c861b0bc46e7576c0cec8529`

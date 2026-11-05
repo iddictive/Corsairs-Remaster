@@ -675,7 +675,12 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
         };
         write(pTPOld);
         if (pTPNew) { AdvancePhonkJet(DeltaTime, true); write(pTPNew); }
+        // The world is a shared projection: successful neighbor shape builds
+        // survive the state rollback and their matching metadata must survive too.
+        auto predictionNeighbors = std::move(phonkJet.neighbors);
+        const auto predictionWorld = phonkJet.world;
         State = before; phonkJet = jet;
+        if (phonkJet.world == predictionWorld) phonkJet.neighbors = std::move(predictionNeighbors);
         return true;
     }
     // Wreck prediction uses the same passive motion as Execute, without

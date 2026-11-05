@@ -1,0 +1,143 @@
+
+#include "ship.h"
+#include "compiler.h"
+#include "ship_contact_material.hpp"
+#include "ship_hull_convex_material.hpp"
+#include "ship_reactive_collision.hpp"
+#include "modelr.h"
+#include "shared/messages.h"
+#include <unordered_set>
+#include <thread>
+#include <mach/mach.h>
+#ifdef JET_HULL_DIAGNOSTIC
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+#endif
+class FlatSea final:public SEA_BASE {
+ public:void ProcessStage(Stage,uint32_t)override{}
+ float WaveXZ(float,float,CVECTOR*n=nullptr)override{if(n)*n=CVECTOR(0.f,1.f,0.f);return 0;}
+ float Cannon_Trace(int32_t,const CVECTOR&,const CVECTOR&)override{return 2;}
+ float Trace(const CVECTOR&,const CVECTOR&)override{return 2;}
+ bool Clip(const PLANE*,int32_t,const CVECTOR&,float,ADD_POLYGON_FUNC)override{return false;}
+ const char *GetCollideMaterialName()override{return "";}bool GetCollideTriangle(TRIANGLE&)override{return false;}
+};
+class SurfaceIsland final:public ISLAND_BASE {
+ public:entid_t id;CMatrix pose;MODEL *model;std::vector<WorldSurface> surfaces;
+ SurfaceIsland(entid_t i,MODEL*m):id(i),model(m){}
+ void ProcessStage(Stage,uint32_t)override{}
+ std::vector<WorldSurface>GetWorldSurfaces()const override{return surfaces.empty()?std::vector<WorldSurface>{{id,pose}}:surfaces;}
+ entid_t GetModelEID()override{return id;}entid_t GetSeabedEID()override{return 0;}
+ bool Check2DBoxDepth(CVECTOR,CVECTOR,float,float)override{return false;}
+ bool GetDepth(float,float,float*)override{return false;}bool GetDepthFast(float,float,float*)override{return false;}
+ bool CheckDepthCollision(const CVECTOR&,const CVECTOR&,float,float)override{return false;}
+ bool GetDepth(FRECT*,float*,float*)override{return false;}bool GetGroundDepth(float,float,float,float&)override{return false;}
+ bool GetShadow(float,float,float*)override{return false;}bool GetMovePoint(CVECTOR&,CVECTOR&,CVECTOR&)override{return false;}
+ float GetCurrentImmersion()override{return 0;}float Cannon_Trace(int32_t,const CVECTOR&a,const CVECTOR&b)override{return Trace(a,b);}
+ float Trace(const CVECTOR&a,const CVECTOR&b)override{return model->Trace(a,b);}
+ bool Clip(const PLANE*p,int32_t n,const CVECTOR&c,float r,ADD_POLYGON_FUNC f)override{return model->Clip(p,n,c,r,f);}
+ const char *GetCollideMaterialName()override{return model->GetCollideMaterialName();}bool GetCollideTriangle(TRIANGLE&t)override{return model->GetCollideTriangle(t);}
+};
+class Keys final:public CONTROLS {
+ public:std::unordered_set<std::string> held;
+ bool GetControlState(const char *n,CONTROL_STATE&s)override{s={};s.state=held.count(n)?CST_ACTIVE:CST_INACTIVE;return true;}
+};
+void check(bool b,const char*n){if(!b){printf("FAIL %s\n",n);std::exit(75);}}
+void resident(const char *label){mach_task_basic_info_data_t data{};mach_msg_type_number_t count=MACH_TASK_BASIC_INFO_COUNT;check(task_info(mach_task_self(),MACH_TASK_BASIC_INFO,reinterpret_cast<task_info_t>(&data),&count)==KERN_SUCCESS,"resident_sample");printf("rss_%s_bytes=%llu\n",label,static_cast<unsigned long long>(data.resident_size));}
+#ifdef JET_HULL_NORMALIZATION
+#include "hull-normalization.cpp.txt"
+#endif
+#ifdef JET_REAL_HULL_CONTACT
+#include "real-hull-contact.cpp.txt"
+#endif
+#ifdef JET_TRUE_HULL_SOURCE
+#include "true-hull-source.cpp.txt"
+#endif
+#ifdef JET_COLLISION_PROJECTION
+#include "collision-projection-probe.cpp.txt"
+#endif
+class JetShip final:public SHIP {
+ std::shared_ptr<storm::ship::contact::MaterialSnapshot> material;
+ std::shared_ptr<const storm::ship::contact::MaterialSnapshot> authored;
+ uint64_t authoredRevision=0;
+ storm::ship::material::convex::ContactSnapshot physical;
+ storm::ship::material::ContactTransform contactFrame{};
+ CVECTOR materialCom=CVECTOR(0.f);
+ public:
+ bool Init() override { return true; }
+ JetShip(FlatSea &sea,ATTRIBUTES &character,ATTRIBUTES &ship,entid_t model,VDX9RENDER *renderer){
+  material=std::make_shared<storm::ship::contact::MaterialSnapshot>();
+  std::vector<storm::ship::contact::MaterialVertex>vertices;
+  for(float x:{-5.f,5.f})for(float y:{-2.f,2.f})for(float z:{-15.f,15.f})vertices.push_back({x,y,z});
+  check(storm::ship::contact::appendMaterialPiece(*material,vertices,0),"native_material_schema");
+  material->authoredVolume=material->retainedVolume=material->pieces[0].volume;
+  pSea=&sea;pIsland=nullptr;pRS=renderer;pCollide=static_cast<COLLIDE*>(core.GetService("collide"));SetACharacter(&character);pAShip=&ship;
+  model_id=model;sail_id=rope_id=flag_id=cannon_id=vant_id=vantl_id=vantz_id=touch_id=sea_id=blots_id=0;
+  State={};SP={};State.fWeight=SP.fWeight=1000;State.vBoxSize=CVECTOR(10.f,4.f,30.f);State.vRealBoxSize=State.vBoxSize;State.vPos=CVECTOR(0.f,100.f,0.f);
+  State.fShipSpeedZ=20;State.fShipSpeedY=.2f;SP.fSpeedRate=20;SP.iCapacity=0;
+  vPos=State.vPos;vAng=State.vAng;fGravity=9.81f;fXOffset=fZOffset=0;fWaterLine=0;
+  bMounted=true;bKeelContour=false;bSetFixed=false;bDead=false;bVisible=false;iNumHulls=0;iNumMasts=1;
+  pMasts.resize(1);pMasts[0]={};pMasts[0].iMastNum=1;
+  iShipPriorityExecute=iShipPriorityRealize=0;ShipPoints={};strcpy(cShipIniName,"jet-fixture");
+ }
+ bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&out)const override{out.prepared=authored?authored:material;out.revision=authored?authoredRevision:1;out.retainedMassFraction=authored?storm::ship::contact::retainedMassFraction(*authored):1;return true;}
+ void authoredHull(entid_t id){auto*m=static_cast<MODEL*>(core.GetEntityPointer(id));auto*n=m->GetNode(0);auto*g=n->geo;const auto&a=n->loc_mtx;const uint64_t owner=uint64_t(id);
+  check(g->SetHullContactTransform(owner,{a.Vx().x,a.Vx().y,a.Vx().z,a.Vy().x,a.Vy().y,a.Vy().z,a.Vz().x,a.Vz().y,a.Vz().z,a.Pos().x,a.Pos().y,a.Pos().z}),"authored_hull_frame");
+  const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);while(!g->PrepareHullMaterial(owner)){check(std::chrono::steady_clock::now()<deadline,"authored_material_ready");std::this_thread::sleep_for(std::chrono::milliseconds(1));}
+  storm::ship::material::convex::ContactSnapshot snapshot;check(g->GetHullContactSnapshot(owner,snapshot,authored),"authored_contact_snapshot");GEOS::INFO info{};g->GetInfo(info);State.vBoxSize=CVECTOR(info.boxsize.x,info.boxsize.y,info.boxsize.z);State.vRealBoxSize=State.vBoxSize;State.fWeight=SP.fWeight=8000.f;SP.iCapacity=1800;SP.fWaterLine=.1f;
+  printf("authored_hull_parts=%zu native_weight_cwt=8000 capacity_cwt=1800\n",storm::ship::contact::materialRoot(*authored).pieces.size());
+  authoredRevision=snapshot.revision;model_id=id;blots_id=id;
+  physical=snapshot;contactFrame={a.Vx().x,a.Vx().y,a.Vx().z,a.Vy().x,a.Vy().y,a.Vy().z,a.Vz().x,a.Vz().y,a.Vz().z,a.Pos().x,a.Pos().y,a.Pos().z};
+#ifdef JET_COLLISION_PROJECTION
+  collisionProjectionProbe(snapshot,a,*authored);std::exit(0);
+#endif
+#ifdef JET_TRUE_HULL_SOURCE
+  trueHullSource(snapshot,a);std::exit(0);
+#endif
+  double volume=0,mx=0,my=0,mz=0;for(const auto&p:storm::ship::contact::materialRoot(*authored).pieces){double twiceArea=0,x=0,z=0;for(size_t i=0;i<p.hull.points.size();i++){auto a=p.hull.points[i],b=p.hull.points[(i+1)%p.hull.points.size()];double cross=a.x*b.z-b.x*a.z;twiceArea+=cross;x+=(a.x+b.x)*cross;z+=(a.z+b.z)*cross;}const double weight=std::abs(twiceArea)*.5*(p.upperY-p.lowerY);volume+=weight;mx+=weight*x/(3*twiceArea);mz+=weight*z/(3*twiceArea);my+=weight*(p.lowerY+p.upperY)*.5;}materialCom=CVECTOR(float(mx/volume),float(my/volume),float(mz/volume));
+#ifdef JET_REAL_HULL_CONTACT
+  realHullContacts(*authored);std::exit(0);
+#endif
+#ifdef JET_HULL_DIAGNOSTIC
+#ifdef JET_HULL_NORMALIZATION
+  normalizedHullProbe(*authored);std::exit(0);
+#endif
+  roundhouse::ReactiveWorld registration;JPH::StaticCompoundShapeSettings compound;std::size_t failures=0,index=0;
+  for(const auto&part:storm::ship::contact::materialRoot(*authored).pieces){JPH::Array<JPH::Vec3>points;for(auto p:part.hull.points){points.emplace_back(float(p.x),float(part.lowerY),float(p.z));points.emplace_back(float(p.x),float(part.upperY),float(p.z));}auto shape=JPH::ConvexHullShapeSettings(points,.01f).Create();if(shape.HasError()){if(failures<8)printf("rejected_piece=%zu vertices=%zu lower=%.17g upper=%.17g volume=%.17g error=%s\n",index,points.size(),part.lowerY,part.upperY,part.volume,shape.GetError().c_str());failures++;}else compound.AddShape(JPH::Vec3::sZero(),JPH::Quat::sIdentity(),shape.Get());index++;}
+  printf("convex_create_failures=%zu\n",failures);auto result=compound.Create();printf("compound_create=%s\n",result.HasError()?result.GetError().c_str():"success");std::exit(0);
+#endif
+ }
+ bool Mount(ATTRIBUTES *s)override{pAShip=s;return true;}
+ // The fixture retains one authored model instead of mounting a new model /
+ // blots entity pair during codec replay; its material owner must stay paired.
+ void SetACharacter(ATTRIBUTES *p)override{VAI_OBJBASE::SetACharacter(p);}
+ float comVelocityY()const{auto r=CMatrix(State.vAng)*materialCom;auto value=State.vSpeed.y+State.vRotate.z*r.x-State.vRotate.x*r.z;printf("native_com_local=(%.9g,%.9g,%.9g) rotated=(%.9g,%.9g,%.9g) world_com_vy=%.9g\n",materialCom.x,materialCom.y,materialCom.z,r.x,r.y,r.z,value);return value;}
+ void tick(unsigned ms=16){Move(ms,false);}
+ void kill(){SetDead();}
+ bool admit(unsigned ms=16){return AdvancePhonkJet(ms,false);}
+ void presentation(){vPos=State.vPos;vAng=State.vAng;}
+ void terrain(ISLAND_BASE*i){pIsland=i;}
+ void preparedDamage(){using namespace storm::ship::material::convex;const Piece*largest=nullptr;for(const auto&cell:physical.cells->convex->cells)if(cell&&cell->pieces)for(const auto&p:*cell->pieces)if(!largest||p.volume>largest->volume)largest=&p;check(largest,"cut_material_input");auto c=center(*largest);const float h=.15f;Cut cut;cut.origin=c;cut.bounds={c-storm_ship_hull::Vec3{h,h,h},c+storm_ship_hull::Vec3{h,h,h}};for(unsigned axis=0;axis<3;axis++)for(float sign:{-1.f,1.f}){auto n=storm_ship_structure::axisVector(axis,sign);cut.planes.push_back({n,storm_ship_hull::dot(n,c)+h});}auto edit=storm::ship::material::convex::edit(physical.cells,{cut});check(edit.complete&&!edit.changed.empty(),"canonical_cut_committed");physical.cells=edit.cells;physical.revision++;authored=storm::ship::material::prepareContactMaterial(physical,contactFrame);authoredRevision=physical.revision;check(bool(authored),"cut_material_projection");roundhouse::ReactiveParts parts;for(const auto&p:authored->pieces)if(storm::ship::contact::materialSupportRetained(*authored,p.supportCell))parts.push_back(roundhouse::ReactivePrismVertices(p));auto collision=roundhouse::ReactiveCollisionParts(physical,contactFrame);check(phonkJet.world&&phonkJet.world->SetHull(parts,collision),"cut_shape_revision");phonkJet.hull={authored,authoredRevision};printf("canonical_cut changed_sources=%zu original_parts=%zu proxy_parts=%zu retained_mass_fraction=%.9g\n",edit.changed.size(),parts.size(),collision.size(),storm::ship::contact::retainedMassFraction(*authored));}
+ void neighborDamage(){using namespace storm::ship::material::convex;const Piece*largest=nullptr;for(const auto&cell:physical.cells->convex->cells)if(cell&&cell->pieces)for(const auto&p:*cell->pieces)if(!largest||p.volume>largest->volume)largest=&p;check(largest,"cut_material_input");auto c=center(*largest);const float h=.15f;Cut cut;cut.origin=c;cut.bounds={c-storm_ship_hull::Vec3{h,h,h},c+storm_ship_hull::Vec3{h,h,h}};for(unsigned axis=0;axis<3;axis++)for(float sign:{-1.f,1.f}){auto n=storm_ship_structure::axisVector(axis,sign);cut.planes.push_back({n,storm_ship_hull::dot(n,c)+h});}auto edit=storm::ship::material::convex::edit(physical.cells,{cut});check(edit.complete&&!edit.changed.empty(),"canonical_cut_committed");physical.cells=edit.cells;physical.revision++;authored=storm::ship::material::prepareContactMaterial(physical,contactFrame);authoredRevision=physical.revision;check(bool(authored),"cut_material_projection");printf("NEIGHBOR_DAMAGE revision=%llu\n",(unsigned long long)authoredRevision);}
+ void place(const CVECTOR&p){State.vPos=p;State.vAng=State.vSpeed=State.vRotate=CVECTOR(0.f);phonkJet.active=true;presentation();}
+ void print(const char*n){printf("%s y=%.7f v=(%.7f,%.7f,%.7f) w=(%.7f,%.7f,%.7f) active=%d\n",n,State.vPos.y,State.vSpeed.x,State.vSpeed.y,State.vSpeed.z,State.vRotate.x,State.vRotate.y,State.vRotate.z,int(phonkJet.active));}
+ static void clearStatics(){pSea=nullptr;pIsland=nullptr;pRS=nullptr;}
+};
+
+
+static FlatSea *fixtureSea; static ATTRIBUTES *fixtureCharacter,*fixtureShip; static entid_t fixtureModel; static VDX9RENDER *fixtureRenderer;
+class FixtureShipFactory final:public VMA { public: const char *GetName() override {return "ship";} void *CreateClass() override {return new JetShip(*fixtureSea,*fixtureCharacter,*fixtureShip,fixtureModel,fixtureRenderer);} };
+
+__attribute__((noinline)) static void neighbors(JetShip &ship,FlatSea &sea,ATTRIBUTES *character,ATTRIBUTES *shipAttributes,entid_t model,VDX9RENDER *rs){
+fixtureSea=&sea;fixtureCharacter=character;fixtureShip=shipAttributes;fixtureModel=model;fixtureRenderer=rs;
+ FixtureShipFactory factory;factory.SetHash(MakeHashValue("ship"));__STORM_CLASSES_REGISTRY.insert(__STORM_CLASSES_REGISTRY.begin(), &factory);
+ auto id1=core.CreateEntity("ship"),id2=core.CreateEntity("ship");
+ auto *n1=dynamic_cast<JetShip*>(core.GetEntityPointer(id1));auto *n2=dynamic_cast<JetShip*>(core.GetEntityPointer(id2));check(n1&&n2,"registered_neighbours");
+ auto m1=core.CreateEntity("MODELR"),m2=core.CreateEntity("MODELR");
+ check(core.Send_Message(m1,"ls",MSG_MODEL_LOAD_GEO,"ships\\Brig1\\Brig1"),"neighbor_model_1");
+ check(core.Send_Message(m2,"ls",MSG_MODEL_LOAD_GEO,"ships\\Brig1\\Brig1"),"neighbor_model_2");
+ n1->authoredHull(m1); n2->authoredHull(m2); n1->State.vPos=CVECTOR(30.f,100.f,0.f);n2->State.vPos=CVECTOR(-30.f,100.f,0.f);n1->presentation();n2->presentation();
+ auto state=ship.State; auto step=[&](const char *stage){TOUCH_PARAMS result{};auto p1=n1->State;auto start=std::chrono::steady_clock::now();ship.TouchMove(!strncmp(stage,"contact",7)?16:650,nullptr,&result);printf("SCENE %s %.6f %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g %.9g\n",stage,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count(),result.vPos.x,result.vPos.y,result.vPos.z,result.vAng.x,result.vAng.y,result.vAng.z,result.vSpeed.x,result.vSpeed.y,result.vSpeed.z,result.vRotate.x,result.vRotate.y,result.vRotate.z);check(!memcmp(&state,&ship.State,sizeof(state)),"state_unchanged");check(!memcmp(&p1,&n1->State,sizeof(p1)),"neighbor_state_unchanged");};
+ step("initial");step("warm");n1->State.vPos.x=5.f;n1->presentation();step("contact");step("contact_warm");n1->State.vPos.x=30.f;n1->presentation();n1->neighborDamage();step("damaged");step("damaged_warm");core.EraseEntity(id2);step("removed");auto id3=core.CreateEntity("ship");auto *n3=dynamic_cast<JetShip*>(core.GetEntityPointer(id3));check(n3,"new_neighbor");auto m3=core.CreateEntity("MODELR");check(core.Send_Message(m3,"ls",MSG_MODEL_LOAD_GEO,"ships\\Brig1\\Brig1"),"neighbor_model_3");n3->authoredHull(m3);n3->State.vPos=CVECTOR(-30.f,100.f,0.f);n3->presentation();step("new_neighbor");step("new_neighbor_warm");core.EraseEntity(id3);
+ puts("NEIGHBOR_PASS"); std::fflush(stdout); core.EraseEntity(id1); core.EraseEntity(id2); auto &registry=__STORM_CLASSES_REGISTRY; registry.erase(std::remove(registry.begin(), registry.end(), &factory), registry.end()); return;
+}
