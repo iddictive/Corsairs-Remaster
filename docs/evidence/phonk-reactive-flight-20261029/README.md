@@ -315,6 +315,70 @@ does not prove capacity-failure cleanup. Production handles returned error
 bits unconditionally and publishes no partial body/neighbor state; transient
 neighbors are released on every exit. The normal component replay passes.
 
+`normalized-reuse-runner.py.txt`, `normalized-reuse-probe.cpp.txt`, and
+`normalized-reuse-output.txt` test exact cooked-hull reuse on the authored
+Brig1 material. Of 44,206 prisms, 42,062 have distinct normalized float vertex
+sets, leaving 2,144 (4.85%) duplicate sets before lookup cost. Distinct sets
+could still cook to the same hull, so this is not a bound on all possible reuse.
+This is not a frame-time or contact-performance measurement. Run the script
+with an existing empty task-owned scratch directory; it uses the native build
+and runtime referenced by `native-consumer-runner.py.txt`.
+Passing `mass` as the second argument runs `prism-mass-probe.cpp.txt`, whose
+raw result is `prism-mass-output.txt`. On this Brig1 fixture direct prism
+integrals took 0.426 ms versus 164.566 ms to build the Jolt compound and obtain
+its mass; the results differ numerically (including about 0.0039% in Ixx).
+These are isolated admission costs, not proof of equivalent collision response,
+damage behavior, or whole-frame speed.
+
+`prism-fast-mass-replay.py.txt` and `prism-fast-mass-rejected.cpp.txt` reproduce
+the experimental neighbor-only integration against `a51c3b1` in
+isolated archives; raw baseline and candidate outputs carry the matching names.
+Initial two-neighbor admission fell from 729 to 396 ms, but warm overlap contact
+remained about 580 ms and its predicted x velocity changed from 0.4723 to
+0.3729 m/s. This first prototype was rejected under the earlier identical-response
+criterion; the user subsequently accepted physically plausible differences. The fixture's
+damaged neighbor lacks a matching GEOM snapshot and takes the original fallback,
+so it does not establish accelerated damaged-geometry behavior.
+`prism-fast-mass-exact-com-output.txt` and `prism-fast-mass-exact-tensor-output.txt`
+isolate the two changes, replayable with `EXACT_COM=1` or `EXACT_MASS=1`.
+Neither alone restored the warm contact prediction; the collider input and
+construction order were unchanged. The diagnostics still build the full Jolt
+shape and therefore are not performance candidates.
+The pinned runtime is Jolt 5.6.0. Its [architecture documentation](https://github.com/jrouwe/JoltPhysics/blob/v5.6.0/Docs/Architecture.md)
+describes supplied mass/inertia and warns that dynamic mesh shapes cannot
+collide with other mesh shapes and lack a well-defined inside. The local
+`ship_hull_convex_material.hpp::mergeConvex` merges source solids, whereas
+Jolt consumes their projected prisms; that helper alone does not prove an
+equivalent collision union. No exact projected-prism merge has been validated.
+
+`prism-mass-published-replay.py.txt` replays the final mass-only implementation
+with two native Brig1 models at 1.0 and 1.25 scale, plus a synthetic cut published
+through GEOM and verified against its current revision. The fixture does not
+exercise an actual weapon hit or render the hole. In the retained baseline and
+candidate outputs, initial admission is 735 versus 404 ms and published-damage
+admission is recorded separately; warm overlap remains hundreds of milliseconds.
+With the `ccd` argument, the same runner performs the separate 500 m/s sweep,
+no-contact, non-prism, empty-collider, concave and self-intersecting fallback
+controls recorded in `prism-mass-ccd-fallback-output.txt`. The fast path leaves
+the existing collision projection and linear-cast setting intact; it changes the
+mass integrals and therefore contact impulses. No game UI was exercised.
+
+`exact-sharing-exploratory.patch.txt` applies to `a51c3b1`'s
+`roundhouse_ragdoll.cpp`; `exact-sharing-exploratory-output.txt` records a
+native run with exact input comparisons and shared shape/mass across identical
+neighbors. The nine predicted scene states matched the baseline; initial and
+new-neighbor timings were 472 and 98 ms, respectively, but another compilation
+overlapped this run. Memory lifecycle, changed scales, real GEOM publication and
+CCD were not validated for this prototype, which was not integrated. Reproduce
+using the isolated build procedure in `prism-fast-mass-replay.py.txt`, applying
+this patch to the baseline override instead of its mass prototype.
+
+`jolt-threadpool-replay.py.txt` and `jolt-threadpool-output.txt` compare the
+single-threaded Jolt job system with 1, 2 and 4 additional workers in the native
+ship fixture. None improved the contact case. The isolated runs used a cached
+ship archive and report one run per variant, printed state precision and no
+player FPS; see the output for the exact inputs and limitations.
+
 Terrain cache identity includes actual `CLIP_ENABLE`/`CLIP_ENABLE_TREE` bits.
 The lighting owner's native phase fixture proves day/night changes those bits,
 while palette-only changes retain them. The final hash change is source-bound;

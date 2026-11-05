@@ -1,0 +1,33 @@
+"""Run the native Brig1 normalized-shape identity probe in task-owned scratch.
+
+Usage: python3 normalized-reuse-runner.py.txt /absolute/existing/empty/scratch [mass]
+Requires the project's prepared native build/runtime, as does native-consumer-runner.
+"""
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parents[3]
+evidence = Path(__file__).resolve().parent
+work = Path(sys.argv[1]).resolve()
+mass = len(sys.argv) > 2 and sys.argv[2] == 'mass'
+component = (evidence / 'neighbor-cache-component.cpp.txt').read_text()
+anchor = '  authoredRevision=snapshot.revision;model_id=id;blots_id=id;'
+assert component.count(anchor) == 1
+component = '#include <bit>\n#include <set>\n' + component
+marker = 'class JetShip final:public SHIP {'
+assert component.count(marker) == 1
+probe = 'prism-mass-probe.cpp.txt' if mass else 'normalized-reuse-probe.cpp.txt'
+component = component.replace(marker, (evidence / probe).read_text() + '\n' + marker)
+component = component.replace(anchor, ('  massProbe(*authored);\n' if mass else '  normalizedReuseProbe(*authored);\n') + anchor)
+(work / 'component.txt').write_text(component)
+runner = (evidence / 'native-consumer-runner.py.txt').read_text()
+runner = runner.replace('root=Path(__file__).resolve().parents[3]', f'root=Path({str(root)!r})')
+runner = runner.replace("(evidence/'native-consumer-component.cpp.txt').read_text()", f"Path({str(work / 'component.txt')!r}).read_text()")
+runner = runner.replace("(evidence/'native-consumer-body.cpp.txt').read_text()", "(evidence/'neighbor-cache-body.cpp.txt').read_text()")
+runner = runner.replace('(evidence/filename).write_text(out)', '(work/filename).write_text(out)')
+if mass:
+    runner = runner.replace("(work/'build.py').write_text(driver)",
+        "driver=driver.replace(\"'-DSTORM_METAL_SHIP_FIRE=1'\",\"'-DSTORM_METAL_SHIP_FIRE=1','-I'+str(build/'_deps/roundhouse_jolt-src')\")\n(work/'build.py').write_text(driver)")
+(work / 'runner.py').write_text(runner)
+subprocess.run([sys.executable, str(work / 'runner.py'), str(work)], check=True)

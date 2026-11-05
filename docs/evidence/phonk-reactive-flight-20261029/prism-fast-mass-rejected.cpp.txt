@@ -1,0 +1,18 @@
+static bool FastPrismMass(const std::vector<std::vector<ReactivePoint>> &parts, JPH::Vec3 &center, JPH::MassProperties &properties)
+{
+ double mass=0, first[3]={}, second[3][3]={};
+ for(const auto &p:parts) {
+  if(p.size()<6 || p.size()%2) return false;
+  double lower=p[0].y,upper=p[1].y;
+  if(!(std::isfinite(lower)&&std::isfinite(upper)&&upper>lower))return false;
+  double a=0,x=0,z=0,xx=0,zz=0,xz=0;
+  for(size_t i=0;i<p.size();i+=2){auto u=p[i],v=p[(i+2)%p.size()],top=p[i+1];
+   if(!std::isfinite(u.x)||!std::isfinite(u.z)||u.y!=lower||top.y!=upper||top.x!=u.x||top.z!=u.z)return false;
+   double c=u.x*v.z-v.x*u.z;a+=c;x+=(u.x+v.x)*c;z+=(u.z+v.z)*c;xx+=(u.x*u.x+u.x*v.x+v.x*v.x)*c;zz+=(u.z*u.z+u.z*v.z+v.z*v.z)*c;xz+=(2*u.x*u.z+u.x*v.z+v.x*u.z+2*v.x*v.z)*c;}
+  if(!std::isfinite(a)||a==0)return false;double sign=a<0?-1:1,h=upper-lower,A=sign*a/2,X=sign*x/6,Z=sign*z/6,XX=sign*xx/12,ZZ=sign*zz/12,XZ=sign*xz/24;
+  double Y=(upper+lower)*.5,Y2=(upper*upper+upper*lower+lower*lower)/3.,m=1000*A*h;mass+=m;first[0]+=1000*X*h;first[1]+=m*Y;first[2]+=1000*Z*h;second[0][0]+=1000*XX*h;second[1][1]+=m*Y2;second[2][2]+=1000*ZZ*h;second[0][1]+=1000*X*h*Y;second[0][2]+=1000*XZ*h;second[1][2]+=1000*Z*h*Y;
+ }
+ if(!(std::isfinite(mass)&&mass>0))return false;double com[3];for(int i=0;i<3;i++){com[i]=first[i]/mass;if(!std::isfinite(com[i]))return false;}
+ double I[3][3]={};for(int i=0;i<3;i++)for(int j=i;j<3;j++){double s=second[i][j]-mass*com[i]*com[j];if(i==j){for(int k=0;k<3;k++)if(k!=i)I[i][i]+=second[k][k]-mass*com[k]*com[k];}else I[i][j]=I[j][i]=-s;if(!std::isfinite(I[i][j]))return false;}
+ center=JPH::Vec3(float(com[0]),float(com[1]),float(com[2]));properties.mMass=float(mass);properties.mInertia=JPH::Mat44::sZero();for(int i=0;i<3;i++)for(int j=0;j<3;j++)properties.mInertia(i,j)=float(I[i][j]);properties.mInertia(3,3)=1.f;return true;
+}

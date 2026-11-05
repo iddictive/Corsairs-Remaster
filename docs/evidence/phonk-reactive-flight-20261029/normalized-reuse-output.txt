@@ -1,0 +1,26 @@
+rss_scene_before_ship_bytes=284622848
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+NORMALIZED exact_parts=44206 unique_shapes=42062 reuse=2144
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        4.93 real         4.48 user         0.22 sys
+           449085440  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               29208  page reclaims
+                  16  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                7173  involuntary context switches
+         83926496779  instructions retired
+         20078353304  cycles elapsed
+           381093280  peak memory footprint
+
+EXIT 0

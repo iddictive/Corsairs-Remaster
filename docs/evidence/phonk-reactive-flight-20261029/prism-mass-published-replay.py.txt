@@ -1,0 +1,49 @@
+"""Replay GEOM publication, two scales, native controls and save/load.
+
+Usage: python3 prism-mass-published-replay.py.txt EMPTY_SCRATCH [ccd]
+The baseline is git a51c3b1; the candidate is the current working source.
+"""
+from pathlib import Path
+import os
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parents[3]
+evidence = Path(__file__).resolve().parent
+work = Path(sys.argv[1]).resolve()
+component = work / 'component.txt'
+component.write_text((evidence / 'neighbor-cache-component.cpp.txt').read_text())
+subprocess.run(['patch', str(component), str(evidence / 'prism-mass-published-component.patch.txt')], check=True, capture_output=True)
+ccd = len(sys.argv) > 2 and sys.argv[2] == 'ccd'
+if ccd:
+    text = component.read_text()
+    marker = 'class JetShip final:public SHIP {'
+    assert text.count(marker) == 1
+    component.write_text(text.replace(marker, (evidence / 'prism-mass-ccd-fallback.cpp.txt').read_text() + marker))
+relative = 'experiments/native-metal/roundhouse_ragdoll.cpp'
+(work / 'roundhouse_ragdoll.cpp').write_bytes(subprocess.check_output(['git', 'show', 'a51c3b1:' + relative], cwd=root))
+builder = (evidence / 'isolated-reactive-build.py.txt').read_text()
+builder = builder.replace("('engine/src/libs/ship/src/ship_reactive_jet.cpp','lib/libship.a')]",
+    "('engine/src/libs/ship/src/ship_reactive_jet.cpp','lib/libship.a'),('engine/src/libs/ship/src/ship.cpp','lib/libship.a')]")
+marker = " for flag,value in [('-o',obj)"
+assert builder.count(marker) == 1
+builder = builder.replace(marker, " if Path(source).name=='roundhouse_ragdoll.cpp' and __import__('os').environ.get('BASELINE')=='1':\n  command[1:1]=['-iquote',str(native)]\n  command[command.index('-c')+1]=str(Path(__file__).parent/'roundhouse_ragdoll.cpp')\n" + marker)
+builder = builder.replace("destination=work/Path(archive).name;shutil.copy2(build/archive,destination)",
+    "destination=work/Path(archive).name\n if not destination.exists():shutil.copy2(build/archive,destination)")
+builder = builder.replace("with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:\n for result in executor.map(compile_owner,owners):print(Path(result).name+' ready')",
+    "for owner in owners: print(Path(compile_owner(owner)).name+' ready')")
+(work / 'build-isolated.py').write_text(builder)
+runner = (evidence / 'native-consumer-runner.py.txt').read_text()
+runner = runner.replace('root=Path(__file__).resolve().parents[3]', f'root=Path({str(root)!r})')
+runner = runner.replace("(evidence/'native-consumer-component.cpp.txt').read_text()", f"Path({str(component)!r}).read_text()")
+runner = runner.replace("(evidence/'native-consumer-body.cpp.txt').read_text()", "(evidence/'neighbor-cache-body.cpp.txt').read_text()")
+if ccd:
+    runner = runner.replace("(evidence/'neighbor-cache-body.cpp.txt').read_text()", "(evidence/'neighbor-cache-body.cpp.txt').read_text().replace(' const auto model=core.CreateEntity(\"MODELR\");', ' ccdProbe(); std::exit(0); const auto model=core.CreateEntity(\"MODELR\");')")
+runner = runner.replace("str(evidence/'isolated-reactive-build.py.txt')", repr(str(work / 'build-isolated.py')))
+runner = runner.replace('(evidence/filename).write_text(out)', '(work/filename).write_text(out)')
+(work / 'runner.py').write_text(runner)
+for name in (('candidate',) if ccd else ('baseline', 'candidate')):
+    target = work / name
+    target.mkdir()
+    env = dict(os.environ, JET_ISOLATED_REACTIVE='1', BASELINE='1' if name == 'baseline' else '0')
+    subprocess.run([sys.executable, str(work / 'runner.py'), str(target)], env=env, check=True)

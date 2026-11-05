@@ -1,0 +1,38 @@
+// Called from JetShip::authoredHull after loading the native Brig1 material.
+// Match ReactiveShape's exact double normalization and float conversion;
+// sort vertices because their order does not alter a convex hull.
+static void normalizedReuseProbe(const storm::ship::contact::MaterialSnapshot &material)
+{
+    std::set<std::vector<uint32_t>> unique;
+    size_t count = 0;
+    for (const auto &piece : storm::ship::contact::materialRoot(material).pieces)
+    {
+        auto vertices = roundhouse::ReactivePrismVertices(piece);
+        double lo[3] = {INFINITY, INFINITY, INFINITY};
+        double hi[3] = {-INFINITY, -INFINITY, -INFINITY};
+        for (auto v : vertices)
+        {
+            const double a[] = {v.x, v.y, v.z};
+            for (int i = 0; i < 3; ++i) { lo[i] = std::min(lo[i], a[i]); hi[i] = std::max(hi[i], a[i]); }
+        }
+        std::vector<std::array<uint32_t, 3>> points;
+        for (auto v : vertices)
+        {
+            const double a[] = {v.x, v.y, v.z};
+            std::array<uint32_t, 3> bits;
+            for (int i = 0; i < 3; ++i)
+            {
+                float x = float((a[i] - (lo[i] + hi[i]) * .5) / std::max((hi[i] - lo[i]) * .5, 1e-6));
+                bits[i] = std::bit_cast<uint32_t>(x);
+            }
+            points.push_back(bits);
+        }
+        std::sort(points.begin(), points.end());
+        std::vector<uint32_t> key;
+        for (auto xyz : points) for (auto x : xyz) key.push_back(x);
+        unique.insert(key);
+        ++count;
+    }
+    printf("NORMALIZED exact_parts=%zu unique_shapes=%zu reuse=%zu\n", count, unique.size(), count - unique.size());
+    std::exit(0);
+}

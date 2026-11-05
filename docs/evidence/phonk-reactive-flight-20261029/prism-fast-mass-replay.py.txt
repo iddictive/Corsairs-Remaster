@@ -1,0 +1,59 @@
+"""Compare current and experimental neighbor mass paths in isolated archives.
+
+Run with an existing empty task-owned scratch directory. The native source and
+build/runtime inputs are read in place; generated files are written to scratch.
+"""
+from pathlib import Path
+import os
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parents[3]
+evidence = Path(__file__).resolve().parent
+work = Path(sys.argv[1]).resolve()
+native = root / 'experiments/native-metal'
+source = subprocess.check_output(['git', 'show', 'a51c3b1:experiments/native-metal/roundhouse_ragdoll.cpp'], cwd=root, text=True)
+(work / 'baseline.cpp').write_text(source)
+anchor = ('bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts,\n'
+          '                                   const std::vector<std::vector<ReactivePoint>> &collisionParts)\n{\n')
+assert source.count(anchor) == 1
+branch = '''    JPH::Vec3 com; JPH::MassProperties mass;
+    if (!collisionParts.empty() && FastPrismMass(parts, com, mass)) {
+        if (std::getenv("EXACT_COM") || std::getenv("EXACT_MASS")) {
+            auto reference = ReactiveShape(parts);
+            if (!reference) return false;
+            if (std::getenv("EXACT_COM")) com = reference->GetCenterOfMass();
+            if (std::getenv("EXACT_MASS")) mass = reference->GetMassProperties();
+        }
+        auto collision = ReactiveShape(collisionParts);
+        if (!collision) return false;
+        impl_->neighborShapes[key] = new JPH::OffsetCenterOfMassShape(collision, com - collision->GetCenterOfMass());
+        impl_->neighborMass[key] = mass;
+        return true;
+    }
+'''
+source = source.replace(anchor, (evidence / 'prism-fast-mass-rejected.cpp.txt').read_text() + '\n' + anchor + branch)
+(work / 'roundhouse_ragdoll.cpp').write_text(source)
+builder = (evidence / 'isolated-reactive-build.py.txt').read_text()
+builder = builder.replace("('engine/src/libs/ship/src/ship_reactive_jet.cpp','lib/libship.a')]",
+    "('engine/src/libs/ship/src/ship_reactive_jet.cpp','lib/libship.a'),('engine/src/libs/ship/src/ship.cpp','lib/libship.a')]")
+marker = " for flag,value in [('-o',obj)"
+assert builder.count(marker) == 1
+builder = builder.replace(marker, " if Path(source).name=='roundhouse_ragdoll.cpp':\n  command[1:1]=['-iquote',str(native)]\n  name='roundhouse_ragdoll.cpp' if __import__('os').environ.get('MASS_CANDIDATE')=='1' else 'baseline.cpp'\n  command[command.index('-c')+1]=str(Path(__file__).parent/name)\n" + marker)
+builder = builder.replace("destination=work/Path(archive).name;shutil.copy2(build/archive,destination)",
+    "destination=work/Path(archive).name\n if not destination.exists():shutil.copy2(build/archive,destination)")
+builder = builder.replace("with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:\n for result in executor.map(compile_owner,owners):print(Path(result).name+' ready')",
+    "for owner in owners: print(Path(compile_owner(owner)).name+' ready')")
+(work / 'build-isolated.py').write_text(builder)
+runner = (evidence / 'native-consumer-runner.py.txt').read_text()
+runner = runner.replace('root=Path(__file__).resolve().parents[3]', f'root=Path({str(root)!r})')
+runner = runner.replace("(evidence/'native-consumer-component.cpp.txt').read_text()", "(evidence/'neighbor-cache-component.cpp.txt').read_text()")
+runner = runner.replace("(evidence/'native-consumer-body.cpp.txt').read_text()", "(evidence/'neighbor-cache-body.cpp.txt').read_text()")
+runner = runner.replace("str(evidence/'isolated-reactive-build.py.txt')", repr(str(work / 'build-isolated.py')))
+runner = runner.replace('(evidence/filename).write_text(out)', '(work/filename).write_text(out)')
+(work / 'comparison-runner.py').write_text(runner)
+for name in ('baseline', 'candidate'):
+    target = work / name
+    target.mkdir()
+    env = dict(os.environ, JET_ISOLATED_REACTIVE='1', MASS_CANDIDATE='1' if name == 'candidate' else '0')
+    subprocess.run([sys.executable, str(work / 'comparison-runner.py'), str(target)], env=env, check=True)

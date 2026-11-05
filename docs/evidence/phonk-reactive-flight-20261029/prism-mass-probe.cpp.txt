@@ -1,0 +1,23 @@
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+static void massProbe(const storm::ship::contact::MaterialSnapshot &material) {
+ roundhouse::ReactiveWorld registration;
+ auto start=std::chrono::steady_clock::now();
+ double mass=0, first[3]={}, second[3][3]={};
+ for(const auto &p:storm::ship::contact::materialRoot(material).pieces) {
+  double a=0,x=0,z=0,xx=0,zz=0,xz=0; auto &r=p.hull.points;
+  for(size_t i=0;i<r.size();i++){auto u=r[i],v=r[(i+1)%r.size()];double c=u.x*v.z-v.x*u.z;a+=c;x+=(u.x+v.x)*c;z+=(u.z+v.z)*c;xx+=(u.x*u.x+u.x*v.x+v.x*v.x)*c;zz+=(u.z*u.z+u.z*v.z+v.z*v.z)*c;xz+=(2*u.x*u.z+u.x*v.z+v.x*u.z+2*v.x*v.z)*c;}
+  double sign=a<0?-1:1,h=p.upperY-p.lowerY,A=sign*a/2,X=sign*x/6,Z=sign*z/6,XX=sign*xx/12,ZZ=sign*zz/12,XZ=sign*xz/24;
+  double Y=(p.upperY+p.lowerY)*.5,Y2=(p.upperY*p.upperY+p.upperY*p.lowerY+p.lowerY*p.lowerY)/3.;
+  double m=1000*A*h;mass+=m; first[0]+=1000*X*h; first[1]+=m*Y; first[2]+=1000*Z*h;
+  second[0][0]+=1000*XX*h;second[1][1]+=m*Y2;second[2][2]+=1000*ZZ*h;
+  second[0][1]+=1000*X*h*Y;second[0][2]+=1000*XZ*h;second[1][2]+=1000*Z*h*Y;
+ }
+ double com[3];for(int i=0;i<3;i++)com[i]=first[i]/mass;
+ double I[3][3]={};for(int i=0;i<3;i++)for(int j=i;j<3;j++){double s=second[i][j]-mass*com[i]*com[j];if(i==j){for(int k=0;k<3;k++)if(k!=i)I[i][i]+=second[k][k]-mass*com[k]*com[k];}else I[i][j]=-s;}
+ double analytic=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();start=std::chrono::steady_clock::now();
+ JPH::StaticCompoundShapeSettings compound;for(const auto &p:storm::ship::contact::materialRoot(material).pieces){auto vertices=roundhouse::ReactivePrismVertices(p);double lo[3]={INFINITY,INFINITY,INFINITY},hi[3]={-INFINITY,-INFINITY,-INFINITY},c[3],s[3];for(auto v:vertices){double q[]={v.x,v.y,v.z};for(int k=0;k<3;k++){lo[k]=std::min(lo[k],q[k]);hi[k]=std::max(hi[k],q[k]);}}for(int k=0;k<3;k++){c[k]=.5*(lo[k]+hi[k]);s[k]=std::max(.5*(hi[k]-lo[k]),1e-6);}JPH::Array<JPH::Vec3> points;for(auto v:vertices)points.emplace_back(float((v.x-c[0])/s[0]),float((v.y-c[1])/s[1]),float((v.z-c[2])/s[2]));JPH::ConvexHullShapeSettings settings(points,0.f);settings.mHullTolerance=1e-7f;auto shape=settings.Create();check(!shape.HasError(),"mass_shape");JPH::RefConst<JPH::Shape> scaled=new JPH::ScaledShape(shape.Get(),JPH::Vec3(float(s[0]),float(s[1]),float(s[2])));compound.AddShape(JPH::Vec3(float(c[0]),float(c[1]),float(c[2])),JPH::Quat::sIdentity(),scaled);}
+ auto shape=compound.Create();check(!shape.HasError(),"mass_compound");auto j=shape.Get()->GetMassProperties();auto jc=shape.Get()->GetCenterOfMass();double jolt=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();printf("MASS analytic_ms=%.6f jolt_ms=%.6f analytic=%.12g jolt=%.12g\n",analytic,jolt,mass,j.mMass);for(int i=0;i<3;i++)printf("COM[%d] analytic=%.12g jolt=%.12g delta=%.12g\n",i,com[i],double(jc[i]),com[i]-jc[i]);for(int i=0;i<3;i++)for(int k=i;k<3;k++)printf("I[%d,%d] analytic=%.12g jolt=%.12g delta=%.12g\n",i,k,I[i][k],double(j.mInertia(i,k)),I[i][k]-j.mInertia(i,k));std::exit(0);
+}

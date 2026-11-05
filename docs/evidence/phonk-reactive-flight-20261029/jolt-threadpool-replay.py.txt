@@ -1,0 +1,19 @@
+from pathlib import Path
+import subprocess,shlex,shutil,os,sys,hashlib
+root=Path(__file__).resolve().parents[3]; native=root/'experiments/native-metal'; build=native/'.cache/build'; ev=root/'docs/evidence/phonk-reactive-flight-20261029'; work=Path(sys.argv[1]).resolve()
+source=(native/'roundhouse_ragdoll.cpp').read_text(); print('source_sha',hashlib.sha256(source.encode()).hexdigest(),flush=True)
+commands=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','libroundhouse_ragdoll.a'],text=True).splitlines(); original=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/roundhouse_ragdoll.cpp'))
+runner=(ev/'native-consumer-runner.py.txt').read_text().replace('root=Path(__file__).resolve().parents[3]',f'root=Path({str(root)!r})').replace("(evidence/'native-consumer-component.cpp.txt').read_text()","(evidence/'neighbor-cache-component.cpp.txt').read_text()").replace("(evidence/'native-consumer-body.cpp.txt').read_text()","(evidence/'neighbor-cache-body.cpp.txt').read_text()").replace('(evidence/filename).write_text(out)','(work/filename).write_text(out)')
+runner=runner.replace("(work/'build.py').write_text(driver)","driver=driver.replace('for command in [compile,link]:', \"link=[str(work/'libroundhouse_ragdoll.a') if x.endswith('libroundhouse_ragdoll.a') else x for x in link]\\nfor command in [compile,link]:\")\n(work/'build.py').write_text(driver)")
+(work/'runner.py').write_text(runner)
+for n in [0,1,2,4]:
+ d=work/('run'+str(n));d.mkdir(); s=source
+ if n:
+  s=s.replace('#include <Jolt/Core/JobSystemSingleThreaded.h>','#include <Jolt/Core/JobSystemSingleThreaded.h>\n#include <Jolt/Core/JobSystemThreadPool.h>')
+  marker='struct ReactiveWorld::Impl'; left,right=s.split(marker,1);old='JPH::JobSystemSingleThreaded jobs{JPH::cMaxPhysicsJobs};';assert right.count(old)==1;right=right.replace(old,'JPH::JobSystemThreadPool jobs{JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, '+str(n)+'};');s=left+marker+right
+ src=d/'roundhouse_ragdoll.cpp';src.write_text(s); obj=d/'roundhouse_ragdoll.cpp.o'; cmd=original.copy();cmd[1:1]=['-iquote',str(native)];cmd[cmd.index('-c')+1]=str(src)
+ for flag,value in [('-o',obj),('-MF',str(obj)+'.d'),('-MT',obj)]:
+  if flag in cmd:cmd[cmd.index(flag)+1]=str(value)
+ subprocess.run([x for x in cmd if x!='-v'],cwd=build,check=True,timeout=90);shutil.copy2(build/'libroundhouse_ragdoll.a',d/'libroundhouse_ragdoll.a');subprocess.run(['/usr/bin/ar','r',str(d/'libroundhouse_ragdoll.a'),str(obj)],check=True)
+ env=os.environ.copy();r=subprocess.run([sys.executable,str(work/'runner.py'),str(d)],env=env,capture_output=True,text=True,timeout=120);print('worker',n,'exit',r.returncode,flush=True);print('\n'.join(x for x in (r.stdout+r.stderr).splitlines() if x.startswith(('SCENE ','native_hull_','native_dry','native_geometry','native_flight','NATIVE_PASS','EXIT',' ')))[-9000:],flush=True)
+ if r.returncode: print(r.stdout[-3000:],r.stderr[-3000:]);break

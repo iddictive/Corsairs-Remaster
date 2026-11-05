@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -627,9 +628,107 @@ bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<
     return SetNeighborHull(key, parts, {});
 }
 
+// HullParts supplies convex XZ polygons extruded between two Y planes. Their
+// volume integrals avoid cooking a second collision compound solely for mass.
+// Other point clouds retain the existing Jolt path below.
+static bool ReactivePrismMass(const std::vector<std::vector<ReactivePoint>> &parts,
+                              JPH::Vec3 &center, JPH::MassProperties &properties)
+{
+    if (parts.size() < 2) return false;
+    double mass = 0., first[3] = {}, second[3][3] = {};
+    for (const auto &part : parts)
+    {
+        if (part.size() < 6 || part.size() % 2) return false;
+        const double lower = part[0].y, upper = part[1].y;
+        if (!std::isfinite(lower) || !std::isfinite(upper) || upper <= lower) return false;
+        double area2 = 0., x = 0., z = 0., xx = 0., zz = 0., xz = 0.;
+        int winding = 0;
+        for (size_t i = 0; i < part.size(); i += 2)
+        {
+            const auto &a = part[i], &b = part[(i + 2) % part.size()], &top = part[i + 1];
+            const auto &next = part[(i + 4) % part.size()];
+            if (!std::isfinite(a.x) || !std::isfinite(a.z) || a.y != lower ||
+                top.y != upper || top.x != a.x || top.z != a.z) return false;
+            const double left = (b.x-a.x)*(next.z-b.z), right = (b.z-a.z)*(next.x-b.x);
+            const double turn = left-right;
+            const double tolerance = 32.*std::numeric_limits<double>::epsilon()*(std::abs(left)+std::abs(right)+1.);
+            if (!std::isfinite(turn)) return false;
+            const int side = (turn > tolerance) - (turn < -tolerance);
+            if (side && winding && side != winding) return false;
+            if (side) winding = side;
+            const double cross = a.x*b.z - b.x*a.z;
+            area2 += cross;
+            x += (a.x+b.x)*cross; z += (a.z+b.z)*cross;
+            xx += (a.x*a.x+a.x*b.x+b.x*b.x)*cross;
+            zz += (a.z*a.z+a.z*b.z+b.z*b.z)*cross;
+            xz += (2*a.x*a.z+a.x*b.z+b.x*a.z+2*b.x*b.z)*cross;
+        }
+        if (!std::isfinite(area2) || area2 == 0. || !winding) return false;
+        for (size_t i = 0; i < part.size(); i += 2)
+        {
+            const auto &a = part[i], &b = part[(i + 2) % part.size()];
+            for (size_t j = 0; j < part.size(); j += 2)
+            {
+                const auto &v = part[j];
+                const double left = (b.x-a.x)*(v.z-a.z), right = (b.z-a.z)*(v.x-a.x);
+                const double side = left-right;
+                const double tolerance = 32.*std::numeric_limits<double>::epsilon()*(std::abs(left)+std::abs(right)+1.);
+                if (!std::isfinite(side) || (winding > 0 ? side < -tolerance : side > tolerance)) return false;
+            }
+        }
+        const double sign = area2 < 0. ? -1. : 1., height = upper-lower;
+        const double area = sign*area2/2., mx = sign*x/6., mz = sign*z/6.;
+        const double mxx = sign*xx/12., mzz = sign*zz/12., mxz = sign*xz/24.;
+        const double y = (upper+lower)*.5, yy = (upper*upper+upper*lower+lower*lower)/3.;
+        const double m = 1000.*area*height; // Jolt's default convex density.
+        mass += m;
+        first[0] += 1000.*mx*height; first[1] += m*y; first[2] += 1000.*mz*height;
+        second[0][0] += 1000.*mxx*height; second[1][1] += m*yy; second[2][2] += 1000.*mzz*height;
+        second[0][1] += 1000.*mx*height*y; second[0][2] += 1000.*mxz*height;
+        second[1][2] += 1000.*mz*height*y;
+    }
+    if (!std::isfinite(mass) || mass <= 0. || !std::isfinite(float(mass)) || float(mass) <= 0.f) return false;
+    double com[3], inertia[3][3] = {};
+    for (int i = 0; i < 3; ++i)
+    {
+        com[i] = first[i]/mass;
+        if (!std::isfinite(com[i]) || !std::isfinite(float(com[i]))) return false;
+    }
+    for (int i = 0; i < 3; ++i)
+        for (int j = i; j < 3; ++j)
+        {
+            if (i == j)
+            {
+                for (int k = 0; k < 3; ++k)
+                    if (k != i) inertia[i][i] += second[k][k]-mass*com[k]*com[k];
+            }
+            else inertia[i][j] = inertia[j][i] = -(second[i][j]-mass*com[i]*com[j]);
+            if (!std::isfinite(inertia[i][j]) || !std::isfinite(float(inertia[i][j]))) return false;
+        }
+    if (!(inertia[0][0] > 0. && inertia[1][1] > 0. && inertia[2][2] > 0.)) return false;
+    center = JPH::Vec3(float(com[0]), float(com[1]), float(com[2]));
+    properties.mMass = float(mass);
+    properties.mInertia = JPH::Mat44::sZero();
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) properties.mInertia(i,j) = float(inertia[i][j]);
+    properties.mInertia(3,3) = 1.f;
+    return true;
+}
+
 bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts,
                                    const std::vector<std::vector<ReactivePoint>> &collisionParts)
 {
+    JPH::Vec3 center;
+    JPH::MassProperties mass;
+    if (!collisionParts.empty() && ReactivePrismMass(parts, center, mass))
+    {
+        auto collision = ReactiveShape(collisionParts);
+        if (!collision) return false;
+        impl_->neighborShapes[key] = new JPH::OffsetCenterOfMassShape(collision,
+            center - collision->GetCenterOfMass());
+        impl_->neighborMass[key] = mass;
+        return true;
+    }
     auto result = ReactiveShape(parts);
     if (!result) return false;
     auto collision = ReactiveCollider(result, collisionParts);

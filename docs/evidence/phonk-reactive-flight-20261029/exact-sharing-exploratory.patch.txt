@@ -1,0 +1,66 @@
+--- roundhouse_ragdoll.cpp
++++ roundhouse_ragdoll.cpp
+@@ -19,6 +19,7 @@
+ #include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
+ #include <Jolt/Physics/Ragdoll/Ragdoll.h>
+ 
++#include <bit>
+ #include <algorithm>
+ #include <cmath>
+ #include <mutex>
+@@ -464,6 +465,17 @@
+ std::size_t RagdollWorld::Size() const
+ {
+     return impl_ && impl_->world ? impl_->world->entries.size() : 0;
++}
++
++using ReactiveParts = std::vector<std::vector<ReactivePoint>>;
++static uint64_t ReactivePartsHash(const ReactiveParts &parts, uint64_t h)
++{
++ auto word=[&](uint64_t v){h=(h^v)*1099511628211ULL;};word(parts.size());
++ for(const auto &part:parts){word(part.size());for(const auto &p:part){word(std::bit_cast<uint64_t>(p.x));word(std::bit_cast<uint64_t>(p.y));word(std::bit_cast<uint64_t>(p.z));}}return h;
++}
++static bool ReactivePartsEqual(const ReactiveParts &a,const ReactiveParts &b)
++{
++ if(a.size()!=b.size())return false;for(size_t i=0;i<a.size();++i){if(a[i].size()!=b[i].size())return false;for(size_t j=0;j<a[i].size();++j){auto &x=a[i][j],&y=b[i][j];if(std::bit_cast<uint64_t>(x.x)!=std::bit_cast<uint64_t>(y.x)||std::bit_cast<uint64_t>(x.y)!=std::bit_cast<uint64_t>(y.y)||std::bit_cast<uint64_t>(x.z)!=std::bit_cast<uint64_t>(y.z))return false;}}return true;
+ }
+ 
+ struct ReactiveWorld::Impl
+@@ -483,6 +495,8 @@
+     JPH::MassProperties hullMass;
+     std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> neighborShapes;
+     std::unordered_map<uint64_t, JPH::MassProperties> neighborMass;
++    struct Reuse { uint64_t hash; ReactiveParts parts, collisionParts; JPH::RefConst<JPH::Shape> shape; JPH::MassProperties mass; };
++    std::unordered_map<uint64_t, std::shared_ptr<Reuse>> reuse;
+     JPH::BodyID terrain, moving;
+     bool wet = false;
+     JPH::EPhysicsUpdateError updateError = JPH::EPhysicsUpdateError::None;
+@@ -630,12 +644,19 @@
+ bool ReactiveWorld::SetNeighborHull(uint64_t key, const std::vector<std::vector<ReactivePoint>> &parts,
+                                    const std::vector<std::vector<ReactivePoint>> &collisionParts)
+ {
++    auto hash = ReactivePartsHash(collisionParts,ReactivePartsHash(parts,1469598103934665603ULL));
++    for (const auto &[other, cached] : impl_->reuse) if (cached->hash==hash && ReactivePartsEqual(parts,cached->parts) && ReactivePartsEqual(collisionParts,cached->collisionParts)) {
++        impl_->neighborShapes[key]=cached->shape;impl_->neighborMass[key]=cached->mass;impl_->reuse[key]=cached;return true;
++    }
+     auto result = ReactiveShape(parts);
+     if (!result) return false;
+     auto collision = ReactiveCollider(result, collisionParts);
+     if (!collision) return false;
++    auto mass = result->GetMassProperties();
++    auto cached=std::make_shared<Impl::Reuse>(Impl::Reuse{hash,parts,collisionParts,collision,mass});
+     impl_->neighborShapes[key] = collision;
+-    impl_->neighborMass[key] = result->GetMassProperties();
++    impl_->neighborMass[key] = mass;
++    impl_->reuse[key] = std::move(cached);
+     return true;
+ }
+ 
+@@ -655,6 +676,7 @@
+ {
+     impl_->neighborShapes.clear();
+     impl_->neighborMass.clear();
++    impl_->reuse.clear();
+ }
+ 
+ bool ReactiveWorld::SetStaticTriangles(const std::vector<CVECTOR> &triangles)

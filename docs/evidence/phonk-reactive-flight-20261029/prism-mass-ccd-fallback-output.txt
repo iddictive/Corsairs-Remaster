@@ -1,0 +1,28 @@
+CCD contact=0 ship_x=3.33333397 vx=500 neighbor_x=0 vx=0
+CCD contact=1 ship_x=-2.22999978 vx=342.105255 neighbor_x=0 vx=105.263153
+FALLBACK star=0 vx=0.0785714313 angular_y=0.0214285702
+FALLBACK star=1 vx=0.101057619 angular_y=0.0349013358
+CCD_FALLBACK_PASS
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        0.43 real         0.07 user         0.11 sys
+            96124928  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                7511  page reclaims
+                  66  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 580  involuntary context switches
+          2822012674  instructions retired
+           770783409  cycles elapsed
+            28017840  peak memory footprint
+
+EXIT 0
