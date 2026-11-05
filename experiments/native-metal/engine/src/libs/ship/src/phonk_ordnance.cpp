@@ -269,7 +269,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     auto *cheats = character ? character->FindAClass(character, "DebugCheats") : nullptr;
     const bool instant = cheats && cheats->GetAttributeAsDword("InstantCannonReload", 0);
     auto *allowed = instant ? core.Event("Ship_CanRepeatFire") : nullptr;
-    const bool canBurst = instant && allowed && allowed->GetInt() && state.weapon == 7 &&
+    const bool canBurst = automatic && instant && allowed && allowed->GetInt() && state.weapon == 7 &&
         !character->FindAClass(character, "DebugCheats.Pending");
     if (!fire || !canBurst || automatic != state.targetOutside) {
         state.burstArmed = false; state.burstSeconds = state.burstDebt = 0.0;
