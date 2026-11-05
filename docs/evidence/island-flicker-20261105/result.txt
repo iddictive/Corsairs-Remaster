@@ -1,0 +1,9 @@
+textures=12
+jungle_gray 512 512 8 True
+rockA2 1024 1024 8 True
+rockK4 2048 2048 8 True
+beach1 2048 2048 8 True
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 256x256; SDL drawable 256x256; samples 1
+[StormMetal] water mode: original shader fidelity
+terrain_triangles=7755 visible_pixels=6858 identical_camera_diff=0 reversed_order_diff=3 motion_0.01_diff=158 red_occluder_pixels=2704 elapsed_ms=36.27

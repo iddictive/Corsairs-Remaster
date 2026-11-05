@@ -152,3 +152,7 @@ same private bundle. It loads all 27 islands through production
 `LOAD_GEO`, `WORLD_STATE` and `ATTACH` messages using the shipped model stems,
 then proves the 34 links, missing-ID atomic preservation and automatic retry.
 It does not substitute manually assigned canonical names for the loading path.
+
+The separate [Nevis flicker investigation](evidence/island-flicker-20261105/README.md)
+captures the remaining full-scene trace requirement and the limits of its
+isolated GEOM/Metal replay.

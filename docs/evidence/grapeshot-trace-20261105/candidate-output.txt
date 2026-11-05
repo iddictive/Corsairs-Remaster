@@ -1,0 +1,35 @@
+MASTS 6
+MAST 1 0.22257 3.28646 14.04302 0.22257 7.60184 27.83934
+MAST 301 0.02084 23.23252 -3.60775 0.02084 32.42258 -3.60775
+MAST 302 0.02087 5.54140 -10.85918 0.02087 6.34224 -10.85918
+MAST 2 0.06585 5.71754 7.96943 0.06585 21.45605 7.96943
+MAST 201 -0.05842 21.40808 8.32152 -0.05842 30.00603 8.32152
+MAST 3 -0.02595 5.13808 -3.94960 -0.02595 23.30235 -3.94960
+BENCH 0 0.049 40000 0
+BENCH 1 0.505 33865.7498 79.9986801
+SHOT 2 0 0 0 0 0 0
+SHOT 2 0 0 0 0.0099999998 0 0
+SHOT 0.46643746 0 0 0 0.02 0 0
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+        0.48 real         0.09 user         0.12 sys
+           100892672  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                7879  page reclaims
+                  66  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 946  involuntary context switches
+          3207674658  instructions retired
+           895760310  cycles elapsed
+           213959856  peak memory footprint
+
+EXIT 0

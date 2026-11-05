@@ -1,0 +1,25 @@
+from pathlib import Path
+p=Path('/Users/md/05_Repo/Corsairs'); e=p/'docs/evidence/phonk-reactive-flight-20261029'; w=Path(__file__).parent
+s=(e/'native-consumer-runner.py.txt').read_text().replace('root=Path(__file__).resolve().parents[3]',f'root=Path({str(p)!r})')
+s=s.replace("(evidence/'native-consumer-component.cpp.txt').read_text()", "(work.parent/'component.txt').read_text()")
+s=s.replace("(evidence/'native-consumer-body.cpp.txt').read_text()", "(work.parent/'body.txt').read_text()")
+s=s.replace("shutil.copy2(evidence/'native-fixture.c.txt',work/'fixture.c')", "shutil.copy2(work.parent/'fixture.txt',work/'fixture.c')")
+s=s.replace('(evidence/filename).write_text(out)', '(work/filename).write_text(out)')
+(w/'runner.py').write_text(s)
+c=(e/'neighbor-cache-component.cpp.txt').read_text();c=c.replace(' bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&out)const override', ''' void initMasts(){iNumMasts=0;pMasts.clear();GetModel()->mtx.SetIdentity();GetModel()->Update();BuildMasts();printf("MASTS %d\\n",iNumMasts);for(auto&m:pMasts)printf("MAST %d %.5f %.5f %.5f %.5f %.5f %.5f\\n",m.iMastNum,m.vSrc.x,m.vSrc.y,m.vSrc.z,m.vDst.x,m.vDst.y,m.vDst.z);}
+ void fire(const CVECTOR&a,const CVECTOR&b){float r=Cannon_Trace(1,a,b);printf("SHOT %.8g",r);for(auto&m:pMasts)printf(" %.8g",m.fDamage);puts("");}
+ bool GetHullContactMaterial(HULL_CONTACT_MATERIAL&out)const override''')
+(w/'component.txt').write_text(c)
+b=''' setbuf(stdout,nullptr);
+ auto *character=static_cast<VDATA*>(core.GetScriptVariable("Character"))->GetAClass();
+ auto *shipAttributes=static_cast<VDATA*>(core.GetScriptVariable("Ship"))->GetAClass();
+ character->SetAttributeUseDword("index",0);shipAttributes->SetAttributeUseDword("index",0);
+ FlatSea sea;const auto model=core.CreateEntity("MODELR");check(core.Send_Message(model,"ls",MSG_MODEL_LOAD_GEO,"ships\\\\Brig1\\\\Brig1"),"authored_model");
+ {JetShip ship(sea,*character,*shipAttributes,model,rs);ship.initMasts();ship.SetCannonTraceRadius(.4f);ship.fire(CVECTOR(100.f,50.f,100.f),CVECTOR(101.f,50.f,100.f));}
+ JetShip::clearStatics();readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;}
+'''
+(w/'body.txt').write_text(b)
+f=(e/'native-fixture.c.txt').read_text();f=f.replace('void Main() {}','''#event_handler("ShpMastDamage", "MastDamage")
+float MastDamage() { int type=GetEventData(); int mast=GetEventData(); float x=GetEventData(); float y=GetEventData(); float z=GetEventData(); float damage=GetEventData(); aref character=GetEventData(); int owner=GetEventData(); return damage+0.01; }
+void Main() {}''');(w/'fixture.txt').write_text(f)
+(w/'run').mkdir()

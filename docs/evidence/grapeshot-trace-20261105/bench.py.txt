@@ -1,0 +1,26 @@
+from pathlib import Path
+import subprocess,shlex,shutil,sys
+w=Path(__file__).parent; root=Path('/Users/md/05_Repo/Corsairs'); native=root/'experiments/native-metal'; build=native/'.cache/build'; source=native/'engine/src/libs/ship/src/ship.cpp'
+c=(w/'component.txt').read_text().replace(' void fire(const CVECTOR&a', ''' void bench(){const CVECTOR starts[]={CVECTOR(100.f,50.f,100.f),CVECTOR(2.f,15.f,7.f),CVECTOR(.6f,15.f,7.f),CVECTOR(2.f,15.f,7.96943f),CVECTOR(.06585f,15.f,7.96943f)};const CVECTOR ends[]={CVECTOR(101.f,50.f,100.f),CVECTOR(2.f,15.f,9.f),CVECTOR(.6f,15.f,9.f),CVECTOR(-2.f,15.f,7.96943f),CVECTOR(.07f,15.f,7.96943f)}; for(int group=0;group<2;group++){double sum=0;float damages=0;auto start=std::chrono::steady_clock::now();for(int i=0;i<20000;i++){int n=group ? i%5 : 0;for(auto&m:pMasts){m.fDamage=0.f;m.bBroken=false;}sum+=Cannon_Trace(1,starts[n],ends[n]);for(auto&m:pMasts)damages+=m.fDamage;}printf("BENCH %d %.3f %.9g %.9g\\n",group,std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count()/20000,sum,damages);}}
+ void fire(const CVECTOR&a''');(w/'component.txt').write_text(c)
+b=(w/'body.txt').read_text().replace('ship.fire(CVECTOR(100.f,50.f,100.f)', 'ship.bench();ship.fire(CVECTOR(100.f,50.f,100.f)');(w/'body.txt').write_text(b)
+base=subprocess.check_output(['git','show','2529d30:'+str(source.relative_to(root))],cwd=root).decode()
+old='''                if (BallMastDistSq(vSrc, vSrc, vMastA, vMastB, nullptr) > fHitR * fHitR &&'''
+new='''                const float margin = fHitR + 0.001f;
+                const bool possible = !(std::max(vSrc.x, riggingDst.x) < std::min(vMastA.x,vMastB.x)-margin ||
+                    std::min(vSrc.x,riggingDst.x) > std::max(vMastA.x,vMastB.x)+margin ||
+                    std::max(vSrc.y, riggingDst.y) < std::min(vMastA.y,vMastB.y)-margin ||
+                    std::min(vSrc.y,riggingDst.y) > std::max(vMastA.y,vMastB.y)+margin ||
+                    std::max(vSrc.z, riggingDst.z) < std::min(vMastA.z,vMastB.z)-margin ||
+                    std::min(vSrc.z,riggingDst.z) > std::max(vMastA.z,vMastB.z)+margin);
+                if (possible && BallMastDistSq(vSrc, vSrc, vMastA, vMastB, nullptr) > fHitR * fHitR &&'''
+assert base.count(old)==1
+commands=subprocess.check_output([str(native/'inputs/toolchain/bin/ninja'),'-C',str(build),'-t','commands','lib/libship.a'],text=True).splitlines(); original=next(shlex.split(c) for c in commands if ' -c ' in c and c.endswith('/ship.cpp'))
+runner=(w/'runner.py').read_text();needle="(work/'build.py').write_text(driver)";runner=runner.replace(needle,"driver=driver.replace('for command in [compile,link]:', \"link=[str(work/'libship.a') if x.endswith('lib/libship.a') else x for x in link]\\nfor command in [compile,link]:\")\n"+needle);(w/'bench-runner.py').write_text(runner)
+for name,data in [('baseline',base),('candidate',base.replace(old,new))]:
+ d=w/name;d.mkdir();src=d/'ship.cpp';src.write_text(data);obj=d/'ship.cpp.o';cmd=original.copy();cmd[1:1]=['-iquote',str(source.parent)];cmd[cmd.index('-c')+1]=str(src)
+ for flag,value in [('-o',obj),('-MF',str(obj)+'.d'),('-MT',obj)]:
+  if flag in cmd:cmd[cmd.index(flag)+1]=str(value)
+ r=subprocess.run([x for x in cmd if x!='-v'],cwd=build,capture_output=True,text=True,timeout=120);assert r.returncode==0,r.stderr[-6000:]
+ shutil.copy2(build/'lib/libship.a',d/'libship.a');subprocess.run(['/usr/bin/ar','r',str(d/'libship.a'),str(obj)],check=True)
+ subprocess.run([sys.executable,str(w/'bench-runner.py'),str(d)],check=True,timeout=120)

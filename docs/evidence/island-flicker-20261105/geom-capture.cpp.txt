@@ -1,0 +1,45 @@
+// Disposable production-GEOM fixture; no engine scene, window or game input.
+#include "geos.h"
+#include "engine/src/libs/model/src/modelr.h"
+#include "engine/src/libs/geometry/src/geometry_r.h"
+#include <algorithm>
+#include <chrono>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <stdexcept>
+#include <vector>
+namespace fs=std::filesystem;
+struct Service final:GEOM_SERVICE {
+    fs::path root;int next=1,locks=0,creates=0;bool corrupt=false;
+    std::map<int,std::vector<unsigned char>> buffers;int drawVB=0,drawIB=0;std::vector<unsigned char>drawBytes; std::vector<std::string> names; int tex=-1; std::ofstream output;
+    explicit Service(fs::path p):root(std::move(p)){}
+    fs::path resolve(std::string s){std::replace(s.begin(),s.end(),'\\','/');if(fs::path(s).is_absolute())return s;fs::path p=root;
+        for(const auto&part:fs::path(s)){if(part==".")continue;auto candidate=p/part;if(fs::exists(candidate)){p=candidate;continue;}
+            auto lower=[](std::string x){for(auto&c:x)c=char(std::tolower((unsigned char)c));return x;};
+            bool found=false;if(fs::is_directory(p))for(const auto&e:fs::directory_iterator(p))if(lower(e.path().filename().string())==lower(part.string())){p=e.path();found=true;break;}
+            if(!found)return candidate;
+        }return p;
+    }
+    std::fstream OpenFile(const char*s)override{return std::fstream(resolve(s),std::ios::in|std::ios::binary);}
+    bool ReadFile(std::fstream&f,void*p,int32_t n)override{if(corrupt)return false;return bool(f.read((char*)p,n));}
+    int FileSize(const char*s)override{return int(fs::file_size(resolve(s)));}
+    void CloseFile(std::fstream&f)override{f.close();}
+    void*malloc(int32_t n)override{return std::malloc(n);}void free(void*p)override{std::free(p);}
+    int CreateTexture(const char*n)override{names.push_back(n); return int(names.size()-1);}void ReleaseTexture(int)override{}void SetMaterial(const GEOS::MATERIAL&m)override{tex=m.texture[0];}
+    int CreateVertexBuffer(int32_t,int32_t n)override{creates++;int id=next++;buffers[id].resize(n);return id;}
+    void*LockVertexBuffer(int id)override{locks++;return buffers.at(id).data();}void UnlockVertexBuffer(int)override{}
+    void ReleaseVertexBuffer(int id)override{buffers.erase(id);}
+    int CreateIndexBuffer(int32_t n)override{int id=next++;buffers[id].resize(n);return id;}
+    void*LockIndexBuffer(int id)override{return buffers.at(id).data();}void UnlockIndexBuffer(int)override{}void ReleaseIndexBuffer(int id)override{buffers.erase(id);}
+    void SetIndexBuffer(int id)override{drawIB=id;}void SetVertexBuffer(int32_t,int id)override{drawVB=id;}
+    void DrawIndexedPrimitive(int32_t base,int32_t,int32_t stride,int32_t start,int32_t triangles)override{
+        const auto&indices=buffers.at(drawIB);const auto&vb=buffers.at(drawVB);
+        if(tex<0 || tex>=int(names.size()))return; auto name=names[tex]; std::transform(name.begin(),name.end(),name.begin(),[](unsigned char c){return std::tolower(c);}); if(name!="jungle_gray.tga" && name!="rocka2.tga" && name!="rockk4.tga" && name!="beach1.tga")return; int id=name=="jungle_gray.tga"?0:name=="rocka2.tga"?1:name=="rockk4.tga"?2:3; int count=triangles*3; output.write((char*)&id,4); output.write((char*)&count,4); for(int n=0;n<triangles*3;n++){uint16_t index;std::memcpy(&index,indices.data()+size_t(start+n)*2,2);
+            auto begin=vb.begin()+size_t(base+index)*stride;output.write((char*)&*begin,36);}
+    }
+    int CreateLight(GEOS::LIGHT)override{return -1;}void ActivateLight(int)override{}void SetCausticMode(bool)override{}
+};
+int main(int argc,char**argv){if(argc!=3)return 2;Service service(argv[1]);service.output.open(argv[2],std::ios::binary);std::unique_ptr<GEOS>g(CreateGeometry("resource/models/islands/Nevis/Nevis.gm",nullptr,service,LOAD_VISIBLE));if(!g)return 3;g->Draw(nullptr,0,nullptr);printf("textures=%zu\n",service.names.size());}
