@@ -34,6 +34,15 @@ string DebugMenu_CheatLabel(string name, string label)
 	return label;
 }
 
+string DebugMenu_PairLabel(string label, bool first, bool second, bool pending)
+{
+	if (first && second) label += ": вкл";
+	else if (!first && !second) label += ": выкл";
+	else label += ": частично";
+	if (pending) label += " (после залпа)";
+	return label;
+}
+
 string DebugMenu_Label(string action, string label)
 {
 	bool state;
@@ -57,6 +66,8 @@ string DebugMenu_Label(string action, string label)
 		case "INFINITE_ENERGY": state = LAi_HasInfiniteEnergy(pchar); toggle = true; break;
 		case "INSTANT_CANNON_RELOAD": return DebugMenu_CheatLabel("InstantCannonReload",label); break;
 		case "UNLIMITED_AMMO": return DebugMenu_CheatLabel("UnlimitedAmmo",label); break;
+		case "SURVIVAL_CHEATS": return DebugMenu_PairLabel(label,LAi_IsImmortal(pchar),LAi_HasInfiniteEnergy(pchar),false); break;
+		case "CANNON_CHEATS": return DebugMenu_PairLabel(label,DebugMenu_CheatEnabled("InstantCannonReload"),DebugMenu_CheatEnabled("UnlimitedAmmo"),CheckAttribute(pchar,"DebugCheats.Pending.InstantCannonReload") || CheckAttribute(pchar,"DebugCheats.Pending.UnlimitedAmmo")); break;
 		case "AUTOPILOT_TRADE": state = SeaAutopilot_Mode() == 1; toggle = true; break;
 		case "AUTOPILOT_HUNT": state = SeaAutopilot_Mode() == 2; toggle = true; break;
 		case "TSUNAMI_START":
@@ -229,7 +240,7 @@ void DebugEffects_Run(string node)
 	{
 		case "TSUNAMI_START": resume = SeaTsunami_Start(); break;
 		case "TSUNAMI_RING": resume = SeaTsunami_StartMapWithShape(1); break;
-		case "PHONK": resume = SeaPhonk_Toggle(); break;
+		case "PHONK": SeaPhonk_Toggle(); DebugMenu_Refresh(); break;
 		case "PHONK_MUSIC": SeaPhonk_ToggleMusic(); DebugMenu_Refresh(); break;
 		case "WHIRLPOOL": resume = DebugEffects_Whirlpool(); break;
 		case "AUTOPILOT_TRADE": SeaAutopilot_SetMode(1); resume = true; break;
@@ -239,10 +250,9 @@ void DebugEffects_Run(string node)
 	if (resume) IDoExit(RC_INTERFACE_QUICK_SAVE);
 }
 
-void DebugMenu_ToggleCheat(string name, bool reloadCannons)
+void DebugMenu_SetCheat(string name, bool reloadCannons, bool desired)
 {
 	string attribute = "DebugCheats." + name;
-	bool desired = !DebugMenu_CheatEnabled(name);
 	if (reloadCannons)
 	{
 		string pending = "DebugCheats.Pending." + name;
@@ -265,6 +275,25 @@ void DebugMenu_ToggleCheat(string name, bool reloadCannons)
 		if (name == "InfiniteEnergy" && desired) pchar.chr_ai.energy = LAi_GetCharacterMaxEnergy(pchar);
 	}
 	Statistic_AddValue(pchar,"Cheats." + name,1);
+}
+
+void DebugMenu_ToggleCheat(string name, bool reloadCannons)
+{
+	DebugMenu_SetCheat(name,reloadCannons,!DebugMenu_CheatEnabled(name));
+}
+
+void DebugMenu_ToggleSurvival()
+{
+	bool enabled = !(LAi_IsImmortal(pchar) && LAi_HasInfiniteEnergy(pchar));
+	LAi_SetImmortal(pchar,enabled);
+	DebugMenu_SetCheat("InfiniteEnergy",false,enabled);
+}
+
+void DebugMenu_ToggleCannons()
+{
+	bool enabled = !(DebugMenu_CheatEnabled("InstantCannonReload") && DebugMenu_CheatEnabled("UnlimitedAmmo"));
+	DebugMenu_SetCheat("InstantCannonReload",true,enabled);
+	DebugMenu_SetCheat("UnlimitedAmmo",true,enabled);
 }
 
 void InitInterface(string iniName)
@@ -344,17 +373,15 @@ void CalculateInfoData()
 	DebugMenu_Add(1,"ALL_PERKS","Все обычные перки");
 	DebugMenu_Add(1,"HEAL","Здоровье и энергия");
 	DebugMenu_Add(1,"SUPPLIES","Лекарства и патроны");
-	DebugMenu_Add(1,"B_F10","Бессмертие");
+	DebugMenu_Add(1,"SURVIVAL_CHEATS","Бессмертие и энергия");
 	DebugMenu_Add(1,"B_F11","Репутация +10");
 	DebugMenu_Add(1,"B_F27","Репутация -10");
 	DebugMenu_Add(1,"B_F19","Шкиперу: навыки +35");
 	DebugMenu_Add(1,"B_F24","Лицензия на 30 дней");
-	DebugMenu_Add(1,"INFINITE_ENERGY","Бесконечная энергия");
 	DebugMenu_Add(2,"B_F6","Ранг 20 и «Арабелла»");
 	DebugMenu_Add(2,"B_F31","Ранг 35 и «Сантисима»");
 	DebugMenu_Add(2,"B_F32","Ранг 10 и бриг");
-	DebugMenu_Add(2,"INSTANT_CANNON_RELOAD","Пушки без перезарядки");
-	DebugMenu_Add(2,"UNLIMITED_AMMO","Бесконечный боезапас");
+	DebugMenu_Add(2,"CANNON_CHEATS","Боезапас и пушки без перезарядки");
 	DebugMenu_Add(3,"BTN_SPECIAL1","Без еды и крыс");
 	DebugMenu_Add(3,"BTN_SPECIAL3","Капитаны сдаются");
 	DebugMenu_Add(3,"B_F4","Опыт команды +10");
@@ -442,6 +469,8 @@ void ProcCommand()
 
 	switch(nodName)
 	{
+		case "SURVIVAL_CHEATS": DebugMenu_ToggleSurvival(); break;
+		case "CANNON_CHEATS": DebugMenu_ToggleCannons(); break;
 		case "INFINITE_ENERGY": DebugMenu_ToggleCheat("InfiniteEnergy",false); break;
 		case "INSTANT_CANNON_RELOAD": DebugMenu_ToggleCheat("InstantCannonReload",true); break;
 		case "UNLIMITED_AMMO": DebugMenu_ToggleCheat("UnlimitedAmmo",true); break;
