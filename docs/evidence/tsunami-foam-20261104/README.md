@@ -1,5 +1,7 @@
 # Tsunami foam mask investigation
 
+Later nuclear-wave material investigation: [nuclear foam investigation](../nuclear-foam-20261105/README.md).
+
 The selected candidate bends the existing texture domain with continuous sine terms and retains the original texture warp of 1.15. It uses the existing six texture taps. The comparison is a planar isolated mask, not a rendered game crest: horizontal dark bands remain visible, and actual crest geometry, perspective, fog, lighting, animation quality and frame cost are unverified.
 
 ## Conditions and results
