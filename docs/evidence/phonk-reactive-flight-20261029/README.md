@@ -159,6 +159,26 @@ SHIP::Save` writes the attribute first. The isolated codec replay tests native
 
 ## Reproduction and evidence ceiling
 
+The November 5 cannon prediction replay extends the same native consumer with
+two identical 500 ms forecasts in dry flight and at Nevis contact, then compares
+a 650 ms forecast after one versus two preceding 500 ms forecasts. Both position
+comparisons were bit-identical and `SHIP_STATE` remained unchanged. The contact
+forecasts took 162.27/159.97 ms in that run; dry forecasts took 0.088/0.069 ms.
+These are individual component timings, not game FPS. The raw result is
+`prediction-reuse-native-output.txt`. Reproduce with an empty task directory:
+
+```sh
+python3 docs/evidence/phonk-reactive-flight-20261029/prediction-reuse-probe.py.txt "$workdir"
+```
+
+The replay uses the configured native build, Brig1 material, held Ctrl for dry
+flight and the retained Nevis fixture; the contact case is the fixture's passive
+post-death state. It does not execute the AI cannon controller or live script
+events. Source inspection of the intervening handlers shows they may normalize
+attacker crew attributes; the separate rigid target's motion is not modified.
+The actual cannon-path improvement and gameplay frame time still need runtime
+verification.
+
 For a new jet/falling performance report, use this diagnosis path before
 changing the collider or solver:
 

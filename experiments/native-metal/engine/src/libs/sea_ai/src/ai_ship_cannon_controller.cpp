@@ -119,8 +119,15 @@ bool AIShipCannonController::Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFi
     std::vector<CVECTOR> targets;
     TOUCH_PARAMS original;
     if (targetShip && targetFlightTime >= 0.f)
-        targetShip->GetShipBasePointer()->TouchMove(
+    {
+        auto *target = targetShip->GetShipBasePointer();
+        // Fire(AIShip*) already predicted this exact horizon into vFirePos.
+        // Reuse it for the rigid target; individual gun delays still get their
+        // own full collision-aware prediction below.
+        if (targetShip != GetAIShip() && target->HasRigidFlight()) original.vPos = vFirePos;
+        else target->TouchMove(
             static_cast<uint32_t>((targetFlightTime + targetLeadDelay) * 1000.f), nullptr, &original);
+    }
     // Reject guns outside traverse at the final intercept, then rescale using
     // only surviving firing guns. No shot or resource state changes here.
     for (;;)
