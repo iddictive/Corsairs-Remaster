@@ -706,6 +706,15 @@ int ReloadToSea(int island_index, aref reload_data)
 	Login.PlayerGroup.z = rIsland.reload.(sLoc).ships.l0.z; 
 	Login.PlayerGroup.ay = rIsland.reload.(sLoc).ships.l0.ay;
 	Login.FromCoast = true;
+	// Port ship locators are island-local. Start this fresh sea frame at the
+	// same island instead of reusing the origin of a previously visited one.
+	string islandID = rIsland.id;
+	if (CheckAttribute(&worldMap, "islands." + islandID + ".position.x") &&
+		CheckAttribute(&worldMap, "islands." + islandID + ".position.z"))
+	{
+		worldMap.zeroX = worldMap.islands.(islandID).position.x;
+		worldMap.zeroZ = worldMap.islands.(islandID).position.z;
+	}
 
 	Trace("Load from location to sea sLoc = " + sLoc + ", x = " + Login.PlayerGroup.x + ",z = " + Login.PlayerGroup.z);
 		
