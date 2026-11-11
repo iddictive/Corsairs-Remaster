@@ -307,9 +307,9 @@ void Ball_BombExplosion()
 	float x = GetEventData();
 	float y = GetEventData();
 	float z = GetEventData();
-	bool surface = GetEventData();
-	CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
-	if (surface) Play3DSound("bomb2bort", x, y, z);
+	int surface = GetEventData();
+	if (surface != 2) CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
+	if (surface == 1) Play3DSound("bomb2bort", x, y, z);
 }
 
 void Ball_WaterHitEvent()

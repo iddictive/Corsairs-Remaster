@@ -873,6 +873,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
                                       storm::iEquals(pBallsType->sName, "Bombs");
             // Resolve the nearest solid before any damage-producing trace.
             // Other ammo keeps its existing admission and trace behavior.
+            AIFort::CannonContact fortContact;
             float bombContact = 2.0f;
             bool bombLiveHit = false;
             enum { NoSurface, FortSurface, IslandSurface, WaterSurface } bombSurface = NoSurface;
@@ -900,11 +901,36 @@ void AIBalls::Execute(uint32_t Delta_Time)
                         bombSurface = kind;
                     }
                 };
-                if (AIFort::pAIFort) surface(AIFort::pAIFort->Trace(vSrc, traceDst), FortSurface);
+                if (AIFort::pAIFort)
+                {
+                    fortContact = AIFort::pAIFort->QueryCannonContact(vSrc, traceDst);
+                    surface(fortContact.fraction, FortSurface);
+                }
                 if (pIsland) surface(pIsland->Trace(vSrc, traceDst), IslandSurface);
                 surface(BombWaterTrace(pSea, vSrc, traceDst), WaterSurface);
             }
-            const float bombTraceFraction = ordinaryBomb ? std::min(1.0f, bombContact+0.00001f) : 1.0f;
+            // Keep the existing ship/rigging pass, but never let it reach
+            // beyond the nearest environmental receiver.
+            float environmentContact = 2.0f;
+            enum { NoEnvironment, FortEnvironment, IslandEnvironment, WaterEnvironment } environment = NoEnvironment;
+            if (!ordinaryBomb && !fragment && !burst)
+            {
+                if (AIFort::pAIFort)
+                {
+                    fortContact = AIFort::pAIFort->QueryCannonContact(vSrc, traceDst);
+                    if (fortContact.fraction < environmentContact)
+                        environmentContact = fortContact.fraction, environment = FortEnvironment;
+                }
+                const float land = pIsland ? pIsland->Trace(vSrc, traceDst) : 2.0f;
+                if (land >= 0.0f && land < environmentContact)
+                    environmentContact = land, environment = IslandEnvironment;
+                const float water = pSea ? static_cast<SEA_BASE *>(pSea)->QueryCannonContact(vSrc, traceDst) : 2.0f;
+                if (water >= 0.0f && water < environmentContact)
+                    environmentContact = water, environment = WaterEnvironment;
+            }
+            const float bombTraceFraction = ordinaryBomb ?
+                                            std::min(1.0f, bombContact + (bombSurface == NoSurface ? 0.00001f : 0.0f)) :
+                                            std::min(1.0f, environmentContact);
             const CVECTOR damageDst = vSrc+(traceDst-vSrc)*bombTraceFraction;
             if (fragment)
             {
@@ -960,7 +986,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             else if (storm::iEquals(pBallsType->sName, "Grapes"))
                 fRigRadius = 0.35f * pBall->fSizeMultiply;
 
-            if (!burst && !fragment && pSail)
+            if (!burst && !fragment && pSail && (bombTraceFraction > 0.0f || (ordinaryBomb && bombSurface == NoSurface)))
             {
                 pSail->SetCannonTraceRadius(fRigRadius);
                 pSail->Cannon_Trace(pBall->iBallOwner, vSrc, damageDst);
@@ -979,7 +1005,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
             entid_t directShip{};
             for (auto ent_id : entities)
             {
-                if (burst || fragment) break;
+                if (burst || fragment || (bombTraceFraction <= 0.0f && (!ordinaryBomb || bombSurface != NoSurface))) break;
                 if (airburstGood >= 0)
                 {
                     auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(ent_id));
@@ -999,19 +1025,21 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 }
             }
 
-            // fort trace
-            if (!fragment && fRes > 1.0f && AIFort::pAIFort &&
-                (!ordinaryBomb || bombSurface == FortSurface))
+            if (!ordinaryBomb && !fragment && fRes > 1.0f && environmentContact <= 1.0f)
             {
-                fRes = AIFort::pAIFort->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+                if (environment == FortEnvironment)
+                {
+                    AIFort::pAIFort->DispatchCannonContact(pBall->iBallOwner, vSrc, traceDst, fortContact);
+                    fRes = environmentContact;
+                }
+                else if (environment == IslandEnvironment)
+                    fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
+                else if (environment == WaterEnvironment)
+                    fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
             }
 
-            // island trace
-            if (!fragment && fRes > 1.0f && pIsland && (!ordinaryBomb || bombSurface == IslandSurface))
-                fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
-
-            // sea trace
-            if (!fragment && fRes > 1.0f && pSea && (!ordinaryBomb || bombSurface == WaterSurface))
+            // Preserve the existing ordinary-bomb dispatch path.
+            if (ordinaryBomb && !fragment && fRes > 1.0f && pSea && bombSurface == WaterSurface)
             {
                 if (ordinaryBomb && bombContact <= 1.0f)
                 {
@@ -1021,6 +1049,18 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 }
                 else fRes = pSea->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
             }
+
+            // fort trace
+            if (ordinaryBomb && !fragment && fRes > 1.0f && AIFort::pAIFort &&
+                bombSurface == FortSurface)
+            {
+                AIFort::pAIFort->DispatchCannonContact(pBall->iBallOwner, vSrc, traceDst, fortContact);
+                fRes = fortContact.fraction;
+            }
+
+            // island trace
+            if (ordinaryBomb && !fragment && fRes > 1.0f && pIsland && bombSurface == IslandSurface)
+                fRes = pIsland->Cannon_Trace(pBall->iBallOwner, vSrc, traceDst);
 
             if (debrisHit)
             {
@@ -1044,7 +1084,10 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 {
                     CVECTOR impact = vSrc + (vDst-vSrc)*fRes;
                     if (~(vDst-vSrc) > 1e-8f) impact -= !(vDst-vSrc)*0.01f;
-                    core.Event("Ball_BombExplosion", "fffl", impact.x, impact.y, impact.z, bombLiveHit ? 0 : 1);
+                    // The script keeps the water splash without adding the
+                    // land/ship explosion particle at the same impact.
+                    const int effectSurface = bombLiveHit ? 0 : bombSurface == WaterSurface ? 2 : 1;
+                    core.Event("Ball_BombExplosion", "fffl", impact.x, impact.y, impact.z, effectSurface);
                     BombBlast(*pBall, impact, directShip);
                 }
                 if (!pBall->sBallEvent.empty() && airburstGood < 0 && !fragment && !heated && !dart)

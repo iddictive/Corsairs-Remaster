@@ -692,29 +692,59 @@ ATTRIBUTES *AIFort::GetACharacter()
     return nullptr;
 }
 
-float AIFort::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
+AIFort::FortTraceResult AIFort::FindFortContact(const CVECTOR &src, const CVECTOR &dst,
+                                                      FortTracePolicy policy)
 {
-    pLastTraceFort = nullptr;
-
-    auto fBestRes = 2.0f;
-    auto fBestDistance = 1e10f;
-    for (uint32_t i = 0; i < GetNumForts(); i++)
+    const bool legacy = policy == FortTracePolicy::LegacyDistance;
+    if (legacy) pLastTraceFort = nullptr;
+    FortTraceResult result;
+    float bestDistance = 1e10f;
+    for (uint32_t i = 0; i < GetNumForts(); ++i)
     {
-        auto *pModel = static_cast<MODEL *>(core.GetEntityPointer(GetFort(i)->GetModelEID()));
-        Assert(pModel);
-        const auto fRes = pModel->Trace(vSrc, vDst);
-        if (fRes > 1.0f)
-            continue;
-        const auto fDistance = fRes * sqrtf(~(vDst - vSrc));
-        if (fDistance < fBestDistance)
+        auto *fort = GetFort(i);
+        auto *model = static_cast<MODEL *>(core.GetEntityPointer(fort->GetModelEID()));
+        if (legacy) Assert(model);
+        else if (!model) continue;
+        const float fraction = model->Trace(src, dst);
+        if (legacy)
         {
-            pLastTraceFort = GetFort(i);
-            fBestDistance = fDistance;
-            fBestRes = fRes;
+            if (fraction > 1.0f) continue;
+            const float distance = fraction * sqrtf(~(dst - src));
+            if (distance < bestDistance)
+            {
+                pLastTraceFort = fort;
+                bestDistance = distance;
+                result.fraction = fraction;
+            }
+        }
+        else if (fraction >= 0.0f && fraction <= 1.0f && fraction < result.fraction)
+        {
+            result.fraction = fraction;
+            result.blot = fort->GetBlotEID();
         }
     }
+    return result;
+}
 
-    return fBestRes;
+float AIFort::Trace(const CVECTOR &src, const CVECTOR &dst)
+{
+    return FindFortContact(src, dst, FortTracePolicy::LegacyDistance).fraction;
+}
+
+AIFort::CannonContact AIFort::QueryCannonContact(const CVECTOR &src, const CVECTOR &dst)
+{
+    const auto contact = FindFortContact(src, dst, FortTracePolicy::CannonFraction);
+    return {contact.fraction, contact.blot};
+}
+
+void AIFort::DispatchCannonContact(int32_t owner, const CVECTOR &src, const CVECTOR &dst,
+                                   const CannonContact &contact)
+{
+    const CVECTOR point = src + (dst - src) * contact.fraction;
+    const CVECTOR direction = !(dst - src);
+    core.Event(BALL_FORT_HIT, "lfff", owner, point.x, point.y, point.z);
+    core.Send_Message(contact.blot, "lffffff", MSG_BLOTS_HIT, point.x, point.y, point.z,
+                      direction.x, direction.y, direction.z);
 }
 
 float AIFort::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR &vDst)

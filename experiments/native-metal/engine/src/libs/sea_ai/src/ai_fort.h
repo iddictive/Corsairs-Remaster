@@ -270,6 +270,9 @@ class AIFort : public VAI_OBJBASE
 
     DTimer dtFiredTimer;
     AI_FORT *pLastTraceFort;
+    enum class FortTracePolicy { LegacyDistance, CannonFraction };
+    struct FortTraceResult { float fraction = 2.0f; entid_t blot{}; };
+    FortTraceResult FindFortContact(const CVECTOR &src, const CVECTOR &dst, FortTracePolicy policy);
     std::vector<AI_FORT *> aForts; // fort container
 
     float fMinCannonDamageDistance;
@@ -350,6 +353,10 @@ class AIFort : public VAI_OBJBASE
 
     // inherit functions CANNON_TRACE_BASE
     float Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR &vDst) override;
+    struct CannonContact { float fraction = 2.0f; entid_t blot{}; };
+    CannonContact QueryCannonContact(const CVECTOR &src, const CVECTOR &dst);
+    void DispatchCannonContact(int32_t owner, const CVECTOR &src, const CVECTOR &dst,
+                               const CannonContact &contact);
 
     // inherit functions VAI_OBJBASE
     ATTRIBUTES *GetACharacter() override;

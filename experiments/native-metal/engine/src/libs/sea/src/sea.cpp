@@ -2039,23 +2039,7 @@ float SEA::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
 
 float SEA::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR &vDst)
 {
-    float fRes = Trace(vSrc, vDst);
-
-    // Trace finds the first submerged sample at quarter-segment intervals.
-    // Refine only confirmed cannon contacts toward the wave surface without
-    // extra work on missed shots.
-    if (fRes > 0.0f && fRes <= 1.0f)
-    {
-        float lo = fRes - 0.25f, hi = fRes;
-        for (int i = 0; i < 9; ++i)
-        {
-            const float mid = (lo + hi) * 0.5f;
-            const CVECTOR point = vSrc + mid * (vDst - vSrc);
-            if (point.y < WaveXZ(point.x, point.z, nullptr)) hi = mid;
-            else lo = mid;
-        }
-        fRes = hi;
-    }
+    const float fRes = QueryCannonContact(vSrc, vDst);
 
     if (fRes <= 1.0f)
     {
