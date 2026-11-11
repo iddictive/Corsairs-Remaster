@@ -219,6 +219,7 @@ void SEA::CreateVertexDeclaration()
 
 bool SEA::Init()
 {
+    shipWake.clear();
     ResetTsunami();
     ResetWhirlpool();
     ResetNuclearWaves();
@@ -704,9 +705,9 @@ void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev, uint32_t viewDimensi
     const float fGSize = fGridStep * iSize;
 
     const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
-        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound(), iTY * fGSize);
+        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
     const CVECTOR v2 = v1 + CVECTOR(fGSize,
-        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + NuclearWaveHeightBound(), fGSize);
+        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + NuclearWaveHeightBound() + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
 
     if (!isVisibleBBox(vSeaCenterPos, v1, v2))
         return;
@@ -757,6 +758,35 @@ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *
         normal->x -= (sample.slopeX + vortex.slopeX + nuclear.slopeX) * normal->y;
         normal->z -= (sample.slopeZ + vortex.slopeZ + nuclear.slopeZ) * normal->y;
         *normal = !(*normal);
+    }
+}
+
+void SEA::AdvanceShipWake(float seconds)
+{
+    std::vector<SeaShipWake::Source> sources;
+    for (const auto id : core.GetEntityIds("ship")) {
+        auto *ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(id));
+        if (!ship || !ship->HasWaterContact()) continue;
+        const auto p=ship->GetPos(), box=ship->GetBoxsize(), ang=ship->GetAng();
+        const float speed=ship->GetCurrentSpeed();
+        if (!std::isfinite(p.x)||!std::isfinite(p.z)||!std::isfinite(ang.y)||
+            !std::isfinite(box.x)||!std::isfinite(box.z)||box.x<=0.f||box.z<=0.f||
+            !std::isfinite(speed)||std::abs(speed)<.1f) continue;
+        sources.push_back({p.x,p.z,std::sin(ang.y),std::cos(ang.y),box.z,box.x,speed});
+    }
+    shipWake.advance(seconds,vCamPos.x,vCamPos.z,sources);
+}
+
+void SEA::ApplyShipWake(float x, float z, float &height, CVECTOR *normal) const
+{
+    const auto *snapshot=shipWake.snapshot.get();
+    if (!snapshot) return;
+    const auto wave=snapshot->sample(x,z);
+    height+=wave.h;
+    if(normal && (wave.sx!=0.f||wave.sz!=0.f)) {
+        normal->x-=wave.sx*normal->y;
+        normal->z-=wave.sz*normal->y;
+        *normal=!(*normal);
     }
 }
 
@@ -830,9 +860,11 @@ void SEA::SSE_WaveXZ(SeaVertex **pArray)
     } else {
         for (unsigned i = 0; i < 4; ++i) pArray[i]->vNormal = normals[i];
     }
-    for (unsigned i = 0; i < 4; ++i)
+    for (unsigned i = 0; i < 4; ++i) {
         ApplyTsunami(pArray[i]->vPos.x, pArray[i]->vPos.z, pArray[i]->vPos.y,
                      &pArray[i]->vNormal, pArray[i]->eventMaterial);
+        ApplyShipWake(pArray[i]->vPos.x,pArray[i]->vPos.z,pArray[i]->vPos.y,&pArray[i]->vNormal);
+    }
 }
 
 float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
@@ -841,6 +873,7 @@ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
         if (pNormal) *pNormal = CVECTOR(0.f, 1.f, 0.f);
         float height = 0.f;
         if (tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) ApplyTsunami(x, z, height, pNormal);
+        ApplyShipWake(x,z,height,pNormal);
         return height;
     }
     float height;
@@ -848,6 +881,7 @@ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
     SampleOrdinaryWaves(x, z, height, pNormal ? &normal : nullptr);
     if (pNormal) *pNormal = !normal;
     if (tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) ApplyTsunami(x, z, height, pNormal);
+    ApplyShipWake(x,z,height,pNormal);
     return height;
 }
 
@@ -2021,7 +2055,7 @@ float SEA::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
     float fRes = 2.0f;
     const float fDV = 1.0f / static_cast<float>(iNumTests - 1);
 
-    const float traceHeightBound = fMaxSeaHeight + tsunami.HeightBound() + whirlpool.CrestBound() + NuclearWaveHeightBound();
+    const float traceHeightBound = fMaxSeaHeight + tsunami.HeightBound() + whirlpool.CrestBound() + NuclearWaveHeightBound() + (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f);
     if (vSrc.y > traceHeightBound && vDst.y > traceHeightBound)
         return 2.0f;
 
@@ -2506,6 +2540,7 @@ void SEA::LostRender()
 
 void SEA::RestoreRender()
 {
+    shipWake.clear();
     ResetTsunami();
     ResetWhirlpool();
     ResetNuclearWaves();

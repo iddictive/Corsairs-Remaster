@@ -9,6 +9,7 @@
 #include "vma.hpp"
 #include "shared/sea_tsunami.hpp"
 #include "shared/sea_nuclear_wave.hpp"
+#include "sea_ship_wake.hpp"
 #include <array>
 #include <vector>
 
@@ -104,6 +105,9 @@ class SEA : public SEA_BASE
     void UpdateWeatherWaveProfile(float wind, float storm, float seconds);
     void LimitWaveAmplitudes();
     void SampleOrdinaryWaves(float x, float z, float &height, CVECTOR *normal) const;
+    SeaShipWake shipWake;
+    void AdvanceShipWake(float seconds);
+    void ApplyShipWake(float x, float z, float &height, CVECTOR *normal) const;
     void PublishWeatherWaveLattices();
     SeaWhirlpool whirlpool;
     struct WhirlpoolShipContact { entid_t ship; SeaWhirlpoolContact contact; };
@@ -287,6 +291,7 @@ class SEA : public SEA_BASE
                 tsunami.Advance(static_cast<float>(delta) * 0.001f);
                 AdvanceWhirlpool(static_cast<float>(delta) * 0.001f);
                 AdvanceNuclearWaves(static_cast<float>(delta) * 0.001f);
+                AdvanceShipWake(static_cast<float>(delta) * 0.001f);
             }
             PublishWhirlpool();
             if (!tsunami.Frame().active) tsunamiContacts.clear();
