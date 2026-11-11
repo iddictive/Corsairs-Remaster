@@ -18,7 +18,7 @@ import time
 
 import prepare_seamless_sea_assets as sea
 from patch_metal_portobello_ground import HEADER, OBJECT, parse_gm
-from prepare_puerto_rico_city import vertices
+from prepare_puerto_rico_city import vertices, _name
 from runtime_script_patch import atomic_write
 from metal_storage import ensure_space
 
@@ -29,7 +29,7 @@ DEFAULT_SOURCE=ROOT/'experiments/native-metal/.cache/runtime'
 INI='RESOURCE/INI/legacy_sea_geometry.ini'
 # Reflection roots have independent distance fades. Their source membership
 # cannot transfer visibility merely because terrain has a complete resident set.
-ROLES=('terrain','child:seabed')
+ROLES=('terrain','reflection','child:seabed')
 
 def digest(data):return hashlib.sha256(data).hexdigest()
 def dependency_hashes():
@@ -134,7 +134,7 @@ def separation(a,b,limit):
 
 def projection_ini(models,origins,provider_paths):
     exposures=sorted({(provider,row['region']) for row in models.values() for provider in row['providers']})
-    ini=['[LegacySea]','version=1','scale=50','regions='+str(len(origins)),'models='+str(len(models)),'providers='+str(len(provider_paths)),'exposures='+str(len(exposures))]
+    ini=['[LegacySea]','version=2','scale=50','regions='+str(len(origins)),'models='+str(len(models)),'providers='+str(len(provider_paths)),'exposures='+str(len(exposures))]
     for i,(region,point) in enumerate(origins.items()):
         x,z=[v/50 for v in point];ini+=['',f'[Region{i}]','id='+region,f'mapX={x:.9g}',f'mapZ={z:.9g}']
     for i,(name,row) in enumerate(sorted(models.items())):
@@ -191,6 +191,45 @@ def prepare(root):
             'policy':'Recipe-owned providers at standard legacy poses only; independent coasts protected; original bounds/VB/COL/node/BSP IDs retained; no atlas activation'}
     atomic_write(MANIFEST,(json.dumps(result,indent=2)+'\n').encode());return result
 
+def prepare_independent(root):
+    """Keep each logical region's full authored ownership without donor dependence."""
+    started=time.monotonic();dependencies=dependency_hashes()
+    recipe=json.loads((sea.OWNER/'recipe.json').read_bytes());inventory=json.loads((sea.OWNER/'manifest.json').read_bytes())
+    files={};models={};originals={};totals=defaultdict(int)
+    for region,inventory_row in inventory['regions'].items():
+        body=next(body for body in recipe['bodies'].values() if region in body['logical_regions'])
+        authority=body if region==body['source_region'] else body['regional_ownership'][region]
+        for role in ROLES:
+            entry=inventory_row['files'].get(role)
+            selection=authority.get('extract',{}).get(role)
+            if not entry or not selection:continue
+            source=raw_source(root,entry);data=source.read_bytes();parsed=parse_gm(data)
+            present={i for obj in parsed['objects'] for i in range(obj[9],obj[9]+obj[8])}
+            keep=indices(selection)&present
+            if role == 'child:seabed':
+                # Wrecks are scene props, not low-detail copies of an island.
+                for obj in parsed['objects']:
+                    if _name(parsed['strings'],obj[1]).casefold() == 'shipdead':
+                        keep.update(range(obj[9],obj[9]+obj[8]))
+            if not keep:raise ValueError(f'Empty independent native coast: {region}/{role}')
+            if keep==present:continue
+            content,detail=projected_bytes(data,keep)
+            output='RESOURCE/MODELS/LegacySea/'+entry['path'][len('RESOURCE/MODELS/'):]
+            ensure_space(len(content),OUTPUT);atomic_write(OUTPUT/output,content)
+            files[output]={'sha256':digest(content),'bytes':len(content)}
+            models[entry['path']]={'projection':output,'source_sha256':entry['sha256'],'region':region,'role':role,
+                'keep':sea.ranges(sorted(keep)),'providers':{},'correspondences':{},**detail}
+            originals[entry['path']]=entry['sha256'];totals[role]+=len(present-keep)
+    provider_paths=sorted(inventory['regions'][region]['files'][role]['path'] for region in inventory['regions'] for role in ROLES if role in inventory['regions'][region]['files'])
+    origins={region:origin(row) for region,row in inventory['regions'].items()}
+    data=projection_ini(models,origins,provider_paths);atomic_write(OUTPUT/INI,data);files[INI]={'sha256':digest(data),'bytes':len(data)}
+    if dependency_hashes()!=dependencies:raise ValueError('Legacy geometry sources changed during preparation')
+    result={'version':1,'dependencies':dependencies,'files':files,'models':models,'source_files':originals,'origins':origins,'provider_paths':provider_paths,
+        'removed_faces':dict(totals),'preparation_seconds':time.monotonic()-started,'peak_rss_bytes':resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        'policy':'Independent native ownership; retained authored children; original bounds/VB/COL/BSP owner retained'}
+    atomic_write(MANIFEST,(json.dumps(result,indent=2)+'\n').encode());return result
+
+
 def prepared():
     frozen=json.loads(MANIFEST.read_bytes())
     if frozen['dependencies']!=dependency_hashes():raise RuntimeError('Legacy geometry inputs changed; run prepare_legacy_sea_geometry.py before delivery')
@@ -213,4 +252,4 @@ def paths():
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--source-root',type=Path,default=DEFAULT_SOURCE);args=parser.parse_args()
-    result=prepare(args.source_root.resolve());print('Legacy sea:',len(result['models']),'projected GMs;',sum(result['removed_faces'].values()),'copied faces removed;',round(result['preparation_seconds'],3),'seconds')
+    result=prepare_independent(args.source_root.resolve());print('Legacy sea:',len(result['models']),'projected GMs;',sum(result['removed_faces'].values()),'copied faces removed;',round(result['preparation_seconds'],3),'seconds')

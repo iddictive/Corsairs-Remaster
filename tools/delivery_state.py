@@ -142,10 +142,12 @@ class DeliveryState:
         return safe_path(self.resources, relative)
 
     def admit(self, name: str, current: bytes | None, incoming: bytes, legacy=(),
-              development: bool = False, create: bool = False) -> None:
+              development: bool = False, create: bool = False, repair_missing: bool = False) -> None:
         self.path(name)
         row = self.files.get(name)
         if current is None:
+            if row is not None and create and repair_missing and row['owner'] == 'stage' and digest(incoming) == row['sha256']:
+                return
             if row is not None or not create:
                 raise RuntimeError(f"Missing delivered file: {name}; no files changed.")
             return

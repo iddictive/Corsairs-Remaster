@@ -184,7 +184,8 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
             if spec and digest(incoming) != spec["sha256"]:
                 raise RuntimeError(f"Concurrent prepared asset change: {relative}")
             legacy = (spec["original_sha256"],) if "original_sha256" in spec else ()
-            state.admit(relative, previous, incoming, legacy=legacy, create=True)
+            state.admit(relative, previous, incoming, legacy=legacy, create=True,
+                        repair_missing=module is prepare_legacy_sea_geometry)
             state.track(relative, incoming, source=owner)
             if managed is not None:
                 managed[relative] = (previous, incoming)

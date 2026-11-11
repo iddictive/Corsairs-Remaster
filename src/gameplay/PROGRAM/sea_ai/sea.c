@@ -32,6 +32,28 @@
 #event_handler("Sea_FirstInit", "Sea_FirstInit");
 #event_handler("SeaLoad_GetPointer", "SeaLoad_GetPointer");
 
+#event_handler("LegacySeaGeometryDegraded", "Sea_LegacyGeometryDegraded");
+#event_handler("Sea_LegacyGeometryNotice", "Sea_ShowGeometryWarning");
+
+bool bSeaGeometryWarningPending = false;
+string sSeaGeometryProblem = "";
+void Sea_LegacyGeometryDegraded()
+{
+    string model = GetEventData();
+    if (model != "")
+    {
+        bSeaGeometryWarningPending = true;
+        sSeaGeometryProblem = model;
+        PostEvent("Sea_LegacyGeometryNotice", 1000);
+    }
+}
+void Sea_ShowGeometryWarning()
+{
+    if (!bSeaGeometryWarningPending || !IsEntity(&ILogAndActions)) return;
+    Log_SetStringToLog("Не загружена модель " + sSeaGeometryProblem + ": показан исходный рельеф. Восстановите ресурсы игры.");
+    bSeaGeometryWarningPending = false;
+}
+
 #define PLAYER_GROUP	"OurGroup"
 
 int	sCurrentSeaExecute = EXECUTE; 
@@ -181,6 +203,12 @@ void DeleteSeaEnvironment()
 
 	Sea_ClearResidentIslands();
 	DeleteClass(&Island);
+	aref legacyGeometryResources;
+	if (GetEntity(&legacyGeometryResources, "WdmStaticResources"))
+	{
+		object emptyLegacyGeometry;
+		SendMessage(legacyGeometryResources, "sa", "ClearLegacySeaGeometry", &emptyLegacyGeometry);
+	}
 	DeleteGrass(); // трава на остров
 	DeleteClass(&IslandReflModel);
 	DeleteClass(&Touch);
@@ -1761,6 +1789,7 @@ void Sea_FirstInit()
 	InitBattleInterface();
 	StartBattleInterface();
 	RefreshBattleInterface();
+	Sea_ShowGeometryWarning();
 	if (IsEntity(&SeaMapTransition) && (CheckAttribute(&SeaMapTransition, "reverse") ||
 		CheckAttribute(&SeaMapTransition, "seaOnly")))
 	{
@@ -2105,7 +2134,18 @@ void Sea_LoadIsland(string islandID)
     }
     aref legacyGeometryResources;
     if (GetEntity(&legacyGeometryResources, "WdmStaticResources"))
-        SendMessage(legacyGeometryResources, "sa", "LegacySeaGeometry", &legacyGeometryPlan);
+    {
+        if (!SendMessage(legacyGeometryResources, "sa", "LegacySeaGeometry", &legacyGeometryPlan) && !Sea_HasAtlasFrame())
+        {
+            bSeaGeometryWarningPending = true;
+            sSeaGeometryProblem = "legacy_sea_geometry.ini";
+        }
+    }
+    else if (!Sea_HasAtlasFrame())
+    {
+        bSeaGeometryWarningPending = true;
+        sSeaGeometryProblem = "WdmStaticResources";
+    }
     if (Sea_HasAtlasFrame())
     {
         for (int r = 0; r < sti(AISea.worldFrame.regions.count); r++)

@@ -24,6 +24,7 @@ char technique[256] = "";
 char RenderServiceName[] = "dx9render";
 GEOM_SERVICE_R GSR;
 char texturePath[256];
+static bool independentLegacy = false;
 
 const int32_t SHIFT_VALUE = 999999999;
 std::vector<VGEOMETRY::ANIMATION_VB> avb;
@@ -133,13 +134,41 @@ bool LegacyGeometryAvailable(const std::string &model)
 
 bool GEOMETRY::ConfigureLegacySeaGeometry(const ATTRIBUTES *frame)
 {
+    independentLegacy = false;
     legacySeaGeometry = false;
     GSR.SetLegacySeaModels(nullptr);
     legacySeaModels.clear();
     legacySeaExposures.clear();
-    if (!frame || frame->GetAttributeAsDword("version") != 1) return false;
+    if (!frame || frame->GetAttributeAsDword("version") == 2) return false;
     auto input = fio->OpenIniFile("RESOURCE\\INI\\legacy_sea_geometry.ini");
-    if (!input || input->GetInt("LegacySea", "version", 0) != 1) return false;
+    if (!input) return false;
+    if (input->GetInt("LegacySea", "version", 0) == 2)
+    {
+        const int models = input->GetInt("LegacySea", "models", 0);
+        if (models < 1 || models > 512) return false;
+        std::map<std::string,std::string> next;
+        char source[512], target[512];
+        for (int i = 0; i < models; ++i)
+        {
+            const auto section = "Model" + std::to_string(i);
+            if (!input->ReadString(section.c_str(), "source", source, sizeof(source), "") || !*source ||
+                !input->ReadString(section.c_str(), "projection", target, sizeof(target), "") || !*target)
+                return false;
+            if (!LegacyGeometryAvailable(target))
+            {
+                core.Trace("LEGACY_SEA_GEOMETRY: projection unavailable for %s; original retained; repair managed assets", source);
+                core.Event("LegacySeaGeometryDegraded", "s", source);
+                continue;
+            }
+            if (!next.emplace(LegacyModelKey(source), target).second) return false;
+        }
+        legacySeaModels=std::move(next);
+        independentLegacy=true;
+        legacySeaGeometry=true;
+        GSR.SetLegacySeaModels(&legacySeaModels);
+        return true;
+    }
+    if (input->GetInt("LegacySea", "version", 0) != 1 || frame->GetAttributeAsDword("version") != 1) return false;
     auto *regions = frame->GetAttributeClass("regions");
     const int count = input->GetInt("LegacySea", "regions", 0);
     const int models = input->GetInt("LegacySea", "models", 0);
@@ -238,12 +267,24 @@ GEOS *GEOMETRY::CreateGeometry(const char *file_name, const char *light_file_nam
             try { gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags); }
             catch (...)
             {
+                if (!independentLegacy)
+                {
+                    legacySeaGeometry = false;
+                    GSR.SetLegacySeaModels(nullptr);
+                    core.Trace("LEGACY_SEA_GEOMETRY: %s failed; original geometry retained, projection disabled for this scene", resource.c_str());
+                    gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags);
+                }
+                else
+                {
                 // Provider faces remain in both paths, so native fallback
                 // retains coast after earlier copies transferred ownership.
-                legacySeaGeometry = false;
                 GSR.SetLegacySeaModels(nullptr);
-                core.Trace("LEGACY_SEA_GEOMETRY: %s failed; original geometry retained, projection disabled for this scene", resource.c_str());
-                gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags);
+                core.Trace("LEGACY_SEA_GEOMETRY: %s failed; original geometry retained for this model; repair managed assets", resource.c_str());
+                core.Event("LegacySeaGeometryDegraded", "s", file_name);
+                try { gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags); }
+                catch (...) { GSR.SetLegacySeaModels(&legacySeaModels); throw; }
+                GSR.SetLegacySeaModels(&legacySeaModels);
+                }
             }
         }
         else gp = ::CreateGeometry(fnt, lighting.empty() ? nullptr : lighting.c_str(), GSR, flags);

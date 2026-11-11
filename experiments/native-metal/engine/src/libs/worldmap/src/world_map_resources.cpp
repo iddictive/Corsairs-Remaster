@@ -329,9 +329,14 @@ class WdmStaticResources final : public Entity
     uint64_t ProcessMessage(MESSAGE &message) override
     {
         const auto command = message.String();
-        if (command != "IslandOrigins" && command != "SeaAtlas" && command != "SeaAtlasFrame" && command != "SeaRoute" && command != "SeaLocator" && command != "AutopilotSpeedProfile" && command != "LegacySeaGeometry") return 0;
+        if (command != "IslandOrigins" && command != "SeaAtlas" && command != "SeaAtlasFrame" && command != "SeaRoute" && command != "SeaLocator" && command != "AutopilotSpeedProfile" && command != "LegacySeaGeometry" && command != "ClearLegacySeaGeometry") return 0;
         auto *target = message.AttributePointer();
         if (!target) return 0;
+        if (command == "ClearLegacySeaGeometry")
+        {
+            geometry->ConfigureLegacySeaGeometry(nullptr);
+            return 1;
+        }
         if (command == "AutopilotSpeedProfile")
         {
             target->SetAttributeUseFloat("mapMaxSpeed", WDM_SHIP_MAX_SPEED);
