@@ -2787,18 +2787,28 @@ void SAIL::DoRandomsSailsDmg(int chrIdx, int gn, float fDmg)
 {
     if (gn < 0 || gn >= groupQuantity)
         return;
+    if (gdata[gn].sailQuantity <= 0 || !gdata[gn].sailIdx)
+        return;
+    if (!std::isfinite(fDmg) || fDmg <= 0.f)
+        return;
 
-    int i;
-    int _sailsIdx[256];
-    for (i = 0; i < gdata[gn].sailQuantity; i++)
-        _sailsIdx[i] = gdata[gn].sailIdx[i];
+    std::vector<int> sailIndices(gdata[gn].sailIdx,
+                                 gdata[gn].sailIdx + gdata[gn].sailQuantity);
+    std::vector<unsigned> attempts(sailIndices.size(), 0);
 
     for (int _sailsQnt = gdata[gn].sailQuantity; _sailsQnt > 0;)
     {
         const int tmp = rand() % _sailsQnt;
-        const int sn = _sailsIdx[tmp];
+        const int sn = sailIndices[tmp];
+        const unsigned maximum = slist[sn]->GetMaxHoleCount();
+        if (!maximum) {
+            --_sailsQnt;
+            sailIndices[tmp] = sailIndices[_sailsQnt];
+            attempts[tmp] = attempts[_sailsQnt];
+            continue;
+        }
 
-        int holeIdx = rand() % slist[sn]->GetMaxHoleCount();
+        int holeIdx = rand() % maximum;
         for (int j = 0; j < 14 && slist[sn]->ss.hole[holeIdx]; j++)
             if (holeIdx < static_cast<int>(slist[sn]->GetMaxHoleCount()) - 1)
                 holeIdx++;
@@ -2820,6 +2830,7 @@ void SAIL::DoRandomsSailsDmg(int chrIdx, int gn, float fDmg)
             return;
         }
         float fDoDmg = pvd->GetFloat();
+        if (!std::isfinite(fDoDmg)) return;
 
         if (fDoDmg > 0.f)
         {
@@ -2829,18 +2840,15 @@ void SAIL::DoRandomsSailsDmg(int chrIdx, int gn, float fDmg)
         }
         else
             fDoDmg = -fDoDmg;
-        if (fDoDmg == 0.f)
+        const float remaining = fDmg - fDoDmg;
+        if (remaining <= 0.f) return;
+        const bool noProgress = fDoDmg <= 0.f || remaining >= fDmg;
+        if (!noProgress) fDmg = remaining;
+        if (noProgress || ++attempts[tmp] >= maximum * 2u + 2u)
         {
             _sailsQnt--;
-            _sailsIdx[sn] = _sailsIdx[_sailsQnt];
-        }
-        else
-        {
-            fDmg -= fDoDmg;
-            if (fDmg <= 0.f)
-            {
-                return;
-            }
+            sailIndices[tmp] = sailIndices[_sailsQnt];
+            attempts[tmp] = attempts[_sailsQnt];
         }
     }
 }
