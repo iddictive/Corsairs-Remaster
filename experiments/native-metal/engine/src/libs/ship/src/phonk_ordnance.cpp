@@ -539,7 +539,7 @@ bool clearTrajectory(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid
 bool automaticTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
                      SHIP &owner, AIShip *ai, const CVECTOR &launch, CVECTOR &target,
                      missile::Type type, float blastRadius, entid_t &targetShip, CVECTOR &targetOffset,
-                     uint32_t shot, uint32_t ownerSeed, float range)
+                     uint32_t shot, uint32_t ownerSeed, float range, bool cluster)
 {
     auto candidates = hostileTargets(owner.GetACharacter(), owner.GetPos(), range);
     // Weighted random order: nearer targets are more likely, but a distant
@@ -560,6 +560,7 @@ bool automaticTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid
         // led endpoint also changes missile flight time.
         for (unsigned n = 0; n < 4 && candidate.ship; ++n)
             missile = missileTo(launch, predictedTarget(candidate, missile.duration), -1, type);
+        missile.cluster = missile.split = cluster;
         const CVECTOR distance(missile.target.x - owner.GetPos().x, 0.f, missile.target.z - owner.GetPos().z);
         if (!manual_aim::finite(missile.target) || (~distance) > range * range) continue;
         if (!clearTrajectory(sea, island, ships, owner, ai, missile, blastRadius,
@@ -1468,7 +1469,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 (missile.manualFlight || missile.coasting || missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.ignitionPlayed)) {
                 const float flightX = missile.target.x - missile.launch.x;
                 const float flightZ = missile.target.z - missile.launch.z;
-                const float releaseRadius = std::clamp(std::sqrt(flightX*flightX + flightZ*flightZ) * .03f, 60.f, 180.f);
+                const float releaseRadius = std::clamp(std::sqrt(flightX*flightX + flightZ*flightZ) * .006f, 15.f, 30.f);
                 const float x = before.x - missile.target.x, z = before.z - missile.target.z;
                 const float dx = after.x - before.x, dz = after.z - before.z;
                 const float c = x*x + z*z - releaseRadius*releaseRadius;
@@ -1529,7 +1530,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         const float angle = 6.2831853f * shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x3cf51719u);
                         const float radius = std::sqrt(shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x12834bc5u));
                         const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
-                        target += heading * (std::cos(angle) * radius * 85.f) + perpendicular * (std::sin(angle) * radius * 55.f);
+                        target += heading * (std::cos(angle) * radius * 38.f) + perpendicular * (std::sin(angle) * radius * 28.f);
                     }
                     if (offset != 0.f && !missile.cluster) target.y = pSea->WaveXZ(target.x, target.z);
                     auto child = missileTo(burstPosition, target, missile.owner, missile.type);
@@ -1543,14 +1544,24 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         // Solve the launch impulse against the same drag and
                         // gravity used during child flight. Interception below
                         // still uses the carrier's actual velocity instead.
-                        const float travel = dragTravelTime(clusterAirDrag, child.duration);
-                        const float gravityDrop = 9.81f * (child.duration - travel) / clusterAirDrag;
-                        child.initialVelocity = (target - burstPosition + CVECTOR(0.f, gravityDrop, 0.f)) * (1.f / travel);
+                        auto velocityForTime = [&](float time) {
+                            const float travel = dragTravelTime(clusterAirDrag, time);
+                            const float gravityDrop = 9.81f * (time - travel) / clusterAirDrag;
+                            return (target - burstPosition + CVECTOR(0.f, gravityDrop, 0.f)) * (1.f / travel);
+                        };
+                        child.initialVelocity = velocityForTime(child.duration);
                         const float childSpeed = std::sqrt(~child.initialVelocity);
                         const float minimumSpeed = std::max(std::isfinite(inheritedSpeed) ? inheritedSpeed : 0.f,
                                                             std::isfinite(carrierMeanSpeed) ? carrierMeanSpeed : 0.f);
-                        if (minimumSpeed > 1.f && childSpeed > .001f && childSpeed < minimumSpeed)
-                            child.initialVelocity *= minimumSpeed / childSpeed;
+                        if (minimumSpeed > 1.f && childSpeed > .001f && childSpeed < minimumSpeed) {
+                            float lo = .001f, hi = child.duration;
+                            for (unsigned step = 0; step < 12; ++step) {
+                                const float mid = (lo + hi) * .5f;
+                                if (std::sqrt(~velocityForTime(mid)) >= minimumSpeed) lo = mid; else hi = mid;
+                            }
+                            child.duration = lo;
+                            child.initialVelocity = velocityForTime(lo);
+                        }
                         if (missile.intercepted) {
                             const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
                             const float speed = std::sqrt(~missile.interceptedVelocity);
@@ -2031,7 +2042,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         state.targetShip = 0;
         const float safetyRadius = (state.warhead == 0 ? nuclearYieldForTier(state.powerLimit).radius * 1.04f :
             conventionalMissileRadius(state.missileType, state.warhead == 2, state.warhead) * configuredRadius * 1.04f + (state.warhead == 2 ? 63.f : 0.f)) + aimSpread;
-        state.targetValid = automatic ? automaticTarget(pSea, pIsland, receivers, *this, ai, launch, state.target, state.missileType, safetyRadius, state.targetShip, state.targetOffset, nextShot, ownerSeed, firingRange) :
+        state.targetValid = automatic ? automaticTarget(pSea, pIsland, receivers, *this, ai, launch, state.target, state.missileType, safetyRadius, state.targetShip, state.targetOffset, nextShot, ownerSeed, firingRange, state.warhead == 2) :
             pickTarget(pSea, pIsland, receivers, GetPos(), view.Pos(), view.Vz(), state.target, true, firingRange);
         if (!automatic) {
             if (attempt == 0) state.manualAssistClock -= seconds;
@@ -2057,6 +2068,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         if (state.targetValid)
         {
             auto missile = missileTo(launch, state.target, -1, state.missileType);
+            missile.cluster = missile.split = state.warhead == 2;
             missile.flightVariation.configuredSpeed = configuredSpeed;
             missile.flightVariation.configuredAcceleration = configuredAcceleration;
             missile.duration = missile::duration(missile.type, {launch.x, launch.y, launch.z},
@@ -2076,7 +2088,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 }
             }
             if (!automatic && state.targetValid && launchRequested && (canBurst || state.reload <= 0.f))
-                state.targetValid = clearTrajectory(pSea, pIsland, receivers, *this, ai, missile, safetyRadius);
+                state.targetValid = clearTrajectory(pSea, pIsland, receivers, *this, ai, missile, safetyRadius, state.targetShip);
         }
     }
     state.targetOutside = automatic;
@@ -2099,6 +2111,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             const auto serial = state.cameraShot + 1u;
             const float angle = shotVariation(serial, owner, 0xd64e41b9u) * 6.2831853f;
             float shotSpread = aimSpread;
+            if (state.warhead == 2 && state.targetShip) shotSpread = std::min(shotSpread, 18.f);
             if (state.missileType == missile::Type::Kalibr && state.homing && state.targetShip)
                 shotSpread = kalibrShipSpread(static_cast<SHIP *>(core.GetEntityPointer(state.targetShip)), shotSpread);
             if (state.missileType == missile::Type::Kinzhal && state.homing && state.targetShip && state.warhead == 0)

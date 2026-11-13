@@ -250,6 +250,12 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
         {missile.launch.x, missile.launch.y, missile.launch.z},
         {missile.target.x, missile.target.y, missile.target.z}, t, missile.duration, missile.flightVariation);
     CVECTOR result(p.x, p.y, p.z);
+    if (missile.cluster && missile.split && !missile.intercepted) {
+        // Raise the carrier over the chosen impact area before opening it.
+        const float progress = missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
+        const float u = std::clamp((progress - .65f) / .35f, 0.f, 1.f);
+        result.y += 65.f * u * u * (3.f - 2.f * u);
+    }
     if (missile.shotId) {
         const float horizontal = std::hypot(delta.x, delta.z);
         if (horizontal > .001f) {
