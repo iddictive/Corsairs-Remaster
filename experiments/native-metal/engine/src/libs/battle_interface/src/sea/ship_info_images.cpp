@@ -314,9 +314,10 @@ void ShipInfoImages::UpdateShipData(int32_t nShipNum, SHIP_DESCRIBE_LIST::SHIP_D
     CalculateDirectingVectors(shippos);
 
     // write relation square
+    const auto relation = pSD->GetDisplayRelation();
     WriteSquareVertex(&m_pVBuffRelation[nShipNum * 4], shippos, m_vRelationOffset, m_fpRelationSize,
-                      GetUVForRelation(pSD->GetDisplayRelation() == BI_RELATION_ENEMY ? BI_RELATION_ENEMY :
-                                       (pSD->isMyShip ? BI_RELATION_NEUTRAL : pSD->GetDisplayRelation())), 1.f);
+                      GetUVForRelation(relation == BI_RELATION_ENEMY ? BI_RELATION_ENEMY :
+                                       (pSD->isMyShip ? BI_RELATION_NEUTRAL : relation)), 1.f);
 
     // write progress back square
     WriteSquareVertex(&m_pVBuffBackProgress[nShipNum * 4], shippos, m_vProgressBackOffset, m_fpProgressBackSize,

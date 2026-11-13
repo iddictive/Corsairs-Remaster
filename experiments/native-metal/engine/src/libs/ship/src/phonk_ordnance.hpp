@@ -357,8 +357,22 @@ inline CVECTOR nuclearVelocity(const NuclearMissile &missile, float age)
             ((1.f - t) * (1.f - 3.f * t))) * (1.f / missile.duration);
     const float step = std::min(.01f, missile.duration * .01f);
     const float before = std::max(0.f, age - step), after = std::min(missile.duration, age + step);
-    const float progress = storm::ship::phonk::missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
-    return after > before ? (nuclearPosition(missile, after) - nuclearPosition(missile, before)) * (1.f / (after - before)) + missile.guidanceVelocity * progress : CVECTOR(0.f);
+    if (after <= before) return CVECTOR(0.f);
+    // Target motion also changes arc height and lateral offsets. Differentiate
+    // the same complete path used by collision and interception prediction.
+    auto sample = missile;
+    // The first displacement can be much smaller than the precision of a
+    // world-space float. Keep height absolute (air density depends on it).
+    if (missile.type == missile::Type::Oreshnik) {
+        sample.target.x -= sample.launch.x;
+        sample.target.z -= sample.launch.z;
+        sample.launch.x = sample.launch.z = 0.f;
+    }
+    const auto target = sample.target;
+    sample.target = target + missile.guidanceVelocity * (after - age);
+    const auto future = nuclearPosition(sample, after);
+    sample.target = target + missile.guidanceVelocity * (before - age);
+    return (future - nuclearPosition(sample, before)) * (1.f / (after - before));
 }
 }
 

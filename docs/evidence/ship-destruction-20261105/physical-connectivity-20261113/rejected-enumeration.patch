@@ -1,0 +1,20 @@
+--- ship_hull_convex_material.hpp
++++ ship_hull_convex_material.hpp
+@@ -131,8 +131,15 @@
+     // still valid; retain them rather than running solid intersections again.
+     std::map<uint32_t,std::vector<std::vector<Key>>> prior;
+     for(auto id:affected){if(!state.cells[id])continue;auto copy=std::make_shared<Cell>(*state.cells[id]);if(!dirty.count(id))prior.emplace(id,copy->edges);copy->edges.assign(copy->pieces?copy->pieces->size():0,{});state.cells[id]=std::move(copy);}
+-    for(auto id:affected){auto entry=std::const_pointer_cast<Cell>(state.cells[id]);if(!entry||!entry->pieces)continue;auto box=state.source->material->bounds[id];box.lo=box.lo-pad;box.hi=box.hi+pad;state.source->material->index.queryBounds(box,ids);
+-        for(uint32_t piece=0;piece<entry->pieces->size();++piece){const auto&a=entry->pieces->at(piece);for(auto other:ids){if(!dirty.count(id)&&!dirty.count(other)){for(const auto&key:prior.at(id).at(piece))if(key.cell==other)entry->edges[piece].push_back(key);continue;}const auto&neighbor=state.cells[other];if(!neighbor||!neighbor->pieces)continue;for(uint32_t n=0;n<neighbor->pieces->size();++n){if(id==other&&n==piece)continue;const auto&b=neighbor->pieces->at(n);if(a.authoredOwner!=b.authoredOwner)continue;if(touching(a,b,budget))entry->edges[piece].push_back({other,n});if(!budget.complete)return false;}}}}
++    bool usePieceQuery=dirty.size()>200;double overflow=0,scale=1;
++    if(usePieceQuery)for(uint32_t id=0;id<state.cells.size();++id){const auto&cell=state.cells[id];if(!cell||!cell->pieces)continue;const auto box=state.source->material->bounds[id];
++        for(const auto&p:*cell->pieces){const float lo[]={p.bounds.lo.x,p.bounds.lo.y,p.bounds.lo.z},hi[]={p.bounds.hi.x,p.bounds.hi.y,p.bounds.hi.z},sl[]={box.lo.x,box.lo.y,box.lo.z},sh[]={box.hi.x,box.hi.y,box.hi.z};for(int axis=0;axis<3;++axis){if(!std::isfinite(lo[axis])||!std::isfinite(hi[axis])||!std::isfinite(sl[axis])||!std::isfinite(sh[axis])){usePieceQuery=false;break;}overflow=std::max({overflow,double(sl[axis])-lo[axis],double(hi[axis])-sh[axis]});scale=std::max({scale,std::abs(double(lo[axis])),std::abs(double(hi[axis])),std::abs(double(sl[axis])),std::abs(double(sh[axis]))});}}}
++    const double margin=overflow+.000002+scale*std::numeric_limits<float>::epsilon()*8;
++    std::vector<uint32_t>rank(state.cells.size()),nearby;uint32_t generation=0;
++    for(auto id:affected){auto entry=std::const_pointer_cast<Cell>(state.cells[id]);if(!entry||!entry->pieces)continue;auto box=state.source->material->bounds[id];box.lo=box.lo-pad;box.hi=box.hi+pad;state.source->material->index.queryBounds(box,ids);++generation;for(auto other:ids)rank[other]=generation;
++        for(uint32_t piece=0;piece<entry->pieces->size();++piece){const auto&a=entry->pieces->at(piece);const std::vector<uint32_t>*choices=&ids;
++            if(usePieceQuery&&dirty.count(id)){auto lo=[&](float x){return std::nextafter(float(double(x)-margin),-std::numeric_limits<float>::infinity());};auto hi=[&](float x){return std::nextafter(float(double(x)+margin),std::numeric_limits<float>::infinity());};auto p=a.bounds;state.source->material->index.queryBounds({{lo(p.lo.x),lo(p.lo.y),lo(p.lo.z)},{hi(p.hi.x),hi(p.hi.y),hi(p.hi.z)}},nearby);choices=&nearby;}
++            for(auto other:*choices){if(rank[other]!=generation)continue;if(!dirty.count(id)&&!dirty.count(other)){for(const auto&key:prior.at(id).at(piece))if(key.cell==other)entry->edges[piece].push_back(key);continue;}const auto&neighbor=state.cells[other];if(!neighbor||!neighbor->pieces)continue;for(uint32_t n=0;n<neighbor->pieces->size();++n){if(id==other&&n==piece)continue;const auto&b=neighbor->pieces->at(n);if(a.authoredOwner!=b.authoredOwner)continue;if(touching(a,b,budget))entry->edges[piece].push_back({other,n});if(!budget.complete)return false;}}}}
+     refreshSupportMeasures(state,dirty);
+     if(!components(state,budget))return false;state.pendingConnectivity.clear();return true;
+ }

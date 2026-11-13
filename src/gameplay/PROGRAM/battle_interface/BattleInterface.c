@@ -89,7 +89,7 @@ ref procGetPhonkFlagVisual()
 	else if (IsEntity(&AISea))
 	{
 		int relation = RELATION_NEUTRAL;
-		SendMessage(&AISea, "laae", AI_MESSAGE_GET_RELATION, &character, &Characters[nMainCharacterIndex], &relation);
+		SendMessage(&AISea, "laae", AI_MESSAGE_GET_RELATION, &Characters[nMainCharacterIndex], &character, &relation);
 		switch (relation)
 		{
 			case RELATION_FRIEND: BI_phonkFlagVisual = 1; break;

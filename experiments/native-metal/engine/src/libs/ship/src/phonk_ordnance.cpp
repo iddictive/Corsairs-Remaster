@@ -2559,7 +2559,14 @@ void SHIP::DrawPhonkOrdnance()
         if ((~axis) < .001f) axis = missile.target - missile.launch;
         if ((~axis) < .001f) continue;
         axis = !axis;
-        auto side = axis ^ CVECTOR(0.f, 1.f, 0.f);
+        // Anchor roll to the flight plane, so passing close to vertical does
+        // not switch the body basis by 90 degrees from one frame to the next.
+        const auto heading = missile.target - missile.launch;
+        auto side = CVECTOR(-heading.z, 0.f, heading.x);
+        if ((~side) > .001f) {
+            side = !side;
+            side = side - axis * (side | axis);
+        }
         if ((~side) < .001f) side = axis ^ CVECTOR(0.f, 1.f, 0.f);
         if ((~side) < .001f) side = axis ^ CVECTOR(1.f, 0.f, 0.f);
         if ((~side) < .001f) continue;

@@ -73,13 +73,17 @@ inline bool touching(const Piece&a,const Piece&b,Budget&budget){if(!overlapBound
     // expanded bbox/nearby origin never establishes a structural connection.
     // Authored partitions usually share a face. Prove that cheap alternative
     // before constructing a complete solid Boolean merely to find zero volume.
-    for(const auto&fa:a.faces)for(const auto&fb:b.faces)if(storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<=.000002f){auto polygon=fa.vertices;for(const auto&f:b.faces){std::vector<Vertex>in,out;linearSplit(polygon,f.plane,in,out);polygon=std::move(in);if(polygon.size()<3)break;}if(polygonArea(polygon)>1.e-10f)return true;}
+    // Every matching face of b triggers the same clipping against all of b;
+    // execute it once per face of a, even when b has coplanar partitions.
+    for(const auto&fa:a.faces){bool matched=false;for(const auto&fb:b.faces)if(storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<=.000002f){matched=true;break;}if(matched){auto polygon=fa.vertices;for(const auto&f:b.faces){std::vector<Vertex>in,out;linearSplit(polygon,f.plane,in,out);polygon=std::move(in);if(polygon.size()<3)break;}if(polygonArea(polygon)>1.e-10f)return true;}}
     // A separating face excludes positive overlap without allocating clipped
     // solids. Keep the finite shared-face acceptance above, including its
     // authored partition tolerance.
     const auto outside=[](const Piece&solid,const Piece&planes){for(const auto&f:planes.faces){bool separated=true;for(const auto&face:solid.faces){for(const auto&v:face.vertices)if(planarSide(f.plane,v.position)<=0){separated=false;break;}if(!separated)break;}if(separated)return true;}return false;};
     if(outside(a,b)||outside(b,a))return false;
-    Piece overlap=a;for(const auto&f:b.faces){Piece next;if(!clip(overlap,f.plane,next,budget))return false;overlap=std::move(next);if(overlap.volume<=1.e-12)break;}return overlap.volume>1.e-12;
+    // clip writes only after reading its source, so in-place output avoids
+    // copying an unchanged polyhedron for planes that already contain it.
+    Piece overlap=a;for(const auto&f:b.faces){if(!clip(overlap,f.plane,overlap,budget))return false;if(overlap.volume<=1.e-12)break;}return overlap.volume>1.e-12;
 }
 inline bool mergeConvex(const Piece&a,const Piece&b,Piece&merged){if(a.supportCell!=b.supportCell||a.authoredOwner!=b.authoredOwner||!overlapBounds(a.bounds,b.bounds))return false;bool shared=false;for(const auto&fa:a.faces)for(const auto&fb:b.faces)shared|=storm_ship_hull::dot(fa.plane.normal,fb.plane.normal)<-.99999f&&std::abs(fa.plane.distance+fb.plane.distance)<1.e-6f;if(!shared)return false;
     const std::vector<Piece>pair{a,b};Piece next;next.supportCell=a.supportCell;next.authoredOwner=a.authoredOwner;for(size_t n=0;n<2;++n)for(const auto&face:pair[n].faces)for(auto polygon:externalFace(pair,n,face)){Face outside=face;outside.vertices=std::move(polygon);next.faces.push_back(std::move(outside));}
