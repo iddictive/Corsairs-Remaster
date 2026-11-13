@@ -92,9 +92,13 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
 
 class MissileTrailVfx {
     struct Puff { simd_float3 origin, drift, axis; double birth; float life, size, seed; MissileVfxType type; };
+    struct RetiringPuff { Puff puff; double retired; size_t slot; };
     struct Flash { simd_float3 position; double birth; MissileVfxType type; };
     static constexpr size_t capacity=2048, maxHeads=128;
     std::array<Puff,capacity> puffs{}; size_t next=0, count=0;
+    static constexpr size_t retirementCapacity=256;
+    static constexpr float retirementDuration=.25f;
+    std::array<RetiringPuff,retirementCapacity> retiring{}; size_t retireNext=0, retireCount=0;
     std::array<MissileVfxSprite,maxHeads> heads{}; size_t headCount=0;
     std::array<Flash,128> flashes{}; size_t flashNext=0, flashCount=0;
     double lastEmission=-100.0;
@@ -103,6 +107,18 @@ class MissileTrailVfx {
     id<MTLDepthStencilState> depthStates[2]={nil,nil}; MTLPixelFormat colorFormat=MTLPixelFormatInvalid, depthFormat=MTLPixelFormatInvalid;
     static bool finite(simd_float3 v) { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z); }
     float random() { serial^=serial<<13; serial^=serial>>17; serial^=serial<<5; return float(serial&65535)/65535.f; }
+    void store(const Puff &p) {
+        // The insertion ring replaces the oldest admitted sample. Keep a bounded
+        // fading copy when it is still alive; extreme bursts can exhaust even
+        // this reserve, in which case its oldest fading copy is replaced.
+        const size_t slot=next; next=(next+1)%capacity;
+        if(count==capacity && clock-puffs[slot].birth<puffs[slot].life) {
+            retiring[retireNext]={puffs[slot],clock,slot};
+            retireNext=(retireNext+1)%retirementCapacity;
+            retireCount=std::min(retirementCapacity,retireCount+1);
+        }
+        puffs[slot]=p; count=std::min(capacity,count+1);
+    }
     bool prepare(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) {
         if(owner!=device){ owner=device; library=nil; pipeline=nil; depthStates[0]=depthStates[1]=nil; }
         if(pipeline && depthStates[0] && depthStates[1] && color==colorFormat && depth==depthFormat) return true;
@@ -123,10 +139,10 @@ public:
     bool ready(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) { return device && prepare(device,color,depth); }
     // Once per render frame, including after all missiles disappear. dt is game time.
     // Large gaps advance time but never schedule delayed emissions.
-    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; if(clock-lastEmission>=5.f) { next=count=flashNext=flashCount=0; } } headCount=0; }
-    void clear() { next=count=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
+    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; if(clock-lastEmission>=8.f) { next=count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=0; }
+    void clear() { next=count=retireNext=retireCount=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
     size_t storedCount() const { return count; }
-    bool hasVisible() const { return headCount || (count && clock-lastEmission<5.f) || (flashCount && clock-lastEmission<.45f); }
+    bool hasVisible() const { return headCount || (count && clock-lastEmission<8.f) || (flashCount && clock-lastEmission<.45f); }
     // One-shot launch/ignition cloud. The cloud stays in world space and is
     // independent of the missile; call flash() separately while the flash lives.
     void burst(simd_float3 position, MissileVfxType type) {
@@ -137,7 +153,7 @@ public:
             p.origin=position+simd_make_float3(std::cos(a),random()*.5f,std::sin(a))*(random()*3.f);
             p.drift={std::cos(a)*speed,1.f+random()*3.f,std::sin(a)*speed}; p.birth=clock;
             p.life=type==MissileVfxType::Interceptor?1.4f:2.8f; p.size=(type==MissileVfxType::Interceptor?1.1f:type==MissileVfxType::Kinzhal?3.5f:2.2f)*(0.8f+random()*.4f);
-            p.seed=random()*6.2831853f; p.type=type; puffs[next]=p; next=(next+1)%capacity; count=std::min(capacity,count+1);
+            p.seed=random()*6.2831853f; p.type=type; store(p);
         }
     }
     // Actual segment observed this frame, including guided turns. At most 24 newest
@@ -162,7 +178,7 @@ public:
         auto direction=length>1e-5f?(to-from)/length:simd_make_float3(0,0,0);
         for(int i=0;i<n;i++) {
             float t=(float(i)+.35f+.30f*random())/float(n); Puff p{}; p.origin=to-direction*(covered*(1.f-t));
-            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?1.6f:2.8f)*(.78f+random()*.22f);
+            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?6.f:8.f)*(.85f+random()*.15f);
             p.seed=random()*6.28318f;
             p.size=(type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Patriot?1.8f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?3.0f:4.0f)*(.78f+random()*.44f);
             float sampleSpacing=std::max(4.f,covered/float(n));
@@ -173,7 +189,7 @@ public:
             auto cross=simd_cross(direction,reference); float crossLen=simd_length(cross);
             if(crossLen>1e-5f) { cross/=crossLen; auto second=simd_cross(direction,cross); p.origin+=(cross*std::cos(p.seed)+second*std::sin(p.seed))*(p.size*.12f*random()); }
             p.drift={ (random()-.5f)*2.2f, .5f+random()*1.5f, (random()-.5f)*2.2f }; p.type=type;
-            puffs[next]=p; next=(next+1)%capacity; count=std::min(capacity,count+1);
+            store(p);
         }
     }
     // Submit current motor only while burning; type selects color and scale.
@@ -231,34 +247,33 @@ public:
     bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,id<MTLTexture> atlas,
                 simd_float4x4 vp,simd_float3 eye,simd_float3 right,simd_float3 up,simd_float4 viewport,simd_float3 worldOrigin={0,0,0},bool reverseZ=false) {
         if(!device||!command||!target||!depth||!atlas||atlas.device!=device||target.sampleCount!=1||depth.sampleCount!=1||target.width!=depth.width||target.height!=depth.height||!finite(eye)||!finite(right)||!finite(up)||viewport.z<=0||viewport.w<=0) return false;
-        std::vector<MissileVfxSprite> sprites; sprites.reserve(count+headCount+flashCount);
-        for(size_t j=0;j<count;j++) { const size_t slot=(next+capacity-count+j)%capacity; const Puff &p=puffs[slot]; float age=clock-p.birth; if(age<0||age>=p.life) continue;
+        std::vector<MissileVfxSprite> sprites; sprites.reserve(count+retireCount+headCount+flashCount);
+        auto appendPuff=[&](const Puff &p,size_t slot,float retirementFade) { float age=clock-p.birth; if(age<0||age>=p.life||retirementFade<=0) return;
             float turbulence=std::sin(age*1.4f+p.seed)*age*.22f;
             auto pos=p.origin+worldOrigin+p.drift*age+simd_make_float3(turbulence,0,std::cos(age*1.1f+p.seed)*age*.18f);
-            // Under a full pool, keep recent plumes at full detail and reduce
-            // overdraw on older particles without moving or delaying them.
-            bool older=count>1024 && j+1024<count;
-            float size=p.size*(1.f+age*.5f)*(older?.8f:1.f); float dist=simd_length(pos-eye); if(dist>=10000.f) continue;
+            float size=p.size*(1.f+age*.18f); float dist=simd_length(pos-eye); if(dist>=10000.f) return;
             // Stable pool-slot selection bounds the far plume to 512 sprites.
             // Mix slot bits to avoid selecting the same emitter in a repeating
             // multi-missile emission order. Fade other slots before dropping them.
             const bool farSample=((slot^(slot>>5)^(slot>>2))&3u)==0;
-            if(dist>=4200.f && !farSample) continue;
-            float visibility;
-            if(dist<=3000.f) {
-                float remaining=std::clamp((3600.f-dist)/3000.f,0.f,1.f);
-                visibility=.25f+.75f*remaining;
-            } else {
-                visibility=(.4f-.24f*std::clamp((dist-3000.f)/6000.f,0.f,1.f))*std::clamp((10000.f-dist)/1000.f,0.f,1.f);
-                if(!farSample) { float t=std::clamp((dist-3000.f)/1200.f,0.f,1.f); visibility*=1.f-t*t*(3.f-2.f*t); }
+            if(dist>=4200.f && !farSample) return;
+            float visibility=1.f;
+            if(dist>3000.f && !farSample) {
+                float t=std::clamp((dist-3000.f)/1200.f,0.f,1.f);
+                visibility=1.f-t*t*(3.f-2.f*t);
             }
-            float opacity=visibility*(p.type==MissileVfxType::Interceptor?.12f:.17f);
+            float opacity=retirementFade*visibility*(p.type==MissileVfxType::Interceptor?.12f:.17f);
             const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.56f,.59f,.60f):
                 (p.type==MissileVfxType::Interceptor||p.type==MissileVfxType::Patriot)?simd_make_float3(.93f,.93f,.90f):
                 p.type==MissileVfxType::Shtorm?simd_make_float3(.72f,.74f,.76f):
                 p.type==MissileVfxType::Fragment?simd_make_float3(.16f,.15f,.14f):simd_make_float3(.91f,.88f,.82f);
-            sprites.push_back({simd_make_float4(pos,size),simd_make_float4(p.axis,size),{age,p.life,older?-1.f:0.f,p.seed},simd_make_float4(tint,opacity)});
+            sprites.push_back({simd_make_float4(pos,size),simd_make_float4(p.axis,size),{age,p.life,0.f,p.seed},simd_make_float4(tint,opacity)});
+        };
+        for(size_t j=0;j<retireCount;j++) { const size_t slot=(retireNext+retirementCapacity-retireCount+j)%retirementCapacity; const auto &r=retiring[slot];
+            float t=std::clamp(float((clock-r.retired)/retirementDuration),0.f,1.f);
+            appendPuff(r.puff,r.slot,1.f-t*t*(3.f-2.f*t));
         }
+        for(size_t j=0;j<count;j++) { const size_t slot=(next+capacity-count+j)%capacity; appendPuff(puffs[slot],slot,1.f); }
         for(size_t j=0;j<flashCount;j++) { const auto &f=flashes[(flashNext+flashes.size()-flashCount+j)%flashes.size()]; float age=clock-f.birth; if(age<0||age>=.45f)continue;
             float scale=f.type==MissileVfxType::Kinzhal?11.f:f.type==MissileVfxType::Kalibr?7.f:5.f;
             float size=scale*(.35f+age*2.f),alpha=.9f*(1.f-age/.45f);

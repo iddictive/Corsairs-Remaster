@@ -124,38 +124,39 @@ float4 ciSurfaceSpray(float3 origin,float3 ray,float stop,float age,float seed,f
     float3 tint=mix(float3(.57,.68,.72),float3(.38,.25,.13),land);
     return float4(tint*opacity,opacity);
 }
-// A short radial burst for fragmentation; rising, independently timed embers
-// for incendiary. Both intersect finite 3D streaks with the viewing ray.
+// Brief velocity-aligned sparks, emitted into free space or above a surface.
 uint ciBits(uint x) { x^=x>>16;x*=0x7feb352du;x^=x>>15;x*=0x846ca68bu;x^=x>>16;return x; }
 float2 ciPair(uint x) { return float2(x&65535u,x>>16)*(1./65535.); }
 float4 ciWarheadSparks(float3 origin,float3 ray,float stop,float age,float kind,float seed,bool air) {
-    if(kind<2.5 || (kind<3.5 && age>1.4)) return 0;
+    if(kind<2.5 || age>0.85) return 0;
     float light=0;
     for(uint j=0;j<24;j++) {
         if(kind>3.5 && j>=16) break;
         uint hash=ciBits(as_type<uint>(seed)^(j*0x9e3779b9u));
         float2 ra=ciPair(hash),rb=ciPair(ciBits(hash+1u)),rc=ciPair(ciBits(hash+2u));
-        float2 re=ciPair(ciBits(hash+3u)),rf=ciPair(ciBits(hash+4u));
+        float2 re=ciPair(ciBits(hash+3u));
         float2 dir=normalize(ra*2.-1.+float2(1e-4,0));
-        float4 motion=float4(dir,rb),style=float4(rc,re),life=float4(rf,0,0);
-        float t=max(0.,age-style.x*.13);
-        float speed=kind<3.5 ? 1.6+2.6*motion.z : .2+.55*motion.z;
-        float temperature=exp(-t*(kind<3.5?1.6:.85));
-        float y=kind<3.5 ? (.7+2.*motion.w)*t-1.2*t*t : .15+(1.+motion.w)*t-1.1*t*t;
-        float spread=kind<3.5?speed*(t+.025+.04*style.x):speed*t;
-        float3 point=float3(dir.x*spread,y,dir.y*spread);
-        float streakLength=(.025+.12*style.y)*.45;
-        float3 trail=kind<3.5?normalize(float3(dir.x*speed,.7+2.*motion.w-2.4*t,dir.y*speed))*streakLength:float3(dir.x*.02,.035+streakLength*.45,dir.y*.02);
+        float delay=rc.x*.10, t=age-delay;
+        float lifetime=.25+.40*re.x;
+        if(t<=0. || t>=lifetime) continue;
+        float speed=kind<3.5 ? 1.1+1.5*rb.x : .45+.75*rb.x;
+        float vertical=air ? (rb.y*2.-1.) : (.2+.8*rb.y);
+        float horizontal=sqrt(max(0.,1.-vertical*vertical));
+        float3 initial=float3(dir.x*horizontal,vertical,dir.y*horizontal)*speed;
+        float3 velocity=initial-float3(0.,1.4*t,0.);
+        float3 point=initial*t-float3(0.,.7*t*t,0.);
+        float streakLength=(.008+.022*rc.y)*min(length(velocity)/speed,1.);
+        float3 trail=normalize(velocity+float3(1e-5))*streakLength;
         float3 start=point-trail,axis=trail;float3 w=origin-start;
         float b=dot(ray,axis),c=dot(axis,axis),d=dot(ray,w),e=dot(axis,w);
         float along=(b*e-c*d)/max(c-b*b,1e-6),h=clamp((e+b*along)/max(c,1e-6),0.,1.);
         along=dot(start+axis*h-origin,ray);
         if(along>0 && along<stop && (air || point.y>0)) {
             float dist=length(origin+ray*along-(start+axis*h));
-            float width=(kind<3.5?.006:.004)*(0.6+.9*style.z)*.45;
+            float width=.0015+.0015*re.y;
             float shape=1-smoothstep(width*.5,width*1.8,dist);
-            float fade=kind<3.5 ? 1-smoothstep(.55,1.4,age) : 1-smoothstep(.8,1.7,t);
-            light+=shape*fade*(.35+.65*style.w)*(.4+.6*temperature)*smoothstep(0.,.08,stop-along);
+            float fade=smoothstep(0.,.025,t)*(1.-smoothstep(lifetime*.45,lifetime,t));
+            light+=shape*fade*(.4+.6*rc.y)*smoothstep(0.,.08,stop-along);
         }
     }
     float alpha=1-exp(-light*.8); return float4(float3(3.5,1.25,.16)*alpha,alpha);

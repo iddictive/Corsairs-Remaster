@@ -48,9 +48,9 @@ inline float blastPower(float distance, float radius)
 inline Profile profile(Type type)
 {
     // Gameplay values, not real-world performance specifications.
-    return type == Type::Oreshnik ? Profile{1600.f, 3.f, 9000.f, 1.2f}
-         : type == Type::Shtorm ? Profile{700.f, 2.f, 1000.f, .25f}
-         : type == Type::Kalibr ? Profile{260.f, 2.f, 42.f, .035f}
+    return type == Type::Oreshnik ? Profile{3800.f, 3.f, 9000.f, 1.2f}
+         : type == Type::Shtorm ? Profile{800.f, 2.f, 1000.f, .25f}
+         : type == Type::Kalibr ? Profile{1300.f, 2.f, 42.f, .035f}
                                 : Profile{1800.f, 1.2f, 650.f, .16f};
 }
 // Integral of a smooth velocity ramp, in seconds at cruise speed. The ramp
@@ -61,7 +61,7 @@ inline float travelTime(float seconds, float ramp, float initial)
     const float u = std::max(0.f, seconds) / ramp;
     return ramp * (initial*u + (1.f-initial)*(u*u*u - .5f*u*u*u*u));
 }
-inline float rampTime(Type type) { return type == Type::Oreshnik ? 9.f : type == Type::Shtorm ? 3.5f : type == Type::Kalibr ? 3.f : 2.f; }
+inline float rampTime(Type type) { return type == Type::Oreshnik ? 6.f : type == Type::Shtorm ? 3.5f : type == Type::Kalibr ? 27.1f : 2.f; }
 inline float initialSpeed(Type type) { return type == Type::Oreshnik ? .002f : type == Type::Shtorm ? .05f : type == Type::Kalibr ? 0.f : .1f; }
 // One stable value per shot; callers choose the random values and retain them.
 // startScale applies to absolute start speed, not its fraction of cruise speed.
@@ -74,14 +74,64 @@ inline float variedInitial(Type type, FlightVariation v)
 {
     return initialSpeed(type) * flightScale(v.startScale) / (flightScale(v.speedScale) * settingScale(v.configuredSpeed));
 }
-inline constexpr float kalibrEjectTime = 1.2f;
-inline constexpr float kalibrTurnTime = .45f;
+inline constexpr float kalibrEjectTime = .65f;
+inline constexpr float kalibrTurnTime = .28f;
 inline constexpr float kalibrEjectHeight = 36.f;
-// Fictional game units: sqrt(2 * acceleration * 3000) == 520.
-inline constexpr float kalibrAcceleration = 520.f * 520.f / 6000.f;
+// Fictional game units: near-original acceleration with a finite speed cap.
+inline constexpr float kalibrAcceleration = 48.f;
 inline float variedKalibrAcceleration(FlightVariation v)
 {
     return kalibrAcceleration * flightScale(v.speedScale) / flightScale(v.rampScale) * settingScale(v.configuredSpeed) * settingScale(v.configuredAcceleration);
+}
+inline float arcAltitude(Type type, float distance, FlightVariation variation)
+{
+    const auto p = profile(type);
+    const float scale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
+    const float base = type == Type::Oreshnik ? std::max(1200.f, distance * p.altitudeFraction) : distance * p.altitudeFraction;
+    return std::min(p.maxAltitude, base) *
+        (type == Type::Kinzhal ? scale : type == Type::Kalibr ?
+            .35f + 1.05f * (scale - .3f) / 1.35f : .9f + .2f * (scale - .3f) / 1.35f);
+}
+inline float arcProgress(Type type, float travel, FlightVariation variation)
+{
+    if (type == Type::Kinzhal && variation.arcPattern == 1) return travel * travel * travel;
+    if (type == Type::Kinzhal && variation.arcPattern == 2) return 1.f - (1.f-travel)*(1.f-travel);
+    return travel;
+}
+// Arc length of the Oreshnik parabola through parameter u. Parameterizing by
+// distance rather than horizontal progress keeps speed bounded on steep arcs.
+inline double ballisticPrimitive(double horizontal, double z)
+{
+    if (horizontal <= .001) return .5*z*std::abs(z);
+    return .5 * (z*std::sqrt(horizontal*horizontal + z*z) +
+                 horizontal*horizontal*std::asinh(z/horizontal));
+}
+inline double ballisticLength(double horizontal, double vertical, double altitude, double u)
+{
+    if (altitude <= .001f) return std::sqrt(horizontal*horizontal + vertical*vertical) * u;
+    const double initial = vertical + 4.f*altitude;
+    return (ballisticPrimitive(horizontal, initial) - ballisticPrimitive(horizontal, initial - 8.f*altitude*u)) / (8.f*altitude);
+}
+inline float ballisticParameter(float horizontal, float vertical, float altitude, float fraction)
+{
+    if (fraction <= 0.f || fraction >= 1.f) return fraction;
+    if (altitude <= .001f) return fraction;
+    const double initial = vertical + 4. * altitude, span = 8. * altitude;
+    const double first = ballisticPrimitive(horizontal, initial);
+    const double length = (first - ballisticPrimitive(horizontal, initial - span)) / span;
+    if (length <= .001f) return fraction;
+    const double desired = length * fraction;
+    double lo = 0., hi = 1., u = fraction;
+    for (unsigned i = 0; i < 12; ++i) {
+        const double error = (first - ballisticPrimitive(horizontal, initial - span*u)) / span - desired;
+        if (std::abs(error) <= length * 1e-10) break;
+        if (error < 0.f) lo = u; else hi = u;
+        const double slope = vertical + 4.*altitude*(1.-2.*u);
+        const double derivative = std::sqrt(double(horizontal)*horizontal + slope*slope);
+        const double next = derivative > .001 ? u - error / derivative : (lo+hi)*.5;
+        u = next > lo && next < hi ? next : (lo+hi)*.5f;
+    }
+    return float(u);
 }
 inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variation = {})
 {
@@ -90,10 +140,37 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         const float horizontalDistance = std::sqrt(d.x*d.x + d.z*d.z);
         // A vertical-only target still gets a finite powered phase.
         const float distance = horizontalDistance > 0.f ? horizontalDistance : std::abs(d.y);
-        return kalibrEjectTime + kalibrTurnTime + std::max(.1f, std::sqrt(2.f * distance / variedKalibrAcceleration(variation)));
+        const float acceleration = variedKalibrAcceleration(variation), cap = variedCruise(type, variation);
+        const float capDistance = cap * cap / (2.f * acceleration);
+        const float powered = distance <= capDistance ? std::sqrt(2.f * distance / acceleration)
+                                                     : cap / acceleration + (distance - capDistance) / cap;
+        return kalibrEjectTime + kalibrTurnTime + std::max(.1f, powered);
     }
     const auto p = profile(type);
-    const float distance = magnitude(d);
+    const float horizontal = std::sqrt(d.x*d.x + d.z*d.z);
+    const float altitude = arcAltitude(type, horizontal, variation);
+    // Approximate the actual 3D curve at launch, including its chosen arc.
+    // A separate derivative bound limits instantaneous 3D speed without
+    // treating the steepest part of the trajectory as the entire path.
+    float distance = 0.f;
+    Vec3 previous{0.f, 0.f, 0.f};
+    for (unsigned i = 1; type != Type::Oreshnik && i <= 24; ++i) {
+        const float u = float(i) / 24.f;
+        const float arc = arcProgress(type, u, variation);
+        const Vec3 point = d*u + Vec3{0.f, 4.f*altitude*arc*(1.f-arc), 0.f};
+        distance += magnitude(point - previous);
+        previous = point;
+    }
+    if (type == Type::Oreshnik) {
+        distance = ballisticLength(horizontal, d.y, altitude, 1.f);
+    } else {
+        const float arcSlope = 4.f * altitude * (type == Type::Kinzhal && variation.arcPattern == 1 ? 3.f :
+                                                 type == Type::Kinzhal && variation.arcPattern == 2 ? 2.f : 1.f);
+        const float slopeBound = std::sqrt(horizontal*horizontal + (std::abs(d.y) + arcSlope)*(std::abs(d.y) + arcSlope));
+        const float speedLimit = (type == Type::Shtorm ? 1400.f : 5000.f) *
+                                 flightScale(variation.speedScale) * settingScale(variation.configuredSpeed);
+        distance = std::max(distance, slopeBound * variedCruise(type, variation) / speedLimit);
+    }
     const float ramp = variedRamp(type, variation), initial = variedInitial(type, variation);
     const float needed = distance / variedCruise(type, variation);
     float flight = needed + (1.f-initial)*ramp*.5f;
@@ -123,8 +200,12 @@ inline float trajectoryProgress(Type type, float t, float flightDuration, Flight
     const float poweredTime = flightDuration * (1.f-ejectEnd);
     const float elapsed = flightDuration * (t-ejectEnd);
     if (type == Type::Kalibr) {
-        const float poweredFraction = elapsed / poweredTime;
-        return poweredFraction * poweredFraction;
+        const float acceleration = variedKalibrAcceleration(variation), cap = variedCruise(type, variation);
+        const auto distanceAt = [&](float time) {
+            const float ramp = cap / acceleration;
+            return time < ramp ? .5f * acceleration * time * time : cap * (time - .5f * ramp);
+        };
+        return distanceAt(elapsed) / distanceAt(poweredTime);
     }
     return travelTime(elapsed, variedRamp(type, variation), variedInitial(type, variation)) /
            travelTime(poweredTime, variedRamp(type, variation), variedInitial(type, variation));
@@ -133,19 +214,16 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
 {
     t = std::clamp(t, 0.f, 1.f);
     const auto d = target - start;
-    const auto p = profile(type);
     const float distance = std::sqrt(d.x*d.x+d.z*d.z);
     const float variationScale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
-    const float altitude = std::min(p.maxAltitude, distance * p.altitudeFraction) *
-        (type == Type::Kinzhal ? variationScale : type == Type::Kalibr ?
-            .35f + 1.05f * (variationScale - .3f) / 1.35f : .9f + .2f * (variationScale - .3f) / 1.35f);
+    const float altitude = arcAltitude(type, distance, variation);
     const float total = flightDuration > 0.f ? flightDuration : duration(type, start, target, variation);
-    const float travel = trajectoryProgress(type, t, total, variation);
+    float travel = trajectoryProgress(type, t, total, variation);
+    if (type == Type::Oreshnik)
+        travel = ballisticParameter(distance, d.y, altitude, travel);
     if (type != Type::Kalibr) {
-        float arcProgress = travel;
-        if (type == Type::Kinzhal && variation.arcPattern == 1) arcProgress = travel * travel * travel;
-        if (type == Type::Kinzhal && variation.arcPattern == 2) arcProgress = 1.f - (1.f - travel) * (1.f - travel);
-        return start + d*travel + Vec3{0.f, 4.f*altitude*arcProgress*(1.f-arcProgress), 0.f};
+        const float arc = arcProgress(type, travel, variation);
+        return start + d*travel + Vec3{0.f, 4.f*altitude*arc*(1.f-arc), 0.f};
     }
     // Deck ejection loses upward speed, then carries that velocity into the turn.
     const float elapsedFlight = t * total;
@@ -168,7 +246,7 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float smoothDive = dive*dive*(3.f-2.f*dive);
     const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, kalibrEjectHeight,
                                      ejectVelocity.z * kalibrEjectTime};
-    const Vec3 turnAcceleration{fx * 20.f, -ejectVelocity.y / kalibrTurnTime, fz * 20.f};
+    const Vec3 turnAcceleration{fx * 180.f, -ejectVelocity.y / kalibrTurnTime, fz * 180.f};
     if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
         const float elapsed = elapsedFlight - kalibrEjectTime;
         return ejected + ejectVelocity * elapsed + turnAcceleration * (.5f * elapsed * elapsed);

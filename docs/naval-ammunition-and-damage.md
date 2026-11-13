@@ -1,5 +1,8 @@
 # Naval ammunition cargo contracts, damage pipeline and combat mechanics
 
+The later Brig1 plane-cut investigation and its reproduction limits are in
+[ship-destruction-20261105](evidence/ship-destruction-20261105/README.md).
+
 ## Native capture-to-publication latency
 
 October18 player loading regression: the unconditional readiness loop in
