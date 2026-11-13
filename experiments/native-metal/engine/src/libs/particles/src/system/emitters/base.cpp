@@ -27,8 +27,15 @@ BaseEmitter::BaseEmitter(ParticleSystem *pSystem)
 
 BaseEmitter::~BaseEmitter()
 {
-    GetManager()->GetBBProcessor()->DeleteWithGUID(Unique_GUID);
-    GetManager()->GetMDLProcessor()->DeleteWithGUID(Unique_GUID);
+    // Natural expiry already drained both processors. Avoid scanning every
+    // other emitter's particles when this emitter has none left to remove.
+    for (const auto &type : ParticleTypes)
+    {
+        if (type.ActiveCount == 0) continue;
+        GetManager()->GetBBProcessor()->DeleteWithGUID(Unique_GUID);
+        GetManager()->GetMDLProcessor()->DeleteWithGUID(Unique_GUID);
+        break;
+    }
     Stoped = true;
 }
 

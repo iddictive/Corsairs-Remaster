@@ -2,6 +2,493 @@
 // projection, and a mounted sea group is its exclusive physical projection.
 object SeaTraffic;
 object SeaTrafficFreeSlots;
+object SeaPhonkTest;
+
+#define PHONK_TEST_GROUP "phonk_test_enemy"
+
+bool SeaPhonkTest_OwnsIndex(int index)
+{
+    if (index < FANTOM_CHARACTERS || index >= TOTAL_CHARACTERS) return false;
+    string key = "c" + index;
+    if (!CheckAttribute(&SeaPhonkTest, "enemies." + key + ".group") ||
+        !CheckAttribute(&SeaPhonkTest, "enemies." + key + ".shipType")) return false;
+    string groupID = SeaPhonkTest.enemies.(key).group;
+    ref captain = &Characters[index];
+    if (!CheckAttribute(captain, "PhonkTestOwner") || captain.PhonkTestOwner != groupID ||
+        !CheckAttribute(captain, "trafficFleetID") || captain.trafficFleetID != groupID ||
+        !CheckAttribute(captain, "SeaAI.Group.Name") || captain.SeaAI.Group.Name != groupID ||
+        !CheckAttribute(captain, "Ship.Type")) return false;
+    return sti(captain.Ship.Type) == sti(SeaPhonkTest.enemies.(key).shipType) && !IsCompanion(captain);
+}
+
+int SeaPhonkTest_GroupIndex(string groupID)
+{
+    if (!CheckAttribute(&SeaPhonkTest, "enemies")) return -1;
+    aref enemies; makearef(enemies, SeaPhonkTest.enemies);
+    for (int i = 0; i < GetAttributesNum(enemies); i++)
+    {
+        aref entry = GetAttributeN(enemies, i);
+        if (CheckAttribute(entry, "group") && entry.group == groupID && CheckAttribute(entry, "index")) return sti(entry.index);
+    }
+    return -1;
+}
+
+bool SeaPhonkTest_Start()
+{
+    return SeaPhonkTest_StartSide(false);
+}
+
+bool SeaPhonkTest_StartAlly()
+{
+    return SeaPhonkTest_StartSide(true);
+}
+
+bool SeaPhonkTest_StartSide(bool allied)
+{
+    if (!bSeaActive || !bSeaLoaded || !IsEntity(&AISea)) return false;
+    if (GetRealShipsCount() >= REAL_SHIPS_QUANTITY) { Log_Info("Нет свободных слотов кораблей"); return false; }
+    float x = 0.0;
+    float z = 0.0;
+    float heading = stf(pchar.Ship.Ang.y);
+    float angle = heading;
+    float offset = 0.0;
+    bool found = false;
+    for (int attempt = 0; attempt < 128; attempt++)
+    {
+        int step = (attempt + 1) / 2;
+        offset = 6.2831853 * step / 128.0;
+        if (attempt % 2 == 0) offset = -offset;
+        float a = heading + offset;
+        float radius = 8250.0;
+        if (allied) radius = 600.0;
+        x = stf(pchar.Ship.Pos.x) + radius * sin(a);
+        z = stf(pchar.Ship.Pos.z) + radius * cos(a);
+        if (SendMessage(&AISea, "lff", AI_MESSAGE_TEST_SPAWN_POSITION, x, z)) { found = true; angle = a; break; }
+    }
+    if (!found) { Log_Info("Не найдено безопасное место для корабля"); return false; }
+
+    int serial = 0;
+    if (CheckAttribute(&SeaPhonkTest, "nextGroup")) serial = sti(SeaPhonkTest.nextGroup);
+    string groupID = PHONK_TEST_GROUP + "_" + serial;
+    while (Group_FindGroup(groupID) >= 0 || SeaPhonkTest_GroupIndex(groupID) >= 0)
+    {
+        serial++;
+        groupID = PHONK_TEST_GROUP + "_" + serial;
+    }
+    SeaPhonkTest.nextGroup = serial + 1;
+    object fleet;
+    fleet.GroupName = groupID;
+    fleet.trafficFleetID = groupID;
+    fleet.RealEncounterType = ENCOUNTER_TYPE_PATROL_SMALL;
+    fleet.Nation = PIRATE;
+    fleet.Type = "war";
+    bool custom = CheckAttribute(pchar, "SeaPhonk.Spawn.Custom") && sti(pchar.SeaPhonk.Spawn.Custom) != 0;
+    int shipChoice = 0;
+    if (CheckAttribute(pchar, "SeaPhonk.Spawn.ShipClass")) shipChoice = sti(pchar.SeaPhonk.Spawn.ShipClass);
+    if (shipChoice < 1 || shipChoice > 5) shipChoice = 1 + rand(4);
+    int shipType = SHIP_BILANCETTA;
+    switch (shipChoice)
+    {
+        case 2: shipType = SHIP_CORVETTE; break;
+        case 3: shipType = SHIP_FRIGATE; break;
+        case 4: shipType = SHIP_BATTLESHIP; break;
+        case 5: shipType = SHIP_MANOWAR; break;
+    }
+    fleet.trafficRoster.ship0.baseType = shipType;
+    fleet.trafficRoster.ship0.mode = "war";
+    int index = SeaTraffic_AllocateCaptain(&fleet, 0);
+    if (index < 0) { Log_Info("Не удалось создать корабль для ПВО"); return false; }
+    ref captain = &Characters[index];
+    if (!allied) captain.AlwaysEnemy = true;
+    ref group = Group_FindOrCreateGroup(groupID);
+    Group_SetXZ_AY(groupID, x, z, angle + 3.1415926);
+    Group_SetType(groupID, "war");
+    group.trafficFleetID = groupID;
+    Sea_MountEncounterCharacter(&fleet, index, 0, index, groupID, pchar.location, false);
+    if (!IsEntity(captain))
+    {
+        Group_DeleteGroup(groupID);
+        int realIndex = GetCharacterShipType(captain);
+        InitCharacter(captain, index);
+        if (realIndex >= 0 && realIndex < REAL_SHIPS_QUANTITY) DeleteAttribute(&RealShips[realIndex], "");
+        string freeSlot = "c" + index;
+        SeaTrafficFreeSlots.(freeSlot).index = index;
+        aref cleared; makearef(cleared, SeaTrafficFreeSlots.(freeSlot).character);
+        CopyAttributes(cleared, captain);
+        Log_Info("Не удалось разместить корабль для ПВО");
+        return false;
+    }
+    string key = "c" + index;
+    captain.PhonkTestOwner = groupID;
+    // Per-ship loadout for the native test-enemy launcher; it must consume
+    // these attributes before they can affect missile behavior.
+    captain.PhonkTest.MissileType = rand(2); // 0 Kinzhal, 1 Kalibr, 2 Shtorm
+    int warheadChoice = rand(3);
+    captain.PhonkTest.Warhead = 1;
+    if (warheadChoice == 1) captain.PhonkTest.Warhead = 2;
+    if (warheadChoice == 2) captain.PhonkTest.Warhead = 4;
+    if (warheadChoice == 3) captain.PhonkTest.Warhead = PHONK_WARHEAD_THERMOBARIC;
+    captain.PhonkTest.CooldownMin = 2 + rand(4);
+    captain.PhonkTest.CooldownMax = sti(captain.PhonkTest.CooldownMin) + 3 + rand(3);
+    if (shipType == SHIP_MANOWAR) captain.PhonkTest.Volley = 3 + rand(2);
+    else captain.PhonkTest.Volley = 1 + rand(2);
+    if (custom)
+    {
+        captain.PhonkTest.Custom = 1;
+        captain.PhonkTest.MissileType = sti(pchar.SeaPhonk.Spawn.MissileType);
+        captain.PhonkTest.Warhead = sti(pchar.SeaPhonk.Spawn.Warhead);
+        captain.PhonkTest.Volley = sti(pchar.SeaPhonk.Spawn.Volley);
+        captain.PhonkTest.CooldownMin = stf(pchar.SeaPhonk.Spawn.FireInterval);
+        captain.PhonkTest.CooldownMax = stf(pchar.SeaPhonk.Spawn.FireInterval);
+    }
+    bool defenseCustom = custom;
+    if (CheckAttribute(pchar, "SeaPhonk.Spawn.DefenseCustom")) defenseCustom = sti(pchar.SeaPhonk.Spawn.DefenseCustom) != 0;
+    captain.PhonkTest.DefenseSettings = 1;
+    captain.PhonkTest.DefenseCustom = defenseCustom;
+    if (defenseCustom)
+    {
+        captain.PhonkTest.DefenseEnabled = sti(pchar.SeaPhonk.Spawn.DefenseEnabled);
+        captain.PhonkTest.DefenseRange = stf(pchar.SeaPhonk.Spawn.DefenseRange);
+        captain.PhonkTest.DefenseInterval = stf(pchar.SeaPhonk.Spawn.DefenseInterval);
+        captain.PhonkTest.DefenseMax = sti(pchar.SeaPhonk.Spawn.DefenseMax);
+        captain.PhonkTest.DefenseSpeed = stf(pchar.SeaPhonk.Spawn.DefenseSpeed);
+    }
+    else
+    {
+        captain.PhonkTest.DefenseEnabled = 1;
+        captain.PhonkTest.DefenseRange = 1200 + rand(8) * 100;
+        captain.PhonkTest.DefenseInterval = 0.2 + rand(4) * 0.1;
+        captain.PhonkTest.DefenseMax = 2 + rand(3);
+        captain.PhonkTest.DefenseSpeed = 450 + rand(6) * 50;
+    }
+    SeaPhonkTest.enemies.(key).index = index;
+    SeaPhonkTest.enemies.(key).group = groupID;
+    SeaPhonkTest.enemies.(key).shipType = captain.Ship.Type;
+    if (allied)
+    {
+        SetCharacterRelationAsOtherCharacter(index, nMainCharacterIndex);
+        SeaPhonkTest.enemies.(key).allied = 1;
+        Sea.Phonk.TestAllies.(key) = index;
+    }
+    else
+    {
+        SetCharacterRelationBoth(index, nMainCharacterIndex, RELATION_ENEMY);
+        Sea.Phonk.TestEnemies.(key) = index;
+    }
+    UpdateRelations();
+    WdmFleetSeaSetDrift(groupID);
+    if (allied)
+    {
+        Log_Info("Союзный ракетный корабль появился рядом");
+        return true;
+    }
+    string description = "Вражеский корабль: " + GetStrSmallRegister(XI_ConvertString(RealShips[sti(captain.Ship.Type)].BaseName));
+    if (offset == 0.0) Log_Info(description + ": прямо по курсу, 8,25 км.");
+    else if (offset >= 3.1415926) Log_Info(description + ": позади, 8,25 км.");
+    else if (offset > 0.0) Log_Info(description + ": вправо от курса на " + sti(offset * 57.29578 + 0.5) + "°, 8,25 км.");
+    else Log_Info(description + ": влево от курса на " + sti(-offset * 57.29578 + 0.5) + "°, 8,25 км.");
+    return true;
+}
+
+void SeaPhonkTest_UpdateAlly(int index)
+{
+    int nearest = -1;
+    float nearestDistance = 0.0;
+    ref ally = &Characters[index];
+    if (!CheckAttribute(ally, "Ship.Pos.x") || !CheckAttribute(ally, "Ship.Pos.z")) return;
+    for (int s = 0; s < iNumShips; s++)
+    {
+        int other = Ships[s];
+        if (other < 0 || other >= TOTAL_CHARACTERS || other == index || other == nMainCharacterIndex) continue;
+        ref target = &Characters[other];
+        if (!IsEntity(target) || LAi_IsDead(target) || !CheckAttribute(target, "Ship.Pos.x") ||
+            !CheckAttribute(target, "Ship.Pos.z") ||
+            (CheckAttribute(target, "Ship.HP") && stf(target.Ship.HP) <= 0.0) ||
+            GetRelation(nMainCharacterIndex, other) != RELATION_ENEMY) continue;
+        float dx = stf(target.Ship.Pos.x) - stf(ally.Ship.Pos.x);
+        float dz = stf(target.Ship.Pos.z) - stf(ally.Ship.Pos.z);
+        float distance = dx * dx + dz * dz;
+        if (nearest < 0 || distance < nearestDistance) { nearest = other; nearestDistance = distance; }
+    }
+    if (nearest >= 0)
+    {
+        if (!CheckAttribute(ally, "SeaAI.Task") || sti(ally.SeaAI.Task) != AITASK_ATTACK ||
+            !CheckAttribute(ally, "SeaAI.Task.Target") || sti(ally.SeaAI.Task.Target) != nearest)
+            Ship_SetTaskAttack(SECONDARY_TASK, index, nearest);
+    }
+    else if (CheckAttribute(ally, "SeaAI.Task") && sti(ally.SeaAI.Task) == AITASK_ATTACK)
+        Ship_SetTaskNone(SECONDARY_TASK, index);
+}
+
+// The debug encounter owns a separate captain and real-ship slot. Never move
+// or reset GhostCapt: that character and its ship belong to the quest.
+bool SeaDebugGhost_Start()
+{
+    if (!bSeaActive || !bSeaLoaded || bAbordageStarted || !IsEntity(&AISea) ||
+        iNumShips >= MAX_SHIPS_ON_SEA || GetRealShipsCount() >= REAL_SHIPS_QUANTITY) return false;
+
+    float x = 0.0;
+    float z = 0.0;
+    float angle = stf(pchar.Ship.Ang.y);
+    bool found = false;
+    for (int attempt = 0; attempt < 128; attempt++)
+    {
+        int step = (attempt + 1) / 2;
+        float offset = 6.2831853 * step / 128.0;
+        if (attempt % 2 == 0) offset = -offset;
+        float candidate = stf(pchar.Ship.Ang.y) + offset;
+        x = stf(pchar.Ship.Pos.x) + 2500.0 * sin(candidate);
+        z = stf(pchar.Ship.Pos.z) + 2500.0 * cos(candidate);
+        if (SendMessage(&AISea, "lff", AI_MESSAGE_TEST_SPAWN_POSITION, x, z))
+        {
+            angle = candidate;
+            found = true;
+            break;
+        }
+    }
+    if (!found) { Log_Info("Не найдено безопасное место для Летучего Голландца"); return false; }
+
+    int original = -1;
+    int ghostIndex = GetCharacterIndex("GhostCapt");
+    if (ghostIndex >= 0 && CheckAttribute(&Characters[ghostIndex], "Ship.Type"))
+    {
+        int candidateShip = sti(Characters[ghostIndex].Ship.Type);
+        if (candidateShip >= 0 && candidateShip < REAL_SHIPS_QUANTITY &&
+            CheckAttribute(&RealShips[candidateShip], "BaseType") &&
+            sti(RealShips[candidateShip].BaseType) == SHIP_FLYINGDUTCHMAN) original = candidateShip;
+    }
+    bool temporaryOriginal = false;
+    if (original < 0)
+    {
+        // GhostCapt is created by the quest, which may not have started yet.
+        original = CreateBaseShip(SHIP_FLYINGDUTCHMAN);
+        if (original < 0 || original >= REAL_SHIPS_QUANTITY) return false;
+        temporaryOriginal = true;
+        RealShips[original].ship.upgrades.sails = 3;
+        RealShips[original].EmblemedSails.normalTex = "ships\parus_common_torn.tga";
+        RealShips[original].ShipSails.SailsColor = argb(255, 60, 60, 60);
+        RealShips[original].MaxCaliber = 48;
+        RealShips[original].Cannon = CANNON_TYPE_CANNON_LBS48;
+        RealShips[original].HP = 400000;
+    }
+
+    int serial = 0;
+    if (CheckAttribute(&SeaPhonkTest, "nextGhost")) serial = sti(SeaPhonkTest.nextGhost);
+    string groupID = "debug_ghost_" + serial;
+    while (Group_FindGroup(groupID) >= 0) { serial++; groupID = "debug_ghost_" + serial; }
+    if (Group_CreateGroup(groupID) < 0)
+    {
+        if (temporaryOriginal) DeleteAttribute(&RealShips[original], "");
+        return false;
+    }
+
+    object fleet;
+    fleet.GroupName = groupID;
+    fleet.trafficFleetID = groupID;
+    fleet.RealEncounterType = ENCOUNTER_TYPE_PATROL_SMALL;
+    fleet.Nation = PIRATE;
+    fleet.Type = "war";
+    // Allocate an ordinary fantom slot, then replace only its private hull.
+    fleet.trafficRoster.ship0.baseType = SHIP_BILANCETTA;
+    fleet.trafficRoster.ship0.mode = "war";
+    int index = SeaTraffic_AllocateCaptain(&fleet, 0);
+    if (index < 0)
+    {
+        Group_DeleteGroup(groupID);
+        if (temporaryOriginal) DeleteAttribute(&RealShips[original], "");
+        return false;
+    }
+    ref captain = &Characters[index];
+    int shipIndex = GetCharacterShipType(captain);
+    ref ship = &RealShips[shipIndex];
+    DeleteAttribute(ship, "");
+    CopyAttributes(ship, &RealShips[original]);
+    ship.index = shipIndex;
+    if (temporaryOriginal) DeleteAttribute(&RealShips[original], "");
+    captain.AlwaysSandbankManeuver = true;
+    Group_SetXZ_AY(groupID, x, z, angle + 3.1415926);
+    Group_SetType(groupID, "war");
+    Sea_MountEncounterCharacter(&fleet, index, 0, index, groupID, pchar.location, false);
+    if (!IsEntity(captain))
+    {
+        Group_DeleteGroup(groupID);
+        InitCharacter(captain, index);
+        DeleteAttribute(ship, "");
+        string freeKey = "c" + index;
+        SeaTrafficFreeSlots.(freeKey).index = index;
+        aref cleared; makearef(cleared, SeaTrafficFreeSlots.(freeKey).character);
+        CopyAttributes(cleared, captain);
+        return false;
+    }
+    captain.Ship.Name = "Летучий голландец";
+    captain.AlwaysEnemy = true;
+    captain.name = "Ван";
+    captain.lastname = "дер Декен";
+    captain.PhonkTestOwner = groupID;
+    string key = "c" + index;
+    SeaPhonkTest.enemies.(key).index = index;
+    SeaPhonkTest.enemies.(key).group = groupID;
+    SeaPhonkTest.enemies.(key).shipType = shipIndex;
+    SeaPhonkTest.enemies.(key).debugGhost = 1;
+    SeaPhonkTest.nextGhost = serial + 1;
+    SeaDebugGhost_UpdateRelations(index);
+    Log_Info("Летучий Голландец появился в море");
+    return true;
+}
+
+void SeaDebugGhost_UpdateRelations(int index)
+{
+    string key = "c" + index;
+    bool changed = false;
+    int nearest = -1;
+    float nearestDistance = 0.0;
+    for (int s = 0; s < iNumShips; s++)
+    {
+        int other = Ships[s];
+        if (other < 0 || other >= TOTAL_CHARACTERS || other == index || !IsEntity(&Characters[other])) continue;
+        int shipIndex = other;
+        if (CheckAttribute(&Characters[other], "relation.UseOtherCharacter"))
+        {
+            int delegate = sti(Characters[other].relation.UseOtherCharacter);
+            if (delegate >= 0 && delegate < TOTAL_CHARACTERS) other = delegate;
+        }
+        if (other == index) continue;
+        string target = "c" + other;
+        string relationPath = "relation." + index;
+        if (!CheckAttribute(&SeaPhonkTest, "enemies." + key + ".relations." + target) ||
+            SeaPhonkTest.enemies.(key).relations.(target).id != Characters[other].id)
+        {
+            SeaPhonkTest.enemies.(key).relations.(target).id = Characters[other].id;
+            SeaPhonkTest.enemies.(key).relations.(target).index = other;
+            SeaPhonkTest.enemies.(key).relations.(target).had = CheckAttribute(&Characters[other], relationPath);
+            if (CheckAttribute(&Characters[other], relationPath))
+                SeaPhonkTest.enemies.(key).relations.(target).previous = Characters[other].(relationPath);
+        }
+        string ghostRelation = "relation." + other;
+        if (!CheckAttribute(&Characters[index], ghostRelation) ||
+            sti(Characters[index].(ghostRelation)) != RELATION_ENEMY ||
+            !CheckAttribute(&Characters[other], relationPath) ||
+            sti(Characters[other].(relationPath)) != RELATION_ENEMY)
+        {
+            SetCharacterRelationBoth(index, other, RELATION_ENEMY);
+            changed = true;
+        }
+        ref targetShip = &Characters[shipIndex];
+        if (LAi_IsDead(targetShip) || !CheckAttribute(targetShip, "Ship.Pos.x") ||
+            !CheckAttribute(targetShip, "Ship.Pos.z") ||
+            (CheckAttribute(targetShip, "Ship.HP") && stf(targetShip.Ship.HP) <= 0.0)) continue;
+        float dx = stf(targetShip.Ship.Pos.x) - stf(Characters[index].Ship.Pos.x);
+        float dz = stf(targetShip.Ship.Pos.z) - stf(Characters[index].Ship.Pos.z);
+        float distance = dx * dx + dz * dz;
+        if ((nearest < 0 || distance < nearestDistance) && GetRelation(index, shipIndex) == RELATION_ENEMY)
+        { nearest = shipIndex; nearestDistance = distance; }
+    }
+    if (changed) UpdateRelations();
+    if (nearest >= 0)
+    {
+        if (!CheckAttribute(&Characters[index], "SeaAI.Task") ||
+            sti(Characters[index].SeaAI.Task) != AITASK_ATTACK ||
+            !CheckAttribute(&Characters[index], "SeaAI.Task.Target") ||
+            sti(Characters[index].SeaAI.Task.Target) != nearest)
+            Ship_SetTaskAttack(SECONDARY_TASK, index, nearest);
+    }
+    else if (CheckAttribute(&Characters[index], "SeaAI.Task") &&
+             sti(Characters[index].SeaAI.Task) == AITASK_ATTACK)
+        Ship_SetTaskNone(SECONDARY_TASK, index);
+}
+
+void SeaDebugGhost_RestoreRelations(int index)
+{
+    string key = "c" + index;
+    if (!CheckAttribute(&SeaPhonkTest, "enemies." + key + ".relations")) return;
+    aref relations; makearef(relations, SeaPhonkTest.enemies.(key).relations);
+    for (int i = 0; i < GetAttributesNum(relations); i++)
+    {
+        aref entry = GetAttributeN(relations, i);
+        int other = sti(entry.index);
+        if (other < 0 || other >= TOTAL_CHARACTERS || Characters[other].id != entry.id) continue;
+        string path = "relation." + index;
+        if (!CheckAttribute(&Characters[other], path) || sti(Characters[other].(path)) != RELATION_ENEMY) continue;
+        if (sti(entry.had)) Characters[other].(path) = entry.previous;
+        else DeleteAttribute(&Characters[other], path);
+    }
+}
+
+void SeaPhonkTest_Stop()
+{
+    if (IsEntity(&Sea)) DeleteAttribute(&Sea, "Phonk.TestEnemies");
+    if (IsEntity(&Sea)) DeleteAttribute(&Sea, "Phonk.TestAllies");
+    if (!CheckAttribute(&SeaPhonkTest, "enemies")) return;
+    aref enemies; makearef(enemies, SeaPhonkTest.enemies);
+    for (int i = 0; i < GetAttributesNum(enemies); i++)
+    {
+        aref entry = GetAttributeN(enemies, i);
+        if (!CheckAttribute(entry, "debugGhost")) entry.stopping = 1;
+    }
+}
+
+void SeaPhonkTest_ReleaseOne(int index, bool releaseSounds)
+{
+    string key = "c" + index;
+    string path = "enemies." + key;
+    if (!CheckAttribute(&SeaPhonkTest, path + ".group")) return;
+    string groupID = SeaPhonkTest.enemies.(key).group;
+    bool owned = SeaPhonkTest_OwnsIndex(index);
+    int groupIndex = Group_FindGroup(groupID);
+    bool ownedGroup = owned && groupIndex >= 0 && Group_GetCharacterIndexR(&AIGroups[groupIndex], 0) == index &&
+        Group_GetCharacterIndexR(&AIGroups[groupIndex], 1) < 0;
+    if (owned)
+    {
+        ref captain = &Characters[index];
+        if (CheckAttribute(&SeaPhonkTest, path + ".debugGhost")) SeaDebugGhost_RestoreRelations(index);
+        if (!CrimeSea_CanReleaseActor(captain))
+        {
+            if (IsEntity(&Sea)) DeleteAttribute(&Sea, "Phonk.TestEnemies." + key);
+            if (IsEntity(&Sea)) DeleteAttribute(&Sea, "Phonk.TestAllies." + key);
+            DeleteAttribute(&SeaPhonkTest, path);
+            return;
+        }
+        if (releaseSounds && CheckAttribute(captain, "Ship.Sounds"))
+        {
+            aref sounds; makearef(sounds, captain.Ship.Sounds);
+            Ship_ReleaseStaticSounds(sounds);
+        }
+        int realIndex = GetCharacterShipType(captain);
+        CrimeSea_ReleaseActor(captain);
+        if (!CheckAttribute(&SeaPhonkTest, path + ".debugGhost") && !CheckAttribute(&SeaPhonkTest, path + ".allied"))
+            DeleteAttribute(pchar, "relation." + index);
+        InitCharacter(captain, index);
+        if (realIndex >= 0 && realIndex < REAL_SHIPS_QUANTITY) DeleteAttribute(&RealShips[realIndex], "");
+        if (releaseSounds)
+        {
+            SeaTrafficFreeSlots.(key).index = index;
+            aref cleared; makearef(cleared, SeaTrafficFreeSlots.(key).character);
+            CopyAttributes(cleared, captain);
+        }
+        for (int s = iNumShips - 1; s >= 0; s--)
+        {
+            if (Ships[s] != index) continue;
+            for (int n = s; n < iNumShips - 1; n++) Ships[n] = Ships[n + 1];
+            iNumShips--;
+        }
+    }
+    if (ownedGroup) Group_DeleteGroup(groupID);
+    if (IsEntity(&Sea)) DeleteAttribute(&Sea, "Phonk.TestEnemies." + key);
+    if (IsEntity(&Sea)) DeleteAttribute(&Sea, "Phonk.TestAllies." + key);
+    DeleteAttribute(&SeaPhonkTest, path);
+}
+
+void SeaPhonkTest_Release(bool releaseSounds)
+{
+    if (!CheckAttribute(&SeaPhonkTest, "enemies")) return;
+    aref enemies; makearef(enemies, SeaPhonkTest.enemies);
+    for (int i = GetAttributesNum(enemies) - 1; i >= 0; i--)
+    {
+        aref entry = GetAttributeN(enemies, i);
+        if (CheckAttribute(entry, "index")) SeaPhonkTest_ReleaseOne(sti(entry.index), releaseSounds);
+    }
+    DeleteAttribute(&SeaPhonkTest, "enemies");
+}
 
 // Existing nuclear relevance reaches 6000 sea units: retain 1km of loading/
 // approach margin and 2km hysteresis. Actor/frame cost and visibility remain runtime gates.
@@ -106,6 +593,38 @@ ref SeaTraffic_SceneState()
 void SeaTraffic_Residency()
 {
     if (!bSeaActive || !bSeaLoaded || bSeaReloadStarted || bAbordageStarted || sti(InterfaceStates.Launched)) return;
+    if (CheckAttribute(&SeaPhonkTest, "enemies"))
+    {
+        aref enemies; makearef(enemies, SeaPhonkTest.enemies);
+        for (int t = GetAttributesNum(enemies) - 1; t >= 0; t--)
+        {
+            aref entry = GetAttributeN(enemies, t);
+            int testIndex = sti(entry.index);
+            string key = GetAttributeName(entry);
+            if (!SeaPhonkTest_OwnsIndex(testIndex))
+            {
+                if (CheckAttribute(entry, "debugGhost")) SeaDebugGhost_RestoreRelations(testIndex);
+                DeleteAttribute(&Sea, "Phonk.TestEnemies." + key);
+                DeleteAttribute(&Sea, "Phonk.TestAllies." + key);
+                DeleteAttribute(enemies, key);
+                continue;
+            }
+            if (!IsEntity(&Characters[testIndex]) ||
+                (CheckAttribute(&Characters[testIndex], "Ship.HP") && stf(Characters[testIndex].Ship.HP) <= 0.0))
+            {
+                DeleteAttribute(&Sea, "Phonk.TestEnemies." + key);
+                DeleteAttribute(&Sea, "Phonk.TestAllies." + key);
+                entry.stopping = 1;
+            }
+            else if (CheckAttribute(entry, "debugGhost")) SeaDebugGhost_UpdateRelations(testIndex);
+            else if (CheckAttribute(entry, "allied")) SeaPhonkTest_UpdateAlly(testIndex);
+            if (CheckAttribute(entry, "stopping") && !CheckAttribute(entry, "pending"))
+            {
+                entry.pending = 1;
+                SendMessage(&AISea, "ls", AI_MESSAGE_RELEASE_GROUP, entry.group);
+            }
+        }
+    }
     SeaAutopilot_Tick();
     SeaTraffic_LoginRegionGroups(pchar.location);
     SeaTraffic_ReportPositions();
@@ -773,6 +1292,13 @@ void WdmFleetSeaApplyTask(string groupID)
 
 bool SeaTraffic_CanRelease(string groupID)
 {
+    int testIndex = SeaPhonkTest_GroupIndex(groupID);
+    if (testIndex >= 0)
+    {
+        string key = "c" + testIndex;
+        if (!CheckAttribute(&SeaPhonkTest, "enemies." + key + ".stopping") || bAbordageStarted || sti(InterfaceStates.Launched)) return false;
+        return SeaPhonkTest_OwnsIndex(testIndex) && CrimeSea_CanReleaseActor(&Characters[testIndex]);
+    }
     int g = Group_FindGroup(groupID);
     if (g < 0 || bAbordageStarted || sti(InterfaceStates.Launched)) return false;
     ref group = &AIGroups[g];
@@ -809,6 +1335,7 @@ bool SeaTraffic_CanRelease(string groupID)
 bool SeaTraffic_ReleaseSnapshot()
 {
     string groupID = GetEventData();
+    if (SeaPhonkTest_GroupIndex(groupID) >= 0) return SeaTraffic_CanRelease(groupID);
     if (!SeaTraffic_CanRelease(groupID)) return false;
     ref group = Group_GetGroupByID(groupID);
     SeaTraffic_ReportPositions();
@@ -819,6 +1346,8 @@ bool SeaTraffic_ReleaseSnapshot()
 void SeaTraffic_Released()
 {
     string groupID = GetEventData();
+    int testIndex = SeaPhonkTest_GroupIndex(groupID);
+    if (testIndex >= 0) { SeaPhonkTest_ReleaseOne(testIndex, true); return; }
     int g = Group_FindGroup(groupID);
     if (g < 0) return;
     ref group = &AIGroups[g];
@@ -869,6 +1398,8 @@ void SeaTraffic_Released()
 void SeaTraffic_ReleaseRejected()
 {
     string groupID = GetEventData();
+    int testIndex = SeaPhonkTest_GroupIndex(groupID);
+    if (testIndex >= 0) { DeleteAttribute(&SeaPhonkTest, "enemies.c" + testIndex + ".pending"); return; }
     int g = Group_FindGroup(groupID);
     if (g < 0 || !CheckAttribute(&AIGroups[g], "trafficFleetID")) return;
     DeleteAttribute(&worldMap, "encounters." + AIGroups[g].trafficFleetID + ".trafficReleasePending");

@@ -1,3 +1,6 @@
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+#include "seabed_collision.hpp"
+#endif
 #include "ship.h"
 #include "ship_contact_material.hpp"
 #include "ship_reactive_collision.hpp"
@@ -47,6 +50,29 @@ Parts CollisionParts(MODEL *model, uint64_t owner, const HULL_CONTACT_MATERIAL &
         m.Vy().x,m.Vy().y,m.Vy().z,m.Vz().x,m.Vz().y,m.Vz().z,m.Pos().x,m.Pos().y,m.Pos().z});
 }
 
+Parts SplitOuterHull(const Parts &physical)
+{
+    constexpr size_t slices = 12;
+    double lo = INFINITY, hi = -INFINITY;
+    for (const auto &part : physical) for (const auto &v : part) { lo = std::min(lo, v.z); hi = std::max(hi, v.z); }
+    if (!(hi > lo)) return {};
+    Parts groups[slices];
+    for (const auto &part : physical) {
+        if (part.empty()) continue;
+        double center = 0.; for (const auto &v : part) center += v.z;
+        center /= part.size();
+        const size_t i = std::min(slices - 1, size_t(std::max(0., (center-lo)/(hi-lo))*slices));
+        groups[i].push_back(part);
+    }
+    Parts result;
+    for (const auto &group : groups) if (!group.empty()) {
+        auto hull = roundhouse::ReactiveOuterHull(group);
+        if (hull.empty()) return {};
+        result.insert(result.end(), hull.begin(), hull.end());
+    }
+    return result;
+}
+
 CVECTOR Angles(const CMatrix &m)
 {
     const float pitch = std::asin(std::clamp(-m.m[2][1], -1.f, 1.f));
@@ -57,9 +83,43 @@ CVECTOR Angles(const CMatrix &m)
 
 bool Held(const char *name)
 {
+    if (std::strncmp(name, "Ship_", 5) == 0) {
+        auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+        auto *attributes = sea ? sea->AttributesPointer : nullptr;
+        auto *control = attributes ? attributes->FindAClass(attributes, "Phonk.MissileView.Control") : nullptr;
+        if (control && control->GetAttributeAsDword("active", 0)) return false;
+    }
     CONTROL_STATE state{};
-    core.Controls->GetControlState(name, state);
-    return state.state == CST_ACTIVE || state.state == CST_ACTIVATED;
+    if (core.Controls)
+    {
+        core.Controls->GetControlState(name, state);
+        if (state.state == CST_ACTIVE || state.state == CST_ACTIVATED) return true;
+        if (std::strcmp(name, "Phonk_Jet") == 0)
+        {
+            return core.Controls->GetAsyncKeyState(0x11) < 0 || core.Controls->GetDebugAsyncKeyState(0x11) < 0;
+        }
+        if (std::strcmp(name, "Ship_SailUp") == 0 || std::strcmp(name, "Ship_SailUp1") == 0)
+        {
+            return core.Controls->GetAsyncKeyState('W') < 0 || core.Controls->GetDebugAsyncKeyState('W') < 0 ||
+                   core.Controls->GetAsyncKeyState(0x26) < 0 || core.Controls->GetDebugAsyncKeyState(0x26) < 0;
+        }
+        if (std::strcmp(name, "Ship_SailDown") == 0 || std::strcmp(name, "Ship_SailDown1") == 0)
+        {
+            return core.Controls->GetAsyncKeyState('S') < 0 || core.Controls->GetDebugAsyncKeyState('S') < 0 ||
+                   core.Controls->GetAsyncKeyState(0x28) < 0 || core.Controls->GetDebugAsyncKeyState(0x28) < 0;
+        }
+        if (std::strcmp(name, "Ship_TurnLeft") == 0)
+        {
+            return core.Controls->GetAsyncKeyState('A') < 0 || core.Controls->GetDebugAsyncKeyState('A') < 0 ||
+                   core.Controls->GetAsyncKeyState(0x25) < 0 || core.Controls->GetDebugAsyncKeyState(0x25) < 0;
+        }
+        if (std::strcmp(name, "Ship_TurnRight") == 0)
+        {
+            return core.Controls->GetAsyncKeyState('D') < 0 || core.Controls->GetDebugAsyncKeyState('D') < 0 ||
+                   core.Controls->GetAsyncKeyState(0x27) < 0 || core.Controls->GetDebugAsyncKeyState(0x27) < 0;
+        }
+    }
+    return false;
 }
 
 CVECTOR WorldSpeed(const SHIP_STATE &state)
@@ -70,6 +130,15 @@ CVECTOR WorldSpeed(const SHIP_STATE &state)
 }
 
 uint64_t HashWord(uint64_t hash, uint64_t word) { return (hash ^ word) * 1099511628211ULL; }
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+uint64_t SeabedFlagsStamp(uint64_t hash, NODE *node)
+{
+    if(!node)return hash;
+    if(node->geo){GEOS::INFO info{};node->geo->GetInfo(info);for(int n=0;n<info.nobjects;n++){GEOS::OBJECT object{};node->geo->GetObj(n,object);hash=HashWord(hash,unsigned(object.flags&(GEOS::VISIBLE|GEOS::COLLISION_ENABLE)));}}
+    for(auto*child:node->next)hash=SeabedFlagsStamp(hash,child);
+    return hash;
+}
+#endif
 uint64_t SurfaceStamp(uint64_t hash, NODE *node)
 {
     if (!node) return hash;
@@ -100,22 +169,37 @@ bool SHIP::PreparePhonkJetWorld()
     }
     if (phonkJet.hull.material != material.prepared || phonkJet.hull.revision != material.revision)
     {
-        if (!phonkJet.world->SetHull(HullParts(material), CollisionParts(GetModel(), uint64_t(blots_id), material))) return false;
+        const auto physical = HullParts(material);
+        const auto collision = SplitOuterHull(physical);
+        if ((collision.empty() || !phonkJet.world->SetHull(physical, collision)) &&
+            !phonkJet.world->SetHull(physical, CollisionParts(GetModel(), uint64_t(blots_id), material))) return false;
         phonkJet.hull = {material.prepared, material.revision};
     }
+    if (State.fWeight <= 0.f && SP.iCapacity <= 0) return false;
     // Draft can change after cargo/flood reconciliation without a material
-    // revision. The shape owner caches this query by shape and water height.
+    // revision. In air, buoyancy is 1.0f so flight never fails preparation.
     const float displaced = phonkJet.world->SubmergedFraction(State.fShipImmersion + SP.fWaterLine);
-    if (!(displaced > .0001f)) return false;
-    phonkJet.buoyancy = 1.f / displaced;
+    phonkJet.buoyancy = (displaced > .0001f) ? (1.f / displaced) : 1.0f;
     const auto surfaces = pIsland ? pIsland->GetWorldSurfaces() : std::vector<ISLAND_BASE::WorldSurface>{};
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    const auto seabeds = pIsland ? pIsland->GetSeabedModels() : std::vector<entid_t>{};
+#endif
     uint64_t stamp = 1469598103934665603ULL;
     for (const auto &surface : surfaces)
     {
         auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(surface.model));
         stamp = HashWord(stamp, uint64_t(surface.model));
-        for (float v : surface.authored.matrix) stamp = HashWord(stamp, std::bit_cast<uint32_t>(v));
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        const bool isBed=std::find(seabeds.begin(),seabeds.end(),surface.model)!=seabeds.end();
+        const auto &physicalMatrix=(isBed&&model)?model->mtx:surface.authored;
+#else
+        const auto &physicalMatrix=surface.authored;
+#endif
+        for (float v : physicalMatrix.matrix) stamp = HashWord(stamp, std::bit_cast<uint32_t>(v));
         stamp = SurfaceStamp(stamp, model ? model->GetNode(0) : nullptr);
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        if(isBed&&model)stamp=SeabedFlagsStamp(stamp,model->GetNode(0));
+#endif
     }
     const auto position = GetPos();
     const float bodyRadius = .5f * std::sqrt(~State.vBoxSize);
@@ -131,9 +215,17 @@ bool SHIP::PreparePhonkJetWorld()
             auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(surface.model));
             if (!model) continue;
             struct Restore { MODEL &model; CMatrix matrix; ~Restore() { model.mtx = matrix; model.Update(); } } restore{*model, model->mtx};
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+            const bool isBed=std::find(seabeds.begin(),seabeds.end(),surface.model)!=seabeds.end();
+            if(!isBed) model->mtx = surface.authored;
+            model->Update();
+            if(!isBed||!seabed_collision::clip(surface.model,position,radius,storm::physics::TriangleSink::Add))
+                model->Clip(nullptr, 0, position, radius, storm::physics::TriangleSink::Add);
+#else
             model->mtx = surface.authored;
             model->Update();
             model->Clip(nullptr, 0, position, radius, storm::physics::TriangleSink::Add);
+#endif
         }
         if (!phonkJet.world->SetStaticTriangles(triangles)) return false;
         phonkJet.terrainStamp = stamp;
@@ -146,14 +238,28 @@ bool SHIP::PreparePhonkJetWorld()
 bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
 {
     const bool thrust = PhonkMotionAllowed() && Held("Phonk_Jet");
-    if (!phonkJet.active && (!thrust || prediction)) return false;
+    if (!phonkJet.active && !thrust) return false;
+    if (prediction)
+    {
+        // Lightweight kinematic prediction: prevents recursive Jolt CCD execution in TouchIsland (0 FPS lag fix)
+        const float dt = DELTA_TIME(milliseconds);
+        auto velocity = WorldSpeed(State);
+        if (!phonkJet.active && phonkDrift.initialized)
+        {
+            velocity.x = KNOTS2METERS(phonkDrift.worldX);
+            velocity.z = KNOTS2METERS(phonkDrift.worldZ);
+        }
+        State.vPos += velocity * dt;
+        State.vAng += State.vRotate * dt;
+        return true;
+    }
     if (!pSea || bSetFixed || !milliseconds) return phonkJet.active;
     if (!PreparePhonkJetWorld())
     {
         if (phonkJet.active && !phonkJet.preparationReported)
             core.Trace("Phonk jet: ship %llu contact projection pending; retaining pose/momentum and retrying", uint64_t(GetId()));
         phonkJet.preparationReported = true;
-        return phonkJet.active;
+        return true;
     }
     const float seconds = DELTA_TIME(milliseconds);
     const float draft = State.fShipImmersion + SP.fWaterLine;
@@ -207,9 +313,8 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
     drive.waterForce = body.mass * toWorld(response-sailingSpeed-driveSpeed);
     if (PhonkMotionAllowed())
     {
-        // Sample the existing water motor response without owning its pose or
-        // replacing the airborne body's momentum. Dry motion gets no water
-        // traction, braking, resistance or artificial motor speed ceiling.
+        // The water motor remains separate from the airborne controller.
+        // Both feed the solver rather than advancing the pose themselves.
         storm::ship::phonk::Drift motor;
         motor.advance(storm::ship::phonk::motorAcceleration, Strength[STRENGTH_MAIN].vRotate.y,
             State.vAng.y, seconds, sailingSpeed.x, sailingSpeed.z,
@@ -217,10 +322,32 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
             false, Held("ILeftShift") || Held("IRightShift"));
         const CVECTOR acceleration((KNOTS2METERS(motor.worldX)-body.velocity.x)/seconds, 0.f,
                                    (KNOTS2METERS(motor.worldZ)-body.velocity.z)/seconds);
-        drive.waterForce = body.mass*acceleration-drive.airForce;
+        if (thrust || !phonkJet.wet)
+        {
+            const bool gas = Held("Ship_SailUp") || Held("Ship_SailUp1");
+            const bool brake = Held("Ship_SailDown") || Held("Ship_SailDown1");
+            const float sY = std::sin(State.vAng.y), cY = std::cos(State.vAng.y);
+            const float input = float(gas) - float(brake);
+            const float forward = body.velocity.x * sY + body.velocity.z * cY;
+            const float requested = (KNOTS2METERS(85.f) * input - forward) * 1.5f;
+            const float acceleration = input > 0.f ? std::clamp(requested, 0.f, 8.f) :
+                input < 0.f ? std::clamp(requested, -8.f, 0.f) : 0.f;
+            drive.airForce = body.mass * acceleration * CVECTOR(sY, 0.f, cY);
+            drive.waterForce = CVECTOR(0.f);
+            const float yawTarget = (Held("Ship_TurnRight") ? 1.6f : 0.f) -
+                                    (Held("Ship_TurnLeft") ? 1.6f : 0.f);
+            body.angularVelocity.y += (yawTarget - body.angularVelocity.y) *
+                                      (1.f - std::exp(-2.5f * seconds));
+        }
+        else
+        {
+            drive.waterForce = body.mass*acceleration-drive.airForce;
+        }
     }
-    const float pitch = (Held("Ship_SailUp") || Held("Ship_SailUp1") ? .65f : 0.f) -
-                        (Held("Ship_SailDown") || Held("Ship_SailDown1") ? .65f : 0.f);
+    const float pitchInput = float(Held("Ship_SailUp") || Held("Ship_SailUp1")) -
+                             float(Held("Ship_SailDown") || Held("Ship_SailDown1"));
+    const float pitch = pitchInput == 0.f ? 0.f :
+        std::clamp(2.f * (pitchInput * .35f - State.vAng.x), -.65f, .65f);
     const float roll = (Held("Ship_TurnLeft") ? .65f : 0.f) - (Held("Ship_TurnRight") ? .65f : 0.f);
     phonkJet.forces.clear();
     if (thrust)
@@ -281,7 +408,7 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
             core.Trace("Phonk jet: ship %llu invalid rigid step (Jolt update bits 0x%x); retaining pose/momentum and retrying",
                 uint64_t(GetId()), phonkJet.world->UpdateError());
         phonkJet.preparationReported = true;
-        return phonkJet.active;
+        return true;
     }
     phonkJet.preparationReported = false;
     phonkJet.active = true;
@@ -297,7 +424,15 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
         CVECTOR consumedSpeed(0.f), consumedRotation(0.f);
         angularImpulse = linearImpulse = 0.f;
         GatherStrengthImpulses(consumedSpeed, consumedRotation, angularImpulse, linearImpulse, true);
-        phonkDrift.reset(); phonkFlight.reset();
+        if (thrust) {
+            phonkDrift.worldX = std::sin(State.vAng.y) * State.vSpeed.z;
+            phonkDrift.worldZ = std::cos(State.vAng.y) * State.vSpeed.z;
+            phonkDrift.lastForward = State.vSpeed.z;
+            phonkDrift.initialized = true;
+        } else {
+            phonkDrift.reset();
+        }
+        phonkFlight.reset();
         bGroundSupported = bGroundFalling = bLandContact = bShip2Strand = false;
         groundWaterVelocityY = 0.f;
         for (std::size_t i = 0; i < neighbors.size(); ++i)
@@ -307,10 +442,7 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
         // A supported downward water crossing hands control back to the
         // established native sailing owner. No quiet-water timer is required;
         // an airborne, rising or badly tilted body keeps its physical flight.
-        const auto up = body.pose.Vy();
-        const bool lands = !thrust && phonkJet.wet && body.velocity.y <= 0.f &&
-            State.vPos.y <= fluid.height+.25f &&
-            up.x*fluid.normal.x+up.y*fluid.normal.y+up.z*fluid.normal.z > .94f;
+        const bool lands = !thrust && (State.vPos.y <= fluid.height + 0.6f || (phonkJet.wet && body.velocity.y <= 0.f));
         if (lands)
         {
             if (isDead()) { vOldPos=State.vPos; vOldAng=State.vAng; vCurDeadDir=CVECTOR(0.f); }
@@ -318,6 +450,7 @@ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
             // just as native ground-to-water landing clears vertical motion.
             // Preserve all horizontal momentum and the admissible yaw rate.
             State.vSpeed.y = State.vRotate.x = State.vRotate.z = 0.f;
+            phonkYawLanding = .5f;
             phonkJet.active = phonkJet.wet = phonkJet.preparationReported = false;
             phonkJet.settledSeconds = 0.f;
             phonkJet.forces.clear();

@@ -118,12 +118,11 @@ class SHIP_CUT_FRAGMENTS final : public Entity
                     // Sea is priority 65530. Translucent world effects must
                     // follow it, without writing depth over the water/hull.
                     ship->DrawPhonkGlow(delta);
-                    if (delta)
-                    {
-                        ship->DrawPhonkLaser();
-                        ship->DrawPhonkOrdnance();
-                    }
+                    if (delta) ship->DrawPhonkLaser();
                 }
+                // A missile may be near the camera while its launching ship
+                // is far outside the visible layer.
+                ship->DrawPhonkOrdnance();
             }
         if (delta) DrawOrphans();
     }

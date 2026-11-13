@@ -163,7 +163,7 @@ class GEOM : public GEOS
     int laserTraceObject=-1,laserTraceTriangle=-1;
     float laserTraceA=0,laserTraceB=0;
     bool UploadLaserMesh(const storm_ship_laser::Mesh&,std::map<int,std::vector<HullDraw>>&,const std::set<int>*objects=nullptr,bool cutWall=false);
-    bool UploadLaserSurface(const storm_ship_laser::Surface&,std::map<int,std::vector<HullDraw>>&,const std::set<int>*objects=nullptr);
+    bool UploadLaserSurface(const storm_ship_laser::Surface&,std::map<int,std::vector<HullDraw>>&,const std::set<int>*objects=nullptr,bool fullHull=false);
     void SetHullDrawMaterial(int objectIndex,bool cutWall,MATERIAL_FUNC callback=nullptr) const;
     bool RebuildLaserSurface(bool upload=true,storm_ship_laser::Mesh *preparedSource=nullptr);
     void RebuildLaserCollision();

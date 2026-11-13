@@ -403,7 +403,7 @@ void LAi_StartBoarding(int locType, ref echr, bool isMCAttack)
     boarding_location_type = locType;
 	// Сдача в плен -->
 	bool ok = (TestRansackCaptain) && (boarding_location_type != BRDLT_FORT);
-    if (!CheckAttribute(echr, "DontRansackCaptain")) //квестовые не сдаются
+    if (!CheckAttribute(echr, "DontRansackCaptain") && !CheckAttribute(echr, "NoSurrender")) //квестовые не сдаются
     {
     	if (CheckAttribute(echr, "SeaSurrender") || CheckForSurrender(mchr, echr, 1) || ok) // 1 - это учет первый раз, до битвы на палубе
     	{
@@ -411,6 +411,8 @@ void LAi_StartBoarding(int locType, ref echr, bool isMCAttack)
 			{
 				DeleteAttribute(echr, "SeaSurrender");
 				DeleteAttribute(echr, "Surrendered");
+				DeleteAttribute(echr, "SurrenderHitEpoch");
+				DeleteAttribute(echr, "SurrenderHits");
 				DeleteAttribute(echr, "ShipTaskLock");
 				Ship_FlagRefresh(echr);
 			}
@@ -1035,7 +1037,7 @@ void LAi_ReloadEndFade()
     {
 		if (CheckAttribute(boarding_enemy, "ShipCabinLocationId"))
 		{
-            if (!CheckAttribute(boarding_enemy, "DontRansackCaptain")) //квестовые не сдаются
+            if (!CheckAttribute(boarding_enemy, "DontRansackCaptain") && !CheckAttribute(boarding_enemy, "NoSurrender")) //квестовые не сдаются
 	        {
 	            Surrendered = (Surrendered) || (TestRansackCaptain);
 	    		if (Surrendered && (boarding_location_type == BRDLT_SHIP))
@@ -1744,6 +1746,7 @@ string LAi_GetBoardingMushketerModel(ref rCharacter)
 // boal 03/08/06 полностью переписал метод Stone-D от 27/07/2003
 bool CheckForSurrender(ref mchr, ref echr, int _deck)
 {
+	if (CheckAttribute(echr, "NoSurrender")) return false;
     if(_deck != 0 && boarding_location_type == BRDLT_FORT) return false; // Deck zero is a sea-only evaluation.
     
     if (GetPrisonerQty() > PRISONER_MAX) return false; // очень много пленых

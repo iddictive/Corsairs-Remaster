@@ -1,6 +1,8 @@
 #include "data.h"
 
 #include <charconv>
+#include <cmath>
+#include <limits>
 
 #include "core_impl.h"
 #include "string_compare.hpp"
@@ -1570,16 +1572,30 @@ bool DATA::Modul(DATA *pV)
                 Error("Divide by zero");
                 return false;
             }
-            lValue = lValue % pV->lValue;
+            if (lValue == std::numeric_limits<int32_t>::min() && pV->lValue == -1)
+                lValue = 0;
+            else lValue = lValue % pV->lValue;
             break;
         case VAR_FLOAT:
-            if (pV->fValue == 0)
+        {
+            const double divisor = std::floor(static_cast<double>(pV->fValue));
+            if (!std::isfinite(divisor) || divisor < std::numeric_limits<int32_t>::min() ||
+                divisor > std::numeric_limits<int32_t>::max())
+            {
+                Error("Invalid modulo divisor");
+                return false;
+            }
+            if (divisor == 0)
             {
                 Error("Divide by zero");
                 return false;
             }
-            lValue = lValue % static_cast<int32_t>(floor(pV->fValue));
+            const auto integerDivisor = static_cast<int32_t>(divisor);
+            if (lValue == std::numeric_limits<int32_t>::min() && integerDivisor == -1)
+                lValue = 0;
+            else lValue = lValue % integerDivisor;
             break;
+        }
         default:
             return false;
         }

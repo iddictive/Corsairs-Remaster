@@ -26,21 +26,25 @@ float2 phonkNuclearField(float3 q,float age,float4 variant,texture3d<float> nois
     // A detonation keeps its shape/advection identity throughout its lifetime.
     q.xz*=float2(.90f+variant.x*.20f,1.10f-variant.x*.20f);
     q.xz-=float2(variant.y-.5f,variant.z-.5f)*min(age,6.f)*.035f;
-    float growth=1.f-exp(-age*(2.f+variant.y*.8f)),rise=1.8f*(1.f-exp(-age*(.17f+variant.z*.06f)));
-    float height=.26f+rise,spread=.10f+growth*(.94f+variant.w*.11f);
+    float growth=1.f-exp(-age*(1.7f+variant.y*.5f));
+    float rise=2.05f*(1.f-exp(-age*(.43f+variant.z*.10f)));
+    float height=.22f+rise,spread=.09f+growth*(1.02f+variant.w*.13f);
     float radial=length(q.xz),capY=q.y-height;
     float rollRadius=spread*.70f;
     float2 roll=float2(radial-rollRadius,capY);
     float turn=age*(.40f+variant.x*.30f);
     float2 rolled=float2(cos(turn)*roll.x-sin(turn)*roll.y,sin(turn)*roll.x+cos(turn)*roll.y);
+    // Offset the advected lattice by blast identity; rebasing the camera or
+    // advancing time must not reshuffle an existing cloud.
     float3 flow=float3(q.x,q.y-age*(.15f+variant.w*.08f),q.z);
     float rollWeight=exp(-dot(roll,roll)*2.f);
     flow.y+=rollWeight*(rolled.y-roll.y);
     flow.xz*=1.f+rollWeight*(rolled.x-roll.x)/max(radial,.15f);
-    float coarse=phonkNuclearNoise(flow*4.1f+float3(8,0,3),noise);
-    float medium=phonkNuclearNoise(flow*9.3f+float3(1,7,11),noise);
-    float fine=phonkNuclearNoise(flow*21.7f+float3(13,2,5),noise);
-    float churn=(coarse-.5f)*.38f+(medium-.5f)*.17f+(fine-.5f)*.065f;
+    float3 identity=(variant.xyz-.5f)*31.f;
+    float coarse=phonkNuclearNoise(flow*4.1f+float3(8,0,3)+identity,noise);
+    float medium=phonkNuclearNoise(flow*9.3f+float3(1,7,11)+identity,noise);
+    float fine=phonkNuclearNoise(flow*21.7f+float3(13,2,5)+identity,noise);
+    float churn=(coarse-.5f)*.48f+(medium-.5f)*.23f+(fine-.5f)*.075f;
     float2 axis=q.xz/max(radial,.001f);
     float2 axis2=float2(axis.x*axis.x-axis.y*axis.y,2.f*axis.x*axis.y);
     float2 axis4=float2(axis2.x*axis2.x-axis2.y*axis2.y,2.f*axis2.x*axis2.y);
@@ -48,18 +52,23 @@ float2 phonkNuclearField(float3 q,float age,float4 variant,texture3d<float> nois
     float2 axis9=float2(axis8.x*axis.x-axis8.y*axis.y,axis8.x*axis.y+axis8.y*axis.x);
     float2 axis13=float2(axis9.x*axis4.x-axis9.y*axis4.y,axis9.x*axis4.y+axis9.y*axis4.x);
     float lobes=dot(axis9,float2(variant.y-.5f,variant.z-.5f)*.24f)+dot(axis13,float2(variant.w-.5f,variant.x-.5f)*.14f);
-    float head=(length(float3(q.x/spread,capY/(.12f+growth*(.53f+variant.z*.21f)),q.z/spread))-1.f)*spread;
-    float curl=length(float2(radial-rollRadius,capY+.13f*growth))-(.08f+growth*.39f)*(1.f+lobes);
-    float stemRadius=(.10f+growth*.17f)*(1.f+.35f*sin(q.y*8.f-age*.9f+variant.x*6.28f));
+    // Large uneven lobes carry the seed through the silhouette; fine noise
+    // alone cannot distinguish otherwise identical mushroom shapes.
+    float broad=dot(axis,float2(variant.z-.5f,variant.w-.5f)*.25f)
+               +dot(axis2,float2(variant.x-.5f,variant.y-.5f)*.22f);
+    float head=(length(float3(q.x/spread,capY/(.12f+growth*(.37f+variant.z*.13f)),q.z/spread))-1.f-broad*growth)*spread;
+    float curl=length(float2(radial-rollRadius,capY+.10f*growth))-(.06f+growth*.31f)*(1.f+lobes);
+    float stemRadius=(.12f+growth*.20f)*(1.f+.26f*sin(q.y*8.f-age*.9f+variant.x*6.28f));
     float2 stemCenter=float2(sin(q.y*3.2f-age*.27f+variant.y*6.28f),cos(q.y*4.1f-age*.21f+variant.z*6.28f))*.075f*growth;
     float stem=max(length(q.xz-stemCenter)-stemRadius,max(-q.y-.04f,q.y-height));
-    float ball=length(q-float3(0,.2f*growth,0))-(.08f+growth*.65f);
-    float cloud=min(min(head,curl),min(stem,ball+smoothstep(.6f,2.5f,age)*1.6f));
-    float density=1.f-smoothstep(-.09f,.055f,cloud+churn);
+    float ball=length(q-float3(0,.35f*growth,0))-(.06f+growth*.95f);
+    float mushroom=min(min(head,curl),stem);
+    float cloud=mix(ball,mushroom,smoothstep(.45f,1.9f,age));
+    float density=1.f-smoothstep(-.065f,.035f,cloud+churn);
     density*=.32f+.98f*smoothstep(.28f,.70f,coarse*.30f+medium*.48f+fine*.22f);
-    density*=smoothstep(0.f,.16f,age)*(1.f-smoothstep(6.f,9.f,age));
+    density*=smoothstep(0.f,.06f,age)*(1.f-smoothstep(7.f,9.f,age));
     float core=1.f-smoothstep(-.32f,.025f,cloud+churn*.45f);
-    float heat=exp(-age*(.45f+variant.w*.16f))*core*(.52f+coarse*.48f);
+    float heat=3.f*exp(-age*(.95f+variant.w*.15f))*core*(.70f+coarse*.30f);
     return float2(density,heat);
 }
 // The pressure front is a finite annular bank of condensation, not a decal.
@@ -74,7 +83,8 @@ float4 phonkPressureField(float3 p,float front,float width,float age,float4 vari
     float coarse=phonkNuclearNoise(flow,noise);
     float detail=phonkNuclearNoise(flow*2.7f+float3(rolled*.4f,0),noise);
     float body=1.f-smoothstep(.78f,1.15f,length(section)+(coarse-.5f)*.32f+(detail-.5f)*.16f);
-    float density=body*(.65f+.55f*coarse)*(.25f+.9f*smoothstep(.2f,.75f,detail))*1.4f;
+    float fragments=smoothstep(.37f,.62f,coarse*.6f+detail*.4f);
+    float density=body*(.65f+.55f*coarse)*(.18f+.82f*fragments)*1.4f;
     float2 axis=p.xz/max(radial,.001f);
     float3 normal=float3(axis.x*section.x/1.25f,section.y/1.05f,axis.y*section.x/1.25f);
     normal=length(normal)>1.e-5f?normalize(normal):float3(0,1,0);
@@ -125,7 +135,7 @@ PhonkPressureSample phonkPressureVolume(float3 origin,float3 ray,float stop,floa
             }
         }
     }
-    float alpha=1.f-transmission,limit=alpha>.001f?min(alpha,.35f)/alpha:0.f;
+    float alpha=1.f-transmission,limit=alpha>.001f?min(alpha,.20f)/alpha:0.f;
     return {float4(color,alpha)*limit,bend*limit};
 }
 float4 phonkPressureComposite(float4 effect,float4 pressure,float2 pixel,float3 ray,
@@ -175,7 +185,8 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
         float fade=smoothstep(0.f,.12f,u.params.x)*(1.f-smoothstep(max(0.f,life-.5f),life,u.params.x));
         float4 ground=0;
         if (u.params.x<life)
-            ground=phonkPressureVolume(origin,ray,stop/radius,u.params.y,u.eye.w,u.params.x,variation,noise).haze*fade;
+            ground=phonkPressureVolume(origin,ray,stop/radius,u.params.y,u.eye.w,u.params.x,variation,noise).haze
+                *fade*(.25f+.75f*exp(-u.params.x*.8f));
         float3 inverse=1.f/select(ray,float3(1.e-7f),abs(ray)<1.e-7f);
         float3 first=(float3(-1.6f,-.25f,-1.6f)-origin)*inverse;
         float3 last=(float3(1.6f,3.f,1.6f)-origin)*inverse;
@@ -206,7 +217,9 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
         // Ordinary depth clips the world volume behind land and ships;
         // never extrude a second painted field over their visible slopes.
         pressure=phonkPressureVolume(origin,ray,stop/radius,u.params.y,u.eye.w,u.params.x,variation,noise);
-        ground=pressure.haze*fade;
+        // Condensation thins as the front travels; refraction remains active
+        // for the full authoritative pressure lifetime.
+        ground=pressure.haze*fade*(.25f+.75f*exp(-u.params.x*.8f));
         pressure.bend.w/=max(1.e-5f,pressure.haze.a);
         pressure.bend.xyz*=fade;
     }

@@ -286,8 +286,8 @@ bool Character::StartRoundhouse(bool jumping)
     int32_t allowed = 0;
     auto *answer = core.Event("Roundhouse_TryStart", "il", GetId(), jumping ? 1 : 0);
     if (!answer || !answer->Get(allowed) || !allowed) return false;
-    state.strikeStartTime = strikeStart*state.kickDuration;
-    state.strikeEndTime = strikeEnd*state.kickDuration;
+    state.strikeStartTime = (jumping ? std::max(strikeStart, 0.38f) : strikeStart) * state.kickDuration;
+    state.strikeEndTime = (jumping ? std::max(strikeEnd, 0.80f) : strikeEnd) * state.kickDuration;
     CapturePalette(*Model()->GetAnimation(), state.blendFrom);
     state.strikeOrigin = JointWorld(*Model()->GetAnimation(),Model()->mtx,state.rig.bodies[1].joint).Pos();
     ClearUnarmedPose();
@@ -306,7 +306,7 @@ bool Character::StartRoundhouse(bool jumping)
     state.previousRoot = {};
     // Ordinary melee already owns player target selection. Keep only its ID;
     // deletion, escape or changed eligibility ends steering without retargeting.
-    auto *target = IsPlayer() ? static_cast<Player *>(this)->FindAttackCharacter() : nullptr;
+    auto *target = IsPlayer() ? static_cast<Player *>(this)->FindAttackCharacter(ContactSearchRadius) : nullptr;
     state.aimTarget = target && target->GetLocation() == location && CanAimRoundhouse(*this,target)
                           ? target->GetId() : invalid_entity;
     return true;
@@ -538,11 +538,8 @@ bool Character::UpdateRoundhouse(float seconds)
             struct Contact { entid_t victim; CVECTOR point; float distance; };
             std::vector<Contact> contacts;
             Contact nearest{invalid_entity, {}, 0.0f};
-            Contact fallback{invalid_entity, {}, 0.0f};
-            const float impactTime = (state.strikeStartTime + state.strikeEndTime) * 0.5f;
-            const bool impactFrame = !state.jumping && state.time >= impactTime && state.time-seconds < impactTime;
             const CVECTOR torso = JointWorld(*animation,model->mtx,state.rig.bodies[1].joint).Pos();
-            auto candidates = location->supervisor.FindCharacters(this,ContactSearchRadius,state.jumping ? 0.0f : 100.0f,0.0f,0.0f,false,false);
+            auto candidates = location->supervisor.FindCharacters(this,state.jumping ? 2.5f : ContactSearchRadius,state.jumping ? 0.0f : 100.0f,0.0f,0.0f,false,false);
             for (const auto &candidate : candidates)
             {
                 auto *other = candidate.c;
@@ -556,19 +553,16 @@ bool Character::UpdateRoundhouse(float seconds)
                 const auto head = roundhouse::JointPointWorld(headMatrix, other->roundhouseState->headOffset);
                 float distance = SegmentDistanceSquared(head,state.previousHeel,heel);
                 CVECTOR contactPoint = head;
-                bool hit = distance < 0.22f*0.22f;
+                bool hit = distance < 0.25f*0.25f;
                 if (!state.jumping && !hit)
                 {
-                    // The opponent's attack pose can move its head out of the
-                    // heel path while the swept lower leg crosses its torso.
-                    for (int i = 0; i < 2; ++i)
+                    for (const auto &body : other->roundhouseState->rig.bodies)
                     {
-                        const auto &body = other->roundhouseState->rig.bodies[i];
                         const CVECTOR a = JointWorld(*otherAnimation,otherModel->mtx,body.joint).Pos();
                         const CVECTOR b = body.endJoint >= 0 ? JointWorld(*otherAnimation,otherModel->mtx,body.endJoint).Pos() : a;
                         const float d = std::min(deck_collision::distance2(a,b,state.previousKnee,state.previousHeel,heel),
                                                  deck_collision::distance2(a,b,state.previousKnee,heel,knee));
-                        const float radius = body.radius + 0.055f;
+                        const float radius = body.radius + 0.20f;
                         if (d < radius*radius && (!hit || d < distance))
                         {
                             const CVECTOR axis = b-a;
@@ -591,38 +585,9 @@ bool Character::UpdateRoundhouse(float seconds)
                         };
                         const float d = std::min(sweep(state.previousKnee,state.previousHeel,knee,heel),
                                                  sweep(state.previousLeftKnee,state.previousLeftHeel,leftKnee,leftHeel));
-                        const float radius = body.radius + 0.055f;
+                        const float radius = body.radius + 0.38f;
                         if (d < radius*radius && (!hit || d < distance))
                         { hit = true; distance = d; contactPoint = (a+b)*0.5f; }
-                    }
-                    // The captured airborne motion has a short reach and does
-                    // not physically sweep a surrounding crowd. Its active
-                    // rotation also delivers a bounded circular impact.
-                    const CVECTOR delta = other->curPos-curPos;
-                    if (!hit && delta.x*delta.x+delta.z*delta.z <= JumpImpactRadius*JumpImpactRadius)
-                    {
-                        const auto &chest = other->roundhouseState->rig.bodies[1];
-                        contactPoint = JointWorld(*otherAnimation,otherModel->mtx,chest.joint).Pos();
-                        distance = delta.x*delta.x+delta.z*delta.z;
-                        hit = true;
-                    }
-                }
-                // Ordinary melee resolves a forward sector at its impact frame.
-                // Prefer the limb sweep; cover close opponents leaning away from it.
-                bool sectorHit = false;
-                if (impactFrame && !hit)
-                {
-                    const CVECTOR delta = other->curPos-curPos;
-                    const float dist2 = delta.x*delta.x+delta.z*delta.z;
-                    const float forward = delta.x*std::sin(ay)+delta.z*std::cos(ay);
-                    sectorHit = dist2 > 0.0f && dist2 <= 1.75f*1.75f &&
-                                forward > 0.0f && forward*forward >= dist2*0.75f;
-                    if (sectorHit)
-                    {
-                        const auto &chest = other->roundhouseState->rig.bodies[1];
-                        contactPoint = JointWorld(*otherAnimation,otherModel->mtx,chest.joint).Pos();
-                        distance = dist2;
-                        hit = true;
                     }
                 }
                 if (!hit || location->Trace(torso,contactPoint) < 0.995f ||
@@ -630,10 +595,8 @@ bool Character::UpdateRoundhouse(float seconds)
                     (!state.jumping && location->Trace(state.previousHeel,contactPoint) < 0.995f)) continue;
                 if (!CanHitRoundhouse(*this,*other)) continue;
                 if (state.jumping) contacts.push_back({other->GetId(),contactPoint,distance});
-                else if (sectorHit) { if (!fallback.victim || distance < fallback.distance) fallback = {other->GetId(),contactPoint,distance}; }
                 else if (!nearest.victim || distance < nearest.distance) nearest = {other->GetId(),contactPoint,distance};
             }
-            if (!nearest.victim) nearest = fallback;
             const auto attacker = GetId();
             const auto resolved = state.jumping ? std::span<const Contact>(contacts) :
                 std::span<const Contact>(&nearest, nearest.victim ? 1 : 0);

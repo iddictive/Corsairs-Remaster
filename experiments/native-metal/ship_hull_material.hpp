@@ -135,7 +135,20 @@ template<class Planes> inline bool clipCell(const Mesh&solid,const Planes&planes
 inline bool clipCells(Surface&surface,const Plane&field){
     if(!surface.cells)return false;auto next=std::make_shared<MaterialCells>(*surface.cells);
     if(field.beams.empty()){
-        for(uint32_t id=0;id<next->source->solids.size();++id){const auto&solid=materialCell(*next,id);if(solid.empty())continue;auto divided=split(solid,field,nullptr,true);if(!divided.complete)return false;next->changed[id]=std::make_shared<const Mesh>(std::move(divided.kept));}
+        const bool useBounds=field.roughness==0.f&&next->source->bounds.size()==next->source->solids.size();
+        for(uint32_t id=0;id<next->source->solids.size();++id){
+            // Retained material stays within its authored cell bounds. Leave
+            // wholly retained cells and their previous edits untouched.
+            if(useBounds){const auto&box=next->source->bounds[id];const auto n=field.normal;
+                if(storm_ship_hull::finite(box.lo)&&storm_ship_hull::finite(box.hi)){
+                    const double x=double(n.x)>=0?box.hi.x:box.lo.x;
+                    const double y=double(n.y)>=0?box.hi.y:box.lo.y;
+                    const double z=double(n.z)>=0?box.hi.z:box.lo.z;
+                    const double magnitude=std::abs(double(n.x)*x)+std::abs(double(n.y)*y)+std::abs(double(n.z)*z)+std::abs(double(field.distance));
+                    const double upper=double(n.x)*x+double(n.y)*y+double(n.z)*z-double(field.distance);
+                    if(upper < -(0.0001+1.e-6*magnitude))continue;
+                }}
+            const auto&solid=materialCell(*next,id);if(solid.empty())continue;auto divided=split(solid,field,nullptr,true);if(!divided.complete)return false;next->changed[id]=std::make_shared<const Mesh>(std::move(divided.kept));}
     }else for(const auto&beam:field.beams){std::vector<uint32_t>ids;next->source->index.queryBounds(beamBounds(beam),ids);const auto planes=beamPlanes(beam);
         for(auto id:ids){storm_geometry_work::checkpoint();const auto&solid=materialCell(*next,id);if(solid.empty())continue;Mesh kept;if(!clipCell(solid,planes,kept))return false;
             next->changed[id]=std::make_shared<const Mesh>(std::move(kept));}}
@@ -255,7 +268,10 @@ inline bool prepareExact(const Input&input,Projection&output,bool resolved=false
     next.plane.releaseEnclosed=input.enclosedFragments;
     if(next.result.changed){auto retained=*next.kept;retained.cells=input.surface->cells;if(!clipCells(retained,adjusted.plane))return false;
         std::vector<std::shared_ptr<const Mesh>>released;for(const auto&piece:retained.released)if(std::find(input.surface->released.begin(),input.surface->released.end(),piece)==input.surface->released.end())released.push_back(piece);
-        if(!trimReleasedCells(retained,released))return false;
+        // A plane cut already clipped every cell to the retained half-space.
+        // The newly released half is exactly the opposite side of that same
+        // plane; subtracting it again can reject coincident seam faces.
+        if(!adjusted.plane.beams.empty()&&!trimReleasedCells(retained,released))return false;
         if(!tagOpenings(retained,input.wood,next.result.openings))return false;
         const auto previous=input.structure?input.structure:input.surface->structure;
         if(previous&&!resolved){auto state=storm_ship_structure::seed(previous->layout,retained,input.wood);

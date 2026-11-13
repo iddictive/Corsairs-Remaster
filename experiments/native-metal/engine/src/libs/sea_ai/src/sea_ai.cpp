@@ -2,6 +2,7 @@
 #include "ai_group.h"
 #include "shared/messages.h"
 #include <algorithm>
+#include <cmath>
 
 CREATE_CLASS(SEA_AI)
 
@@ -99,6 +100,23 @@ uint64_t SEA_AI::ProcessMessage(MESSAGE &message)
     auto iCode = message.Long();
     switch (iCode)
     {
+    case AI_MESSAGE_TEST_SPAWN_POSITION: {
+        const float x = message.Float(), z = message.Float();
+        if (!std::isfinite(x) || !std::isfinite(z)) return false;
+        const CVECTOR position(x, 0.f, z), footprint(150.f, 0.f, 300.f);
+        // Resolve the current island rather than the cached AI pointer, which
+        // can be unset before isDone. No island entity is open water, as in
+        // AIShip::isCanPlace; ship clearance still applies in that case.
+        auto *island = static_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("island")));
+        if (island && island->Check2DBoxDepth(position, footprint, 0.f, -14.f)) return false;
+        for (auto *ship : AIShip::AIShips) {
+            if (!ship) continue;
+            const auto d = ship->GetPos() - position;
+            const float clearance = 180.f + ship->GetBoxsize().z * .5f;
+            if (d.x*d.x + d.z*d.z < clearance*clearance) return false;
+        }
+        return true;
+    }
     case AI_MESSAGE_REFRESH_SHIP: {
         auto *character = message.AttributePointer();
         auto *ship = message.AttributePointer();

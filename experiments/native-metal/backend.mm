@@ -14,6 +14,8 @@ extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include "anti_tiling_policy.hpp"
 #include "anti_tiling_msl.hpp"
 #include "fxaa.hpp"
+#include "underwater_medium.hpp"
+#include "shared/sea_camera_medium.hpp"
 #include "antialiasing.hpp"
 #include "scene_msaa.hpp"
 #include "metalfx.hpp"
@@ -31,6 +33,8 @@ extern "C" void StormMetalLandLocation(void*pointer,bool active);
 #include "volumetric_light_shafts.hpp"
 #include "aim_volume.hpp"
 #include "phonk_ordnance_render.hpp"
+#include "cluster_impact_render.hpp"
+#include "missile_trail_vfx.hpp"
 #include "light_shaft_apertures.hpp"
 #include "dynamic_sky.hpp"
 #include "solar_shapes_msl.hpp"
@@ -345,7 +349,7 @@ struct Device : storm_render::Device {
  std::array<storm_metal::SceneMSAA,FrameFlightRing::count+1> sceneMSAA;unsigned encoderSamples=1;
  storm_metal::AntialiasingMode antialiasingMode=[](){const char*v=std::getenv("STORM_METAL_AA_MODE");if(v&&v[0]>='0'&&v[0]<='3'&&!v[1])return static_cast<storm_metal::AntialiasingMode>(v[0]-'0');const char*legacy=std::getenv("STORM_METAL_ANTIALIASING");return legacy&&std::strcmp(legacy,"1")==0?storm_metal::AntialiasingMode::MSAA4FXAA:storm_metal::AntialiasingMode::Off;}();
  unsigned msaaSamples=[](){const char*v=std::getenv("STORM_METAL_MSAA");return v&&v[0]&&!v[1]&&(v[0]=='0'||v[0]=='2'||v[0]=='4'||v[0]=='8')?unsigned(v[0]-'0'):4u;}();
- storm_metal::FXAAPass fxaaPass;bool fxaaEnabled=storm_metal::antialiasingUsesFXAA(antialiasingMode);uint64_t fxaaFrames=0;
+ storm_metal::FXAAPass fxaaPass;storm_metal::UnderwaterMedium underwaterMedium;storm_metal::UnderwaterUniforms underwaterUniforms{};bool fxaaEnabled=storm_metal::antialiasingUsesFXAA(antialiasingMode);uint64_t fxaaFrames=0;
  storm_metal::MetalFXScene metalFX;unsigned upscalingMode=[](){const char*v=std::getenv("STORM_METAL_UPSCALING");return v&&v[0]>='0'&&v[0]<='3'&&!v[1]?unsigned(v[0]-'0'):0u;}();
  bool sceneFramePrepared=false,sceneScaled=false,metalFXSceneClosed=false;size_t sceneScaleSlot=0;
  bool dynamicSkyEnabled=false,dynamicSkyActive=false,skyFogActive=false,solarVisualActive=false,interfaceBackSceneActive=false;uint32_t solarShape=0;float dynamicSkyElapsed=0;simd_float2 dynamicSkyPhase{};simd_float3 dynamicSkyFog{},skyFogColor{};storm_metal::DynamicSkyInput dynamicSkyInput{};storm_metal::DynamicSkyTemporal dynamicSkyTemporal{};id<MTLLibrary> dynamicSkyLibrary;
@@ -356,6 +360,14 @@ struct Device : storm_render::Device {
  storm_metal::SoftAimVolume aimVolume;
  storm_metal::ShipFireRenderer shipFire;
  storm_metal::PhonkNuclearRenderer phonkNuclear;
+ storm_metal::MissileTrailVfx missileVfx;
+ storm_metal::ClusterImpactRenderer clusterImpactRenderer;
+ struct ClusterImpact { simd_float3 position,direction; float age,seed,radius; unsigned surface,warhead; };
+ std::vector<ClusterImpact> clusterImpacts,clusterImpactFallbacks;
+ id<MTLTexture> clusterImpactAtlas[3]={nil,nil,nil}; bool clusterImpactAtlasTried=false,clusterImpactDrawn=false,clusterVolumeTried=false,clusterVolumeReady=false;
+ uint32_t clusterImpactSerial=0;
+ id<MTLTexture> missileVfxAtlas=nil; bool missileVfxAtlasTried=false,missileVfxTicked=false,missileVfxCameraValid=false,missileVfxDrawn=false;
+ uint64_t missileVfxSea=0; simd_float4x4 missileVfxView{},missileVfxProjection{}; simd_float3 missileVfxOrigin{}; MTLViewport missileVfxViewport{};
  storm_metal::ShipFireSurfaceScope shipFireSurface;
  id<MTLLibrary> shipFireMaterialLibrary=nil;bool shipFireMaterialFailed=false,shipFireMaterialDraw=false,shipFireSceneClosed=false;
  std::string materialShaderSource;
@@ -699,7 +711,7 @@ uint32_t Release()override{if(!refs)return 0;--refs;if(!draining&&refs==childRef
  }
  simd_float4x4 worldBillboardView()const{
   simd_float4x4 view;memcpy(&view,&matrices.at(storm_render::TransformView),64);
-  auto origin=matrix_identity_float4x4;origin.columns[3]=simd_make_float4(landShadow.worldOrigin,1.f);
+ auto origin=matrix_identity_float4x4;origin.columns[3]=simd_make_float4(landShadow.worldOrigin,1.f);
   return simd_mul(view,origin);
  }
  bool drawSkyStars(const BridgeBillboard*stars,uint32_t count,float scaleX,float scaleY){
@@ -767,22 +779,110 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   float viewport[]={float(vp.X),float(vp.Y),float(vp.Width),float(vp.Height)};
   StormMetalTelemetryCamera(&matrices[storm_render::TransformView].m[0][0],&matrices[storm_render::TransformProjection].m[0][0],origin,viewport,sceneBoundary);
  }
+ id<MTLTexture> loadPhonkVfxAtlas(NSString*relative,unsigned grid){
+  NSString*path=[[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:relative];
+  NSData*data=[NSData dataWithContentsOfFile:path]; if(!data)data=[NSData dataWithContentsOfFile:relative];
+  NSBitmapImageRep*bitmap=data?[[NSBitmapImageRep alloc] initWithData:data]:nil; CGImageRef image=bitmap.CGImage;
+  if(!image){fprintf(stderr,"[StormMetal] VFX atlas unavailable: %s\n",relative.UTF8String);return nil;}
+  size_t w=CGImageGetWidth(image),h=CGImageGetHeight(image);if(w<grid||h<grid||w>4096||h>4096||(grid==8&&(w%8||h%8)))return nil;
+  std::vector<uint8_t> pixels(w*h*4);CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB();
+  CGContextRef context=CGBitmapContextCreate(pixels.data(),w,h,8,w*4,space,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);CGColorSpaceRelease(space);if(!context)return nil;
+  CGContextDrawImage(context,CGRectMake(0,0,w,h),image);CGContextRelease(context);
+  auto desc=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:w height:h mipmapped:NO];desc.storageMode=MTLStorageModeShared;desc.usage=MTLTextureUsageShaderRead;
+  id<MTLTexture> texture=[metal newTextureWithDescriptor:desc];if(!texture)return nil;
+  [texture replaceRegion:MTLRegionMake2D(0,0,w,h) mipmapLevel:0 withBytes:pixels.data() bytesPerRow:w*4];return texture;
+ }
+ bool prepareMissileVfxAtlas(){
+  if(missileVfxAtlas||missileVfxAtlasTried)return missileVfxAtlas!=nil;missileVfxAtlasTried=true;
+  missileVfxAtlas=loadPhonkVfxAtlas(@"RESOURCE/Textures/PhonkVFX/WispySmoke02_8x8.png",8);return missileVfxAtlas!=nil;
+ }
+ bool prepareClusterImpacts(){
+  if(!prepareMissileVfxAtlas())return false;
+  if(!clusterVolumeTried){
+   clusterVolumeTried=true;
+   NSData *volume=[NSData dataWithContentsOfFile:@"RESOURCE/Textures/PhonkVFX/GroundExplosion64.rg8" options:NSDataReadingMappedIfSafe error:nullptr];
+   clusterVolumeReady=volume&&clusterImpactRenderer.setVolumeData(metal,volume.bytes,volume.length);
+   if(!clusterVolumeReady)fprintf(stderr,"[StormMetal] cluster volume unavailable; using legacy impact effect\n");
+   NSData *midair=[NSData dataWithContentsOfFile:@"RESOURCE/Textures/PhonkVFX/MidairExplosion64.rg8" options:NSDataReadingMappedIfSafe error:nullptr];
+   if(!midair || !clusterImpactRenderer.setVolumeData(metal,midair.bytes,midair.length,true))
+    fprintf(stderr,"[StormMetal] midair explosion volume unavailable; using legacy impact effect\n");
+  }
+  if(!clusterVolumeReady)return false;
+  if(!clusterImpactAtlasTried){
+   clusterImpactAtlasTried=true;
+   clusterImpactAtlas[0]=loadPhonkVfxAtlas(@"RESOURCE/Textures/PhonkVFX/Explosion00_5x5.png",5);
+   clusterImpactAtlas[1]=loadPhonkVfxAtlas(@"RESOURCE/Textures/PhonkVFX/Explosion01_5x5.png",5);
+   clusterImpactAtlas[2]=loadPhonkVfxAtlas(@"RESOURCE/Textures/PhonkVFX/Explosion02_5x5.png",5);
+   clusterImpactRenderer.setImpactAtlases(clusterImpactAtlas[0],clusterImpactAtlas[1],clusterImpactAtlas[2],missileVfxAtlas);
+  }
+  auto c=sceneColor(),z=sceneDepth();
+  return c&&z&&c.sampleCount==1&&z.sampleCount==1&&c.width==z.width&&c.height==z.height&&clusterImpactRenderer.ready(metal,c.pixelFormat);
+ }
+ void flushMissileVfx(){
+  // The emitting ship can leave the visible set before its world-space smoke
+  // expires. The scene's current perspective camera remains usable at HUD.
+  if(!missileVfxCameraValid&&missileVfxTicked&&missileVfx.hasVisible()&&target==back&&zbuffer==depth&&sceneDepthReady&&sceneColor()&&sceneDepth()){
+   simd_float4x4 view,projection;memcpy(&view,&matrices[storm_render::TransformView],sizeof(view));memcpy(&projection,&matrices[storm_render::TransformProjection],sizeof(projection));
+   if(std::abs(projection.columns[2].w)>1.e-6f&&std::abs(projection.columns[3].w)<1.e-6f&&prepareMissileVfxAtlas()&&missileVfx.ready(metal,sceneColor().pixelFormat,sceneDepth().pixelFormat)){
+    missileVfxView=view;missileVfxProjection=projection;missileVfxOrigin=landShadow.worldOrigin;missileVfxViewport=rasterViewport(MTLViewport{double(vp.X),double(vp.Y),double(vp.Width),double(vp.Height),0,1});missileVfxCameraValid=true;
+   }
+  }
+  if(missileVfxDrawn||!missileVfxTicked||!missileVfxCameraValid||!missileVfxAtlas||!missileVfx.hasVisible()||!sceneDepthReady||!sceneColor()||!sceneDepth())return;
+  missileVfxDrawn=true;finish();if(!command)command=[queue commandBuffer];
+  auto inverse=simd_inverse(missileVfxView);auto eye=inverse.columns[3].xyz;
+  auto v=missileVfxViewport;
+  if(missileVfx.encode(metal,command,sceneColor(),sceneDepth(),missileVfxAtlas,simd_mul(missileVfxProjection,missileVfxView),eye,inverse.columns[0].xyz,inverse.columns[1].xyz,{float(v.originX),float(v.originY),float(v.width),float(v.height)},missileVfxOrigin))sceneAA().invalidate(true,false);
+  else fprintf(stderr,"[StormMetal] missile VFX draw unavailable\n");
+ }
+ void captureClusterImpactCamera(){
+  if(clusterImpacts.empty()||missileVfxCameraValid||target!=back||zbuffer!=depth||!depth||!sceneDepthReady||landShadow.prepass.inPass||vp.MinZ!=0.f||vp.MaxZ!=1.f)return;
+  simd_float4x4 view,projection;memcpy(&view,&matrices[storm_render::TransformView],sizeof(view));memcpy(&projection,&matrices[storm_render::TransformProjection],sizeof(projection));
+  if(std::abs(projection.columns[2].w)<1.e-6f||std::abs(projection.columns[3].w)>1.e-6f||!prepareClusterImpacts())return;
+  missileVfxView=view;missileVfxProjection=projection;missileVfxOrigin=landShadow.worldOrigin;
+  missileVfxViewport=rasterViewport(MTLViewport{double(vp.X),double(vp.Y),double(vp.Width),double(vp.Height),0,1});missileVfxCameraValid=true;
+ }
+ void flushClusterImpacts(){
+  if(clusterImpactDrawn||clusterImpacts.empty())return;
+  captureClusterImpactCamera();
+  if(!missileVfxCameraValid||!sceneDepthReady||!prepareClusterImpacts()){
+   clusterImpactDrawn=true;clusterImpactFallbacks.insert(clusterImpactFallbacks.end(),clusterImpacts.begin(),clusterImpacts.end());clusterImpacts.clear();return;
+  }
+  clusterImpactDrawn=true;finish();if(!command)command=[queue commandBuffer];
+  const auto v=missileVfxViewport;const simd_float4 viewport={float(v.originX),float(v.originY),float(v.width),float(v.height)};
+  const bool young=std::any_of(clusterImpacts.begin(),clusterImpacts.end(),[](const ClusterImpact &i){return i.age<.62f;});
+  if(!clusterImpactRenderer.captureBackground(metal,command,sceneColor(),young))
+   fprintf(stderr,"[StormMetal] cluster pressure snapshot unavailable\n");
+  auto impactEncoder=clusterImpactRenderer.beginBatch(metal,command,sceneColor());
+  if(!impactEncoder){clusterImpactFallbacks.insert(clusterImpactFallbacks.end(),clusterImpacts.begin(),clusterImpacts.end());clusterImpacts.clear();return;}
+  std::erase_if(clusterImpacts,[&](const ClusterImpact &impact){
+   if(clusterImpactRenderer.encode(metal,command,sceneColor(),sceneDepth(),missileVfxView,missileVfxProjection,missileVfxOrigin,viewport,
+      impact.position,impact.radius,impact.age,impact.surface==2?storm_metal::ClusterImpactSurface::Sea:impact.surface==1?storm_metal::ClusterImpactSurface::Land:storm_metal::ClusterImpactSurface::Air,impact.seed,impact.direction,impact.warhead,impactEncoder)){
+    sceneAA().invalidate(true,false);if(profile.enabled){++profile.draws;profile.vertices+=3;}
+    return false;
+   }
+   fprintf(stderr,"[StormMetal] cluster impact draw unavailable\n");clusterImpactFallbacks.push_back(impact);return true;
+  });
+  [impactEncoder endEncoding];
+ }
  void markSceneHudBoundary(bool presentFallback=false){
-  if(!back||target!=back||hudSceneSnapshotReady||metalFXSceneClosed)return;captureTelemetryCamera(!presentFallback);resolveTraversalShadow();flushShipFire();shipFireSceneClosed=true;finish();if(!command)command=[queue commandBuffer];
+  if(!back||target!=back||hudSceneSnapshotReady||metalFXSceneClosed)return;captureTelemetryCamera(!presentFallback);resolveTraversalShadow();flushShipFire();flushMissileVfx();flushClusterImpacts();shipFireSceneClosed=true;finish();if(!command)command=[queue commandBuffer];
   // Outdoor dynamic shadows already provide contact occlusion. Applying the
   // screen-space AO pass on top creates the second dark blob visible under
   // characters and props; keep AO for interiors and non-shadowed scenes.
   const bool aoActive=modernLighting&&depth&&sceneDepth().pixelFormat==MTLPixelFormatDepth32Float&&!(landShadow.locationActive&&!landShadow.indoor);
   const bool cinematicActive=cinematicSceneEnabled(cinematic,landShadow.locationActive,landShadow.indoor);
   const bool gradeActive=cinematic&&!presentFallback;
+  const float waterDepth=storm::sea_camera_medium::depth();
+  const bool underwaterActive=std::isfinite(waterDepth)&&waterDepth>0.f&&sceneDepthReady&&depth&&sceneDepth().pixelFormat==MTLPixelFormatDepth32Float&&underwaterMedium.ready(sceneColor().pixelFormat);
   const bool shaftsActive=lightShaftsEnabled&&landShadow.locationActive&&landShadow.indoor&&!lightShaftMeshes.empty()&&depth&&sceneDepth().pixelFormat==MTLPixelFormatDepth32Float&&enabled[0]&&lights[0].Type==storm_render::LightKind::Directional;
   const bool sceneCompositeReady=(fxaaEnabled||gradeActive)&&fxaaPass.initialize(metal,sceneColor().pixelFormat);
   if(fxaaEnabled&&!sceneCompositeReady){fprintf(stderr,"[StormMetal] FXAA disabled after setup failure\n");fxaaEnabled=false;}
-  if(!aoActive&&!cinematicActive&&!shaftsActive&&!fxaaEnabled&&!gradeActive&&!sceneScaled)return;hudSceneSnapshotReady=true;
+  if(!aoActive&&!cinematicActive&&!shaftsActive&&!fxaaEnabled&&!gradeActive&&!sceneScaled&&!underwaterActive)return;hudSceneSnapshotReady=true;
   if((aoActive||cinematicActive)&&!copySceneForPostFX()){completeSceneScale();return;}
   if(aoActive){simd_float4x4 projection;memcpy(&projection,&matrices[storm_render::TransformProjection],64);auto ambient=color(lightingScene.ambient());float ambientCap=std::clamp(std::max({ambient.x,ambient.y,ambient.z})*.55f,.025f,.32f);if(ambientOcclusion.encode(metal,command,sceneDepth(),hudSceneSnapshot,sceneColor(),simd_inverse(projection),ambientCap)){if(!ambientOcclusionLogged){fprintf(stderr,"[StormMetal] GPU ambient occlusion active before HUD; ambient cap %.3f\n",ambientCap);ambientOcclusionLogged=true;}if(cinematicActive){auto blit=[command blitCommandEncoder];[blit copyFromTexture:sceneColor() sourceSlice:back->slice sourceLevel:back->mip sourceOrigin:MTLOriginMake(0,0,0) sourceSize:MTLSizeMake(sceneColor().width,sceneColor().height,1) toTexture:hudSceneSnapshot destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];[blit endEncoding];}}}
   if(cinematicActive){if(!encodeCinematicScene()){fprintf(stderr,"[StormMetal] cinematic postfx disabled after setup failure\n");cinematic=false;}else if(!cinematicPostFXLogged){fprintf(stderr,"[StormMetal] cinematic postfx active: FP16 half-resolution bloom, indoor %s scene boundary\n",presentFallback?"Present fallback":"engine");cinematicPostFXLogged=true;}}
   if(shaftsActive){if(loggedShaftApertures!=lightShaftMeshes.size()){loggedShaftApertures=lightShaftMeshes.size();fprintf(stderr,"[StormMetal] shaft apertures n=%zu",lightShaftMeshes.size());for(const auto&opening:lightShaftMeshes)fprintf(stderr," c=(%.2f,%.2f,%.2f) hw=%.2f hh=%.2f",opening.center.x,opening.center.y,opening.center.z,opening.halfWidth,opening.halfHeight);fprintf(stderr,"\n");}simd_float4x4 viewMatrix,projectionMatrix;memcpy(&viewMatrix,&matrices[storm_render::TransformView],64);memcpy(&projectionMatrix,&matrices[storm_render::TransformProjection],64);simd_float3 sun={lights[0].Direction.x,lights[0].Direction.y,lights[0].Direction.z};if(simd_length(sun)>.001f)lightShafts.encode(metal,command,sceneDepth(),sceneColor(),lightShaftMeshes.data(),unsigned(lightShaftMeshes.size()),simd_mul(projectionMatrix,viewMatrix),simd_inverse(viewMatrix).columns[3].xyz,landShadow.worldOrigin,simd_normalize(sun),lightShaftsEnabled,landShadow.locationActive,landShadow.indoor);}
+  if(underwaterActive){underwaterUniforms.parameters.x=waterDepth;if(!copySceneForPostFX()||!underwaterMedium.encode(metal,command,hudSceneSnapshot,sceneDepth(),sceneColor(),underwaterUniforms))fprintf(stderr,"[StormMetal] underwater scene pass unavailable\n");else sceneAA().invalidate(true,false);}
   // Re-snapshot the final LDR scene for AA and the scene LUT before HUD.
   // When both are off, neither the snapshot nor the composite pass executes.
   if(sceneCompositeReady&&copySceneForPostFX()&&fxaaPass.encode(command,hudSceneSnapshot,sceneColor(),fxaaEnabled,gradeActive)&&fxaaEnabled)++fxaaFrames;
@@ -832,7 +932,7 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
  }storm_render::Result BeginScene()override{prepareSceneFrame();return storm_render::result::ok;}storm_render::Result EndScene()override{finish(true);return storm_render::result::ok;}
  void reportDiagnostics(){if(!profile.enabled||(++diagnosticTick&127u)!=0u)return;const auto&o=landShadow.worldOrigin;const auto&p=landShadow.prepass;simd_float4x4 view;memcpy(&view,&matrices[storm_render::TransformView],64);simd_float4x4 inverse=simd_inverse(view);simd_float3 camera=inverse.columns[3].xyz;simd_float3 aim=simd_mul(inverse,simd_make_float4(0.f,0.f,1.f,0.f)).xyz;float aimLength=simd_length(aim);if(aimLength>1e-5f)aim/=aimLength;float pitch=asin(std::clamp(aim.y,-1.f,1.f))*57.2957795f;unsigned complete=0;for(unsigned i=0;i<p.pointCount;i++)complete+=p.points[i].faces==63;fprintf(stderr,"[StormMetal] diag: origin=(%.1f,%.1f,%.1f) camRel=(%.2f,%.2f,%.2f) focus=(%.1f,%.1f,%.1f) indoor=%d active=%d applied=%d sun=%u lamps=%u complete=%u caster=%u openings=%llu shaftFrames=%llu tier=%u aimY=%.2f pitch=%.1f draws=%llu verts=%llu uploadMB=%.1f legacy3D=%llu legacyShadow=%llu\n",o.x,o.y,o.z,camera.x,camera.y,camera.z,p.focus.x,p.focus.y,p.focus.z,landShadow.indoor?1:0,landShadow.locationActive?1:0,landShadow.applied?1:0,p.sunValid,p.pointCount,complete,p.casterDraws,(unsigned long long)lightShaftMeshes.size(),(unsigned long long)lightShafts.encodedFrames(),lightShafts.budget().tier(),aim.y,pitch,profile.draws,profile.vertices,profile.bytes/1048576.0,profile.legacy3DDraws,profile.legacyShadowDraws);}
  void publishTelemetry(){if(!StormMetalTelemetryEnabled())return;captureTelemetryCamera(false);StormMetalTelemetryBeginLights(lightingScene.authoredCount(),landShadow.prepass.pointId);for(unsigned i=0;i<lightingScene.authoredCount();i++){const auto&light=lightingScene.authoredLight(i);float positionRange[4],color[4];memcpy(positionRange,&light.positionRange,sizeof(positionRange));memcpy(color,&light.diffuse,sizeof(color));const auto id=lightingScene.authoredId(i);StormMetalTelemetryLight(i,id,positionRange,color,id==landShadow.prepass.pointId,landShadow.shadowSlot(id)!=0);}unsigned complete=0;for(unsigned i=0;i<landShadow.prepass.pointCount;i++)complete+=landShadow.prepass.points[i].faces==63;StormMetalTelemetryShadows(landShadow.prepass.casterDraws,landShadow.prepass.casterVertices,telemetryReceiverDraws,telemetryCasterRejects,telemetryReceiverRejects,landShadow.prepass.pointCount,complete,landShadow.prepass.failed,landShadow.applied);StormMetalTelemetryPublish(telemetryFrame++);}
-storm_render::Result Present()override {resolveTraversalShadow();flushShipFire();finish(true);if(!hudSceneSnapshotReady&&(sceneScaled||fxaaEnabled||modernLighting||cinematicSceneEnabled(cinematic,landShadow.locationActive,landShadow.indoor)||storm_metal::lightShaftsEnabled(lightShaftsEnabled,landShadow.locationActive,landShadow.indoor,unsigned(lightShaftMeshes.size()),depth&&depth->gpu.pixelFormat==MTLPixelFormatDepth32Float)))markSceneHudBoundary(true);finish();if(!command)command=[queue commandBuffer];double drawableBegin=profile.enabled?FrameProfile::now():0;drawable=[layer nextDrawable];if(profile.enabled)profile.drawableMs+=FrameProfile::now()-drawableBegin;if(drawable){if(!encodeCinematicPresent(command,back->gpu,drawable.texture,nil,false))return storm_render::result::failure;[command presentDrawable:drawable];}const size_t submittedSlot=flightRing.current;[command commit];flights[submittedSlot]={command,cinematicLuminancePending,profile.trace.sequence};flightRing.submitCurrent();command=nil;gpuCapture.present(queue);dynamicRawUploads.clear();drawable=nil;cinematicLuminancePending=false;hudSceneSnapshotReady=false;sceneFramePrepared=sceneScaled=metalFXSceneClosed=false;publishTelemetry();reportDiagnostics();if(profile.trace.output){profile.traceSky=dynamicSkyLibrary&&authoredSkyFrame==dynamicSkyFrame;profile.tracePoints=0;for(const auto&point:landShadow.prepass.points)profile.tracePoints+=point.faces==63;}landShadow.resetFrame();telemetryReceiverDraws=telemetryCasterRejects=telemetryReceiverRejects=0;seaGeometryCandidates=seaRawEligible=seaShadowEligible=seaRawPackets=seaFastReturns=seaConvertedPackets=0;memset(seaCandidateScopes,0,sizeof(seaCandidateScopes));memset(seaRejects,0,sizeof(seaRejects));sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;aimModelScope={};aimVolume.endFrame();prepareFrameSlot();reportBackendOptimization();ffpSpecialization.report(profile.enabled);if(profile.enabled){if(profile.trace.output){profile.traceAnimated=rawSkinnedDraws;profile.traceMemory=metal.currentAllocatedSize;}profile.present((SDL_GetWindowFlags(profileWindow)&SDL_WINDOW_INPUT_FOCUS)!=0);}if(framePool){objc_autoreleasePoolPop(framePool);}framePool=objc_autoreleasePoolPush();return storm_render::result::ok;}
+storm_render::Result Present()override {resolveTraversalShadow();flushShipFire();flushClusterImpacts();finish(true);if(!hudSceneSnapshotReady&&((std::isfinite(storm::sea_camera_medium::depth())&&storm::sea_camera_medium::depth()>0.f)||sceneScaled||fxaaEnabled||modernLighting||cinematicSceneEnabled(cinematic,landShadow.locationActive,landShadow.indoor)||storm_metal::lightShaftsEnabled(lightShaftsEnabled,landShadow.locationActive,landShadow.indoor,unsigned(lightShaftMeshes.size()),depth&&depth->gpu.pixelFormat==MTLPixelFormatDepth32Float)))markSceneHudBoundary(true);finish();if(!command)command=[queue commandBuffer];double drawableBegin=profile.enabled?FrameProfile::now():0;drawable=[layer nextDrawable];if(profile.enabled)profile.drawableMs+=FrameProfile::now()-drawableBegin;if(drawable){if(!encodeCinematicPresent(command,back->gpu,drawable.texture,nil,false))return storm_render::result::failure;[command presentDrawable:drawable];}const size_t submittedSlot=flightRing.current;[command commit];flights[submittedSlot]={command,cinematicLuminancePending,profile.trace.sequence};flightRing.submitCurrent();command=nil;gpuCapture.present(queue);dynamicRawUploads.clear();drawable=nil;cinematicLuminancePending=false;hudSceneSnapshotReady=false;sceneFramePrepared=sceneScaled=metalFXSceneClosed=false;publishTelemetry();reportDiagnostics();if(profile.trace.output){profile.traceSky=dynamicSkyLibrary&&authoredSkyFrame==dynamicSkyFrame;profile.tracePoints=0;for(const auto&point:landShadow.prepass.points)profile.tracePoints+=point.faces==63;}landShadow.resetFrame();telemetryReceiverDraws=telemetryCasterRejects=telemetryReceiverRejects=0;seaGeometryCandidates=seaRawEligible=seaShadowEligible=seaRawPackets=seaFastReturns=seaConvertedPackets=0;memset(seaCandidateScopes,0,sizeof(seaCandidateScopes));memset(seaRejects,0,sizeof(seaRejects));sceneDepthReady=waterSnapshotTaken=waterSnapshotReady=false;missileVfxTicked=missileVfxCameraValid=missileVfxDrawn=false;clusterImpactDrawn=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;aimModelScope={};aimVolume.endFrame();prepareFrameSlot();reportBackendOptimization();ffpSpecialization.report(profile.enabled);if(profile.enabled){if(profile.trace.output){profile.traceAnimated=rawSkinnedDraws;profile.traceMemory=metal.currentAllocatedSize;}profile.present((SDL_GetWindowFlags(profileWindow)&SDL_WINDOW_INPUT_FOCUS)!=0);}if(framePool){objc_autoreleasePoolPop(framePool);}framePool=objc_autoreleasePoolPush();return storm_render::result::ok;}
  storm_render::Result Clear(uint32_t f, storm_render::PackedColor c, float z)override{dynamicSkyActive=skyFogActive=solarVisualActive=false;solarShape=0;finish();prepareSceneFrame((f&(storm_render::clear::color|storm_render::clear::depth))==(storm_render::clear::color|storm_render::clear::depth));if(target==back&&(f&(storm_render::clear::color|storm_render::clear::depth))){landShadow.resetFrame();lightingScene.beginFrame();waterSnapshotReady=false;shipFire.clear();shipFireSurface.clear();shipFireMaterialDraw=shipFireSceneClosed=false;if(f&storm_render::clear::depth){sceneDepthReady=z==1.f;aimModelScope={};aimVolume.beginFrame();}else sceneDepthReady=false;}begin(true,f,c,z);return storm_render::result::ok;}
  storm_render::Result CreateTexture(uint32_t w, uint32_t h, uint32_t l, uint32_t u, storm_render::AssetFormat f, storm_render::Texture**p)override{auto* resource=new Texture(metal,w,h,l,u,f);resource->bindOwner(this);*p=resource;return storm_render::result::ok;}
  storm_render::Result CreateCubeTexture(uint32_t edge, uint32_t l, uint32_t u, storm_render::AssetFormat f, storm_render::CubeTexture**p)override{if(!p)return storm_render::result::invalidCall;auto* resource=new CubeTexture(metal,edge,l,u,f);resource->bindOwner(this);*p=resource;return storm_render::result::ok;}
@@ -1249,6 +1349,7 @@ return u;}
   Uniform u=prepareFixedFunction();BridgeUniform bridge{};bridge.m=u.m;memcpy(&bridge.view,&matrices[storm_render::TransformView],64);memcpy(&bridge.projection,&matrices[storm_render::TransformProjection],64);bridge.viewport=u.viewport;bridge.mode=mode;bridge.params=params;
   if(solar)bindSolarVisual();
   bridge.view=worldBillboardView();
+  for(int i=0;i<8;i++){auto*texture=boundTextures[i].flat;bindMaterialTexture(texture?texture->gpu():nil,i);bindMaterialSampler(samplerFor(i),i);}
 	  [encoder setVertexBuffer:buffer.buffer offset:buffer.offset atIndex:0];bindFixedFunction(u);[encoder setVertexBytes:&bridge length:sizeof(bridge) atIndex:2];
   [encoder drawPrimitives:primitive vertexStart:0 vertexCount:vertices];if(profile.enabled){++profile.draws;profile.vertices+=vertices;}return true;
  }
@@ -1874,6 +1975,53 @@ extern "C" bool StormMetalDrawGrass(void*pointer,const void*instances,size_t cou
  memcpy(d->vertexConstants,constants,constantCount*sizeof(float));bool ok=d->drawGrass(static_cast<const BridgeGrass*>(instances),count);
  d->invalidatePreparedStages();d->rs[storm_render::RenderAlphaTest]=oldTest;d->rs[storm_render::RenderAlphaReference]=oldRef;d->rs[storm_render::RenderBlend]=oldBlend;d->rs[storm_render::RenderSourceBlend]=oldSrc;d->rs[storm_render::RenderDestinationBlend]=oldDst;d->rs[storm_render::RenderCullMode]=oldCull;d->ts[0][storm_render::StageColorOp]=oldColorOp;d->ts[0][storm_render::StageColorArg1]=oldColorArg1;d->ts[0][storm_render::StageColorArg2]=oldColorArg2;d->ts[0][storm_render::StageAlphaOp]=oldAlphaOp;d->ts[0][storm_render::StageAlphaArg1]=oldAlphaArg1;d->ts[0][storm_render::StageAlphaArg2]=oldAlphaArg2;d->ts[1][storm_render::StageColorOp]=oldStage1ColorOp;d->ts[1][storm_render::StageAlphaOp]=oldStage1AlphaOp;return ok;
 }
+extern "C" void StormMetalMissileVfxTick(void*pointer,uint64_t sea,float dt){
+ if(!pointer||!sea)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(d->missileVfxSea!=sea){d->missileVfx.clear();d->clusterImpacts.clear();d->clusterImpactFallbacks.clear();d->missileVfxSea=sea;d->missileVfxTicked=false;}
+ if(!d->missileVfxTicked){
+  d->missileVfx.beginFrame(dt);
+  if(std::isfinite(dt)&&dt>0.f){for(auto &impact:d->clusterImpacts)impact.age+=dt;std::erase_if(d->clusterImpacts,[](const auto &impact){return impact.age>=storm_metal::clusterImpactLife(impact.warhead);});}
+  d->missileVfxTicked=true;
+ }
+}
+extern "C" bool StormMetalClusterImpact(void*pointer,const float*position,const float*direction,unsigned surface,float radius,unsigned warhead){
+ if(!pointer||!position||!direction||surface>3||warhead<1||(warhead>4&&warhead!=storm_metal::thermobaricWarhead)||!std::isfinite(radius)||radius<=0.f)return false;
+ for(unsigned i=0;i<3;i++)if(!std::isfinite(position[i])||!std::isfinite(direction[i]))return false;
+ auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ simd_float3 incoming={direction[0],direction[1],direction[2]};float length=simd_length(incoming);
+ // Do not evict current impacts: overflow takes the legacy surface-specific path.
+ if(!std::isfinite(length)||length<1.e-5f||d->clusterImpacts.size()+d->clusterImpactFallbacks.size()>=64||!d->prepareClusterImpacts())return false;
+ d->clusterImpacts.push_back({{position[0],position[1],position[2]},incoming/length,0.f,float(++d->clusterImpactSerial%4096u),radius,surface,warhead});
+ return true;
+}
+extern "C" void StormMetalClusterImpactCapture(void*pointer){
+ if(!pointer)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));d->captureClusterImpactCamera();
+}
+extern "C" bool StormMetalClusterImpactTakeFallback(void*pointer,float*position,unsigned*surface,unsigned*warhead){
+ if(!pointer||!position||!surface||!warhead)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(d->clusterImpactFallbacks.empty())return false;const auto impact=d->clusterImpactFallbacks.back();d->clusterImpactFallbacks.pop_back();
+ position[0]=impact.position.x;position[1]=impact.position.y;position[2]=impact.position.z;*surface=impact.surface;*warhead=impact.warhead;return true;
+}
+extern "C" void StormMetalMissileVfxBurst(void*pointer,const float*position,unsigned type){
+ if(!pointer||!position||type>3)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ d->missileVfx.burst({position[0],position[1],position[2]},static_cast<storm_metal::MissileVfxType>(type));
+}
+extern "C" void StormMetalMissileVfxSegment(void*pointer,const float*from,const float*to,float dt,unsigned type){
+ if(!pointer||!from||!to||type>4)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ d->missileVfx.emitSegment({from[0],from[1],from[2]},{to[0],to[1],to[2]},dt,static_cast<storm_metal::MissileVfxType>(type));
+}
+extern "C" bool StormMetalMissileVfxCapture(void*pointer){
+ if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(d->target!=d->back||d->zbuffer!=d->depth||!d->depth||!d->sceneDepthReady||d->landShadow.prepass.inPass||d->vp.MinZ!=0.f||d->vp.MaxZ!=1.f||!d->missileVfxTicked||!d->missileVfx.hasVisible())return false;
+ std::memcpy(&d->missileVfxView,&d->matrices[storm_render::TransformView],sizeof(simd_float4x4));std::memcpy(&d->missileVfxProjection,&d->matrices[storm_render::TransformProjection],sizeof(simd_float4x4));
+ if(std::abs(d->missileVfxProjection.columns[2].w)<1.e-6f||std::abs(d->missileVfxProjection.columns[3].w)>1.e-6f)return false;
+ if(!d->prepareMissileVfxAtlas()||!d->sceneColor()||!d->sceneDepth()||d->sceneColor().sampleCount!=1||d->sceneDepth().sampleCount!=1||!d->missileVfx.ready(d->metal,d->sceneColor().pixelFormat,d->sceneDepth().pixelFormat))return false;
+ d->missileVfxOrigin=d->landShadow.worldOrigin;d->missileVfxViewport=d->rasterViewport(MTLViewport{double(d->vp.X),double(d->vp.Y),double(d->vp.Width),double(d->vp.Height),0,1});d->missileVfxCameraValid=true;return true;
+}
+extern "C" void StormMetalMissileVfxMotor(void*pointer,const float*tail,const float*direction,unsigned type,float phase){
+ if(!pointer||!tail||!direction||type>4)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ d->missileVfx.motor({tail[0],tail[1],tail[2]},{direction[0],direction[1],direction[2]},static_cast<storm_metal::MissileVfxType>(type),phase);
+}
 extern "C" void StormMetalDrawPhonkNuclearBlast(void*pointer,const float*center,float radius,float age,float seed,float pressureFront,float pressureLife,bool light){
  if(!pointer||!center)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  if(d->target!=d->back||d->zbuffer!=d->depth||!d->depth||!d->sceneDepthReady||d->landShadow.prepass.inPass||
@@ -1986,8 +2134,16 @@ extern "C" bool StormMetalBeginDynamicSky(void*pointer,float hour,float deltaSec
 extern "C" bool StormMetalPrepareDynamicSky(void*pointer,float hour,float deltaSeconds,float cloudCoverage,float cloudDensity,float windAngle,float windSpeed,float legacyTextureBlend,float sunX,float sunY,float sunZ,uint32_t fogColor){if(!pointer)return false;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));const bool previous=d->dynamicSkyActive;const bool ready=d->beginDynamicSky(hour,deltaSeconds,cloudCoverage,cloudDensity,windAngle,windSpeed,legacyTextureBlend,sunX,sunY,sunZ,fogColor);d->dynamicSkyActive=previous&&ready;return ready;}
 extern "C" void StormMetalEndDynamicSky(void*pointer){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->endDynamicSky();}
 extern "C" bool StormMetalDynamicSkyActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->dynamicSkyActive;}
-extern "C" void StormMetalSetAuthoredSky(void*pointer,float blend,bool present,float amount){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->authoredSky={std::clamp(blend,0.f,1.f),float(present),std::clamp(amount,0.f,1.f),0};}
+extern "C" void StormMetalSetAuthoredSky(void*pointer,float blend,bool present,float amount,bool seaHorizon){if(pointer){auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));d->authoredSky={std::clamp(blend,0.f,1.f),float(present),std::clamp(amount,0.f,1.f),float(seaHorizon&&d->target==d->back&&d->zbuffer==d->depth)};}}
 extern "C" void StormMetalSetAuthoredSkyFog(void*pointer,void*const*sources,float blend,float stormBlend,float amount,float rotation,float cameraHeight){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->setAuthoredSkyFog(sources,blend,stormBlend,amount,rotation,cameraHeight);}
+extern "C" void StormMetalPublishSeaCamera(void*pointer,float depth){
+ if(!pointer)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(d->target!=d->back||d->zbuffer!=d->depth||d->landShadow.prepass.inPass||!std::isfinite(depth)||d->vp.MinZ!=0.f||d->vp.MaxZ!=1.f||!d->vp.Width||!d->vp.Height)return;
+ d->underwaterMedium.request(d->metal,d->sceneColor().pixelFormat);
+ if(depth>0.f){simd_float4x4 view,projection;memcpy(&view,&d->matrices[storm_render::TransformView],64);memcpy(&projection,&d->matrices[storm_render::TransformProjection],64);
+ d->underwaterUniforms.inverseView=simd_inverse(view);d->underwaterUniforms.inverseProjection=simd_inverse(projection);d->underwaterUniforms.viewport=d->screenViewport();}
+ storm::sea_camera_medium::publish(depth);
+}
 extern "C" bool StormMetalBeginSkyFog(void*pointer,uint32_t fogColor){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->beginSkyFog(fogColor);}
 extern "C" void StormMetalEndSkyFog(void*pointer){if(pointer)static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->endSkyFog();}
 extern "C" bool StormMetalSkyFogActive(void*pointer){return pointer&&static_cast<Device*>(static_cast<storm_render::Device*>(pointer))->skyFogActive;}

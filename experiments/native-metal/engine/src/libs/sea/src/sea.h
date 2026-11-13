@@ -10,6 +10,7 @@
 #include "shared/sea_tsunami.hpp"
 #include "shared/sea_nuclear_wave.hpp"
 #include "sea_ship_wake.hpp"
+#include "sea_impact_wave.hpp"
 #include <array>
 #include <vector>
 
@@ -29,7 +30,7 @@ class SEA : public SEA_BASE
         CVECTOR vPos;
         CVECTOR vNormal;
         float tu, tv;
-        float eventMaterial[2]; // normalized tsunami height, native breaking foam
+        float eventMaterial[5]; // tsunami/vortex, nuclear load/foam, nuclear height
     };
 
     struct SeaBlock
@@ -117,6 +118,8 @@ class SEA : public SEA_BASE
     void AdvanceWhirlpool(float seconds);
     void ResetWhirlpool() { whirlpool.Clear(); whirlpoolContacts.clear(); whirlpoolDebris.clear(); PublishWhirlpool(); }
     SeaTsunami tsunami;
+    SeaImpactWaves impactWaves;
+    void ApplyImpactWaves(float x, float z, float &height, CVECTOR *normal) const;
     // Distinct impact locations retain their own waves until natural expiry.
     std::vector<SeaNuclearWave> nuclearWaves;
     bool nuclearWavesActive = false;
@@ -270,6 +273,7 @@ class SEA : public SEA_BASE
     uint32_t AttributeChanged(ATTRIBUTES *pAttribute) override;
     uint64_t ProcessMessage(MESSAGE &message) override;
     void StartNuclearWave(float x, float z, unsigned slot, bool active, float lengthScale) override;
+    void StartImpactWave(float x, float z) override { impactWaves.Start(x, z); }
     SeaTsunamiSample GetTsunamiSample(float x, float z) const override
     {
         return EvaluateSeaTsunami(tsunami.Frame(), x, z);
@@ -291,6 +295,7 @@ class SEA : public SEA_BASE
                 tsunami.Advance(static_cast<float>(delta) * 0.001f);
                 AdvanceWhirlpool(static_cast<float>(delta) * 0.001f);
                 AdvanceNuclearWaves(static_cast<float>(delta) * 0.001f);
+                impactWaves.Advance(static_cast<float>(delta) * 0.001f);
                 AdvanceShipWake(static_cast<float>(delta) * 0.001f);
             }
             PublishWhirlpool();

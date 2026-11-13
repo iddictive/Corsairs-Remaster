@@ -22,6 +22,7 @@ UI_ASSETS = PROJECT / "src/assets/ui"
 CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
 RECIPE_ASSETS = PROJECT / "src/assets/quests/great-recipe"
 MUSIC_ASSETS = PROJECT / "src/assets/audio"
+CLUSTER_VFX_ASSETS = PROJECT / "src/assets/cluster-vfx"
 METAL = PROJECT / "experiments/native-metal"
 TARGET = METAL / ".cache/runtime"
 INSTALLED_APP = Path("/Applications/Corsairs Iddictive Remaster.app")
@@ -101,6 +102,21 @@ def asset_changes(asset_root, state, managed=None, inputs=None, claimed=None, se
     return changes
 
 
+def verified_asset_changes(state, expected, managed, inputs):
+    claimed = set()
+    for asset_root in (MUSIC_ASSETS, CLUSTER_VFX_ASSETS):
+        manifest = asset_root / "manifest.json"
+        raw = manifest.read_bytes()
+        record = json.loads(raw)
+        inputs[manifest] = (raw, raw)
+        for name, row in record["files"].items():
+            if name in expected and any(row.get(key) != value for key, value in expected[name].items()):
+                raise RuntimeError(f"Verified asset changed: {name}; no files changed.")
+        asset_changes(asset_root, state, managed, inputs, claimed, selected=set(expected))
+    if set(expected) - claimed:
+        raise RuntimeError("Unknown verified asset; no files changed.")
+
+
 def plan(target_root=None, paths=None, source_set=None, state=None, managed=None, inputs=None, assets=None):
     target_root = TARGET if target_root is None else target_root
     assets = None if assets is None else set(assets)
@@ -139,7 +155,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
         if before != after:
             changes[name] = (before, after)
     asset_targets = set()
-    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS):
+    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS, CLUSTER_VFX_ASSETS):
         changes.update(asset_changes(asset_root, state, managed, inputs, asset_targets, assets))
     city = prepare_puerto_rico_city
     kick = prepare_roundhouse

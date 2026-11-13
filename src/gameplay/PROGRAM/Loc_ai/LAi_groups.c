@@ -391,8 +391,16 @@ bool LAi_group_IsEnemy(aref chr, aref trg)
 //------------------------------------------------------------------------------------------
 
 //Реакция групп на атаку attack->hit
+bool DebugAI_ProtectRelations()
+{
+	return (CheckAttribute(pchar, "DebugInvisibleAI") && sti(pchar.DebugInvisibleAI)) ||
+		(CheckAttribute(pchar, "DebugEnemyAll") && sti(pchar.DebugEnemyAll));
+}
+
 bool LAi_group_Attack(aref attack, aref hit)
 {
+	// Debug targeting must not turn a temporary fight into a group feud.
+	if ((sti(attack.index) == GetMainCharacterIndex() || sti(hit.index) == GetMainCharacterIndex()) && DebugAI_ProtectRelations()) return false;
 	if(attack.chr_ai.group == hit.chr_ai.group)
 	{
 		//Своих игнорируем

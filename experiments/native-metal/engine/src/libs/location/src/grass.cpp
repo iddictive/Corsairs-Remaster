@@ -580,7 +580,7 @@ void Grass::Realize(uint32_t delta_time)
     rs->TextureSet(0, -1);
     rs->TextureSet(1, -1);
     // States
-    rs->SetRenderState(storm_render::RenderDepthTest, false);
+    rs->SetRenderState(storm_render::RenderDepthTest, storm_render::DepthEnabled);
     rs->SetRenderState(storm_render::RenderDepthWrite, FALSE);
     rs->SetRenderState(storm_render::RenderAlphaTest, FALSE);
     rs->SetRenderState(storm_render::RenderBlend, TRUE);

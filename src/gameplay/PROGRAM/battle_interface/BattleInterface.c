@@ -900,7 +900,7 @@ void AddShipToInterface(int charIndex)
 	}
 	else
 	{
-		for(i = 0; i < MAX_SHIPS_ON_SEA; i++)
+		for(i = 0; i < GetArraySize(&Ships); i++)
 		{
 			if(Ships[i] == charIndex)
 			{
@@ -1415,6 +1415,9 @@ ref BI_GetChargeQuantity()
 ref GetCurrentCharge()
 {
 	BI_intNRetValue[0] = -1;
+	BattleInterface.textinfo.NuclearMenuTitle.text = "";
+	BattleInterface.textinfo.NuclearMenuMode.text = "";
+	BattleInterface.textinfo.NuclearMenuPower.text = "";
 
 	if( CheckAttribute(pchar,"Ship.Cannons.Charge.Type") )
 	{
@@ -1461,8 +1464,24 @@ ref GetCurrentCharge()
 		if (CheckAttribute(&Sea, "Phonk.Weapon") && sti(Sea.Phonk.Weapon) == 7)
 		{
 			BI_intNRetValue[0] = -7;
-			BattleInterface.textinfo.Ammo.text = "8: Ядерная ракета";
-			if (CheckAttribute(&Sea, "Phonk.NuclearChargeTier") && sti(Sea.Phonk.NuclearChargeTier) > 0)
+			string missileName = "Кинжал";
+			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 1) missileName = "Калибр";
+			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 2) missileName = "Шторм";
+			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 3) missileName = "Случайная ракета";
+			if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && (sti(Sea.Phonk.MissileWarhead) == 1 || sti(Sea.Phonk.MissileWarhead) == 3))
+				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (осколочно-фугасная)";
+			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == 4)
+				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (зажигательная)";
+			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == PHONK_WARHEAD_THERMOBARIC)
+				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (термобарическая)";
+			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == 2)
+				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (кассетная)";
+			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == 5)
+				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (случайная)";
+			else BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (ядерная)";
+			if (CheckAttribute(&Sea, "Phonk.NuclearRapid") && sti(Sea.Phonk.NuclearRapid))
+				BattleInterface.textinfo.Powder.text = "Интервал: " + FloatToString(stf(Sea.Phonk.NuclearInterval), 1) + " с";
+			else if (CheckAttribute(&Sea, "Phonk.NuclearChargeTier") && sti(Sea.Phonk.NuclearChargeTier) > 0)
 				BattleInterface.textinfo.Powder.text = "Мощность: x" + sti(Sea.Phonk.NuclearChargeTier);
 			else if (CheckAttribute(&Sea, "Phonk.NuclearReload"))
 				BattleInterface.textinfo.Powder.text = "Перезарядка: " + FloatToString(stf(Sea.Phonk.NuclearReload), 1) + " с";
@@ -1473,6 +1492,17 @@ ref GetCurrentCharge()
 			BattleInterface.textinfo.Ammo.text = "7: Лазер";
 			if (CheckAttribute(&Sea, "Phonk.LaserCharge"))
 				BattleInterface.textinfo.Powder.text = "Заряд: " + makeint(stf(Sea.Phonk.LaserCharge) * 100.0 + 0.5) + "%";
+		}
+		else if (CheckAttribute(&Sea, "Phonk.Weapon") && sti(Sea.Phonk.Weapon) == 8)
+		{
+			BI_intNRetValue[0] = -8;
+			BattleInterface.textinfo.Ammo.text = "0: Гарпун";
+			int harpoonCount = 0;
+			if (CheckAttribute(&Sea, "Phonk.HarpoonCount")) harpoonCount = sti(Sea.Phonk.HarpoonCount);
+			if (harpoonCount > 0)
+				BattleInterface.textinfo.Powder.text = "Тросов: " + harpoonCount + "  [V: тянуть, C: сброс]";
+			else
+				BattleInterface.textinfo.Powder.text = "Готов к выстрелу";
 		}
 		else if (CheckAttribute(pchar, "Ship.Cannons.Charge.Type"))
 		{
@@ -1951,6 +1981,25 @@ void SetParameterData()
 	BattleInterface.textinfo.Powder.pos.y = RecalculateVIcon(makeint(413* fHtRatio));
 	BattleInterface.textinfo.Powder.text = XI_convertString("Ammunition");
 	BattleInterface.textinfo.Powder.refreshable = true;
+
+	BattleInterface.textinfo.NuclearMenuTitle.font = "interface_normal";
+	BattleInterface.textinfo.NuclearMenuTitle.scale = 1.0 * fHtRatio;
+	BattleInterface.textinfo.NuclearMenuTitle.pos.x = sti(showWindow.right) / 2;
+	BattleInterface.textinfo.NuclearMenuTitle.pos.y = RecalculateVIcon(makeint(95 * fHtRatio));
+	BattleInterface.textinfo.NuclearMenuTitle.text = "";
+	BattleInterface.textinfo.NuclearMenuTitle.refreshable = true;
+	BattleInterface.textinfo.NuclearMenuMode.font = "interface_normal";
+	BattleInterface.textinfo.NuclearMenuMode.scale = 0.9 * fHtRatio;
+	BattleInterface.textinfo.NuclearMenuMode.pos.x = sti(showWindow.right) / 2;
+	BattleInterface.textinfo.NuclearMenuMode.pos.y = RecalculateVIcon(makeint(120 * fHtRatio));
+	BattleInterface.textinfo.NuclearMenuMode.text = "";
+	BattleInterface.textinfo.NuclearMenuMode.refreshable = true;
+	BattleInterface.textinfo.NuclearMenuPower.font = "interface_normal";
+	BattleInterface.textinfo.NuclearMenuPower.scale = 0.9 * fHtRatio;
+	BattleInterface.textinfo.NuclearMenuPower.pos.x = sti(showWindow.right) / 2;
+	BattleInterface.textinfo.NuclearMenuPower.pos.y = RecalculateVIcon(makeint(142 * fHtRatio));
+	BattleInterface.textinfo.NuclearMenuPower.text = "";
+	BattleInterface.textinfo.NuclearMenuPower.refreshable = true;
 	
 	BattleInterface.LineInfo.speed.color = argb(255,0,0,0);
 	BattleInterface.LineInfo.speed.begin.x = sti(showWindow.right) - RecalculateHIcon(makeint(168* fHtRatio));

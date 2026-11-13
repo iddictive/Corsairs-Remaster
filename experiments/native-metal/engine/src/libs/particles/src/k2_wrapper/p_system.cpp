@@ -51,6 +51,7 @@ void PARTICLE_SYSTEM::SetLifeTime(uint32_t time)
 
 void PARTICLE_SYSTEM::StopEmitter()
 {
+    if (pSystem) pSystem->Stop();
 }
 
 void PARTICLE_SYSTEM::Pause(bool _bPause)

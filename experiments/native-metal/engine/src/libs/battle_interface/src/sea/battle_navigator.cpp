@@ -1,4 +1,5 @@
 #include "battle_navigator.h"
+#include <algorithm>
 #include <stdio.h>
 
 #include "core.h"
@@ -155,7 +156,7 @@ void BATTLE_NAVIGATOR::Draw() const
                  "%.1f", m_fShipSpeed);
 
     // show current charge
-    const bool phonkWeapon = m_curCharge == -6 || m_curCharge == -7;
+    const bool phonkWeapon = m_curCharge == -6 || m_curCharge == -7 || m_curCharge == -8;
     if (m_curCharge >= 0 || phonkWeapon)
     {
         rs->TextureSet(0, m_idChargeTexture);
@@ -656,6 +657,7 @@ void BATTLE_NAVIGATOR::Init(VDX9RENDER *RenderService, Entity *pOwnerEI)
                                          storm_render::usage::writeOnly);
     m_idFireZoneVBuf = rs->CreateVertexBuffer(BI_NOTEX_VERTEX_FORMAT, FIRERANGE_QUANTITY * sizeof(BI_NOTEXTURE_VERTEX),
                                               storm_render::usage::writeOnly);
+    m_shipBufferCapacity = MAX_ENEMY_SHIP_QUANTITY;
     m_idShipsVBuf = rs->CreateVertexBuffer(
         BI_COLORONLY_VERTEX_FORMAT, MAX_ENEMY_SHIP_QUANTITY * 3 * sizeof(BI_COLORONLY_VERTEX), storm_render::usage::writeOnly);
     m_idGradBackVBuf =
@@ -1014,6 +1016,19 @@ void BATTLE_NAVIGATOR::SetMainCharacterData()
 
 void BATTLE_NAVIGATOR::SetAnotherShip()
 {
+    int32_t shipCount = 0;
+    for (auto *ship = g_ShipList.GetShipRoot(); ship; ship = ship->next) ++shipCount;
+    if (shipCount > m_shipBufferCapacity)
+    {
+        const int32_t capacity = std::max(shipCount, m_shipBufferCapacity * 2);
+        const int32_t replacement = rs->CreateVertexBuffer(BI_COLORONLY_VERTEX_FORMAT,
+            size_t(capacity) * 3 * sizeof(BI_COLORONLY_VERTEX), storm_render::usage::writeOnly);
+        if (replacement >= 0) {
+            VERTEX_BUFFER_RELEASE(rs, m_idShipsVBuf);
+            m_idShipsVBuf = replacement;
+            m_shipBufferCapacity = capacity;
+        }
+    }
     auto *pv = static_cast<BI_COLORONLY_VERTEX *>(rs->LockVertexBuffer(m_idShipsVBuf));
     if (pv == nullptr)
         return;
@@ -1026,13 +1041,14 @@ void BATTLE_NAVIGATOR::SetAnotherShip()
     for (auto *psd = g_ShipList.GetShipRoot(); psd != nullptr; psd = psd->next)
     {
         // do not draw the main character's ship
-        if (psd == pMainCharacter)
+        if (psd == pMainCharacter || !psd->pShip)
             continue;
         // determine the coordinates of the ship and if they are outside the map, then do not draw the ship
         auto fX = (psd->pShip->GetPos().x - m_fXPos) * m_fMapRadius / (m_fWorldRad * m_fCurScale);
         auto fY = (psd->pShip->GetPos().z - m_fYPos) * m_fMapRadius / (m_fWorldRad * m_fCurScale);
         if (fX * fX + fY * fY > fSqrMapRad)
             continue;
+        if (idx >= m_shipBufferCapacity * 3) break;
         const auto tmp = fX * cosf(m_fAngle) - fY * sinf(m_fAngle);
         fY = m_YNavigator - (fY * cosf(m_fAngle) + fX * sinf(m_fAngle)) * m_fAspectRatio;
         fX = tmp + m_XNavigator;
@@ -1060,6 +1076,8 @@ void BATTLE_NAVIGATOR::SetAnotherShip()
         // determine the angle of the ship
         const auto fAngle = psd->pShip->GetAng().y - m_fAngle;
         // fill buffer
+        pv[idx].w = pv[idx + 1].w = pv[idx + 2].w = .5f;
+        pv[idx].pos.z = pv[idx + 1].pos.z = pv[idx + 2].pos.z = 1.f;
         pv[idx].col = pv[idx + 1].col = pv[idx + 2].col = dwColor;
         pv[idx + 0].pos.x = fX + m_fShipShowRad * sinf(fAngle);
         pv[idx + 0].pos.y = fY - m_fShipShowRad * cosf(fAngle) * m_fAspectRatio;
@@ -1488,7 +1506,7 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
     pVD->Get(isPowderRunOut, 4);
     // Negative Phonk sentinels retain their separate charge/reload text and
     // powder suppression; only the current-charge sprite maps to atlas art.
-    const bool phonkWeapon = curCharge == -6 || curCharge == -7;
+    const bool phonkWeapon = curCharge == -6 || curCharge == -7 || curCharge == -8;
     if (phonkWeapon) curPowder = -1;
     m_bPowderRunOut = isPowderRunOut;
     if (curCharge == m_curCharge && curSailState == m_curSailState && curWindPic == m_curWindPic &&
@@ -1511,7 +1529,7 @@ void BATTLE_NAVIGATOR::UpdateCurrentCharge()
     if (pV != nullptr)
     {
         FRECT texRect;
-        const int32_t chargePicture = m_curCharge == -6 ? 41 : m_curCharge == -7 ? 42 : std::max(0, m_curCharge);
+        const int32_t chargePicture = m_curCharge == -6 ? 41 : m_curCharge == -7 ? 42 : m_curCharge == -8 ? 43 : std::max(0, m_curCharge);
         CalculateTextureRect(texRect, chargePicture, m_ChargeGreed.x, m_ChargeGreed.y);
         pV[0].tu = texRect.left;
         pV[0].tv = texRect.top;

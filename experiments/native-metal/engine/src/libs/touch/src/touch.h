@@ -44,7 +44,7 @@ class TOUCH : public Entity
     uint32_t dwDeltaTime;
     int32_t iDeltaTime;
 
-    TOUCH_SHIP *pShips[256];
+    std::vector<TOUCH_SHIP *> pShips;
     int32_t iNumShips;
     entid_t mastContacts = 0; // Owned late-frame mast coordinator.
 

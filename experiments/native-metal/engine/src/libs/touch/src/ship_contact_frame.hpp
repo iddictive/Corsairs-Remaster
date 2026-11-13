@@ -499,7 +499,7 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
         // Stop only the unresolved component at its last proven safe time.
         // Other bodies retain their full frame; a later arrival at a blocked
         // component is conservatively stopped too, without invented work.
-        if (event.barrier || events >= limits.maxEvents)
+        if (event.barrier)
         {
             out.exhausted = true;
             proxies[event.a].blocked = proxies[event.b].blocked = true;
@@ -515,6 +515,14 @@ inline FrameResult integrateFrame(const std::vector<FrameBody> &bodies, double s
                 break;
             }
             continue;
+        }
+        if (events >= limits.maxEvents)
+        {
+            // Preserve momentum: advance proxies with their resolved velocities without blocking
+            frame_detail::advance(proxies, remaining);
+            elapsed = seconds;
+            remaining = 0;
+            break;
         }
         ++events;
         auto &a = proxies[event.a]; auto &b = proxies[event.b];

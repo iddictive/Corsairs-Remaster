@@ -1399,6 +1399,7 @@ void GoToShipChange() // нажатие ОК на табличке ок-отме
 			}
 			ClearShipTypeForPassenger();
 			xi_refCharacter.Surrendered = true;
+			Ship_MarkSurrender(xi_refCharacter);
 			Ship_FlagRefresh(xi_refCharacter);
 			if (bTransferMode)
 			{

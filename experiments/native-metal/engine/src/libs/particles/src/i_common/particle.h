@@ -14,6 +14,7 @@ struct BB_ParticleData
 
     // Pointer to the number of particles of this type, when removing a particle, you need to decrease it !!!
     uint32_t *ActiveCount;
+    const float *NavalOpacity;
 
     // Physical position
     Vector PhysPos;

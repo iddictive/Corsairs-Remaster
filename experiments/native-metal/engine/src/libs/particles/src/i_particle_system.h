@@ -41,4 +41,8 @@ class IParticleSystem
     virtual const char *GetName() = 0;
 
     virtual void Stop() = 0;
+
+    // Applies only to explicitly budgeted transient naval effects.
+    virtual void SetNavalBudgeted(bool enabled) = 0;
+    virtual void BeginNavalFade(float seconds) = 0;
 };

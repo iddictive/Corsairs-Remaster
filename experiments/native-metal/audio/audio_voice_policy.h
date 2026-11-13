@@ -37,13 +37,15 @@ constexpr SpatialVoicePolicy SpatialPolicyForAlias(std::string_view lowerAlias)
     // Hull collisions stay local; distant ships must not carry collision noise.
     if (lowerAlias == "coll_ship2rock" || lowerAlias == "coll_ship2ship")
         return {true, 1.0f, 1.0f};
+    if (lowerAlias == "debris_splash")
+        return {true, 1.0f, 1.0f};
     // Ordinary effects decay smoothly instead of cutting off at the authored range.
     return {false, 0.45f, 1.0f};
 }
 
 constexpr bool IsClusteredImpactAlias(std::string_view lowerAlias)
 {
-    return lowerAlias == "ball_splash" || lowerAlias == "fly_ball" || lowerAlias == "fly_ball_misc" ||
+    return lowerAlias == "ball_splash" || lowerAlias == "debris_splash" || lowerAlias == "fly_ball" || lowerAlias == "fly_ball_misc" ||
            lowerAlias == "ball2bort" || lowerAlias == "bomb2bort" || lowerAlias == "grapes2bort" ||
            lowerAlias == "ball2sail" || lowerAlias == "knippel2sail" || lowerAlias == "grapes2sail" ||
            lowerAlias == "mast_fall" || lowerAlias == "coll_ship2rock" || lowerAlias == "coll_ship2ship" ||

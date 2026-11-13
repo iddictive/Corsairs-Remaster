@@ -58,6 +58,9 @@ float GEOM::TraceQuery(VERTEX &start, VERTEX &finish, bool publishDetails)
     const DVECTOR src(start.x, start.y, start.z), dst(finish.x, finish.y, finish.z);
     if (publishDetails) { this->src = src; this->dst = dst; }
 
+    // BSP planes are stored as floats. Nearly coplanar partition planes can
+    // differ enough to put a real hit just outside the current ray interval.
+    constexpr double traversalTolerance = 1e-4;
     double diss, dise, ssrc, sdst, dist;
     DVECTOR dirvec, tp, V, AV;
     BSP_NODE *second;
@@ -81,7 +84,7 @@ rec_loop:;
     const auto d = ssrc - sdst;
     dist = ssrc / d;
 
-    if ((diss > EPSILON && dist <= diss - EPSILON) || d == 0.0 || dist <= 0.0)
+    if ((diss > traversalTolerance && dist <= diss - traversalTolerance) || d == 0.0 || dist <= 0.0)
     // if(dist<=diss)
     {
         if (sdst < 0.0)
@@ -97,7 +100,7 @@ rec_loop:;
         goto rec_loop;
     }
 
-    if ((dise < 1.0 - EPSILON && dist >= dise + EPSILON) || dist >= 1.0)
+    if ((dise < 1.0 - traversalTolerance && dist >= dise + traversalTolerance) || dist >= 1.0)
     // if(dist>=dise)
     {
         if (ssrc < 0.0) // left

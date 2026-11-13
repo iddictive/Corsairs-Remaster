@@ -31,7 +31,6 @@
 
 #event_handler("Sea_FirstInit", "Sea_FirstInit");
 #event_handler("SeaLoad_GetPointer", "SeaLoad_GetPointer");
-
 #event_handler("LegacySeaGeometryDegraded", "Sea_LegacyGeometryDegraded");
 #event_handler("Sea_LegacyGeometryNotice", "Sea_ShowGeometryWarning");
 
@@ -209,7 +208,6 @@ void DeleteSeaEnvironment()
 		object emptyLegacyGeometry;
 		SendMessage(legacyGeometryResources, "sa", "ClearLegacySeaGeometry", &emptyLegacyGeometry);
 	}
-	DeleteGrass(); // трава на остров
 	DeleteClass(&IslandReflModel);
 	DeleteClass(&Touch);
 	DeleteClass(&Seafoam);
@@ -261,6 +259,7 @@ void DeleteSeaEnvironment()
 	LayerFreeze(EXECUTE, false);
 
 	DeleteClass(&AISea);
+	SeaPhonkTest_Release(false);
 
 	DeleteAnimals();
 	
@@ -1758,7 +1757,35 @@ void Sea_LoginGroupAdmission(string sGroupID, bool retained)
 void Sea_FirstInit()
 { 
 	SeaPortService_Reset();
-	SeaPhonk_Reset(false);
+	if (CheckAttribute(pchar, "SeaPhonk.Active") && sti(pchar.SeaPhonk.Active) != 0)
+	{
+		SeaPhonk_InitControls();
+		SeaPhonk_SetActive(true);
+		Sea.Phonk.Weapon = 6;
+		if (CheckAttribute(pchar, "SeaPhonk.Weapon")) Sea.Phonk.Weapon = sti(pchar.SeaPhonk.Weapon);
+		if (CheckAttribute(pchar, "SeaPhonk.NuclearPower")) Sea.Phonk.NuclearPower = stf(pchar.SeaPhonk.NuclearPower);
+		if (CheckAttribute(pchar, "SeaPhonk.NuclearInterval")) Sea.Phonk.NuclearInterval = stf(pchar.SeaPhonk.NuclearInterval);
+		if (CheckAttribute(pchar, "SeaPhonk.NuclearMode")) Sea.Phonk.NuclearMode = sti(pchar.SeaPhonk.NuclearMode);
+		if (CheckAttribute(pchar, "SeaPhonk.MissileType")) Sea.Phonk.MissileType = sti(pchar.SeaPhonk.MissileType);
+		if (CheckAttribute(pchar, "SeaPhonk.MissileHoming")) Sea.Phonk.MissileHoming = sti(pchar.SeaPhonk.MissileHoming);
+		if (CheckAttribute(pchar, "SeaPhonk.MissileWarhead")) Sea.Phonk.MissileWarhead = sti(pchar.SeaPhonk.MissileWarhead);
+		if (CheckAttribute(pchar, "SeaPhonk.ClusterCount")) Sea.Phonk.ClusterCount = sti(pchar.SeaPhonk.ClusterCount);
+		if (CheckAttribute(pchar, "SeaPhonk.NuclearWarheads")) Sea.Phonk.NuclearWarheads = sti(pchar.SeaPhonk.NuclearWarheads);
+		if (CheckAttribute(pchar, "SeaPhonk.NuclearPowerLimit")) Sea.Phonk.NuclearPowerLimit = sti(pchar.SeaPhonk.NuclearPowerLimit);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseEnabled")) Sea.Phonk.AirDefenseEnabled = sti(pchar.SeaPhonk.AirDefenseEnabled);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseEconomy")) Sea.Phonk.AirDefenseEconomy = sti(pchar.SeaPhonk.AirDefenseEconomy);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseRange")) Sea.Phonk.AirDefenseRange = sti(pchar.SeaPhonk.AirDefenseRange);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseInterval")) Sea.Phonk.AirDefenseInterval = stf(pchar.SeaPhonk.AirDefenseInterval);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseMax")) Sea.Phonk.AirDefenseMax = sti(pchar.SeaPhonk.AirDefenseMax);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseSpeed")) Sea.Phonk.AirDefenseSpeed = stf(pchar.SeaPhonk.AirDefenseSpeed);
+		Sea.Phonk.ReturnMusic = musicName;
+		SetEventHandler("frame", "SeaPhonk_Frame", 0);
+		SeaPhonk_Music(SEA_PHONK_TRACK);
+	}
+	else
+	{
+		SeaPhonk_Reset(false);
+	}
 	trace("Sea_FirstInit");
 	bSeaLoaded = true;
     GreatRecipe_SeaReady();
@@ -1837,6 +1864,26 @@ object	oSeaSave;
 void Sea_Save()
 {
 	DeleteAttribute(&oSeaSave, "");
+	if (SeaPhonk_IsActive())
+	{
+		pchar.SeaPhonk.Active = 1;
+		if (CheckAttribute(&Sea, "Phonk.Weapon")) pchar.SeaPhonk.Weapon = sti(Sea.Phonk.Weapon);
+		if (CheckAttribute(&Sea, "Phonk.NuclearPower")) pchar.SeaPhonk.NuclearPower = stf(Sea.Phonk.NuclearPower);
+		if (CheckAttribute(&Sea, "Phonk.NuclearInterval")) pchar.SeaPhonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval);
+		if (CheckAttribute(&Sea, "Phonk.NuclearMode")) pchar.SeaPhonk.NuclearMode = sti(Sea.Phonk.NuclearMode);
+		if (CheckAttribute(&Sea, "Phonk.MissileType")) pchar.SeaPhonk.MissileType = sti(Sea.Phonk.MissileType);
+		if (CheckAttribute(&Sea, "Phonk.MissileHoming")) pchar.SeaPhonk.MissileHoming = sti(Sea.Phonk.MissileHoming);
+		if (CheckAttribute(&Sea, "Phonk.MissileWarhead")) pchar.SeaPhonk.MissileWarhead = sti(Sea.Phonk.MissileWarhead);
+		if (CheckAttribute(&Sea, "Phonk.ClusterCount")) pchar.SeaPhonk.ClusterCount = sti(Sea.Phonk.ClusterCount);
+		if (CheckAttribute(&Sea, "Phonk.NuclearWarheads")) pchar.SeaPhonk.NuclearWarheads = sti(Sea.Phonk.NuclearWarheads);
+		if (CheckAttribute(&Sea, "Phonk.NuclearPowerLimit")) pchar.SeaPhonk.NuclearPowerLimit = sti(Sea.Phonk.NuclearPowerLimit);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseEnabled")) pchar.SeaPhonk.AirDefenseEnabled = sti(Sea.Phonk.AirDefenseEnabled);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseEconomy")) pchar.SeaPhonk.AirDefenseEconomy = sti(Sea.Phonk.AirDefenseEconomy);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseRange")) pchar.SeaPhonk.AirDefenseRange = sti(Sea.Phonk.AirDefenseRange);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseInterval")) pchar.SeaPhonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseMax")) pchar.SeaPhonk.AirDefenseMax = sti(Sea.Phonk.AirDefenseMax);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseSpeed")) pchar.SeaPhonk.AirDefenseSpeed = stf(Sea.Phonk.AirDefenseSpeed);
+	}
 
 	SendMessage(&AISea, "l", AI_MESSAGE_SEASAVE);
 }
@@ -1972,7 +2019,6 @@ void Sea_CreateRegionGrass(int index, ref targetIsland, float dx, float dz)
 {
     if (!CheckAttribute(&Islands[index], "jungle")) return;
     ref grass = &SeaIslandGrass[index];
-    if (index == SeaResidentPrimaryIndex) grass = &objGrass;
     float scale = 10.0;
     if (CheckAttribute(&Islands[index], "jungle.scale")) scale = stf(Islands[index].jungle.scale);
     CreateEntity(grass, "Grass");
@@ -2341,7 +2387,7 @@ void Sea_LoadIslandRegion(int iIslandIndex)
 
 		SendMessage(targetIsland, "lsss", MSG_ISLAND_LOAD_GEO, "islands", Islands[iIslandIndex].filespath.models, Islands[iIslandIndex].model);
 		SendMessage(targetIsland, "lff", MSG_ISLAND_TRANSLATE_REGION, dx, dz);
-		if (iIslandIndex == SeaResidentPrimaryIndex)
+		if (iIslandIndex == SeaResidentPrimaryIndex && !IsEntity(&Island))
 		{
 			LayerAddObject(SEA_REALIZE, &Island, 4);
 			LayerAddObject(MAST_ISLAND_TRACE, &Island, 1);
@@ -3671,7 +3717,8 @@ bool WdmFleetSeaHasAmmo(ref captain)
 	if (Ship_CompanionKeepCharge(captain)) return true;
 	if (GetCargoGoods(captain, GOOD_POWDER) < minimum) return false;
 	return GetCargoGoods(captain, GOOD_BALLS) >= minimum || GetCargoGoods(captain, GOOD_BOMBS) >= minimum ||
-		GetCargoGoods(captain, GOOD_GRAPES) >= minimum || GetCargoGoods(captain, GOOD_KNIPPELS) >= minimum;
+		GetCargoGoods(captain, GOOD_GRAPES) >= minimum || GetCargoGoods(captain, GOOD_KNIPPELS) >= minimum ||
+		GetCargoGoods(captain, GOOD_DARTS) >= minimum;
 }
 
 bool WdmFleetSeaCheckSituation(ref captain)

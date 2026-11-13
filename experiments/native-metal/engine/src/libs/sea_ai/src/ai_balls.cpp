@@ -7,6 +7,8 @@
 #include "ship_airburst_hull_distance.hpp"
 #include "ship_debris_bridge.hpp"
 #include "ship_hull_hit_admission.hpp"
+#include "../../ship/src/phonk_air_defense.hpp"
+#include "ai_ship.h"
 #include "sea_base.h"
 #include <algorithm>
 #include <array>
@@ -23,7 +25,7 @@ namespace
 struct BallAttributeCodes
 {
     enum Field { Type, AirburstDistance, BombDistance, HullValid, HullDistance, HullX, HullY, HullZ,
-                 Detonated, Fragment, Heated, Energy, CannonType, Distance, MaxDistance, Count };
+                 Detonated, Fragment, Heated, Energy, CannonType, Distance, MaxDistance, SurrenderEpoch, Count };
     std::array<uint32_t, Count> codes;
 
     explicit BallAttributeCodes(ATTRIBUTES &attributes)
@@ -32,7 +34,7 @@ struct BallAttributeCodes
             "CurrentAirburstHullValid", "CurrentAirburstHullDistance", "CurrentAirburstHullX",
             "CurrentAirburstHullY", "CurrentAirburstHullZ", "CurrentAirburstDetonated",
             "CurrentAirburstFragment", "CurrentBallHeated", "CurrentBallMaterialEnergy",
-            "CurrentBallCannonType", "CurrentBallDistance", "CurrentMaxBallDistance"};
+            "CurrentBallCannonType", "CurrentBallDistance", "CurrentMaxBallDistance", "CurrentSurrenderEpoch"};
         for (size_t i = 0; i < codes.size(); ++i) codes[i] = attributes.GetStringCodec().Convert(names[i]);
     }
 
@@ -97,6 +99,102 @@ CVECTOR BallWorldVelocity(const BALL_PARAMS &ball, float time, float timeRate)
     CVECTOR velocity(0.0f, projectedX * s + projectedY * c, projectedX * c - projectedY * s);
     RotateAroundY(velocity.x, velocity.z, ball.fDirX, ball.fDirZ);
     return velocity * timeRate;
+}
+
+CVECTOR BallWorldAcceleration(const BALL_PARAMS &ball, float timeRate)
+{
+    const float s = sinf(ball.fRawAng), c = cosf(ball.fRawAng);
+    const float gravity = -AIHelper::fGravity * timeRate * timeRate;
+    CVECTOR acceleration(0.0f, gravity * (s*s + c*c*ball.fHeightMultiply),
+                         gravity * s*c*(1.0f-ball.fHeightMultiply));
+    RotateAroundY(acceleration.x, acceleration.z, ball.fDirX, ball.fDirZ);
+    return acceleration;
+}
+
+// The cursor indexes the current flattened lanes. A swap-removed entry is
+// examined next; no references or indices escape to the missile owner.
+template<class Visit>
+void ScanAirDefenseBalls(std::vector<BALL_TYPE> &types, uint32_t budget, uint32_t &cursor, Visit visit)
+{
+    size_t total = 0;
+    for (const auto &type : types) total += type.Balls.size();
+    if (!total || types.empty()) { cursor = 0; return; }
+    if (!budget) return;
+    size_t offset = size_t(cursor) % total, lane = 0;
+    while (lane < types.size() && offset >= types[lane].Balls.size()) {
+        offset -= types[lane].Balls.size(); ++lane;
+    }
+    const size_t limit = std::min<size_t>(std::min<uint32_t>(budget, 128), total);
+    for (size_t checked = 0; checked < limit && total; ++checked)
+    {
+        while (offset >= types[lane].Balls.size()) { lane = (lane + 1) % types.size(); offset = 0; }
+        auto &balls = types[lane].Balls;
+        if (visit(balls[offset], types[lane].dwGoodIndex)) {
+            if (offset + 1 != balls.size()) balls[offset] = std::move(balls.back());
+            balls.pop_back(); --total;
+        } else ++offset;
+    }
+    if (!total) { cursor = 0; return; }
+    while (offset >= types[lane].Balls.size()) { lane = (lane + 1) % types.size(); offset = 0; }
+    size_t next = offset;
+    for (size_t n = 0; n < lane; ++n) next += types[n].Balls.size();
+    cursor = uint32_t(next % total);
+}
+
+ATTRIBUTES *AirDefenseCharacter(VDATA *characters, int32_t index)
+{
+    if (!characters || !characters->IsArray() || index < 0 || uint32_t(index) >= characters->GetElementsNum()) return nullptr;
+    auto *character = characters->GetAClass(index);
+    return ATTRIBUTES::IsLive(character) ? character : nullptr;
+}
+
+struct AirDefenseRelations
+{
+    VDATA *characters;
+    ATTRIBUTES *defender;
+    std::array<int32_t, 128> owners{};
+    std::array<bool, 128> enemies{};
+    size_t count = 0;
+    bool hostile(int32_t owner)
+    {
+        for (size_t n = 0; n < count; ++n) if (owners[n] == owner) return enemies[n];
+        auto *attacker = AirDefenseCharacter(characters, owner);
+        const bool result = attacker && Helper.isEnemy(defender, attacker);
+        if (count < owners.size()) { owners[count] = owner; enemies[count++] = result; }
+        return result;
+    }
+};
+
+bool AirDefenseIncoming(const BALL_PARAMS &ball, const CVECTOR &origin, float range, float timeRate,
+                        CVECTOR &velocity, CVECTOR &acceleration, float &timeToApproach)
+{
+    const CVECTOR relative = ball.vPos-origin;
+    if (!std::isfinite(~relative) || !std::isfinite(range) || range <= 0.f || (~relative) > range*range) return false;
+    const float rate = timeRate * ball.fTimeSpeedMultiply;
+    velocity = BallWorldVelocity(ball, ball.fTime, rate);
+    acceleration = BallWorldAcceleration(ball, rate);
+    if (!std::isfinite(~velocity) || !std::isfinite(~acceleration)) return false;
+    const float horizontalSpeed = velocity.x*velocity.x + velocity.z*velocity.z;
+    if (horizontalSpeed < 1.f) return false;
+    timeToApproach = -(relative.x*velocity.x + relative.z*velocity.z) / horizontalSpeed;
+    if (!(timeToApproach > 0.f && timeToApproach <= 60.f)) return false;
+    // Refine horizontal closest approach for the same curved trajectory Execute
+    // uses. A fixed iteration limit keeps work per scanned projectile bounded.
+    for (int i = 0; i < 4; ++i) {
+        const float t = timeToApproach;
+        const float x = relative.x + velocity.x*t + .5f*acceleration.x*t*t;
+        const float z = relative.z + velocity.z*t + .5f*acceleration.z*t*t;
+        const float vx = velocity.x + acceleration.x*t, vz = velocity.z + acceleration.z*t;
+        const float derivative = vx*vx + vz*vz + x*acceleration.x + z*acceleration.z;
+        if (!std::isfinite(derivative) || derivative <= 1.f) return false;
+        timeToApproach = std::clamp(t - (x*vx + z*vz)/derivative, 0.f, 60.f);
+    }
+    if (!(timeToApproach > 0.f && timeToApproach < 60.f)) return false;
+    const float t = timeToApproach;
+    const float x = relative.x + velocity.x*t + .5f*acceleration.x*t*t;
+    const float z = relative.z + velocity.z*t + .5f*acceleration.z*t*t;
+    const float y = relative.y + velocity.y*t + .5f*acceleration.y*t*t;
+    return std::isfinite(y) && x*x + z*z <= 150.f*150.f && std::abs(y) <= 150.f;
 }
 
 // Identity rides the existing saved event string: the four native ball lanes and
@@ -429,6 +527,7 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
     }
     // Keep the radial origin just outside the wall so exposed guns are visible.
     if (contactBurst) burst -= !(dst-src) * 0.01f;
+    AddBlastWave(burst, true);
     ball.vPos = burst;
     if (ball.pParticle) ball.pParticle->SetEmitter(burst, !(src-dst));
     AttributesPointer->SetAttributeUseDword("CurrentBallType", static_cast<uint32_t>(AirburstGood(ball)));
@@ -466,6 +565,7 @@ bool AIBalls::TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &
         const float sign = fragment % 2 ? -1.0f : 1.0f;
         shot.vFirstPos = shot.vPos = burst;
         shot.iBallOwner = ball.iBallOwner;
+        shot.surrenderEpoch = ball.surrenderEpoch;
         shot.sBallEvent = "@airburst-fragment";
         shot.fSpeedV0 = 24.0f;
         shot.fDirX = sign*cosf(angle);
@@ -599,6 +699,8 @@ AIBalls::~AIBalls()
 {
     uint32_t i, j;
 
+    auto &bridge = storm::ship::phonk::airdefense::bridge;
+    if (bridge.context == this) bridge = {};
     pAIBalls = nullptr;
 
     AIHelper::pRS->TextureRelease(dwTextureIndex);
@@ -627,7 +729,76 @@ bool AIBalls::Init()
     ResetAirburstHull(AttributesPointer);
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     SetDevice();
+    storm::ship::phonk::airdefense::bridge = {this, &AIBalls::AirDefenseAcquire, &AIBalls::AirDefenseIntercept};
     return true;
+}
+
+bool AIBalls::AirDefenseAcquire(void *context, int32_t defender, CVECTOR origin, float range,
+                                uint32_t budget, uint32_t *cursor, storm::ship::phonk::airdefense::Contact *out)
+{
+    auto *self = static_cast<AIBalls *>(context);
+    if (!self || self != pAIBalls || !cursor || !out || !std::isfinite(~origin) ||
+        !std::isfinite(range) || range <= 0.f || range > 8000.f) return false;
+    auto *characters = static_cast<VDATA *>(core.GetScriptVariable("Characters"));
+    auto *protectedCharacter = AirDefenseCharacter(characters, defender);
+    if (!protectedCharacter) return false;
+    AirDefenseRelations relations{characters, protectedCharacter};
+    bool found = false;
+    float bestTime = std::numeric_limits<float>::max();
+    ScanAirDefenseBalls(self->aBallTypes, budget, *cursor, [&](BALL_PARAMS &ball, uint32_t) {
+        if (ball.iBallOwner == defender) return false;
+        if (!relations.hostile(ball.iBallOwner)) return false;
+        CVECTOR velocity, acceleration; float time = 0.f;
+        if (AirDefenseIncoming(ball, origin, range, self->fDeltaTimeMultiplier, velocity, acceleration, time) && time < bestTime) {
+            bestTime = time; out->position = ball.vPos; out->velocity = velocity;
+            out->acceleration = acceleration; out->timeToApproach = time; found = true;
+        }
+        return false;
+    });
+    return found;
+}
+
+uint32_t AIBalls::AirDefenseIntercept(void *context, int32_t defender, CVECTOR center, float radius,
+                                      uint32_t budget, uint32_t *cursor, uint32_t maximum)
+{
+    auto *self = static_cast<AIBalls *>(context);
+    if (!self || self != pAIBalls || !cursor || !std::isfinite(~center) || !std::isfinite(radius) ||
+        radius <= 0.f || radius > 100.f || !maximum) return 0;
+    auto *characters = static_cast<VDATA *>(core.GetScriptVariable("Characters"));
+    auto *protectedCharacter = AirDefenseCharacter(characters, defender);
+    auto *ship = protectedCharacter ? AIShip::FindShip(protectedCharacter) : nullptr;
+    if (!ship || ship->isDead()) return 0;
+    AirDefenseRelations relations{characters, protectedCharacter};
+    const CVECTOR origin = ship->GetPos();
+    struct Event { std::string name; int32_t owner; uint32_t good; CVECTOR point; };
+    std::array<Event, 4> events;
+    size_t eventCount = 0;
+    uint32_t removed = 0;
+    const uint32_t cap = std::min(maximum, 4u);
+    ScanAirDefenseBalls(self->aBallTypes, budget, *cursor, [&](BALL_PARAMS &ball, uint32_t good) {
+        if (removed >= cap || ball.iBallOwner == defender || (~(ball.vPos-center)) > radius*radius) return false;
+        if (!relations.hostile(ball.iBallOwner)) return false;
+        CVECTOR velocity, acceleration; float time = 0.f;
+        if (!AirDefenseIncoming(ball, origin, 8000.f, self->fDeltaTimeMultiplier, velocity, acceleration, time)) return false;
+        // Alternating eligible rounds bounds effectiveness, even for dense salvos.
+        if ((self->airDefenseSelection++ & 1u) != 0) return false;
+        if (!ball.sBallEvent.empty() && AirburstGood(ball) < 0 && !AirburstFragment(ball) &&
+            ball.sBallEvent != "@heated-shot" && ball.dartGood < 0)
+            events[eventCount++] = {ball.sBallEvent, ball.iBallOwner, good, ball.vPos};
+        if (ball.pParticle) { ball.pParticle->StopEmitter(); ball.pParticle = nullptr; }
+        ball.sBallEvent.clear();
+        ++removed;
+        return true;
+    });
+    // Event handlers can change or destroy the sea; no vector reference lives
+    // across them, and no member of a destroyed AIBalls is accessed afterwards.
+    for (size_t i = 0; i < eventCount; ++i) {
+        const auto &event = events[i];
+        core.Event(event.name.c_str(), "lllffffff", event.owner, uint32_t(0), event.good,
+                   event.point.x, event.point.y, event.point.z, event.point.x, event.point.y, event.point.z);
+        if (pAIBalls != self) break;
+    }
+    return removed;
 }
 
 void AIBalls::SetDevice()
@@ -710,6 +881,8 @@ void AIBalls::AddBall(ATTRIBUTES *pABall)
     auto *pBall = &aBallTypes[i].Balls.back();
 
     pBall->iBallOwner = pABall->GetAttributeAsDword("CharacterIndex");
+    if (auto *epoch = core.Event("Ship_SurrenderEpoch", ""))
+        pBall->surrenderEpoch = static_cast<uint32_t>(epoch->GetInt());
 
     pBall->fTime = 0.0f;
     pBall->vPos = pBall->vFirstPos =
@@ -740,17 +913,22 @@ void AIBalls::AddBall(ATTRIBUTES *pABall)
 
     if (pBall->dartGood < 0 && aBallTypes[i].sParticleName.size())
     {
-        entid_t eidParticle;
-        if (eidParticle = core.GetEntityId("particles"))
+        static uint32_t s_grapeCounter = 0;
+        const bool isGrapes = storm::iEquals(aBallTypes[i].sName, "Grapes");
+        if (!isGrapes || (++s_grapeCounter % 4 == 0))
         {
-            if (AirburstGood(*pBall) >= 0)
-                pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
-                    eidParticle, "lsffffffll", PS_CREATE_NAVAL_EFFECT, aBallTypes[i].sParticleName.c_str(),
-                    pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000, 8);
-            else
-                pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
-                    eidParticle, "lsffffffl", PS_CREATE_RIC, aBallTypes[i].sParticleName.c_str(), pBall->vPos.x,
-                    pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000);
+            entid_t eidParticle;
+            if (eidParticle = core.GetEntityId("particles"))
+            {
+                if (AirburstGood(*pBall) >= 0)
+                    pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+                        eidParticle, "lsffffffll", PS_CREATE_NAVAL_EFFECT, aBallTypes[i].sParticleName.c_str(),
+                        pBall->vPos.x, pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000, 8);
+                else
+                    pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
+                        eidParticle, "lsffffffl", PS_CREATE_RIC, aBallTypes[i].sParticleName.c_str(), pBall->vPos.x,
+                        pBall->vPos.y, pBall->vPos.z, 0.0f, 1.0f, 0.0f, 100000);
+            }
         }
     }
 }
@@ -788,6 +966,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
     auto mView = rs->GetView();
 
     auto fDeltaTime = 0.001f * static_cast<float>(Delta_Time);
+    AdvanceBlastWaves(fDeltaTime);
 
     for (i = 0; i < aBallTypes.size(); i++)
     {
@@ -824,6 +1003,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
                 codes.Set(attributes, BallAttributeCodes::CannonType, pBall->dwCannonType);
                 codes.Set(attributes, BallAttributeCodes::Distance, sqrtf(~(pBall->vPos - pBall->vFirstPos)));
                 codes.Set(attributes, BallAttributeCodes::MaxDistance, pBall->fMaxFireDistance);
+                codes.Set(attributes, BallAttributeCodes::SurrenderEpoch, pBall->surrenderEpoch);
             }
 
             // update ball time
@@ -1087,6 +1267,7 @@ void AIBalls::Execute(uint32_t Delta_Time)
                     // The script keeps the water splash without adding the
                     // land/ship explosion particle at the same impact.
                     const int effectSurface = bombLiveHit ? 0 : bombSurface == WaterSurface ? 2 : 1;
+                    AddBlastWave(impact, false);
                     core.Event("Ball_BombExplosion", "fffl", impact.x, impact.y, impact.z, effectSurface);
                     BombBlast(*pBall, impact, directShip);
                 }
@@ -1100,8 +1281,8 @@ void AIBalls::Execute(uint32_t Delta_Time)
 
                 if (pBall->pParticle)
                 {
-                    pBall->pParticle->Stop();
-                    STORM_DELETE(pBall->pParticle);
+                    pBall->pParticle->StopEmitter();
+                    pBall->pParticle = nullptr;
                 }
                 // pBallsType->Balls.ExtractNoShift(j);
                 pBallsType->Balls[j] = pBallsType->Balls.back();
@@ -1191,8 +1372,86 @@ void AIBalls::Execute(uint32_t Delta_Time)
     }
 }
 
+// Short-lived scene-local billboards. No entity, texture, save field or
+// full-screen pass is created; saturation drops new waves, not old ones.
+void AIBalls::AddBlastWave(const CVECTOR &center, bool shrapnel)
+{
+    if (!std::isfinite(center.x) || !std::isfinite(center.y) || !std::isfinite(center.z)) return;
+    for (auto &wave : blastWaves)
+        if (wave.age < 0.0f) { wave = {center, 0.0f, shrapnel}; return; }
+}
+
+void AIBalls::AdvanceBlastWaves(float seconds)
+{
+    if (!std::isfinite(seconds) || seconds <= 0.0f) return;
+    for (auto &wave : blastWaves)
+        if (wave.age >= 0.0f) {
+            wave.age += seconds;
+            if (wave.age >= (wave.shrapnel ? 0.60f : 0.42f)) wave.age = -1.0f;
+        }
+}
+
+void AIBalls::DrawBlastWaves()
+{
+    constexpr size_t segments = 24;
+    struct CirclePoint { float x, y; };
+    static const auto circle = [] {
+        std::array<CirclePoint, segments> points{};
+        for (size_t i = 0; i < segments; ++i) {
+            const float angle = 6.28318530718f * float(i) / float(segments);
+            points[i] = {std::cos(angle), std::sin(angle)};
+        }
+        return points;
+    }();
+    blastWaveVertices.clear();
+    blastWaveVertices.reserve(MaxBlastWaves * segments * 12);
+    CVECTOR camera, angles; float fov = 0.0f;
+    rs->GetCamera(camera, angles, fov);
+    for (const auto &wave : blastWaves)
+    {
+        if (wave.age < 0.0f) continue;
+        const float duration = wave.shrapnel ? 0.60f : 0.42f;
+        const float t = std::clamp(wave.age / duration, 0.0f, 1.0f);
+        const float radius = (wave.shrapnel ? 5.0f : 2.8f) * (0.06f + 0.94f * (1.0f - (1.0f-t)*(1.0f-t)));
+        const float intensity = std::min(1.0f, t * 10.0f) * (1.0f-t) * (1.0f-t);
+        const uint32_t alpha = static_cast<uint32_t>((wave.shrapnel ? 145.0f : 180.0f) * intensity);
+        if (alpha == 0) continue;
+        const uint32_t rgb = wave.shrapnel ? 0x00BFDFFFu : 0x00FFD5A0u;
+        const uint32_t edge = rgb, middle = rgb | (alpha << 24);
+        auto normal = camera-wave.center;
+        if ((~normal) < 1.e-8f) normal = CVECTOR(0.f,0.f,1.f);
+        else normal = !normal;
+        const CVECTOR reference = std::abs(normal.y) > .95f ? CVECTOR(1.f,0.f,0.f) : CVECTOR(0.f,1.f,0.f);
+        const CVECTOR right = !(reference ^ normal);
+        const CVECTOR up = !(normal ^ right);
+        const auto point = [&](size_t i, float r) {
+            return wave.center + (right * circle[i].x + up * circle[i].y) * r;
+        };
+        const auto vertex = [&](const CVECTOR &p, uint32_t color) { blastWaveVertices.push_back({p,color}); };
+        for (size_t i = 0; i < segments; ++i) {
+            const size_t j = (i+1) % segments;
+            const auto a=point(i,radius*.88f), b=point(j,radius*.88f);
+            const auto c=point(i,radius), d=point(j,radius);
+            const auto e=point(i,radius*1.12f), f=point(j,radius*1.12f);
+            vertex(a,edge); vertex(b,edge); vertex(c,middle);
+            vertex(b,edge); vertex(d,middle); vertex(c,middle);
+            vertex(c,middle); vertex(d,middle); vertex(e,edge);
+            vertex(d,middle); vertex(f,edge); vertex(e,edge);
+        }
+    }
+    if (blastWaveVertices.empty()) return;
+    CMatrix world;
+    rs->GetTransform(storm_render::TransformWorld, world);
+    rs->SetTransform(storm_render::TransformWorld, CMatrix());
+    rs->DrawPrimitiveUP(storm_render::PrimitiveTriangleList,
+        storm_render::vertexFormat::xyz | storm_render::vertexFormat::diffuse,
+        blastWaveVertices.size()/3, blastWaveVertices.data(), sizeof(RS_LINE), "DartTracer");
+    rs->SetTransform(storm_render::TransformWorld, world);
+}
+
 void AIBalls::Realize(uint32_t Delta_Time)
 {
+    DrawBlastWaves();
     if (!dartTrace.empty())
     {
         // Execute emits world positions. Unlike DrawRects, DrawLines does not
@@ -1265,6 +1524,7 @@ uint32_t AIBalls::AttributeChanged(ATTRIBUTES *pAttributeChanged)
 
     if (*pAttributeChanged == "clear")
     {
+        for (auto &wave : blastWaves) wave.age = -1.0f;
         for (auto &aBallType : aBallTypes)
         {
             BALL_TYPE *pBallsType = &aBallType;
@@ -1367,7 +1627,7 @@ void BALL_PARAMS::Save(CSaveLoad *pSL)
     pSL->SaveVector(vPos);
     // pSL->SaveDword(reinterpret_cast<uint32_t>(pParticle));
     pSL->SaveQword(reinterpret_cast<uint64_t>(pParticle));
-    pSL->SaveString(sBallEvent);
+    pSL->SaveString(sBallEvent + "|@surrender-epoch:" + std::to_string(surrenderEpoch));
     pSL->SaveLong(iBallOwner);
     pSL->SaveFloat(fTime);
     pSL->SaveFloat(fSpeedV0);
@@ -1403,6 +1663,16 @@ void BALL_PARAMS::Load(CSaveLoad *pSL)
     // pParticle = reinterpret_cast<VPARTICLE_SYSTEM *>(pSL->LoadDword());
     pParticle = reinterpret_cast<VPARTICLE_SYSTEM *>(pSL->LoadQword());
     sBallEvent = pSL->LoadString();
+    const auto marker = sBallEvent.rfind("|@surrender-epoch:");
+    if (marker != std::string::npos) {
+        const auto number = sBallEvent.c_str() + marker + sizeof("|@surrender-epoch:") - 1;
+        char *end = nullptr;
+        const auto value = std::strtoul(number, &end, 10);
+        if (end != number && *end == '\0' && value <= UINT32_MAX) {
+            surrenderEpoch = static_cast<uint32_t>(value);
+            sBallEvent.resize(marker);
+        }
+    }
     dartGood = TaggedGood(*this, "@dart:");
     dartViewLaunch = false;
     iBallOwner = pSL->LoadLong();
@@ -1432,6 +1702,7 @@ void BALL_PARAMS::Load(CSaveLoad *pSL)
 
 void AIBalls::Load(CSaveLoad *pSL)
 {
+    for (auto &wave : blastWaves) wave.age = -1.0f;
     for (auto &aBallType : aBallTypes)
     {
         const uint32_t dwNum = pSL->LoadDword();
@@ -1446,6 +1717,8 @@ void AIBalls::Load(CSaveLoad *pSL)
             if (pB.pParticle && pB.dartGood < 0)
             {
                 pB.pParticle = nullptr;
+                if (!AirburstFragment(pB) && aBallType.sParticleName.empty())
+                    continue;
                 if (auto eidParticle = core.GetEntityId("particles"))
                 {
                     if (AirburstFragment(pB) || AirburstGood(pB) >= 0)

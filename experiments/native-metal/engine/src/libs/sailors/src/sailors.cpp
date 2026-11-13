@@ -9,6 +9,7 @@
 #include "ship_fire_model.hpp"
 #include "ship_auxiliary_detail.h"
 #include "ship_laser_geometry.hpp"
+#include "shared/sea_ai/sea_character_collision.hpp"
 
 CREATE_CLASS(Sailors)
 
@@ -156,7 +157,11 @@ ShipMan::ShipMan(ShipMan &&other) noexcept: modelID{other.modelID},
                                             fireWorkRise{other.fireWorkRise},
                                             fireFaceAngle{other.fireFaceAngle},
                                             detailVisible{other.detailVisible},
-                                            panicSeconds{other.panicSeconds}
+                                            panicSeconds{other.panicSeconds},
+                                            heelFall{other.heelFall},
+                                            previousWorld{other.previousWorld},
+                                            heelOffset{other.heelOffset},
+                                            previousWorldValid{other.previousWorldValid}
 {
     other.modelID = invalid_entity;
 }
@@ -193,6 +198,10 @@ ShipMan & ShipMan::operator=(ShipMan &&other) noexcept
     fireFaceAngle = other.fireFaceAngle;
     detailVisible = other.detailVisible;
     panicSeconds = other.panicSeconds;
+    heelFall = other.heelFall;
+    previousWorld = other.previousWorld;
+    heelOffset = other.heelOffset;
+    previousWorldValid = other.previousWorldValid;
 
     other.modelID = invalid_entity;
     return *this;
@@ -216,6 +225,11 @@ void ShipMan::SetPos(MODEL *ship, SHIP_BASE *ship_base, uint32_t &dltTime, ShipS
 {
     if (auto model = static_cast<MODEL *>(core.GetEntityPointer(modelID)))
     {
+        if (heelFall.phase == deck_fall::Phase::falling)
+        {
+            model->mtx = CMatrix(CVECTOR(0.f, heelFall.yaw, 0.f), heelFall.position);
+            return;
+        }
         if (ship_base && shipState.sea && (shipState.dead || mode == MAN_JUMP || jumpSpeedY))
         {
             // If got in the water - detach from the ship and swim
@@ -244,7 +258,7 @@ void ShipMan::SetPos(MODEL *ship, SHIP_BASE *ship_base, uint32_t &dltTime, ShipS
             CMatrix mPos, mRot, m1, m2;
 
             mPos.BuildMatrix(CVECTOR(ang.x, ang.y, ang.z),
-                             pos + spos /*CVECTOR(pos.x+ spos.x, pos.y+ spos.y, pos.z+ spos.z)*/);
+                             pos + spos + heelOffset);
 
             if (ship_base)
             {
@@ -1536,6 +1550,109 @@ void ShipWalk::OnHullCut(const CVECTOR &normal, float distance, int cutMode,
     }
 }
 
+void ShipWalk::AdvanceHeelFall(ShipMan &man, uint32_t dltTime)
+{
+    using namespace deck_fall;
+    if (!ship || !shipModel || !shipState.sea || !dltTime) return;
+    CMatrix &matrix = *ship->GetMatrix();
+    if (man.heelFall.phase != Phase::falling)
+    {
+        if (man.inWater || man.mode == MAN_JUMP || man.mode == MAN_SWIM || man.mode == MAN_OFF ||
+            man.mode == MAN_CLIMB_UP || man.mode == MAN_CLIMB_DOWN)
+        { man.previousWorldValid = false; man.heelOffset = CVECTOR(0.f); return; }
+        CVECTOR gravity;
+        matrix.MulToInvNorm(CVECTOR(0.f, -1.f, 0.f), gravity);
+        gravity.y = 0.f;
+        const float slope = std::sqrt(~gravity);
+        CVECTOR target(0.f);
+        if (slope > .08f)
+            target = gravity * (std::min(.25f, (slope - .08f) * .5f) / slope);
+        CVECTOR shift = (target - man.heelOffset) * std::min(1.f, float(dltTime) * .003f);
+        if (~shift > .00000001f && matrix.Vy().y >= .55f)
+        {
+            // A single short ray limits the small lean against solid bulwarks.
+            // Normal level decks take no geometry query.
+            NODE *path = shipModel->FindNode("path");
+            const int32_t flags = path ? path->flags : 0;
+            if (path) path->flags &= ~NODE::CLIP_ENABLE;
+            const CVECTOR from = matrix * (man.pos + man.spos + man.heelOffset + CVECTOR(0.f, .8f, 0.f));
+            const CVECTOR to = matrix * (man.pos + man.spos + man.heelOffset + shift + CVECTOR(0.f, .8f, 0.f));
+            const float hit = shipModel->Trace(from, to);
+            if (path) path->flags = flags;
+            if (hit >= 0.f && hit <= 1.f) shift *= std::max(0.f, hit - .02f);
+            man.heelOffset += shift;
+        }
+        const CVECTOR world = matrix * (man.pos + man.spos + man.heelOffset);
+        CVECTOR velocity(0.f);
+        if (man.previousWorldValid) velocity = (world - man.previousWorld) * (1000.f / float(dltTime));
+        man.previousWorld = world; man.previousWorldValid = true;
+        if (matrix.Vy().y >= .55f) return;
+        ReleaseWork(man);
+        detach(man.heelFall, world, velocity, man.ang.y + ship->GetAng().y);
+        man.heelOffset = CVECTOR(0.f);
+        man.spos = CVECTOR(0.f);
+        man.mode = MAN_JUMP;
+        man.previousWorldValid = false;
+        if (auto *model = static_cast<MODEL *>(core.GetEntityPointer(man.modelID)))
+            if (auto *animation = model->GetAnimation())
+            {
+                // Random falling tumble/flail ragdoll-like action
+                const char *tumble = (rand() % 2 == 0) ? "crawl_down" : "crawl";
+                if (animation->Player(0).SetAction(tumble))
+                {
+                    animation->Player(0).SetSpeed(1.6f);
+                    animation->Player(0).Play();
+                }
+            }
+    }
+    auto wave = [&](float x, float z) { return shipState.sea->WaveXZ(x, z); };
+    auto sweep = [&](const CVECTOR &origin, const CVECTOR &delta, float &fraction, CVECTOR &normal) {
+        return sea_character_collision::trace(*shipModel, origin, delta, fraction, normal);
+    };
+    // A stalled frame must not multiply per-person collision work without bound.
+    fall(man.heelFall, float(std::min(dltTime, uint32_t(50))) * .001f, sweep, wave);
+    if (man.heelFall.phase == Phase::falling)
+    {
+        // Dynamic tumble spin in air while falling
+        man.heelFall.yaw += 4.5f * float(dltTime) * 0.001f;
+    }
+    if (man.heelFall.phase == Phase::water)
+    {
+        man.inWater = true;
+        man.pos = man.heelFall.position;
+        man.ang = CVECTOR(0.f, man.heelFall.yaw, 0.f);
+        man.angTo = man.ang;
+        man.mode = man.lastMode = MAN_SWIM;
+        man.manSpeed = man.rotSpeed = MOVE_SPEED;
+        man.dieTime = 0.f;
+        man.heelFall = {};
+        return;
+    }
+    if (matrix.Vy().y <= .8f || ~(man.heelFall.velocity) >= 4.f) return;
+    float contact = 1.f;
+    CVECTOR normal;
+    if (!sea_character_collision::trace(*shipModel, man.heelFall.position + CVECTOR(0.f, .1f, 0.f),
+                                        CVECTOR(0.f, -.3f, 0.f), contact, normal) || normal.y < .7f) return;
+    CVECTOR local;
+    matrix.MulToInv(man.heelFall.position, local);
+    int nearest = -1; float best = INFINITY;
+    for (int i = 0; i < sailorsPoints.points.count; ++i)
+    {
+        const auto &point = sailorsPoints.points.point[i];
+        if (!point.IsAvailable() || !point.IsNormal()) continue;
+        const CVECTOR delta = CrewPoint(point) - local;
+        if (std::abs(delta.y) > .75f || ~delta >= best) continue;
+        best = ~delta; nearest = i;
+    }
+    if (nearest < 0) return;
+    man.pos = local;
+    man.ang.y = man.heelFall.yaw - ship->GetAng().y;
+    man.heelFall = {};
+    man.newWayPoint = man.lastWayPoint = man.targetWayPoint = nearest;
+    man.mode = MAN_WALK; man.lastMode = MAN_OFF;
+    man.ApplyTargetPoint(CrewPoint(sailorsPoints.points.point[nearest]), true, ship);
+}
+
 void ShipWalk::CheckPosition(const uint32_t &dltTime)
 {
     for (auto &man : shipMan)
@@ -1678,7 +1795,9 @@ void Sailors::Realize(uint32_t dltTime)
         // Updating and drawing
         for (auto &man : walk->shipMan)
         {
-            man.UpdatePos(dltTime, walk->sailorsPoints, walk->shipState);
+            walk->AdvanceHeelFall(man, dltTime);
+            if (man.heelFall.phase != deck_fall::Phase::falling)
+                man.UpdatePos(dltTime, walk->sailorsPoints, walk->shipState);
             man.SetPos(walk->shipModel, walk->ship, dltTime, walk->shipState);
 
             if (!walk->bHide)

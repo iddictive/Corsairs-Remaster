@@ -73,9 +73,9 @@ struct SeaO {
     float fog;
     float3 surfaceNormal; float3 viewToEye; float3 waterBody;
     float3 fogColor;
-    float2 eventMaterial; float2 worldXZ;
+    float2 eventMaterial; float2 nuclearMaterial; float2 worldXZ;
 };
-struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;};
+struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;float2 nuclearMaterial;float nuclearHeight;};
 SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU& u) {
     const device float* p=(const device float*)(bytes+index*stride);
     SeaInput v;v.p=float4(p[0],p[1],p[2],1);v.n=float3(p[3],p[4],p[5]);v.uv=float2(p[6],p[7]);
@@ -83,6 +83,8 @@ SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU
     // The native SEA evaluator owns both values, including its event envelope.
     // Existing 32-byte fixture vertices retain their ordinary material contract.
     v.eventMaterial=(u.vc[240].x>.5f&&stride>=40u)?saturate(float2(p[8],p[9])):float2(0);
+    v.nuclearMaterial=(u.vc[240].x>.5f&&stride>=48u)?saturate(float2(p[10],p[11])):float2(0);
+    v.nuclearHeight=(u.vc[240].x>.5f&&stride>=52u)?p[12]:0.f;
     return v;
 }
 float3 seaNormalize(float3 v) {return v*rsqrt(max(dot(v,v),1.e-20f));}
@@ -92,7 +94,7 @@ SeaO seaBase(SeaInput v,constant SeaU& u) {
     o.position=float4(dot(v.p,u.vc[24]),dot(v.p,u.vc[25]),dot(v.p,u.vc[26]),dot(v.p,u.vc[27]));
     o.fog=exp2(-o.position.z*u.vc[1].w);
     o.surfaceNormal=v.n;o.viewToEye=u.vc[23].xyz-v.p.xyz;
-    o.eventMaterial=v.eventMaterial;o.worldXZ=v.p.xz+u.vc[241].xy;
+    o.eventMaterial=v.eventMaterial;o.nuclearMaterial=v.nuclearMaterial;o.worldXZ=v.p.xz+u.vc[241].xy;
     o.fogColor=u.fogColor.rgb;
     // The weather palette already combines authored pigment with the smoothed
     // visible fog/ambient state. Convert it once at vertex frequency. Preserve
@@ -141,7 +143,7 @@ vertex SeaO seasun_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0
 vertex SeaO seafoam_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
     SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaBasis(o,v,u);
     o.t0=o.t1;o.t1=o.t2;o.t2=o.t3;
-    o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
+    o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-v.nuclearHeight-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
     o.t4=float4(v.uv,u.vc[2].x,0);return o;
 }
 vertex SeaO sea3_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
@@ -249,13 +251,33 @@ float4 seaEventFoam(float4 authored,SeaO o,constant SeaU& u,texture2d<float> tex
     float4 vortex=seaFog(float4(tint*(.67f+.33f*saturate(n.y)),coverage),o,u);
     return mix(result,vortex,u.vc[245].w*(1.f-smoothstep(.86f,1.f,q)));
 }
+float4 seaNuclearFoam(float4 base,SeaO o,constant SeaU& u,texture2d<float> texture,sampler state) {
+    // Nuclear foam is a separate additive contribution; ordinary event masks
+    // and their material path stay independent when the events overlap.
+    float2 uv=o.worldXZ/38.f;
+    float2 bend=float2(texture.sample(state,uv*.13f+float2(.31f,.67f)).r,
+                       texture.sample(state,uv*.19f+float2(.73f,.21f)).r)-.5f;
+    float pattern=antiTilingSampleNatural(texture,state,uv+bend,0x4e55434cu).r;
+    float coverage=o.nuclearMaterial.y*.65f*smoothstep(.3f,.75f,pattern);
+    if (coverage<=0.f) return base;
+    float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
+    float4 nuclear=seaFog(float4(tint*(.72f+.28f*saturate(seaNormalize(o.surfaceNormal).y)),coverage),o,u);
+    float alpha=base.a+nuclear.a;
+    return float4((base.rgb*base.a+nuclear.rgb*nuclear.a)/max(alpha,1.e-6f),min(alpha,1.f));
+}
+float4 seaCombinedFoam(float4 authored,SeaO o,constant SeaU& u,texture2d<float> texture,sampler state) {
+    bool ordinaryEvent=u.vc[240].y>0.f||u.vc[245].w>0.f;
+    if(u.vc[243].z>0.f&&u.stride>=48u&&!ordinaryEvent&&u.vc[243].w<=0.f) authored.a=0.f;
+    float4 result=ordinaryEvent?seaEventFoam(authored,o,u,texture,state):authored;
+    return u.vc[243].z>0.f&&u.stride>=48u?seaNuclearFoam(result,o,u,texture,state):result;
+}
 fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {
     // Original ps_1_4 computes a perturbed normal in r5 but never consumes it.
     // Phase two samples the foam texture using unperturbed r3.xy, alpha=r3.z.
     // Uniform admission keeps derivative evaluation coherent across quads.
-    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u) {
+    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f||u.vc[243].z>0.f)&&u.stride>=40u) {
         float4 authored=seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
-        return seaEventFoam(authored,o,u,t[0],s[0]);
+        return seaCombinedFoam(authored,o,u,t[0],s[0]);
     }
     return seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
 }
@@ -279,8 +301,8 @@ float4 seaFoamModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,ar
     } else foam=t[0].sample(s[0],o.t3.xy);
     float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
     // RGB follows available weather light; authored coverage and blending stay exact.
-    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u)
-        return seaEventFoam(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),o,u,t[0],s[0]);
+    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f||u.vc[243].z>0.f)&&u.stride>=40u)
+        return seaCombinedFoam(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),o,u,t[0],s[0]);
     return seaFog(float4(foam.rgb*tint,o.t3.z),o,u);
 }
 fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {return seaFoamModernColor(o,u,t,s);}

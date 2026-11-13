@@ -41,6 +41,8 @@ class ShipInfoImages
   protected:
     VDX9RENDER *pRS;
     bool m_bVisible;
+    bool m_phonkRange = false;
+    CVECTOR m_phonkOrigin;
 
     int32_t m_idRelationTexture;
     int32_t m_vbRelation;

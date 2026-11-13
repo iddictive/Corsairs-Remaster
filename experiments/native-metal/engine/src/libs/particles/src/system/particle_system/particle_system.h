@@ -22,6 +22,11 @@ class ParticleSystem : public IParticleSystem
 
     // Do not emit new particles !!!
     bool EmissionPause;
+    bool navalBudgeted = false;
+    bool navalFading = false;
+    bool navalHasModels = false;
+    float navalOpacity = 1.f;
+    float navalFadeRate = 0.f;
 
     bool DeleteIfNeed();
 
@@ -53,6 +58,9 @@ class ParticleSystem : public IParticleSystem
     void PauseEmission(bool bPause) override;
 
     void Stop() override;
+    void SetNavalBudgeted(bool enabled) override;
+    void BeginNavalFade(float seconds) override;
+    const float *NavalOpacity() const { return navalBudgeted ? &navalOpacity : nullptr; }
     // Find out whether emission is paused or not
     bool IsEmissionPaused() override;
 

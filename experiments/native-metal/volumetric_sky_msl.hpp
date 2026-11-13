@@ -669,7 +669,7 @@ float4 skyRadiance(float3 direction,constant SkyWeather&weather,texture2d<float>
     color=mix(color,color*(1.f-moments.a)+mix(nightCloud,dayCloud,daylight),aerial);
     return float4(max(color,0.f),air.glow);
 }
-fragment float4 authored_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>stormCurrent [[texture(2)]],texture2d<float>stormNext [[texture(3)]],sampler skySampler [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture3d<float>localVolume [[texture(27)]]) {
+fragment float4 authored_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[buffer(1)]],constant SkyWeather&weather [[buffer(2)]],texture2d<float>current [[texture(0)]],texture2d<float>next [[texture(1)]],texture2d<float>stormCurrent [[texture(2)]],texture2d<float>stormNext [[texture(3)]],sampler skySampler [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
     float4 rgba=draw.hasCurrentTexture?current.sample(skySampler,in.uv):float4(1);
     if(draw.hasNextTexture)rgba=mix(rgba,next.sample(skySampler,in.uv),draw.textureBlend);
     if(draw.authored.y>.5f){
@@ -678,6 +678,11 @@ fragment float4 authored_sky_fs(SkyOut in [[stage_in]],constant SkyDraw&draw [[b
     }
     // Preserve texture alpha: inverse-alpha redraw masks stars and the disc.
     rgba.rgb*=in.tint.rgb;
+    // The finite sea is clipped before the angular horizon when viewed from
+    // above. Fill only its uncovered background with the same fog field used
+    // by distant water; actual sea and scene geometry still render over it.
+    if(draw.authored.w>.5f && in.direction.y<0.f && weather.horizonFog.w>.5f)
+        rgba.rgb=skyFogColor(in.position.xy,weather.horizonFog.rgb,fogDraw,fogEnvironment,true);
     // Original panorama owns the sky all the way to its horizon. The terrain
     // medium is sampled by finite-depth scene receivers, never as a sky veil.
     return rgba;

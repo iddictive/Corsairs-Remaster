@@ -25,10 +25,7 @@ inline bool settlementMaterial(std::string_view texture) {
         if(stem.find(role)!=std::string::npos)return true;
     return false;
 }
-inline bool islandForestConsumer(std::string_view path, std::string_view texture) {
-    std::string p(path);for(char &c:p)c=c=='\\' ? '/' : char(std::tolower(static_cast<unsigned char>(c)));
-    return p.find("/islands/")!=std::string::npos && p.ends_with(".grs") && island_geometry::textureStem(texture)=="junglesprites";
-}
+inline bool islandForestConsumer(std::string_view path, std::string_view texture) { (void)path; (void)texture; return false; }
 struct Triangle { Float3 p[3]; float normalY=0, suitability=0; bool terrain=false; };
 struct Cell { float y=-INFINITY, normalY=0, suitability=0; bool settlement=false; };
 

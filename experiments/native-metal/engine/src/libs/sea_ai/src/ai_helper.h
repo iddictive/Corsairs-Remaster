@@ -67,6 +67,7 @@ class AIHelper
   private:
     uint32_t *pRelations, dwRelationSize;
     std::vector<ATTRIBUTES *> aCharacters, aMainCharacters;
+    ATTRIBUTES *playerCharacter = nullptr;
 
     uint32_t *GetRelation(uint32_t x, uint32_t y) const;
     uint32_t FindIndex(ATTRIBUTES *pACharacter) const;

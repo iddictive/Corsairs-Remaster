@@ -91,6 +91,7 @@ class SHIP : public SHIP_BASE
 
     CMatrix mRoot;
     CVECTOR vSpeed, vSpeedsA;
+    CVECTOR smoothedSurfaceAngle = CVECTOR(0.f, 0.f, 0.f);
     float fMinusVolume;
     float fXOffset, fZOffset;
 
@@ -184,6 +185,7 @@ class SHIP : public SHIP_BASE
     bool bGroundSupported = false, bGroundFalling = false; // reconstructed; velocity stays in State
     bool bGroundRestorePending = false;
     float groundWaterVelocityY = 0.f; // transient companion of phonkDrift.waterX/Z, m/s
+    float phonkYawLanding = 0.f; // transient remaining water-entry steering blend
     float shoreStuckSeconds = 0.f; // consumed motion only; never saved or advanced by TOUCH
     float shoreDirectionSeconds = 0.f;
     CVECTOR shoreRecoveryDirection = CVECTOR(0.f); // zero also caches failed discovery
@@ -235,13 +237,14 @@ class SHIP : public SHIP_BASE
 
     // executed functions
     CVECTOR ShipRocking(float fDeltaTime, float *surfaceHeight = nullptr, CVECTOR *surfaceAngle = nullptr);
-    BOOL ApplyStrength(float dtime, BOOL bCollision);
+    BOOL ApplyStrength(float dtime, BOOL bCollision, bool airborne);
     void SailingInertia(float seconds, const CVECTOR &targetSpeed, const CVECTOR &targetRotate,
                         CVECTOR &speed, CVECTOR &rotate) const;
     void GatherStrengthImpulses(CVECTOR &speed, CVECTOR &rotate, float &angularImpulse,
                                float &linearImpulse, bool consume);
     bool PhonkActive();
     bool PhonkMotionAllowed();
+    bool MissileCameraControlsActive();
     bool AdvancePhonkJet(uint32_t milliseconds, bool prediction);
     bool PreparePhonkJetWorld();
     void ApplyPhonkJetExhaust(float seconds);
@@ -433,7 +436,7 @@ class SHIP : public SHIP_BASE
     MODEL *GetModel() const override;
     entid_t GetModelEID() const override;
     CVECTOR GetPos() const override;
-    bool HasWaterContact() const override { return phonkJet.active ? phonkJet.wet : !phonkFlight.airborne && !bLandContact; }
+    bool HasWaterContact() const override { return !pSea || (State.vPos.y <= pSea->WaveXZ(State.vPos.x, State.vPos.z) + 3.0f && !bLandContact); }
     bool HasRigidFlight() const override { return phonkJet.active; }
     bool IsAuxiliaryDetailVisible() override;
     SHIP_WATER_IMPACT GetWaterImpact() const override

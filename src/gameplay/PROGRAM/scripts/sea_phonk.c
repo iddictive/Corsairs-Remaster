@@ -23,6 +23,50 @@ void SeaPhonk_InitControls()
         MapControlToGroup("Phonk_Nuclear", "Sailing1Pers");
         MapControlToGroup("Phonk_Nuclear", "BattleInterfaceControls");
     }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_NuclearMenu"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_NuclearMenu", CI_GetKeyCode("KEY_K"), 0, true);
+        MapControlToGroup("Phonk_NuclearMenu", "Sailing1Pers");
+        MapControlToGroup("Phonk_NuclearMenu", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_NuclearMode"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_NuclearMode", CI_GetKeyCode("KEY_J"), 0, true);
+        MapControlToGroup("Phonk_NuclearMode", "Sailing1Pers");
+        MapControlToGroup("Phonk_NuclearMode", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_NuclearPower"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_NuclearPower", CI_GetKeyCode("KEY_L"), 0, true);
+        MapControlToGroup("Phonk_NuclearPower", "Sailing1Pers");
+        MapControlToGroup("Phonk_NuclearPower", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_NuclearInterval") ||
+        objControlsState.keygroups.Sailing3Pers.Phonk_NuclearInterval == "KEY_I")
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_NuclearInterval", CI_GetKeyCode("KEY_U"), 0, true);
+        MapControlToGroup("Phonk_NuclearInterval", "Sailing1Pers");
+        MapControlToGroup("Phonk_NuclearInterval", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Harpoon") ||
+        objControlsState.keygroups.Sailing3Pers.Phonk_Harpoon == "KEY_9")
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Harpoon", CI_GetKeyCode("KEY_0"), 0, true);
+        MapControlToGroup("Phonk_Harpoon", "Sailing1Pers");
+        MapControlToGroup("Phonk_Harpoon", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_HarpoonRelease"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_HarpoonRelease", CI_GetKeyCode("KEY_C"), 0, true);
+        MapControlToGroup("Phonk_HarpoonRelease", "Sailing1Pers");
+        MapControlToGroup("Phonk_HarpoonRelease", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_HarpoonWinch"))
+    {
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_HarpoonWinch", CI_GetKeyCode("KEY_V"), 0, true);
+        MapControlToGroup("Phonk_HarpoonWinch", "Sailing1Pers");
+        MapControlToGroup("Phonk_HarpoonWinch", "BattleInterfaceControls");
+    }
 }
 
 bool SeaPhonk_IsActive()
@@ -36,7 +80,7 @@ bool SeaPhonk_IsActive()
 bool SeaPhonk_ProtectsShip(aref character)
 {
     return SeaPhonk_IsActive() && CheckAttribute(character, "index") &&
-        sti(character.index) == GetMainCharacterIndex();
+        sti(character.index) == GetMainCharacterIndex() && LAi_IsImmortal(character);
 }
 
 bool SeaPhonk_HasUnlimitedAmmo(aref character)
@@ -54,11 +98,15 @@ void SeaPhonk_SetActive(bool active)
         CheckAttribute(pchar, "Ship.Cannons.Charge.Type"))
         SendMessage(&AISea, "la", AI_MESSAGE_CANNON_RELOAD, pchar);
     Sea.Phonk.Active = active;
+    if (active && !CheckAttribute(&Sea, "Phonk.MissileType")) Sea.Phonk.MissileType = 3;
+    if (active && !CheckAttribute(&Sea, "Phonk.MissileWarhead")) Sea.Phonk.MissileWarhead = 5;
+    if (active && sti(Sea.Phonk.MissileWarhead) == 3) Sea.Phonk.MissileWarhead = 1;
+    if (IsEntity(pchar)) pchar.SeaPhonk.Active = active;
 }
 
 bool SeaPhonk_IsMusicMuted()
 {
-    return CheckAttribute(pchar, "PhonkMusicMuted") && sti(pchar.PhonkMusicMuted) != 0;
+    return !CheckAttribute(pchar, "PhonkMusicMuted") || sti(pchar.PhonkMusicMuted) != 0;
 }
 
 bool SeaPhonk_Music(string requested)
@@ -107,11 +155,14 @@ void SeaPhonk_ResumeOrdinaryMusic(string previous)
 
 void SeaPhonk_Reset(bool restoreMusic)
 {
+    SeaPhonkTest_Stop();
     string previous = "";
     if (CheckAttribute(&Sea, "Phonk.ReturnMusic")) previous = Sea.Phonk.ReturnMusic;
     if (SeaPhonk_HasUnlimitedAmmo(pchar)) SeaPhonk_SetActive(false);
     DeleteAttribute(&Sea, "Phonk");
+    if (IsEntity(pchar) && CheckAttribute(pchar, "Ship.ReactiveFlight")) DeleteAttribute(pchar, "Ship.ReactiveFlight");
     DelEventHandler("frame", "SeaPhonk_Frame");
+    if (restoreMusic && IsEntity(pchar)) pchar.SeaPhonk.Active = false;
     if (!SeaPhonk_StopMusic(200)) return;
     if (restoreMusic) SeaPhonk_ResumeOrdinaryMusic(previous);
 }
@@ -227,6 +278,101 @@ float SeaPhonk_NuclearPower()
     return SeaTsunami_SampleSeverity();
 }
 
+void SeaPhonk_ClusterFlame()
+{
+    float x = GetEventData();
+    float y = GetEventData();
+    float z = GetEventData();
+    int surface = GetEventData();
+    // Use existing, bounded particle systems; keep water impacts distinct from
+    // dust and fire on land or ship surfaces.
+    Ball_CreateNavalEffect("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0, 10);
+    // Ship fire is attached to the hull by the native fire system. A static
+    // world-space emitter would hang in the air as the ship moves away.
+    if (surface == 1)
+    {
+        Ball_CreateNavalEffect("large_smoke", x, y, z, 0.0, 0.0, 0.0, 0, 10);
+        Ball_CreateNavalEffect("FortFire", x, y, z, 0.0, 0.0, 0.0, 5, 10);
+        Ball_CreateNavalEffect("GunFire", x, y, z, 0.0, 0.0, 0.0, 0, 10);
+    }
+}
+
+void SeaPhonk_MissilePuff()
+{
+    float x = GetEventData();
+    float y = GetEventData();
+    float z = GetEventData();
+    // The native launch burst already supplies short-lived smoke. The ship
+    // fire emitter has a ten-second particle lifetime and leaves a second,
+    // stationary plume at the launch position.
+}
+
+void SeaPhonk_RecordMissileAttack(ref target, int owner)
+{
+    // Match cannon hits: notify the encounter before damage can sink the ship.
+    if (owner != GetMainCharacterIndex() || IsCompanion(target) || CheckAttribute(target, "Coastal_Captain")) return;
+    if (GetNationRelation2MainCharacter(sti(target.nation)) == RELATION_ENEMY) return;
+    if (!WdmMilitaryParticipationHit(target, Crime_HasPlayerIntent(target)))
+        CrimeSea_PreparePlayerBallHit(target);
+}
+
+void SeaPhonk_MissileAttack()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    int launchEpoch = GetEventData();
+    if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
+    if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target)) return;
+    Ship_SurrenderHit(target, owner, launchEpoch);
+    SeaPhonk_RecordMissileAttack(target, owner);
+}
+
+void SeaPhonk_ConventionalDamage()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float power = GetEventData();
+    float bombMultiplier = GetEventData();
+    int warhead = GetEventData();
+    int launchEpoch = GetEventData();
+    if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
+    if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target)) return;
+    if (power <= 0.0 || bombMultiplier <= 0.0) return;
+    if (Ship_HullDamageMultiplier(target, owner) <= 0.0) return;
+    Ship_SurrenderHit(target, owner, launchEpoch);
+    target.Ship.LastBallCharacter = owner;
+    SeaPhonk_RecordMissileAttack(target, owner);
+    // HE and legacy fragmentation both use the fragmentation crew effect.
+    // Crew and rigging scale with blast falloff and configured warhead power.
+    float crewPercent = 6.0;
+    if (warhead == 1 || warhead == 3) crewPercent = 15.0;
+    if (warhead == 4) crewPercent = 4.0;
+    if (warhead == PHONK_WARHEAD_THERMOBARIC) crewPercent = 22.0;
+    float effectPower = Clampf(power) * bombMultiplier / 48.0;
+    Ship_ApplyCrewHitpoints(target, Ship_AmmoCrewLoss(target, crewPercent * effectPower));
+    float sailDamage = Ship_SailHitDamageToSP(target, stf(Goods[GOOD_BOMBS].DamageRig) * bombMultiplier * Clampf(power));
+    if (sailDamage > 0.0) MakeSailDmg(sti(target.index), sailDamage);
+    // GOOD_BOMBS owns the reference HP; ordinary hull perks and kill attribution
+    // remain in Ship_ApplyHullHitpoints instead of being reproduced here.
+    Ship_ApplyHullHitpoints(target, stf(Goods[GOOD_BOMBS].DamageHull) * bombMultiplier * Clampf(power), KILL_BY_BALL, owner);
+}
+
+void SeaPhonk_FragmentHit()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float damage = GetEventData();
+    if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return;
+    if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return;
+    if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target) || damage <= 0.0) return;
+    if (Ship_HullDamageMultiplier(target, owner) <= 0.0) return;
+    target.Ship.LastBallCharacter = owner;
+    SeaPhonk_RecordMissileAttack(target, owner);
+    Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
+}
+
 int SeaPhonk_NuclearWave()
 {
     aref target = GetEventData();
@@ -242,7 +388,10 @@ int SeaPhonk_NuclearWave()
     // The inner blast already paid its HP. The travelling shell only pays
     // outer hull damage; native thermal fire retains the sole burning DOT.
     if (fraction > 0.0)
+    {
+        SeaPhonk_RecordMissileAttack(target, owner);
         Ship_ApplyHullHitpoints(target, GetCharacterShipHP(target) * Clampf(fraction), KILL_BY_BALL, owner);
+    }
     // Damage can remove the entity/attributes; native reacquires its ID before
     // applying movement or ignition, so do not read this aref after the callback.
     return 1;

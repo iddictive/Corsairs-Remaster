@@ -30,6 +30,7 @@ bool AIHelper::Uninit()
     pASeaCameras = nullptr;
     aCharacters.clear();
     aMainCharacters.clear();
+    playerCharacter = nullptr;
     dwRelationSize = 0;
     STORM_DELETE(pRelations);
     return true;
@@ -64,6 +65,7 @@ ATTRIBUTES *AIHelper::GetMainCharacter(ATTRIBUTES *pACharacter)
 
 void AIHelper::AddCharacter(ATTRIBUTES *pACharacter, ATTRIBUTES *pAMainCharacter)
 {
+    if (pACharacter && pACharacter->GetAttributeAsDword("MainCharacter", 0)) playerCharacter = pACharacter;
     // uint32_t dwIdx = aCharacters.Find(pACharacter);
     // if (dwIdx != INVALID_ARRAY_INDEX)
     //{
@@ -133,6 +135,7 @@ void AIHelper::CalculateRelations()
 
 void AIHelper::RemoveCharacter(ATTRIBUTES *character)
 {
+    if (character == playerCharacter) playerCharacter = nullptr;
     for (size_t i = aCharacters.size(); i-- > 0;)
         if (aCharacters[i] == character) {
             aCharacters.erase(aCharacters.begin() + i);
@@ -158,6 +161,16 @@ uint32_t AIHelper::GetEffectiveRelation(uint32_t x, uint32_t y) const
 {
     if (x != y)
     {
+        // Debug relations are transient; leave the persistent commander snapshot intact.
+        auto *target = aCharacters[y];
+        auto *actor = aCharacters[x];
+        if (target && target == playerCharacter && actor && actor != playerCharacter)
+        {
+            if (target->GetAttributeAsDword("DebugInvisibleAI", 0)) return RELATION_NEUTRAL;
+            if (target->GetAttributeAsDword("DebugEnemyAll", 0)) return RELATION_ENEMY;
+        }
+        if (actor && actor == playerCharacter && target && target != playerCharacter &&
+            actor->GetAttributeAsDword("DebugEnemyAll", 0)) return RELATION_ENEMY;
         const auto surrenderedTo = [](ATTRIBUTES *ship, ATTRIBUTES *commander) {
             if (!ship || !commander)
                 return false;
@@ -291,8 +304,12 @@ void AIHelper::Load(CSaveLoad *pSL)
     pASeaCameras = pSL->LoadAPointer("seacameras");
 
     auto dwNum = pSL->LoadDword();
-    for (uint32_t i = 0; i < dwNum; i++)
-        aCharacters.push_back(pSL->LoadAPointer("character"));
+    playerCharacter = nullptr;
+    for (uint32_t i = 0; i < dwNum; i++) {
+        auto *character = pSL->LoadAPointer("character");
+        aCharacters.push_back(character);
+        if (character && character->GetAttributeAsDword("MainCharacter", 0)) playerCharacter = character;
+    }
 
     dwNum = pSL->LoadDword();
     for (uint32_t i = 0; i < dwNum; i++)

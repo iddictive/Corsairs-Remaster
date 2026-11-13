@@ -193,6 +193,19 @@ void AIShipTaskController::Execute(float fDeltaTime)
     if (fDeltaTime <= 0.0f)
         return;
 
+    // Suspend, rather than complete, a hostile order while its player target
+    // is hidden. Completing it would discard a pre-existing secondary order.
+    auto *task = GetCurrentTask();
+    auto *target = task->pATaskCharacter;
+    if (!GetAIShip()->isMainCharacter() && target && ATTRIBUTES::IsLive(target) &&
+        target->GetAttributeAsDword("DebugInvisibleAI", 0) &&
+        (task->dwTaskType == AITASK_ATTACK || task->dwTaskType == AITASK_ABORDAGE ||
+         task->dwTaskType == AITASK_BRANDER))
+    {
+        GetAIShip()->GetSpeedController()->SetGlobalMultiply(0.0f);
+        return;
+    }
+
     auto bTaskCompleted = CheckCurrentTaskComplete();
     if (bTaskCompleted)
     {
@@ -233,6 +246,8 @@ void AIShipTaskController::SetNewTask(uint32_t dwPriority, uint32_t _dwNewTaskTy
 bool AIShipTaskController::isAttack(ATTRIBUTES *pAOtherCharacter)
 {
     auto *const pTask = GetCurrentTask();
+    if (!GetAIShip()->isMainCharacter() && pAOtherCharacter && ATTRIBUTES::IsLive(pAOtherCharacter) &&
+        pAOtherCharacter->GetAttributeAsDword("DebugInvisibleAI", 0)) return false;
     if (pTask && pTask->pATaskCharacter == pAOtherCharacter) //~!~
     {
         switch (pTask->dwTaskType)

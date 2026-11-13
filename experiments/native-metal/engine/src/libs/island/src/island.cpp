@@ -1,4 +1,7 @@
 #include "island.h"
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+#include "seabed_collision.hpp"
+#endif
 
 #include "core.h"
 #include "foam.h"
@@ -13,6 +16,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include <typeinfo>
+#include <cstdlib>
+#include <sys/stat.h>
 
 CREATE_CLASS(ISLAND)
 class IslandRegion final : public ISLAND {};
@@ -30,6 +35,44 @@ CREATE_CLASS(CoastFoam)
 #define SEA_BED_NODE_NAME "seabed"
 
 #define DMAP_SIZE 2048
+
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+// Opt-in, bounded traversal diagnostics. A traversal is not necessarily a
+// presented frame: reflection passes can invoke the island separately.
+namespace {
+struct IslandTrace {
+    const char *trigger = [] { const char *v = std::getenv("STORM_ISLAND_TRACE"); return v && v[0] == '/' ? v : nullptr; }();
+    bool triggerPresent = false;
+    unsigned depth = 0, remaining = 0, traversal = 0, records = 0;
+    bool active = false;
+    void begin() {
+        if (!trigger) return;
+        if (depth++ != 0) return;
+        struct stat info{};
+        const bool present = stat(trigger, &info) == 0;
+        if (present && !triggerPresent && !remaining) { remaining = 2; traversal = 0; }
+        triggerPresent = present;
+        active = remaining != 0;
+        records = 0;
+        if (active) core.Trace("IslandTrace traversal=%u begin", ++traversal);
+    }
+    void end() {
+        if (!trigger || --depth != 0) return;
+        if (active) {
+            core.Trace("IslandTrace traversal=%u end records=%u", traversal, records);
+            --remaining;
+        }
+        active = false;
+    }
+    bool record() { return active && records++ < 32; }
+} islandTrace;
+struct IslandTraceScope { IslandTraceScope() { islandTrace.begin(); } ~IslandTraceScope() { islandTrace.end(); } };
+void traceMatrix(const char *name, const float *m) {
+    core.Trace("IslandTrace %s %.9g %.9g %.9g %.9g / %.9g %.9g %.9g %.9g / %.9g %.9g %.9g %.9g / %.9g %.9g %.9g %.9g",
+               name, m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],m[8],m[9],m[10],m[11],m[12],m[13],m[14],m[15]);
+}
+}
+#endif
 
 ISLAND::ISLAND()
 {
@@ -75,6 +118,9 @@ void ISLAND::Uninit()
     STORM_DELETE(pDepthMap);
     STORM_DELETE(pShadowMap);
 
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    seabed_collision::release(seabed_id);
+#endif
     if (!bForeignModels)
     {
         core.EraseEntity(model_id);
@@ -135,8 +181,14 @@ void ISLAND::TranslateRegion(float x, float z)
     // Called once, after original depth/path loading and before damage restore.
     for (const auto id : traceModels) if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
     { model->mtx.Pos() += delta; model->Update(); }
-    for (const auto id : aForts) if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
-    { model->mtx.Pos() += delta; model->Update(); }
+    for (const auto id : aForts)
+        if (std::find(traceModels.begin(), traceModels.end(), id) == traceModels.end())
+            if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(id)))
+            { model->mtx.Pos() += delta; model->Update(); }
+    if (std::find(traceModels.begin(), traceModels.end(), seabed_id) == traceModels.end() &&
+        std::find(aForts.begin(), aForts.end(), seabed_id) == aForts.end())
+        if (auto *model = dynamic_cast<MODEL *>(core.GetEntityPointer(seabed_id)))
+        { model->mtx.Pos() += delta; model->Update(); }
     mIslandOld.Pos() += delta;
     mSeaBedOld.Pos() += delta;
     vBoxCenter += delta;
@@ -181,6 +233,8 @@ bool ISLAND::PoseRegion(const storm_sea_atlas::Frame &pose)
     for (const auto id : traceModels) moveModel(id);
     for (const auto id : aForts)
         if (std::find(traceModels.begin(), traceModels.end(), id) == traceModels.end()) moveModel(id);
+    if (std::find(traceModels.begin(), traceModels.end(), seabed_id) == traceModels.end() &&
+        std::find(aForts.begin(), aForts.end(), seabed_id) == aForts.end()) moveModel(seabed_id);
     CMatrix island, seabed;
     island.EqMultiply(mIslandOld, delta); seabed.EqMultiply(mSeaBedOld, delta);
     mIslandOld = island; mSeaBedOld = seabed;
@@ -390,6 +444,9 @@ bool bView = false;
 
 void ISLAND::Realize(uint32_t Delta_Time)
 {
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+    IslandTraceScope traceScope;
+#endif
     for (const auto id : residentRegions) if (auto *region = Region(id))
     {
         region->bDrawReflections = bDrawReflections;
@@ -403,10 +460,24 @@ void ISLAND::Realize(uint32_t Delta_Time)
     uint32_t dwAmbient, dwAmbientOld;
 
     if (bForeignModels || !model_id)
+    {
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+        if (islandTrace.record()) core.Trace("IslandTrace region=%s skipped=foreign_or_missing reflection=%d residents=%zu", logicalRegionID.c_str(), int(bDrawReflections), residentRegions.size());
+#endif
         return;
+    }
 #ifdef STORM_METAL_RENDERER_CONSUMERS
     const float distanceBlend = RegionDistanceBlend();
-    if (distanceBlend >= 1.f) return;
+    if (distanceBlend >= 1.f) {
+        if (islandTrace.record()) {
+            CVECTOR camera, angles; float perspective;
+            pRS->GetCamera(camera, angles, perspective);
+            core.Trace("IslandTrace region=%s skipped=distance blend=%.9g reflection=%d camera=%.9g,%.9g,%.9g center=%.9g,%.9g,%.9g extent=%.9g,%.9g maxDistance=%.9g",
+                       logicalRegionID.c_str(), distanceBlend, int(bDrawReflections), camera.x,camera.y,camera.z,
+                       vBoxCenter.x,vBoxCenter.y,vBoxCenter.z,vRealBoxSize.x,vRealBoxSize.z,maxViewDistance);
+        }
+        return;
+    }
 #else
     if (!RegionVisible()) return;
 #endif
@@ -420,7 +491,11 @@ void ISLAND::Realize(uint32_t Delta_Time)
     pRS->GetRenderState(storm_render::RenderAmbient, &dwAmbientOld);
     pRS->GetRenderState(storm_render::RenderLighting, &bLighting);
 
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+    pRS->SetRenderState(storm_render::RenderLighting, true);
+#else
     pRS->SetRenderState(storm_render::RenderLighting, dynamicLightsOn);
+#endif
     dwAmbient = dwAmbientOld & 0xFF;
 
     CVECTOR vCamPos, vCamAng;
@@ -442,6 +517,32 @@ void ISLAND::Realize(uint32_t Delta_Time)
     CMatrix mTemp;
     mTemp.BuildPosition(0.0f, -fCurrentImmersion, 0.0f);
     pModel->mtx = mIslandOld * mTemp;
+
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+    if (islandTrace.record()) {
+        float nearPlane, farPlane;
+        uint32_t depthTest = 0, depthWrite = 0, depthCompare = 0, depthBias = 0;
+        storm_render::Matrix view{}, projection{};
+        pRS->GetNearFarPlane(nearPlane, farPlane);
+        pRS->GetTransform(storm_render::TransformView, &view);
+        pRS->GetTransform(storm_render::TransformProjection, &projection);
+        pRS->GetRenderState(storm_render::RenderDepthTest, &depthTest);
+        pRS->GetRenderState(storm_render::RenderDepthWrite, &depthWrite);
+        pRS->GetRenderState(storm_render::RenderDepthCompare, &depthCompare);
+        pRS->GetRenderState(storm_render::RenderDepthBias, &depthBias);
+        core.Trace("IslandTrace region=%s reflection=%d residents=%zu seabed=%d forts=%zu camera=%.9g,%.9g,%.9g angles=%.9g,%.9g,%.9g perspective=%.9g near=%.9g far=%.9g blend=%.9g immersion=%.9g lights=%d fog=%u ambient=%u depth=%u,%u,%u,%u",
+                   logicalRegionID.c_str(), int(bDrawReflections), residentRegions.size(), int(seabed_id != 0), aForts.size(),
+                   vCamPos.x,vCamPos.y,vCamPos.z,vCamAng.x,vCamAng.y,vCamAng.z,fPerspective,nearPlane,farPlane,distanceBlend,fCurrentImmersion,
+                   int(dynamicLightsOn),bFogEnable,dwAmbientOld,depthTest,depthWrite,depthCompare,depthBias);
+        core.Trace("IslandTrace bounds center=%.9g,%.9g,%.9g extent=%.9g,%.9g maxDistance=%.9g immersionDistance=%.9g immersionDepth=%.9g",
+                   vBoxCenter.x,vBoxCenter.y,vBoxCenter.z,vRealBoxSize.x,vRealBoxSize.z,maxViewDistance,fImmersionDistance,fImmersionDepth);
+        traceMatrix("view", &view.m[0][0]);
+        traceMatrix("projection", &projection.m[0][0]);
+        traceMatrix("island", pModel->mtx.matrix);
+        if (const auto *seabed = static_cast<MODEL *>(core.GetEntityPointer(seabed_id)))
+            traceMatrix("seabed", seabed->mtx.matrix);
+    }
+#endif
 
     float fOldFogDensity;
     float fIslandFogDensity;
@@ -531,11 +632,16 @@ void ISLAND::Realize(uint32_t Delta_Time)
 
         auto *pSeaBed = static_cast<MODEL *>(core.GetEntityPointer(seabed_id));
         if (pSeaBed)
+        {
+            // Prevent shoreline Z-fighting between island and seabed geometry
+            pRS->SetRenderState(storm_render::RenderDepthWrite, FALSE);
 #ifdef STORM_METAL_RENDERER_CONSUMERS
             storm_model::RealizeWithDistanceBlend(*pSeaBed, Delta_Time, distanceBlend);
 #else
             pSeaBed->ProcessStage(Stage::realize, Delta_Time);
 #endif
+            pRS->SetRenderState(storm_render::RenderDepthWrite, TRUE);
+        }
     }
 
 #ifndef STORM_METAL_RENDERER_CONSUMERS
@@ -641,10 +747,8 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
     case MSG_ISLAND_ADD_FORT: {
         const auto fort = message.EntityID();
         aForts.push_back(fort);
-        // Composed atlas terrain omits baked fort duplicates. The one live
-        // destructible fort must therefore own physical shore collision too.
-        if (AttributesPointer && AttributesPointer->GetAttributeClass("SeaAtlas") &&
-            std::find(traceModels.begin(), traceModels.end(), fort) == traceModels.end())
+        // The live fort owns its collision in both legacy and atlas scenes.
+        if (std::find(traceModels.begin(), traceModels.end(), fort) == traceModels.end())
         {
             traceModels.push_back(fort);
             IncludeFortTraceBounds(fort);
@@ -840,14 +944,29 @@ bool ISLAND::LocalDepthCollision(const CVECTOR &previous, const CVECTOR &next, f
     if (fCurrentImmersion != 0.0f)
         return true;
 
-    // The raster cell is only a broad phase. Veto its contact only with positive
-    // geometry evidence; missing collision geometry retains the legacy result.
+    // The raster is only a broad phase: it can still contain coastlines that
+    // were removed from this model. Contact needs an actual mesh witness.
     CVECTOR surface(next.x, 0.0f, next.z);
     const CVECTOR bottom(next.x, -500.0f, next.z + 0.001f);
     const float hit = LocalTrace(surface, bottom);
     const bool exact = std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f;
-    if (!exact || !std::isfinite(minDepth) ||
-        (exact && -500.0f * hit >= minDepth))
+    if (!exact)
+    {
+        // A removed or absent surface cannot turn a stale raster cell into a
+        // wall. Still catch a real surface crossed during this movement.
+        const float dx = next.x - previous.x, dz = next.z - previous.z;
+        if (dx * dx + dz * dz <= 0.000001f) return ActivateCamomileTrace(surface);
+        const int levels = minDepth == 0.0f ? 1 : 2;
+        for (int level = 0; level < levels; ++level)
+        {
+            const float y = level == 0 ? 0.0f : minDepth;
+            const float crossing = LocalTrace(CVECTOR(previous.x, y, previous.z),
+                                              CVECTOR(next.x, y, next.z));
+            if (std::isfinite(crossing) && crossing >= 0.0f && crossing <= 1.0f) return true;
+        }
+        return false;
+    }
+    if (exact && (!std::isfinite(minDepth) || -500.0f * hit >= minDepth))
         return true;
 
     // A deep endpoint must not erase a crossing of a thin wall during this step.
@@ -883,18 +1002,38 @@ bool ISLAND::LocalGroundDepth(float x, float z, float keelY, float &depth)
 {
     if (!LocalDepth(x, z, &depth))
         return false;
-    // Deep cells need no additional geometry work. Distant render immersion
-    // makes the current model unsuitable for physical refinement.
-    if (depth < keelY || fCurrentImmersion != 0.0f)
+    // The bounded ray cannot prove clearance at or below its endpoint.
+    if (!std::isfinite(keelY) || keelY <= -500.f || !std::isfinite(depth) ||
+        depth < keelY || fCurrentImmersion != 0.0f)
         return true;
     CVECTOR surface(x, 0.0f, z);
-    const float hit = LocalTrace(surface, CVECTOR(x, -500.0f, z + 0.001f));
-    if (std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f)
+    const CVECTOR bottom(x, -500.0f, z + 0.001f);
+    const float hit = LocalTrace(surface, bottom);
+    const bool shoreHit = std::isfinite(hit) && hit >= 0.0f && hit <= 1.0f;
+    float prior = depth;
+    if (shoreHit)
     {
         const float exactDepth = -500.0f * hit;
         if (exactDepth >= keelY || !ActivateCamomileTrace(surface))
-            depth = exactDepth;
+            prior = exactDepth;
     }
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+    TRIANGLE triangle;
+    const auto bed = seabed_collision::traceModel(seabed_id, surface, bottom, triangle);
+    if (bed.state == seabed_collision::GroundRayState::unavailable)
+    {
+        // Do not accept a partial hit as nearest when another node is unavailable.
+        seabed_collision::reportGroundUnavailable(seabed_id);
+        depth = prior;
+        return true;
+    }
+    const float shore = shoreHit ? prior : -500.f;
+    depth = bed.state == seabed_collision::GroundRayState::hit ?
+        std::max(shore, -500.f * bed.fraction) : shore;
+#else
+    // Without the indexed seabed owner, retain the existing result.
+    depth = prior;
+#endif
     return true;
 }
 
@@ -1338,8 +1477,8 @@ bool ISLAND::Mount(const std::string_view &fname, const std::string_view &fdir, 
 
     core.AddToLayer(ISLAND_TRACE, model_id, 10);
     core.AddToLayer(ISLAND_TRACE, seabed_id, 10);
+    // Exclude underwater seabed from collision trace models so cannonballs and ships never hit underwater sea floor
     traceModels = {model_id};
-    if (seabed_id) traceModels.push_back(seabed_id);
     core.AddToLayer(RAIN_DROPS, model_id, 100);
 
     auto *pSeaBedModel = static_cast<MODEL *>(core.GetEntityPointer(seabed_id));
@@ -1383,10 +1522,11 @@ bool ISLAND::Mount(const std::string_view &fname, const std::string_view &fdir, 
 float ISLAND::Cannon_Trace(int32_t iBallOwner, const CVECTOR &vSrc, const CVECTOR &vDst)
 {
     const float fRes = Trace(vSrc, vDst);
-    if (fRes <= 1.0f)
+    if (fRes >= 0.0f && fRes <= 1.0f)
     {
         const CVECTOR vTemp = vSrc + fRes * (vDst - vSrc);
-        core.Event(BALL_ISLAND_HIT, "lfff", iBallOwner, vTemp.x, vTemp.y, vTemp.z);
+        if (vTemp.y >= -1.0f)
+            core.Event(BALL_ISLAND_HIT, "lfff", iBallOwner, vTemp.x, vTemp.y, vTemp.z);
     }
     return fRes;
 }
@@ -1395,16 +1535,23 @@ float ISLAND::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
 {
     if (residentRegions.empty()) return LocalTrace(vSrc, vDst);
     aggregateTraceModels.clear();
-    if (RegionIntersects(vSrc, vDst)) aggregateTraceModels.insert(aggregateTraceModels.end(), traceModels.begin(), traceModels.end());
+    // 500m margin ensures incoming cannonballs and distant trajectories are never pruned
+    if (RegionIntersects(vSrc, vDst, 500.f)) aggregateTraceModels.insert(aggregateTraceModels.end(), traceModels.begin(), traceModels.end());
     for (const auto id : residentRegions)
     {
         auto *entity = core.GetEntityPointer(id);
-        // The common resident type is final. Preserve the checked fallback for
-        // other types, including an ID reused by a different entity class.
         auto *region = entity && typeid(*entity) == typeid(IslandRegion)
             ? static_cast<ISLAND *>(entity) : dynamic_cast<ISLAND *>(entity);
-        if (region && region->RegionIntersects(vSrc, vDst))
+        if (region && region->RegionIntersects(vSrc, vDst, 500.f))
             aggregateTraceModels.insert(aggregateTraceModels.end(), region->traceModels.begin(), region->traceModels.end());
+    }
+    if (aggregateTraceModels.empty())
+    {
+        // Safe fallback: test all available collision meshes so projectiles never clip into terrain
+        aggregateTraceModels.insert(aggregateTraceModels.end(), traceModels.begin(), traceModels.end());
+        for (const auto id : residentRegions)
+            if (auto *r = Region(id))
+                aggregateTraceModels.insert(aggregateTraceModels.end(), r->traceModels.begin(), r->traceModels.end());
     }
     if (aggregateTraceModels.empty()) return 2.f;
     return pCollide->Trace(aggregateTraceModels, vSrc, vDst, nullptr, 0);

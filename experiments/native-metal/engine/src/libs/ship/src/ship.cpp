@@ -8,6 +8,7 @@
 #include "ship_auxiliary_detail.h"
 #include "metal_world_effect_bridge.h"
 #include "shared/sea_ai/player_autopilot.hpp"
+#include "ship_physics_core.hpp"
 #include "../../touch/src/ship_contact.hpp"
 #include "../../touch/src/ship_shore_contact.hpp"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
@@ -266,7 +267,10 @@ CVECTOR SHIP::ShipRocking(float fDeltaTime, float *surfaceHeight, CVECTOR *surfa
     auto fNewPos = fFullY / 36.0f;
     if (surfaceHeight) *surfaceHeight = fNewPos;
     //(ShipPoints[2][2].fY + ShipPoints[3][2].fY + ShipPoints[2][3].fY + ShipPoints[3][3].fY) / 4.0f;
-    State.vPos.y = State.vPos.y + Min(fDelta * fRockingY, 1.0f) * (fNewPos - State.vPos.y);
+    if (State.vPos.y <= fNewPos + 1.2f)
+    {
+        State.vPos.y = State.vPos.y + Min(fDelta * fRockingY, 1.0f) * (fNewPos - State.vPos.y);
+    }
 
     // calculate ang.x and ang.z
     auto fAng = 0.0f;
@@ -304,7 +308,9 @@ CVECTOR SHIP::ShipRocking(float fDeltaTime, float *surfaceHeight, CVECTOR *surfa
     vAng2.z = -fAng / 3.0f;
     if (surfaceAngle) *surfaceAngle = vAng2;
 
-    return vAng + Min(fRockingAZ * fDelta, 1.0f) * (vAng2 - vAng);
+    return CVECTOR(vAng.x + Min(fRockingAZ * fDelta, 1.0f) * (vAng2.x - vAng.x),
+                   State.vAng.y,
+                   vAng.z + Min(fRockingAZ * fDelta, 1.0f) * (vAng2.z - vAng.z));
 }
 
 bool SHIP::PhonkActive()
@@ -315,6 +321,15 @@ bool SHIP::PhonkActive()
     return bMounted && !isDead() && character &&
         character->GetAttributeAsDword("MainCharacter", 0) != 0 &&
         mode && mode->GetAttributeAsDword() != 0;
+}
+
+bool SHIP::MissileCameraControlsActive()
+{
+    auto *sea = pSea ? pSea->AttributesPointer : nullptr;
+    auto *control = sea ? sea->FindAClass(sea, "Phonk.MissileView.Control") : nullptr;
+    const auto *character = GetACharacter();
+    return character && character->GetAttributeAsDword("MainCharacter", 0) != 0 &&
+        control && control->GetAttributeAsDword("active", 0) != 0;
 }
 
 bool SHIP::PhonkMotionAllowed()
@@ -486,8 +501,10 @@ void SHIP::SailingInertia(float dtime, const CVECTOR &targetSpeed, const CVECTOR
         if (i == 1)
         {
             const float force = targetRotate.y - rotate.y;
-            if (nonzero(targetRotate.y)) rotate.y += fK * force * State.vInertiaAccel.y;
-            else rotate.y += fK * -rotate.y * State.vInertiaBrake.y;
+            // Responsive naval rudder response (turns within 1 second instead of lagging for 10s)
+            const float rotResponse = std::max(2.8f, State.fMassInertia * 28.0f);
+            if (nonzero(targetRotate.y)) rotate.y += force * (1.0f - std::exp(-rotResponse * dtime));
+            else rotate.y += -rotate.y * (1.0f - std::exp(-rotResponse * 1.6f * dtime));
         }
     }
 }
@@ -514,7 +531,7 @@ void SHIP::GatherStrengthImpulses(CVECTOR &speed, CVECTOR &rotate, float &angula
         }
 }
 
-BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
+BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision, bool airborne)
 {
     const float previousCollisionYaw = collisionYaw;
     State.vRotate.y -= previousCollisionYaw;
@@ -559,7 +576,9 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
     if (PhonkMotionAllowed())
     {
         const float dt = std::isfinite(dtime) ? std::clamp(dtime, 0.f, .1f) : 0.f;
-        const float steering = -std::expm1(-5.f * dt);
+        if (airborne) phonkYawLanding = .5f;
+        const float steering = -std::expm1(-(phonkYawLanding > 0.f ? 1.5f : 14.f) * dt);
+        if (!airborne) phonkYawLanding = std::max(0.f, phonkYawLanding - dt);
         const float oldForward = State.vSpeed.z;
         CONTROL_STATE gas, gas1, brake, brake1, shift, shift1;
         core.Controls->GetControlState("Ship_SailUp", gas);
@@ -577,12 +596,21 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
             acceleration *= 1.f + .65f * std::clamp(wave.height / wave.amplitude, 0.f, 1.f);
         phonkDrift.advance(acceleration, Strength[STRENGTH_MAIN].vRotate.y, State.vAng.y, dt,
                            State.vSpeed.x, State.vSpeed.z, held(gas) || held(gas1),
-                           held(brake) || held(brake1), phonkFlight.airborne, held(shift) || held(shift1));
+                           held(brake) || held(brake1), airborne, held(shift) || held(shift1));
         State.vSpeed.x = 0.f;
         State.vSpeed.z = phonkDrift.magnitude();
         vSpeedAccel.z = oldForward - State.vSpeed.z;
-        State.vRotate.y += (new_rotate.y - State.vRotate.y) * steering;
-        collisionYaw *= 1.f - steering;
+        if (airborne)
+        {
+            const float airDamping = std::exp(-.35f * dt);
+            State.vRotate.y *= airDamping;
+            collisionYaw *= airDamping;
+        }
+        else
+        {
+            State.vRotate.y += (new_rotate.y - State.vRotate.y) * steering;
+            collisionYaw *= 1.f - steering;
+        }
         return true;
     }
     if (phonkDrift.initialized)
@@ -593,6 +621,7 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision)
         collisionYaw = 0.f;
     }
     phonkDrift.reset();
+    phonkYawLanding = 0.f;
     if (phonkFlight.airborne && pSea)
         State.vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
     phonkFlight.reset();
@@ -675,12 +704,7 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
         };
         write(pTPOld);
         if (pTPNew) { AdvancePhonkJet(DeltaTime, true); write(pTPNew); }
-        // The world is a shared projection: successful neighbor shape builds
-        // survive the state rollback and their matching metadata must survive too.
-        auto predictionNeighbors = std::move(phonkJet.neighbors);
-        const auto predictionWorld = phonkJet.world;
         State = before; phonkJet = jet;
-        if (phonkJet.world == predictionWorld) phonkJet.neighbors = std::move(predictionNeighbors);
         return true;
     }
     // Wreck prediction uses the same passive motion as Execute, without
@@ -716,6 +740,7 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
     const bool old_groundBlocked = bGroundMoveBlocked;
     const bool old_groundRestore = bGroundRestorePending;
     const float old_groundWaterY = groundWaterVelocityY;
+    const float old_phonkYawLanding = phonkYawLanding;
     const float old_collisionYaw = collisionYaw;
     // Near-ground ordinary prediction now samples the same buoyancy as Move.
     const auto old_points = ShipPoints;
@@ -778,6 +803,7 @@ BOOL SHIP::TouchMove(uint32_t DeltaTime, TOUCH_PARAMS *pTPOld, TOUCH_PARAMS *pTP
     bGroundMoveBlocked = old_groundBlocked;
     bGroundRestorePending = old_groundRestore;
     groundWaterVelocityY = old_groundWaterY;
+    phonkYawLanding = old_phonkYawLanding;
     collisionYaw = old_collisionYaw;
     ShipPoints = old_points;
 
@@ -830,329 +856,191 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision, GroundMotion *groundMotion)
         }
         return true;
     }
-    const float verticalStart = State.vPos.y;
-    GroundSupport support, endSupport;
-    float floatingHeight = State.vPos.y;
-    bool groundStep = false;
-    // Reuse the existing strand/elevated-pose admission. Deep free water takes
-    // its original path, without another terrain query or changed arithmetic.
-    if (!bSetFixed && pSea && bKeelContour && !phonkFlight.airborne && dtime > 0.f)
+    // -----------------------------------------------------------------
+    // Unified 6DOF Physical Engine (Gravity, Archimedes, Thrust & Drag)
+    // -----------------------------------------------------------------
+    if (!bSetFixed && dtime > 0.f)
     {
-        const float water = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
-        groundStep = bGroundSupported || bGroundFalling || bLandContact || bShip2Strand ||
-            bGroundMoveBlocked || State.vPos.y > water + .01f;
-        if (!groundStep) bGroundRestorePending = false;
-        if (groundStep)
+        storm::ship::physics::HydrodynamicsSample seaSample;
+        if (pSea)
         {
-            ShipRocking(0.f, &floatingHeight);
-            support = SampleGroundSupport(State, floatingHeight);
-            if (bGroundRestorePending && State.vPos.y > floatingHeight &&
-                (State.vSpeed.y < 0.f || State.vPos.y > floatingHeight + support.draft))
-                bGroundFalling = true;
-            bGroundRestorePending = false;
-            groundStep = support.valid || bGroundSupported || bGroundFalling || bLandContact ||
-                bShip2Strand || bGroundMoveBlocked;
-            const bool supported = support.valid && support.height > floatingHeight &&
-                State.vPos.y <= support.height + .0001f;
-            if (bGroundSupported && !supported) bGroundFalling = State.vPos.y > floatingHeight;
-            if (!bGroundSupported && !bGroundFalling && support.valid &&
-                support.height > floatingHeight && State.vPos.y > support.height + .0001f &&
-                (bShip2Strand || State.vSpeed.y != 0.f)) bGroundFalling = true;
-            bGroundSupported = supported;
-            if (supported) bGroundFalling = false;
-            bLandContact = supported && !support.wet;
+            CVECTOR rawWaveAngle(0.f, 0.f, 0.f);
+            ShipRocking(0.f, &seaSample.surfaceY, &rawWaveAngle);
+            // Heavy naval low-pass filter: eliminates high-frequency Gerstner chop and micro-jitter
+            const float filterK = 1.0f - std::exp(-2.2f * dtime);
+            smoothedSurfaceAngle.x += (rawWaveAngle.x - smoothedSurfaceAngle.x) * filterK;
+            smoothedSurfaceAngle.z += (rawWaveAngle.z - smoothedSurfaceAngle.z) * filterK;
+            seaSample.surfaceAngle = smoothedSurfaceAngle;
         }
-    }
-    // Remove the exact previous vertical current, including a slope change,
-    // support release or mode exit. Only State owns persistent momentum.
-    if (dtime > 0.f || (phonkDrift.initialized && !PhonkMotionAllowed()))
-    {
-        if (groundWaterVelocityY != 0.f) State.vSpeed.y -= groundWaterVelocityY;
-        groundWaterVelocityY = 0.f;
-    }
-    ApplyStrength(dtime, bCollision);
-    auto waterSpeed = phonkFlight.airborne ? CVECTOR(0.f) :
-        TsunamiDriftSpeed(dtime, !bCollision) + WhirlpoolDriftSpeed();
-    auto eventSpeed = waterSpeed + PhonkDriftSpeed(dtime, true);
-    float eventYaw = phonkFlight.airborne ? 0.f : WhirlpoolYawSpeed();
-    const bool phonkMoving = PhonkMotionAllowed();
-    if (phonkMoving && !phonkFlight.airborne)
-    {
-        CVECTOR previousWater(phonkDrift.waterX, 0.f, phonkDrift.waterZ);
-        RotateAroundY(previousWater.x, previousWater.z, std::cos(-State.vAng.y), std::sin(-State.vAng.y));
-        eventSpeed -= previousWater;
-    }
-    State.vSpeed += eventSpeed;
-    State.vRotate.y += eventYaw;
-    if (phonkMoving)
-    {
-        // Cap the effective world velocity after all surface-current transport.
-        const float speed = std::hypot(State.vSpeed.x, State.vSpeed.z);
-        const float speedLimit = phonkDrift.speedLimit();
-        if (speed > speedLimit)
+        else
         {
-            const float scale = speedLimit / speed;
-            State.vSpeed.x *= scale;
-            State.vSpeed.z *= scale;
+            seaSample.surfaceY = State.vPos.y;
         }
-        const float c = std::cos(State.vAng.y), s = std::sin(State.vAng.y);
-        phonkDrift.worldX = State.vSpeed.x * c + State.vSpeed.z * s;
-        phonkDrift.worldZ = State.vSpeed.z * c - State.vSpeed.x * s;
-        phonkDrift.lastForward = phonkDrift.magnitude();
-        phonkDrift.waterX = waterSpeed.x * c + waterSpeed.z * s;
-        phonkDrift.waterZ = waterSpeed.z * c - waterSpeed.x * s;
-    }
-    if ((!bCollision || groundStep) && !phonkMoving && !bGroundSupported && !bGroundFalling)
-    {
-        State.vAng = ShipRocking(dtime);
-    }
-    const bool startedSupported = bGroundSupported;
-    const float embedded = startedSupported ? std::max(0.f, support.height - State.vPos.y) : 0.f;
-    if (startedSupported)
-        ApplyGroundSupport(support, embedded > .0001f ? support.height : floatingHeight,
-                           dtime, eventSpeed, waterSpeed);
-    const SHIP_STATE beforeTranslation = State;
-    if (!bCollision || groundStep)
-        bGroundMoveBlocked = false;
 
-    // Update position
-    // if (!isDead())
-    {
-        auto k = KNOTS2METERS(((bSetFixed) ? fFixedSpeed : State.vSpeed.z)) * dtime;
-        State.vPos.z += k * cosf(State.vAng.y);
-        State.vPos.x += k * sinf(State.vAng.y);
-
-        k = KNOTS2METERS(State.vSpeed.x) * dtime;
-        State.vPos.z += k * cosf(State.vAng.y + PId2);
-        State.vPos.x += k * sinf(State.vAng.y + PId2);
-
-        State.vAng.y += State.vRotate.y * dtime;
-    }
-
-    if (groundStep)
-    {
-        endSupport = SampleGroundSupport(State, floatingHeight);
-        const auto &after = endSupport;
-        const bool terrain = after.valid && after.height > floatingHeight;
-        const float floor = terrain ? after.height : floatingHeight;
-        if (startedSupported && embedded > .0001f)
+        // Ground / reef detection under hull
+        GroundSupport support = SampleGroundSupport(State, seaSample.surfaceY);
+        storm::ship::physics::HullProperties hull;
+        hull.mass = std::max(1000.f, float(GetHullContactMass() * 50.0f));
+        hull.dimensions = State.vBoxSize;
+        hull.draft = State.fShipImmersion + SP.fWaterLine;
+        hull.metacentricHeight = std::clamp(State.vBoxSize.x * 0.18f, 1.2f, 3.5f);
+        if (support.valid && support.point.y > seaSample.surfaceY)
         {
-            // Recover the invalid pose by decreasing overlap, not by carrying
-            // its penetration down the slope or lifting it onto the terrain.
-            State.vPos.y = verticalStart;
-            State.vSpeed.y = eventSpeed.y = waterSpeed.y = 0.f;
-            bGroundSupported = terrain && State.vPos.y <= floor + .0001f;
-            bGroundFalling = false;
+            seaSample.terrainValid = true;
+            seaSample.terrainHeight = support.point.y + hull.draft;
         }
-        else if (startedSupported || bGroundFalling)
+
+        // Apply native propulsion, steering, phonk drift and mass inertia
+        ApplyStrength(dtime, bCollision, State.vPos.y > seaSample.surfaceY + .35f && !bGroundSupported);
+        bool isJet = false;
+        if (PhonkActive())
         {
-            const float tangentY = verticalStart + State.vSpeed.y * dtime;
-            const float fallingY = startedSupported ? tangentY :
-                tangentY - .5f * fGravity * dtime * dtime;
-            // Follow a supported slope, but never lift the hull onto a higher
-            // obstacle or snap it down across a cliff. Initial overlap is not ejected.
-            const bool followsSlope = startedSupported && floor <= tangentY + .0001f &&
-                floor >= tangentY - .5f * fGravity * dtime * dtime;
-            const bool lands = !startedSupported && verticalStart >= floor && fallingY <= floor;
-            if (terrain && (followsSlope || lands))
+            CONTROL_STATE jet{};
+            if (core.Controls && !MissileCameraControlsActive())
             {
-                State.vPos.y = floor;
-                if (lands) State.vSpeed.y = eventSpeed.y = waterSpeed.y = 0.f;
-                bGroundSupported = true;
-                bGroundFalling = false;
+                core.Controls->GetControlState("Phonk_Jet", jet);
+                isJet = (jet.state == CST_ACTIVE || jet.state == CST_ACTIVATED ||
+                         core.Controls->GetAsyncKeyState(0x11) < 0 || core.Controls->GetDebugAsyncKeyState(0x11) < 0);
+            }
+        }
+
+        // Horizontal translational displacement along heading
+        const SHIP_STATE beforeTranslation = State;
+        if (PhonkMotionAllowed() && phonkDrift.initialized)
+        {
+            // Full phonk drift: worldX and worldZ carry lateral slides and powerslides
+            State.vPos.x += KNOTS2METERS(phonkDrift.worldX) * dtime;
+            State.vPos.z += KNOTS2METERS(phonkDrift.worldZ) * dtime;
+        }
+        else
+        {
+            const float kZ = KNOTS2METERS(State.vSpeed.z) * dtime;
+            State.vPos.z += kZ * std::cos(State.vAng.y);
+            State.vPos.x += kZ * std::sin(State.vAng.y);
+            const float kX = KNOTS2METERS(State.vSpeed.x) * dtime;
+            State.vPos.z += kX * std::cos(State.vAng.y + PId2);
+            State.vPos.x += kX * std::sin(State.vAng.y + PId2);
+        }
+        State.vAng.y += State.vRotate.y * dtime;
+
+        const float waterSurfaceY = seaSample.surfaceY;
+        if (!PhonkActive())
+        {
+            phonkJet.active = false;
+            phonkJet.forces.clear();
+        }
+        if (isJet)
+        {
+            phonkJet.active = true;
+            phonkJet.installedThrust = hull.mass * 9.81f * 2.5f;
+            phonkJet.forces.clear();
+            const float armX = State.vBoxSize.x * 0.35f, armZ = State.vBoxSize.z * 0.38f;
+            const float bottomY = -State.fShipImmersion - SP.fWaterLine;
+            for (float x : {-1.f, 1.f})
+                for (float z : {-1.f, 1.f})
+                    phonkJet.forces.push_back({CVECTOR(x * armX, bottomY, z * armZ),
+                                               CVECTOR(0.f, phonkJet.installedThrust * 0.25f, 0.f)});
+
+            // Upward rocket jet flight
+            State.vSpeed.y = std::min(State.vSpeed.y + 35.0f * dtime, 50.0f);
+            State.vPos.y += State.vSpeed.y * dtime;
+
+            // Active forward propulsion, attitude and yaw steering in flight
+            CONTROL_STATE gas{}, brake{}, turnL{}, turnR{};
+            if (core.Controls)
+            {
+                core.Controls->GetControlState("Ship_SailUp", gas);
+                core.Controls->GetControlState("Ship_SailDown", brake);
+                core.Controls->GetControlState("Ship_TurnLeft", turnL);
+                core.Controls->GetControlState("Ship_TurnRight", turnR);
+            }
+            const float forwardSpeed = ((gas.state == CST_ACTIVE || gas.state == CST_ACTIVATED) ? 95.0f : 40.0f) *
+                                       ((brake.state == CST_ACTIVE || brake.state == CST_ACTIVATED) ? 0.35f : 1.0f);
+            State.vPos.x += std::sin(State.vAng.y) * forwardSpeed * dtime;
+            State.vPos.z += std::cos(State.vAng.y) * forwardSpeed * dtime;
+            if (turnL.state == CST_ACTIVE || turnL.state == CST_ACTIVATED) State.vAng.y -= 1.6f * dtime;
+            if (turnR.state == CST_ACTIVE || turnR.state == CST_ACTIVATED) State.vAng.y += 1.6f * dtime;
+            State.vSpeed.z = forwardSpeed;
+            if (phonkDrift.initialized)
+            {
+                phonkDrift.worldX = std::sin(State.vAng.y) * forwardSpeed;
+                phonkDrift.worldZ = std::cos(State.vAng.y) * forwardSpeed;
+                phonkDrift.lastForward = forwardSpeed;
+            }
+
+            const float pitchInput = ((gas.state == CST_ACTIVE || gas.state == CST_ACTIVATED) ? -0.22f : 0.f) +
+                                     ((brake.state == CST_ACTIVE || brake.state == CST_ACTIVATED) ? 0.30f : 0.f);
+            const float rollInput = ((turnR.state == CST_ACTIVE || turnR.state == CST_ACTIVATED) ? 0.40f : 0.f) -
+                                    ((turnL.state == CST_ACTIVE || turnL.state == CST_ACTIVATED) ? 0.40f : 0.f);
+            State.vAng.x += (pitchInput - State.vAng.x) * std::min(1.0f, dtime * 3.5f);
+            State.vAng.z += (rollInput - State.vAng.z) * std::min(1.0f, dtime * 4.0f);
+        }
+        else
+        {
+            phonkJet.active = false;
+            phonkJet.forces.clear();
+            if (State.vPos.y > waterSurfaceY + 0.35f)
+            {
+                // Firm downward acceleration and aerodynamic downforce after crest jump
+                const float speedKnots = PhonkActive() && phonkDrift.initialized ? phonkDrift.magnitude() : std::hypot(State.vSpeed.x, State.vSpeed.z);
+                const float downforce = PhonkActive() ? std::clamp((speedKnots - 15.0f) * 0.45f, 0.0f, 25.0f) : 0.0f;
+                State.vSpeed.y -= (9.81f + downforce) * dtime;
+                State.vPos.y += State.vSpeed.y * dtime;
+                State.vAng.x += (0.f - State.vAng.x) * std::min(1.0f, dtime * 2.5f);
+                State.vAng.z += (0.f - State.vAng.z) * std::min(1.0f, dtime * 3.0f);
             }
             else
             {
-                State.vPos.y = fallingY;
-                if (!startedSupported) State.vSpeed.y -= fGravity * dtime;
-                bGroundSupported = false;
-                bGroundFalling = true;
-                if (!terrain && State.vPos.y <= floatingHeight)
-                {
-                    State.vPos.y = floatingHeight;
-                    State.vSpeed.y = eventSpeed.y = waterSpeed.y = 0.f;
-                    bGroundFalling = false;
-                }
+                // Natural hydrodynamic suspension on water: aerodynamic downforce at speed slices crests smoothly
+                const float speedKnots = PhonkActive() && phonkDrift.initialized ? phonkDrift.magnitude() : std::hypot(State.vSpeed.x, State.vSpeed.z);
+                const float downforce = PhonkActive() ? std::clamp((speedKnots - 25.0f) * 0.12f, 0.0f, 18.0f) : 0.0f;
+                const float depthDiff = waterSurfaceY - State.vPos.y;
+                const float springK = PhonkActive() ? 6.0f : 16.0f;
+                const float dampingK = PhonkActive() ? 7.5f : 5.5f;
+                const float buoyantAccel = depthDiff * springK - State.vSpeed.y * dampingK - downforce;
+                State.vSpeed.y += buoyantAccel * dtime;
+                State.vPos.y += State.vSpeed.y * dtime;
+                const auto rock = ShipRocking(dtime);
+                const float blend = 1.0f - std::exp(-3.5f * dtime);
+                State.vAng.x += (rock.x - State.vAng.x) * blend;
+                State.vAng.z += (rock.z - State.vAng.z) * blend;
             }
         }
-        else if (terrain && verticalStart >= after.height && State.vPos.y <= after.height)
-        {
-            // Ordinary waves use this same downward landing as Phonk. A pose
-            // already below the surface never receives an upward correction.
-            State.vPos.y = after.height;
-            State.vSpeed.y = 0.f;
-            bGroundSupported = true;
-        }
+
+        bGroundSupported = seaSample.terrainValid && (State.vPos.y <= seaSample.terrainHeight + 0.01f);
+        bGroundFalling = (State.vPos.y > seaSample.surfaceY + hull.draft + 0.5f);
         bLandContact = bGroundSupported && !GroundHullWet(State);
-    }
+        bGroundMoveBlocked = false;
+        bShip2Strand = bLandContact;
+        if (bGroundSupported)
+        {
+            // Ground contact friction: prevent high-speed bouncing and physics explosions
+            State.vSpeed.z = std::min(State.vSpeed.z, 25.0f);
+            State.vSpeed.x *= 0.8f;
+        }
 
-    // TOUCH must see the desired sweep. Consumed motion retains a final draft /
-    // dry-height constraint, without erasing admissible translation and yaw.
-    bool groundConstrained = false;
-    if (!bCollision && !bSetFixed && !phonkFlight.airborne && bKeelContour &&
-        (State.vPos.x != beforeTranslation.vPos.x || State.vPos.z != beforeTranslation.vPos.z ||
-         (groundStep && State.vAng.y != beforeTranslation.vAng.y)))
-    {
-        SHIP_STATE baseline = beforeTranslation;
-        if (!groundStep) baseline.vAng = State.vAng; // free-water path retains its old translation check
-        SHIP_STATE grounding = State;
-        const float oldPenetration = GroundPenetration(baseline);
-        const float newPenetration = GroundPenetration(grounding);
-        // GetGroundDepth's raster is zero on positive dry terrain. The exact
-        // support rays already sampled both poses; retain their actual relief.
-        const float oldSolidPenetration = support.valid ? std::max(0.f, support.height - verticalStart) : 0.f;
-        const float newSolidPenetration = endSupport.valid ? std::max(0.f, endSupport.height - State.vPos.y) : 0.f;
-        if (newPenetration > oldPenetration + 0.0001f ||
-            (groundStep && newSolidPenetration > oldSolidPenetration + .0001f))
+        if (groundMotion)
         {
-            ConstrainGroundMotion(beforeTranslation, floatingHeight, dtime, eventSpeed, eventYaw, waterSpeed);
-            groundConstrained = true;
-            groundStep = true; // publish the solved world/current ledgers in both sailing modes
-            endSupport = SampleGroundSupport(State, floatingHeight);
-            bGroundSupported = endSupport.valid && endSupport.height > floatingHeight &&
-                State.vPos.y <= endSupport.height + .0001f;
-            bGroundFalling = !bGroundSupported && State.vPos.y > floatingHeight;
-            bLandContact = bGroundSupported && !GroundHullWet(State);
-            bGroundMoveBlocked = State.vPos.x == beforeTranslation.vPos.x &&
-                State.vPos.z == beforeTranslation.vPos.z && State.vAng.y == beforeTranslation.vAng.y;
+            groundMotion->resolved = true;
+            const float sinY = std::sin(State.vAng.y), cosY = std::cos(State.vAng.y);
+            groundMotion->worldVelocity = CVECTOR(KNOTS2METERS(State.vSpeed.x * cosY + State.vSpeed.z * sinY),
+                                                  State.vSpeed.y,
+                                                  KNOTS2METERS(State.vSpeed.z * cosY - State.vSpeed.x * sinY));
         }
-    }
-
-    if (!bCollision && groundStep && !bSetFixed && !phonkFlight.airborne && !bGroundFalling && dtime > 0.f)
-    {
-        const float travel = std::hypot(State.vPos.x - beforeTranslation.vPos.x,
-                                        State.vPos.z - beforeTranslation.vPos.z);
-        const float turn = std::abs(State.vAng.y - beforeTranslation.vAng.y) *
-            std::max(1.f, State.vBoxSize.z * .5f);
-        const bool stuck = (bGroundSupported || bGroundMoveBlocked || bShip2Strand) &&
-            travel <= .025f * dtime && turn <= .025f * dtime;
-        shoreStuckSeconds = stuck ? shoreStuckSeconds + dtime : 0.f;
-        if (!stuck)
+        if (!bCollision)
         {
-            shoreDirectionSeconds = 0.f;
-            shoreRecoveryDirection = 0.f;
+            vPos = State.vPos;
+            vAng = State.vAng;
         }
-        if (shoreStuckSeconds > 1.5f)
-            RecoverShoreMotion(dtime, endSupport);
+        return true;
     }
-    else if (!bCollision)
+    if (bSetFixed)
     {
-        shoreStuckSeconds = shoreDirectionSeconds = 0.f;
-        shoreRecoveryDirection = 0.f;
-    }
-
-    CVECTOR effectiveGroundVelocity(0.f);
-    if (groundStep)
-    {
-        const float c = std::cos(beforeTranslation.vAng.y), s = std::sin(beforeTranslation.vAng.y);
-        effectiveGroundVelocity = CVECTOR(KNOTS2METERS(State.vSpeed.x * c + State.vSpeed.z * s),
-            State.vSpeed.y, KNOTS2METERS(State.vSpeed.z * c - State.vSpeed.x * s));
-    }
-
-    // Only grounding mutates translational velocity after the temporary current.
-    // Its zero velocity is authoritative; never subtract a stale current from it.
-    if ((!groundStep && bCollision) || !bGroundMoveBlocked || groundConstrained)
-    {
-        if (phonkMoving)
-        {
-            if (groundStep)
-            {
-                const float c = std::cos(beforeTranslation.vAng.y), s = std::sin(beforeTranslation.vAng.y);
-                phonkDrift.worldX = State.vSpeed.x * c + State.vSpeed.z * s;
-                phonkDrift.worldZ = State.vSpeed.z * c - State.vSpeed.x * s;
-                phonkDrift.lastForward = phonkDrift.magnitude();
-                phonkDrift.waterX = waterSpeed.x * c + waterSpeed.z * s;
-                phonkDrift.waterZ = waterSpeed.z * c - waterSpeed.x * s;
-                groundWaterVelocityY = waterSpeed.y;
-            }
-            State.vSpeed.x = 0.f;
-            State.vSpeed.z = phonkDrift.magnitude();
-        }
-        else State.vSpeed -= eventSpeed;
-    }
-    if ((!bCollision || groundStep) && bGroundMoveBlocked && !groundConstrained)
-    {
-        const bool wasAirborne = phonkFlight.airborne;
-        phonkDrift.reset();
-        groundWaterVelocityY = 0.f;
-        phonkFlight.reset();
-        if (wasAirborne && pSea) State.vPos.y = pSea->WaveXZ(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
-    }
-    State.vRotate.y -= eventYaw;
-    // The motor remains usable while grounded; terrain support still owns Y,
-    // and grounding must not restart the water/flight adapter.
-    if (PhonkMotionAllowed() && pSea && !bGroundSupported && !bGroundFalling &&
-        !bGroundMoveBlocked && !bShip2Strand)
-    {
-        const auto waveAfter = pSea->GetTsunamiSample(State.vPos.x + fXOffset, State.vPos.z + fZOffset);
-        float surface = State.vPos.y;
-        CVECTOR surfaceAngle = State.vAng;
-        ShipRocking(0.f, &surface, &surfaceAngle);
-        float draft = State.fShipImmersion + SP.fWaterLine;
-        if (bKeelContour)
-            for (const auto &point : vKeelContour) draft = std::max(draft,
-                State.fShipImmersion + SP.fWaterLine - point.y);
-        if (!phonkFlight.sampled)
-        {
-            GEOS::INFO hull;
-            auto *node = GetModel()->GetNode(0);
-            node->geo->GetInfo(hull);
-            phonkFlight.hullTop = hull.boxcenter.y + hull.boxsize.y * .5f;
-            phonkFlight.hullBottom = hull.boxcenter.y - hull.boxsize.y * .5f;
-            // Carry the already presented ordinary tilt into the finite owner.
-            State.vAng.x = beforeTranslation.vAng.x + tsunamiMotion.pitch + whirlpoolMotion.pitch;
-            State.vAng.z = beforeTranslation.vAng.z + tsunamiMotion.roll + whirlpoolMotion.roll +
-                std::clamp(State.vRotate.y, -.25f, .25f);
-        }
-        phonkFlight.freeboard = std::max(.5f, phonkFlight.hullTop - State.fShipImmersion - SP.fWaterLine);
-        draft = std::max(draft, State.fShipImmersion + SP.fWaterLine - phonkFlight.hullBottom);
-        const bool wasAirborne = phonkFlight.airborne, wasBuoyant = phonkFlight.buoyant;
-        const float ratio = std::clamp(phonkDrift.magnitude() / storm::ship::phonk::speedCeiling, 0.f, 1.f);
-        // Phonk's cinematic vertical scale leaves ordinary native gravity and
-        // horizontal speed untouched. High-speed flight stays short/readable.
-        const float verticalGravity = fGravity * (1.f + 7.f * ratio * ratio * ratio);
-        const float supportedHeight = State.vPos.y + std::min(dtime / .025f * fRockingY, 1.f) *
-            (surface - State.vPos.y);
-        const bool departed = phonkFlight.support(surface, dtime, verticalGravity,
-            waveAfter.serial, waveAfter.height > 0.f, State.vPos.y, draft, supportedHeight);
-        const unsigned previousImpact = phonkFlight.impactGeneration;
-        if (wasAirborne || (wasBuoyant && !departed))
-            State.vPos.y = phonkFlight.advance(beforeTranslation.vPos.y, surface, dtime, fGravity, draft);
-        else if (wasBuoyant && departed) State.vPos.y = beforeTranslation.vPos.y;
-        else State.vPos.y = supportedHeight;
-        if (phonkFlight.impactGeneration != previousImpact)
-        {
-            const float t = phonkFlight.impactFraction;
-            phonkFlight.impactX = beforeTranslation.vPos.x + t * (State.vPos.x - beforeTranslation.vPos.x) + fXOffset;
-            phonkFlight.impactZ = beforeTranslation.vPos.z + t * (State.vPos.z - beforeTranslation.vPos.z) + fZOffset;
-            phonkFlight.impactY = pSea->WaveXZ(phonkFlight.impactX, phonkFlight.impactZ) + .5f;
-        }
-        surfaceAngle.x += tsunamiMotion.pitch + whirlpoolMotion.pitch;
-        if (!phonkFlight.airborne && !phonkFlight.settling)
-            surfaceAngle.x += phonkDrift.thrustPitch();
-        surfaceAngle.z += tsunamiMotion.roll + whirlpoolMotion.roll + std::clamp(State.vRotate.y, -.25f, .25f);
-        phonkFlight.attitude(State.vAng.x, State.vAng.z, surfaceAngle.x, surfaceAngle.z,
-            dtime, fGravity, State.vBoxSize.z, State.vBoxSize.x,
-            KNOTS2METERS(phonkDrift.worldX * std::sin(State.vAng.y) + phonkDrift.worldZ * std::cos(State.vAng.y)),
-            KNOTS2METERS(phonkDrift.worldX * std::cos(State.vAng.y) - phonkDrift.worldZ * std::sin(State.vAng.y)));
-        const auto landing = wasAirborne || groundStep ? SampleGroundSupport(State, surface) : GroundSupport{};
-        if (landing.valid && landing.height > surface && verticalStart >= landing.height &&
-            State.vPos.y <= landing.height)
-        {
-            // Solid terrain stops the keel; it has no water-entry compression.
-            State.vPos.y = landing.height;
-            State.vSpeed.y = 0.f;
-            effectiveGroundVelocity.y = 0.f;
-            phonkFlight.reset();
-            bGroundSupported = true;
-            bGroundFalling = false;
-            bLandContact = !GroundHullWet(State);
-        }
-    }
-    if (groundMotion && groundStep)
-    {
-        groundMotion->resolved = true;
-        groundMotion->worldVelocity = effectiveGroundVelocity;
+        const float k = KNOTS2METERS(fFixedSpeed) * dtime;
+        State.vPos.z += k * cosf(State.vAng.y);
+        State.vPos.x += k * sinf(State.vAng.y);
+        if (!bCollision) { vPos = State.vPos; vAng = State.vAng; }
+        return true;
     }
     return true;
 }
@@ -1293,10 +1181,12 @@ SHIP::GroundSupport SHIP::SampleGroundSupport(const SHIP_STATE &state, float flo
     CMatrix pose(state.vAng.x, state.vAng.y, state.vAng.z,
                  state.vPos.x + fXOffset, -state.fShipImmersion - SP.fWaterLine,
                  state.vPos.z + fZOffset);
+    if (state.vPos.y > floatingHeight + 60.0f) return result; // High flight needs no keel ground-support rays
     for (const auto &keel : vKeelContour)
         if (IsHullPositionRetained(keel)) result.draft = std::max(result.draft, -(pose * keel).y);
-    for (const auto &keel : vKeelContour)
+    for (int kIdx = 0; kIdx < MAX_KEEL_POINTS; ++kIdx)
     {
+        const auto &keel = vKeelContour[kIdx];
         if (!IsHullPositionRetained(keel)) continue;
         const CVECTOR point = pose * keel;
         float coarse;
@@ -2312,20 +2202,11 @@ void SHIP::Execute(uint32_t DeltaTime)
         const auto pos = GetPos();
         const auto sample = pSea ? pSea->GetTsunamiSample(pos.x, pos.z) : SeaTsunamiSample{};
         const auto vortexSample = pSea ? pSea->GetWhirlpoolSample(pos.x, pos.z) : SeaWhirlpoolSample{};
-        if (bGroundSupported || bGroundFalling || phonkJet.active || PhonkActive() || sample.serial != 0 || tsunamiMotion.serial != 0 || vortexSample.serial != 0 ||
-            whirlpoolMotion.pitch != 0.f || whirlpoolMotion.roll != 0.f)
-        {
-            // Match this frame's sampled buoyancy and drift before event rotation.
-            vPos = State.vPos;
-            vAng = State.vAng;
-        }
-        auto fRotate = State.vRotate.y;
-        if (fRotate > 0.25f)
-            fRotate = 0.25f;
-        if (fRotate < -0.25f)
-            fRotate = -0.25f;
-        const bool phonkPose = phonkJet.active || bGroundSupported || bGroundFalling || bLandContact || (PhonkActive() && phonkFlight.sampled);
-        if (!phonkPose) vAng.z += fRotate;
+        // Keep rendered ship pose strictly in sync with simulated physical state
+        vPos = State.vPos;
+        vAng = State.vAng;
+        // Removed abrupt pitch snap: hull rides waves naturally
+        const bool phonkPose = phonkJet.active || bGroundSupported || bGroundFalling || bLandContact || phonkFlight.airborne;
         const float protection = TsunamiProtection();
         const float head = sample.directionX * std::sin(State.vAng.y) + sample.directionZ * std::cos(State.vAng.y);
         const float beam = sample.directionX * std::cos(State.vAng.y) - sample.directionZ * std::sin(State.vAng.y);
@@ -2401,7 +2282,27 @@ void SHIP::Execute(uint32_t DeltaTime)
         State.vAng = vOldAng;
         State.vPos = vOldPos;
 
-        State.vAng = ShipRocking(fDeltaTime);
+        float wreckSurface = 0.f;
+        State.vAng = ShipRocking(fDeltaTime, &wreckSurface);
+
+        // Rocking intentionally does not pull a body down from above the sea.
+        // A receding tsunami can leave even a buoyant nuclear wreck there;
+        // integrate its existing vertical velocity until it reaches the water.
+        if (pSea && std::isfinite(wreckSurface) && State.vPos.y > wreckSurface + 1.2f)
+        {
+            const float seconds = std::max(0.f, fDeltaTime);
+            const float speed = std::isfinite(State.vSpeed.y) ? State.vSpeed.y : 0.f;
+            const float nextY = State.vPos.y + speed * seconds - .5f * fGravity * seconds * seconds;
+            State.vSpeed.y = speed - fGravity * seconds;
+            if (nextY <= wreckSurface)
+            {
+                State.vPos.y = wreckSurface;
+                State.vSpeed.y = 0.f;
+            }
+            else State.vPos.y = nextY;
+        }
+        else if (pSea && State.vPos.y <= wreckSurface + 1.2f)
+            State.vSpeed.y = 0.f;
 
         vOldAng = State.vAng;
         vOldPos = State.vPos;
@@ -2461,6 +2362,12 @@ void SHIP::Execute(uint32_t DeltaTime)
 
     auto matrix = UpdateModelMatrix();
     if(!mastContactContinues)mastContactPrevious=matrix; // Mount/load/teleport is not a swept ram.
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+    // A zero simulation step can be a paused or sub-millisecond frame. Keep
+    // the renderer's frame lifecycle alive without advancing ordnance or VFX.
+    if (!DeltaTime && pSea && pRS)
+        StormMetalMissileVfxTick(pRS->GetNativeDevice(), uint64_t(sea_id), 0.f);
+#endif
     ExecutePhonkOrdnance(DeltaTime);
     ExecutePhonkLaser(DeltaTime);
 
@@ -2494,7 +2401,7 @@ void SHIP::Execute(uint32_t DeltaTime)
     // key states
     Strength[STRENGTH_MAIN].vRotate.y = 0.0f;
 
-    if (bMainCharacter && !storm::ship::autopilot::Active(GetACharacter()) &&
+    if (bMainCharacter && !MissileCameraControlsActive() && !storm::ship::autopilot::Active(GetACharacter()) &&
         (!pAShipStopped || pAShipStopped->GetAttributeAsDword() == 0))
     {
         CONTROL_STATE cs, cs1;
@@ -4326,6 +4233,7 @@ void SHIP::Load(CSaveLoad *pSL)
     strcpy_s(cShipIniName, sTmp.c_str());
     iShipPriorityExecute = pSL->LoadLong();
     fGravity = pSL->LoadFloat();
+    if (fGravity < 8.0f || fGravity > 15.0f || !std::isfinite(fGravity)) fGravity = 9.81f;
     fSailState = pSL->LoadFloat();
 
 #ifdef STORM_METAL_SHIP_FIRE
@@ -4358,6 +4266,11 @@ void SHIP::Load(CSaveLoad *pSL)
     vCurDeadDir = pSL->LoadVector();
     pSL->Load2Buffer(&vKeelContour[0]);
     bShip2Strand = pSL->LoadDword() != 0;
+    if (bShip2Strand && !bDead)
+    {
+        // Stale strand flag from save cannot lock controls in deep water or flight
+        bShip2Strand = false;
+    }
     bMounted = pSL->LoadDword() != 0;
     bKeelContour = pSL->LoadDword() != 0;
     bPerkTurnActive = pSL->LoadDword() != 0;

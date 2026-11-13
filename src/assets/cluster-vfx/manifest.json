@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/Textures/PhonkVFX/MidairExplosion64.rg8": {
+      "source": "midair-vdb/MidairExplosion64.rg8", "source_sha256": "6eb2a0acd92df2b0a3bd43e9a075cdbd9cc682615ff61d358795dbc80cfb7444",
+      "prepared": "midair-vdb/MidairExplosion64.rg8", "sha256": "6eb2a0acd92df2b0a3bd43e9a075cdbd9cc682615ff61d358795dbc80cfb7444"
+    },
+    "RESOURCE/Textures/PhonkVFX/GroundExplosion64.rg8": {
+      "source": "ground-vdb/GroundExplosion64.rg8", "source_sha256": "8fdc3444e4214fa7a6fcc0b46c1db4d0d5f919ec8e60ca3acf23821de49e325e",
+      "prepared": "ground-vdb/GroundExplosion64.rg8", "sha256": "8fdc3444e4214fa7a6fcc0b46c1db4d0d5f919ec8e60ca3acf23821de49e325e"
+    },
+    "RESOURCE/Textures/PhonkVFX/Explosion00_5x5.png": {
+      "source": "Explosion00_5x5.png", "source_sha256": "0ca81733d22e56114e00cc003ce63bf768fe94e52e8e6a2463f2a7bac3c00a9d",
+      "prepared": "Explosion00_5x5.png", "sha256": "0ca81733d22e56114e00cc003ce63bf768fe94e52e8e6a2463f2a7bac3c00a9d"
+    },
+    "RESOURCE/Textures/PhonkVFX/Explosion01_5x5.png": {
+      "source": "Explosion01_5x5.png", "source_sha256": "a75a55de571a47fd05e3add72761cf6d51fe3ed8fe8f4a16d5b35679da5357f5",
+      "prepared": "Explosion01_5x5.png", "sha256": "a75a55de571a47fd05e3add72761cf6d51fe3ed8fe8f4a16d5b35679da5357f5"
+    },
+    "RESOURCE/Textures/PhonkVFX/Explosion02_5x5.png": {
+      "source": "Explosion02_5x5.png", "source_sha256": "7bb4f58512a0f96fce87eb48a5f44ef50391c44af2a390cdcdafd052bfb53ecf",
+      "prepared": "Explosion02_5x5.png", "sha256": "7bb4f58512a0f96fce87eb48a5f44ef50391c44af2a390cdcdafd052bfb53ecf"
+    },
+    "RESOURCE/Textures/PhonkVFX/WispySmoke02_8x8.png": {
+      "source": "WispySmoke02_8x8.png", "source_sha256": "8833f2a05ffb8bb2214fae15c1e5c4fc9e04b2b5b7c7bfdc7589b72b1a0418e9",
+      "prepared": "WispySmoke02_8x8.png", "sha256": "8833f2a05ffb8bb2214fae15c1e5c4fc9e04b2b5b7c7bfdc7589b72b1a0418e9"
+    },
+    "RESOURCE/Textures/PhonkVFX/DiscSmoke01_16x4.png": {
+      "source": "DiscSmoke01_16x4.png", "source_sha256": "7775673937a2a3354904f52544ddda45b013df6062e57ad9c8759298bcab406c",
+      "prepared": "DiscSmoke01_16x4.png", "sha256": "7775673937a2a3354904f52544ddda45b013df6062e57ad9c8759298bcab406c"
+    }
+  }
+}

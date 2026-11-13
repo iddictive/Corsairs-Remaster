@@ -5523,6 +5523,18 @@ inline void Character::CheckAttackHit(bool isGunBlade)
                 attackAng = static_cast<float>(atof(s));
         }
     }
+    if (isFightWOWps)
+    {
+        attackAng = 75.0f;
+        if (fgtCurType == fgt_attack_break)
+            attackDist = 1.70f;
+        else if (fgtCurType == fgt_attack_fast)
+            attackDist = 1.65f;
+        else if (fgtCurType == fgt_attack_force)
+            attackDist = 1.80f;
+        else
+            attackDist = 1.70f;
+    }
     // Find the surrounding characters
     auto *const location = GetLocation();
     if (!location)

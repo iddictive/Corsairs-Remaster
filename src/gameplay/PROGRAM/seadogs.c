@@ -1121,6 +1121,14 @@ void ProcessControls()
 
     if (dialogRun) return;
 	if (sti(InterfaceStates.Launched)==true) return;
+	if (ControlName == "Phonk_NuclearMenu" && SeaPhonk_IsActive())
+	{
+		pchar.Ship.Cannons.CancelHeldFire = true;
+		Sea.Phonk.MissileSettings = 1;
+		LaunchDebuderMenu();
+		if (!sti(InterfaceStates.Launched)) DeleteAttribute(&Sea, "Phonk.MissileSettings");
+		return;
+	}
 	
 	if (ControlName == "WhrPrevWeather")	{ Whr_LoadNextWeather(-1); }
 	if (ControlName == "WhrNextWeather")	{ Whr_LoadNextWeather(1); }

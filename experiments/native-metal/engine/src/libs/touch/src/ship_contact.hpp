@@ -367,7 +367,7 @@ inline Response resolvePrepared(const Body &a, const Body &b, const detail::Hull
     const double ktA = invMA + at * at * invIA, ktB = invMB + bt * bt * invIB, kt = ktA + ktB;
     if (!(kt > 0) || !std::isfinite(kt)) return {};
     const double knt = an * at * invIA + bn * bt * invIB;
-    const double tangentSpeed = dot(relative, t), normalChange = (1 + restitution) * closing;
+    const double tangentSpeed = dot(relative, t), normalChange = (1 + (fixedB ? 0.0 : restitution)) * closing;
     const double determinant = kn * kt - knt * knt;
     double jn = normalChange / kn, jt = 0;
     if (determinant > 1e-12 * kn * kt)

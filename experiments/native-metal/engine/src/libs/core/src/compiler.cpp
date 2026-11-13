@@ -2005,6 +2005,42 @@ bool COMPILER::Compile(SEGMENT_DESC &Segment, char *pInternalCode, uint32_t pInt
                     {
                         script_cache_.functions.back().local_variables.emplace_back(lvi);
                     }
+                    if (Token.GetType() == OP_EQUAL)
+                    {
+                        // Discover the remaining declarators without treating
+                        // commas inside an initializer call as separators.
+                        int parentheses = 0, brackets = 0, braces = 0;
+                        for (;;)
+                        {
+                            const auto token = Token.Get();
+                            if (token == END_OF_PROGRAMM)
+                            {
+                                SetError("Unterminated variable initializer: %s", lvi.name.c_str());
+                                return false;
+                            }
+                            if (token == DEBUG_LINEFEED) ++DebugSourceLine;
+                            if (token == COMMENT) DebugSourceLine += Token.TokenLines();
+                            // Existing scripts may omit a semicolon before a
+                            // control statement; retain that dialect support.
+                            if (!parentheses && !brackets && !braces &&
+                                (token == IF_BLOCK || token == FOR_BLOCK || token == WHILE_BLOCK ||
+                                 token == SWITCH_COMMAND || token == FUNCTION_RETURN || token == BLOCK_OUT)) break;
+                            if ((!parentheses && token == CLOSE_BRACKET) ||
+                                (!brackets && token == SQUARE_CLOSE_BRACKET)) break;
+                            if (token == OPEN_BRACKET) ++parentheses;
+                            else if (token == CLOSE_BRACKET) --parentheses;
+                            else if (token == SQUARE_OPEN_BRACKET) ++brackets;
+                            else if (token == SQUARE_CLOSE_BRACKET) --brackets;
+                            else if (token == BLOCK_IN) ++braces;
+                            else if (token == BLOCK_OUT) --braces;
+                            if (!parentheses && !brackets && !braces && (token == COMMA || token == SEPARATOR)) break;
+                            if (parentheses < 0 || brackets < 0 || braces < 0)
+                            {
+                                SetError("Invalid variable initializer: %s", lvi.name.c_str());
+                                return false;
+                            }
+                        }
+                    }
                 } while (Token.GetType() == COMMA);
                 Token.StepBack();
             }
@@ -2822,6 +2858,7 @@ bool COMPILER::CompileBlock(SEGMENT_DESC &Segment, bool &bFunctionBlock, uint32_
             BreakUpdateTable.Release();
             break;
         case SWITCH_COMMAND:
+        {
             BreakUpdateTable.Release();
             // CompileToken(Segment,Token_type);
             Token_type = CompileAuxiliaryTokens(Segment);
@@ -2852,11 +2889,29 @@ bool COMPILER::CompileBlock(SEGMENT_DESC &Segment, bool &bFunctionBlock, uint32_
                 return false;
             }
             UpdateOffsets(Segment, BreakUpdateTable, Segment.BCode_Program_size, "b");
-            CopyOffsets(Segment, BreakUpdateTable, BreakTable, "c");
-            // UpdateOffsets(Segment,BreakUpdateTable,continue_jump,"c");    // -> ***
             CompileToken(Segment, POP_VOID);
+            // A continue crosses the switch's retained comparison value. Route
+            // it through its own cleanup before the enclosing loop's jump.
+            bool hasContinue = false;
+            for (uint32_t i = 0; i < BreakUpdateTable.GetStringsCount(); ++i)
+                if (std::strcmp(BreakUpdateTable.GetString(i), "c") == 0) { hasContinue = true; break; }
+            if (hasContinue)
+            {
+                const uint32_t skipCleanup = Segment.BCode_Program_size + 2;
+                vuint32_t = INVALID_OFFSET;
+                CompileToken(Segment, JUMP, 1, (char *)&vuint32_t, sizeof(uint32_t));
+                UpdateOffsets(Segment, BreakUpdateTable, Segment.BCode_Program_size, "c");
+                CompileToken(Segment, POP_VOID);
+                const uint32_t outerContinue = Segment.BCode_Program_size + 2;
+                const auto entry = BreakTable.GetStringsCount();
+                BreakTable.AddString("c");
+                BreakTable.SetStringData(entry, (char *)&outerContinue);
+                CompileToken(Segment, JUMP, 1, (char *)&vuint32_t, sizeof(uint32_t));
+                memcpy(&Segment.pCode[skipCleanup], &Segment.BCode_Program_size, sizeof(uint32_t));
+            }
             BreakUpdateTable.Release();
             break;
+        }
         case CASE_COMMAND:
             // CompileToken(Segment,Token_type);
             // Token_type = CompileAuxiliaryTokens(Segment);
@@ -5931,7 +5986,9 @@ bool COMPILER::CompileUnknown(SEGMENT_DESC &Segment)
     // check for valid function code
     func_code = FuncTab.FindFunc(Token.GetData());
 
-    if (func_code != INVALID_FUNC_CODE)
+    FuncInfo resolvedFunction;
+    if (func_code != INVALID_FUNC_CODE && FuncTab.GetFuncX(resolvedFunction, func_code) &&
+        (resolvedFunction.segment_id != INVALID_SEGMENT_ID || resolvedFunction.offset != INVALID_FUNC_OFFSET))
     {
         // this is function call
         CompileToken(Segment, CALL_FUNCTION, 1, (char *)&func_code, sizeof(uint32_t));
@@ -5997,7 +6054,9 @@ S_TOKEN_TYPE COMPILER::DetectUnknown(uint32_t &code)
     // check for valid function code
     const uint32_t func_code = FuncTab.FindFunc(Token.GetData());
 
-    if (func_code != INVALID_FUNC_CODE)
+    FuncInfo resolvedFunction;
+    if (func_code != INVALID_FUNC_CODE && FuncTab.GetFuncX(resolvedFunction, func_code) &&
+        (resolvedFunction.segment_id != INVALID_SEGMENT_ID || resolvedFunction.offset != INVALID_FUNC_OFFSET))
     {
         // this is function call
         code = func_code;

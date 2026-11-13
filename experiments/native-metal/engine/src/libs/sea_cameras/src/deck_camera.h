@@ -5,6 +5,7 @@
 
 #include "common_camera.h"
 #include "deck_aim_zoom.h"
+#include "shared/sea_ai/deck_fall.hpp"
 #include <chrono>
 #include "dx9render.h"
 #include "model.h"
@@ -66,6 +67,14 @@ class DECK_CAMERA : public COMMON_CAMERA
     storm::OSWindow *zoomWindow = nullptr;
     int zoomWindowSubscription = -1;
     bool zoomWindowFocused = true;
+    deck_fall::State deckFall;
+    CVECTOR previousWalkerWorld{};
+    bool previousWalkerWorldValid = false;
+    bool deckFallWaterPending = false;
+    bool loadingCameraState = false;
+    void UpdateDeckFall(uint32_t delta);
+    void StoreDeckFall();
+    void RestoreDeckFall();
     void UpdateAimZoom();
     void ResetAimZoomProjection();
     void ReleaseWalker();

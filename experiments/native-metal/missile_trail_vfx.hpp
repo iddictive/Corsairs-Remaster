@@ -1,0 +1,220 @@
+#pragma once
+// Standalone Objective-C++ Metal missile VFX. No game state is read here.
+#import <Metal/Metal.h>
+#include <simd/simd.h>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <vector>
+
+namespace storm_metal {
+enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment };
+
+// Matched by the Metal shader; all positions are absolute world coordinates.
+struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color; };
+struct MissileVfxView { simd_float4x4 vp; simd_float4 eye, right, up; };
+static_assert(sizeof(MissileVfxSprite)==64);
+
+static const char *missileVfxMSL=R"MSL(
+#include <metal_stdlib>
+using namespace metal;
+struct S { float4 positionSize, axisLength, params, color; };
+struct V { float4x4 vp; float4 eye, right, up; };
+struct O { float4 p [[position]]; float2 uv; float4 params, color; };
+float missile_hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(missile_hash(a),missile_hash(a+float2(1,0)),f.x),mix(missile_hash(a+float2(0,1)),missile_hash(a+1.),f.x),f.y); }
+vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
+ constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
+ S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz;
+ if(a.params.z>0.5 && a.params.z<1.5) { u=normalize(a.axisLength.xyz); r=cross(u,view.eye.xyz-a.positionSize.xyz); if(dot(r,r)<1e-8) r=view.right.xyz; else r=normalize(r); }
+ if(a.params.z<.5) {
+  float angle=a.params.w+a.params.x*.12; float c=cos(angle),s=sin(angle); float3 old=r; r=old*c+u*s; u=u*c-old*s;
+  // Project the emitted segment onto the camera plane, then elongate the
+  // billboard along that axis. This closes gaps without connecting emitters.
+  float3 along=view.right.xyz*dot(a.axisLength.xyz,view.right.xyz)+view.up.xyz*dot(a.axisLength.xyz,view.up.xyz);
+  float amount=length(along); if(amount>1e-4) { along/=amount; r+=along*dot(r,along)*amount; u+=along*dot(u,along)*amount; }
+ }
+ float3 world=a.positionSize.xyz+r*xy.x*a.positionSize.w+u*xy.y*a.axisLength.w;
+ O o; o.p=view.vp*float4(world,1); o.uv=xy*.5+.5; o.params=a.params; o.color=a.color; return o;
+}
+fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[texture(0)]]) {
+ if(i.params.z<.5) {
+  constexpr sampler sm(coord::normalized,address::clamp_to_edge,filter::linear);
+  float variation=fract(sin(i.params.w*37.73)*43758.5453);
+  float progress=clamp(i.params.x/i.params.y,0.,1.);
+  float frame=mix(variation*12.,58.+variation*5.,progress); float n=min(63.,floor(frame+variation));
+  float2 cell=float2(fmod(n,8.),floor(n/8.)); float2 texel=1./float2(smoke.get_width(),smoke.get_height());
+  float2 p=float2(i.uv.x,1.-i.uv.y);
+  float2 uv=clamp((cell+p)/8.,cell/8.+texel*.51,(cell+1.)/8.-texel*.51);
+  float4 a=smoke.sample(sm,uv);
+  float fade=smoothstep(0.,.06,i.params.x)*(1.-smoothstep(.12,1.,progress));
+  // The atlas is premultiplied dark smoke. Preserve its density and texture
+  // while lighting it with the exhaust's material instead of multiplying black.
+  float detail=clamp(dot(a.rgb,float3(.2126,.7152,.0722))/max(a.a,.001),0.,1.);
+  float alpha=a.a*i.color.a*fade;
+  return float4(i.color.rgb*(.68+.32*detail)*alpha,alpha);
+ }
+ float2 p=i.uv*2.-1.;
+ if(i.params.z>1.5) { float r=length(p); float a=(1.-smoothstep(.12,1.,r))*i.color.a; return float4(mix(i.color.rgb,float3(1.,.95,.78),1.-smoothstep(0.,.45,r))*a,a); }
+ float along=(p.y+1.)*.5;
+ float noise=missile_noise(float2(p.x*3.5+i.params.w*1.3,along*7.-i.params.w*5.));
+ float pulse=.9+.1*sin(i.params.w*11.+along*9.);
+ float width=mix(.07,.36,pow(along,.7))*(.65+.55*noise)*pulse; float d=abs(p.x+(noise-.5)*.20*(1.-along))/width;
+ float edge=1.-smoothstep(.18,1.,d); float ends=smoothstep(0.,.2,along);
+ float core=pow(max(0.,1.-d),3.);
+ float alpha=edge*ends*i.color.a*(.72+.28*noise);
+ return float4(mix(i.color.rgb,float3(1.,.96,.80),core)*alpha,alpha);
+}
+)MSL";
+
+class MissileTrailVfx {
+    struct Puff { simd_float3 origin, drift, axis; double birth; float life, size, seed; MissileVfxType type; };
+    struct Flash { simd_float3 position; double birth; MissileVfxType type; };
+    static constexpr size_t capacity=2048, maxHeads=128;
+    std::array<Puff,capacity> puffs{}; size_t next=0, count=0;
+    std::array<MissileVfxSprite,maxHeads> heads{}; size_t headCount=0;
+    std::array<Flash,128> flashes{}; size_t flashNext=0, flashCount=0;
+    double lastEmission=-100.0;
+    double clock=0; uint32_t serial=1;
+    id<MTLDevice> owner=nil; id<MTLLibrary> library=nil; id<MTLRenderPipelineState> pipeline=nil;
+    id<MTLDepthStencilState> depthState=nil; MTLPixelFormat colorFormat=MTLPixelFormatInvalid, depthFormat=MTLPixelFormatInvalid;
+    static bool finite(simd_float3 v) { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z); }
+    float random() { serial^=serial<<13; serial^=serial>>17; serial^=serial<<5; return float(serial&65535)/65535.f; }
+    bool prepare(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) {
+        if(owner!=device){ owner=device; library=nil; pipeline=nil; depthState=nil; }
+        if(pipeline && color==colorFormat && depth==depthFormat) return true;
+        NSError *error=nil;
+        if(!library) library=[device newLibraryWithSource:[NSString stringWithUTF8String:missileVfxMSL] options:nil error:&error];
+        if(!library) { fprintf(stderr,"missile VFX shader: %s\n",error.localizedDescription.UTF8String); return false; }
+        auto d=[MTLRenderPipelineDescriptor new]; d.vertexFunction=[library newFunctionWithName:@"missile_vfx_vs"]; d.fragmentFunction=[library newFunctionWithName:@"missile_vfx_fs"];
+        auto c=d.colorAttachments[0]; c.pixelFormat=color; c.blendingEnabled=YES;
+        c.sourceRGBBlendFactor=c.sourceAlphaBlendFactor=MTLBlendFactorOne; c.destinationRGBBlendFactor=c.destinationAlphaBlendFactor=MTLBlendFactorOneMinusSourceAlpha;
+        d.depthAttachmentPixelFormat=depth; pipeline=[device newRenderPipelineStateWithDescriptor:d error:&error];
+        if(!pipeline) { fprintf(stderr,"missile VFX pipeline: %s\n",error.localizedDescription.UTF8String); return false; }
+        auto ds=[MTLDepthStencilDescriptor new]; ds.depthCompareFunction=MTLCompareFunctionLessEqual; ds.depthWriteEnabled=NO; depthState=[device newDepthStencilStateWithDescriptor:ds];
+        colorFormat=color; depthFormat=depth; return depthState!=nil;
+    }
+public:
+    bool ready(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) { return device && prepare(device,color,depth); }
+    // Once per render frame, including after all missiles disappear. dt is game time.
+    // Large gaps advance time but never schedule delayed emissions.
+    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; if(clock-lastEmission>=5.f) { next=count=flashNext=flashCount=0; } } headCount=0; }
+    void clear() { next=count=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
+    size_t storedCount() const { return count; }
+    bool hasVisible() const { return headCount || (count && clock-lastEmission<5.f) || (flashCount && clock-lastEmission<.45f); }
+    // One-shot launch/ignition cloud. The cloud stays in world space and is
+    // independent of the missile; call flash() separately while the flash lives.
+    void burst(simd_float3 position, MissileVfxType type) {
+        if(!finite(position)) return;
+        lastEmission=clock; flashes[flashNext]={position,clock,type}; flashNext=(flashNext+1)%flashes.size(); flashCount=std::min(flashes.size(),flashCount+1);
+        const int puffCount = type==MissileVfxType::Interceptor ? 6 : 12;
+        for(int i=0;i<puffCount;i++) { float a=random()*6.2831853f, speed=2.f+random()*5.f; Puff p{};
+            p.origin=position+simd_make_float3(std::cos(a),random()*.5f,std::sin(a))*(random()*3.f);
+            p.drift={std::cos(a)*speed,1.f+random()*3.f,std::sin(a)*speed}; p.birth=clock;
+            p.life=type==MissileVfxType::Interceptor?1.4f:2.8f; p.size=(type==MissileVfxType::Interceptor?1.1f:type==MissileVfxType::Kinzhal?3.5f:2.2f)*(0.8f+random()*.4f);
+            p.seed=random()*6.2831853f; p.type=type; puffs[next]=p; next=(next+1)%capacity; count=std::min(capacity,count+1);
+        }
+    }
+    // Actual segment observed this frame, including guided turns. At most 24 newest
+    // samples; remaining distance is dropped, never enqueued. Call only while burning.
+    void emitSegment(simd_float3 from, simd_float3 to, float dt, MissileVfxType type) {
+        if(!finite(from)||!finite(to)||!std::isfinite(dt)||dt<=0) return;
+        float length=simd_length(to-from); if(!std::isfinite(length)) return;
+        // A stalled missile must not manufacture a cloud every frame. At low
+        // speed emit by travel-scale cadence, with no debt or deferred work.
+        float speed=length/dt; if(!std::isfinite(speed)||speed<2.f) return;
+        if(speed<60.f) {
+            const float interval=std::clamp(4.f/speed,.1f,2.f);
+            if(std::floor(clock/interval)<=std::floor((clock-dt)/interval))return;
+        }
+        lastEmission=clock;
+        float spacing=type==MissileVfxType::Fragment?18.f:type==MissileVfxType::Interceptor?7.f:type==MissileVfxType::Kalibr?11.f:10.f;
+        const int maxSamples=type==MissileVfxType::Fragment?6:24;
+        int n=std::min(maxSamples,std::max(1,int(std::ceil(std::min(length,spacing*float(maxSamples))/spacing))));
+        float covered=std::min(length,spacing*float(n));
+        auto direction=length>1e-5f?(to-from)/length:simd_make_float3(0,0,0);
+        for(int i=0;i<n;i++) {
+            float t=(float(i)+.35f+.30f*random())/float(n); Puff p{}; p.origin=to-direction*(covered*(1.f-t));
+            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?1.6f:2.8f)*(.78f+random()*.22f);
+            p.seed=random()*6.28318f;
+            p.size=(type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?3.0f:4.0f)*(.78f+random()*.44f);
+            float sampleSpacing=std::max(4.f,covered/float(n));
+            p.axis=direction*std::clamp(sampleSpacing/(p.size*.65f),1.f,2.6f);
+            // Spread off the centerline in the emitter's own cross-section;
+            // emitted positions remain fixed in world coordinates afterwards.
+            auto reference=std::abs(direction.y)<.9f?simd_make_float3(0,1,0):simd_make_float3(1,0,0);
+            auto cross=simd_cross(direction,reference); float crossLen=simd_length(cross);
+            if(crossLen>1e-5f) { cross/=crossLen; auto second=simd_cross(direction,cross); p.origin+=(cross*std::cos(p.seed)+second*std::sin(p.seed))*(p.size*.12f*random()); }
+            p.drift={ (random()-.5f)*2.2f, .5f+random()*1.5f, (random()-.5f)*2.2f }; p.type=type;
+            puffs[next]=p; next=(next+1)%capacity; count=std::min(capacity,count+1);
+        }
+    }
+    // Submit current motor only while burning; type selects color and scale.
+    // Direction points forwards; length is in world metres.
+    void motor(simd_float3 tail, simd_float3 direction, MissileVfxType type, float phase) {
+        if(headCount>=maxHeads||!finite(tail)||!finite(direction)||!std::isfinite(phase)) return;
+        if(type==MissileVfxType::Fragment && phase>=2.5f) return;
+        float l=simd_length(direction); if(l<1e-4f||!std::isfinite(l)) return; direction/=l;
+        float length=type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
+        float width=type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
+        simd_float4 color=type==MissileVfxType::Kalibr?simd_make_float4(.40f,.68f,1.f,.85f):simd_make_float4(1.f,.30f,.035f,.9f);
+        if(type==MissileVfxType::Fragment) {
+            color.w *= std::clamp(1.f-phase/2.5f,0.f,1.f);
+            heads[headCount++]={simd_make_float4(tail,.38f),simd_make_float4(0,1,0,.38f),{0,1,2,phase},color};
+            if(headCount>=maxHeads) return;
+        }
+        // Extend the near edge slightly into the nozzle; depth testing clips
+        // the overlap against the missile body rather than leaving a seam.
+        constexpr float overlap=.25f;
+        heads[headCount++]={simd_make_float4(tail-direction*(length-overlap)*.5f,width),simd_make_float4(direction,(length+overlap)*.5f),{0,1,1,phase},color};
+    }
+    // Explicit launch or ignition flash: call each frame with event age in
+    // seconds. The caller owns crossing detection and keeps the event position.
+    void flash(simd_float3 position, float age, MissileVfxType type) {
+        if(headCount>=maxHeads||!finite(position)||!std::isfinite(age)||age<0||age>=.45f)return;
+        float scale=type==MissileVfxType::Kinzhal?11.f:type==MissileVfxType::Kalibr?7.f:5.f;
+        float size=scale*(.35f+age*2.f), alpha=.9f*(1.f-age/.45f);
+        heads[headCount++]={simd_make_float4(position,size),simd_make_float4(0,1,0,size),{age,.45f,2,0},{1.f,.31f,.045f,alpha}};
+    }
+    // Invoke once per frame outside another encoder, after opaque color/depth.
+    // Atlas is WispySmoke02_8x8, premultiplied RGBA, no mipmaps. Matrices and
+    // eye share absolute coordinates; no hidden origin conversion is performed.
+    bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,id<MTLTexture> atlas,
+                simd_float4x4 vp,simd_float3 eye,simd_float3 right,simd_float3 up,simd_float4 viewport,simd_float3 worldOrigin={0,0,0}) {
+        if(!device||!command||!target||!depth||!atlas||atlas.device!=device||target.sampleCount!=1||depth.sampleCount!=1||target.width!=depth.width||target.height!=depth.height||!finite(eye)||!finite(right)||!finite(up)||viewport.z<=0||viewport.w<=0) return false;
+        std::vector<MissileVfxSprite> sprites; sprites.reserve(count+headCount+flashCount);
+        for(size_t j=0;j<count;j++) { const Puff &p=puffs[(next+capacity-count+j)%capacity]; float age=clock-p.birth; if(age<0||age>=p.life) continue;
+            float t=age/p.life, turbulence=std::sin(age*1.4f+p.seed)*age*.22f;
+            auto pos=p.origin+worldOrigin+p.drift*age+simd_make_float3(turbulence,0,std::cos(age*1.1f+p.seed)*age*.18f);
+            // Under a full pool, keep recent plumes at full detail and reduce
+            // overdraw on older particles without moving or delaying them.
+            bool older=count>1024 && j+1024<count;
+            float size=p.size*(1.f+age*.5f)*(older?.8f:1.f); float dist=simd_length(pos-eye); if(dist>3600.f) continue;
+            float visibility=1.f-std::clamp((dist-600.f)/3000.f,0.f,1.f);
+            float opacity=visibility*visibility*(1.f-.65f*t)*(p.type==MissileVfxType::Interceptor?.12f:.17f);
+            const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.78f,.84f,.88f):
+                p.type==MissileVfxType::Interceptor?simd_make_float3(.93f,.93f,.90f):
+                p.type==MissileVfxType::Shtorm?simd_make_float3(.72f,.74f,.76f):
+                p.type==MissileVfxType::Fragment?simd_make_float3(.16f,.15f,.14f):simd_make_float3(.91f,.88f,.82f);
+            sprites.push_back({simd_make_float4(pos,size),simd_make_float4(p.axis,size),{age,p.life,older?-1.f:0.f,p.seed},simd_make_float4(tint,opacity)});
+        }
+        for(size_t j=0;j<flashCount;j++) { const auto &f=flashes[(flashNext+flashes.size()-flashCount+j)%flashes.size()]; float age=clock-f.birth; if(age<0||age>=.45f)continue;
+            float scale=f.type==MissileVfxType::Kinzhal?11.f:f.type==MissileVfxType::Kalibr?7.f:5.f;
+            float size=scale*(.35f+age*2.f),alpha=.9f*(1.f-age/.45f);
+            sprites.push_back({simd_make_float4(f.position+worldOrigin,size),simd_make_float4(0,1,0,size),{age,.45f,2,0},{1.f,.31f,.045f,alpha}});
+        }
+        for(size_t i=0;i<headCount;i++) { auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin; sprites.push_back(sprite); }
+        if(sprites.empty())return true;
+        if(!prepare(device,target.pixelFormat,depth.pixelFormat))return false;
+        auto buffer=[device newBufferWithBytes:sprites.data() length:sprites.size()*sizeof(MissileVfxSprite) options:MTLResourceStorageModeShared]; if(!buffer)return false;
+        MissileVfxView view{vp,simd_make_float4(eye,1),simd_make_float4(right,0),simd_make_float4(up,0)};
+        auto pass=[MTLRenderPassDescriptor renderPassDescriptor]; pass.colorAttachments[0].texture=target; pass.colorAttachments[0].loadAction=MTLLoadActionLoad; pass.colorAttachments[0].storeAction=MTLStoreActionStore;
+        pass.depthAttachment.texture=depth; pass.depthAttachment.loadAction=MTLLoadActionLoad; pass.depthAttachment.storeAction=MTLStoreActionStore;
+        auto e=[command renderCommandEncoderWithDescriptor:pass]; if(!e)return false; [e setRenderPipelineState:pipeline]; [e setDepthStencilState:depthState];
+        [e setViewport:MTLViewport{viewport.x,viewport.y,viewport.z,viewport.w,0,1}]; [e setVertexBytes:&view length:sizeof(view) atIndex:0]; [e setVertexBuffer:buffer offset:0 atIndex:1]; [e setFragmentTexture:atlas atIndex:0];
+        [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:sprites.size()]; [e endEncoding]; return true;
+    }
+};
+}

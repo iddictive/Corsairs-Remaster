@@ -68,6 +68,7 @@ class SoundService final : public VSoundService
         bool terminalStopping{};
         bool focusSuspended{};
         bool volumeSuspended{};
+        bool underwaterAmbience{};
     };
 
     static constexpr size_t kSlots = 4095;
@@ -79,6 +80,13 @@ class SoundService final : public VSoundService
     float musicVolume_{0.5f};
     float speechVolume_{0.5f};
     float pitch_{1.0f};
+    float underwaterBlend_{};
+    TSD_ID underwaterAmbience_{SOUND_INVALID_ID};
+    uint32_t underwaterRetryMs_{};
+    bool underwaterAmbienceStopped_{};
+    bool soundsStopped_{};
+    bool stoppingAll_{};
+    bool active_{true};
     struct Choice { std::string name; float weight{1}; };
     struct Alias { std::vector<Choice> choices; float minDistance{-1}; float maxDistance{-1}; float volume{-1}; int priority{128}; };
     struct SchemeChannel { std::string name; int minDelay{}; int maxDelay{}; int remaining{}; float volume{1}; bool looped{}; TSD_ID id{}; };

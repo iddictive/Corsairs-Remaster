@@ -104,7 +104,7 @@ class AIShipCannonController
 
     bool Fire2Position(AISHIP_BORT &bort, const CVECTOR &vFirePos, float fFireHeight, bool bApplyBortDelta = true,
                        const MANUAL_AIM_SOLUTION *manual = nullptr, AIShip *targetShip = nullptr,
-                       float targetLeadDelay = -1.f, float targetFlightTime = -1.f);
+                       float targetLeadDelay = -1.f, float targetFlightTime = -1.f, bool fortTargets = false);
 
     [[nodiscard]] float GetSpeedV0() const;
 
@@ -148,6 +148,7 @@ class AIShipCannonController
 
     // fire section
     bool Fire(const CVECTOR &vFirePos);                             // fire to position
+    bool FireFortTargets(const std::vector<CVECTOR> &targets);
     bool Fire(AIShip *pEnemy);                                      // fire to ship
     bool Fire(const CVECTOR &vFireCamPos, const CVECTOR &vFireDir, ATTRIBUTES **manualTarget = nullptr); // manual fire
 

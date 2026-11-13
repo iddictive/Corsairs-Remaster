@@ -198,6 +198,7 @@ class BATTLE_NAVIGATOR
     int32_t m_nvSpeed{};
     //--------------------
     int32_t m_idShipsVBuf{-1};
+    int32_t m_shipBufferCapacity{MAX_ENEMY_SHIP_QUANTITY};
     int32_t m_nvShips{};
     //--------------------
     int32_t m_idGradBackVBuf{-1};

@@ -5,12 +5,12 @@
 
 namespace storm::ship::phonk
 {
-constexpr float speedCeiling = 500.f, motorAcceleration = 120.f, brakeDeceleration = 240.f;
-constexpr float boostCeiling = 1000.f;
+constexpr float speedCeiling = 3000.f, motorAcceleration = 220.f, brakeDeceleration = 320.f;
+constexpr float boostCeiling = 5000.f;
 constexpr float yawBoost = 2.1f;
 inline float yawSpeed(float stock, float turn)
 {
-    return std::clamp(turn, -1.f, 1.f) * std::clamp(stock * yawBoost, .42f, .70f);
+    return std::clamp(turn, -1.f, 1.f) * std::clamp(stock * 4.5f, .95f, 1.8f);
 }
 
 struct Velocity { float x = 0.f, z = 0.f; };
@@ -54,7 +54,15 @@ struct Drift
         // for currents/collisions to exceed the ordinary ceiling.
         float speed = std::min(magnitude(), speedLimit());
         float bearing = speed > .01f ? std::atan2(worldX, worldZ) : yaw;
-        if (!airborne)
+        if (airborne)
+        {
+            // In flight: rocket thrust actively propels and aligns velocity along ship heading
+            if (brake) speed = std::max(0.f, speed - brakeDeceleration * dt);
+            else if (driving) speed = std::min(speedLimit(), speed + acceleration * 1.5f * dt);
+            else speed *= std::exp(-.025f * dt);
+            // Without water contact, rotation cannot redirect existing momentum.
+        }
+        else
         {
             if (brake) speed = std::max(0.f, speed - brakeDeceleration * dt);
             else if (!boosting && speed > speedCeiling)
@@ -65,9 +73,9 @@ struct Drift
             // A brake acts on the current vector, not the hull's forward axis.
             if (!brake)
             {
-                // Keep powered lateral inertia; coasting helm supplies only
-                // enough alignment to follow the turn without going stern-first.
-                const float traction = driving ? .6f : .12f + .42f * std::clamp(std::abs(turn), 0.f, 1.f);
+                // Powered throttle bites and pulls the ship toward the new heading;
+                // coasting/turning keeps fluid sideways powerslides without infinite wide arcs.
+                const float traction = boosting ? 3.8f : driving ? 2.6f : (.15f + .55f * std::clamp(std::abs(turn), 0.f, 1.f));
                 bearing += std::remainder(yaw - bearing, 6.28318530718f) * -std::expm1(-traction * dt);
             }
         }
@@ -114,15 +122,16 @@ struct Flight
         const float bodyTangent = buoyant ? nextTangent : (supportedHeight - bodyHeight) / dt;
         const float acceleration = sampled && sampleTime > 0.f ?
             (bodyTangent - supportVelocity) / (.5f * (dt + sampleTime)) : 0.f;
-        const bool depart = !airborne && !settling && sampled && wavePresent && serial &&
+        const bool elevatedInAir = bodyHeight > height + std::max(.5f, draft) + 0.5f;
+        const bool depart = (!airborne && !settling && sampled && wavePresent && serial &&
             bodyTangent > 0.f && gravity + acceleration < 0.f &&
-            (!buoyant || (velocity > 0.f && bodyHeight >= height - std::max(.5f, draft)));
+            (!buoyant || (velocity > 0.f && bodyHeight >= height - std::max(.5f, draft)))) || elevatedInAir;
         previousSurface = sampled ? surface : height;
         surface = height; tangent = nextTangent; supportVelocity = bodyTangent; sampleTime = dt; sampled = true;
         if (depart)
         {
             airborne = true; flightGravity = gravity;
-            if (!buoyant) velocity = bodyTangent;
+            if (!buoyant && !elevatedInAir) velocity = bodyTangent;
         }
         else if (!airborne && !buoyant) velocity = bodyTangent;
         return depart;

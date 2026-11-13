@@ -486,6 +486,7 @@ struct ReactiveWorld::Impl
     std::unordered_map<uint64_t, JPH::MassProperties> neighborMass;
     JPH::BodyID terrain, moving;
     bool wet = false;
+    bool coarseWater = false;
     JPH::EPhysicsUpdateError updateError = JPH::EPhysicsUpdateError::None;
     float submergedHeight = NAN, submergedFraction = 0.f;
 
@@ -608,9 +609,28 @@ static JPH::RefConst<JPH::Shape> ReactiveCollider(const JPH::Shape *original,
         original->GetCenterOfMass() - collision->GetCenterOfMass());
 }
 
+static bool ReactivePrismMass(const std::vector<std::vector<ReactivePoint>> &parts,
+                              JPH::Vec3 &center, JPH::MassProperties &properties);
+
 bool ReactiveWorld::SetHull(const std::vector<std::vector<ReactivePoint>> &parts,
                            const std::vector<std::vector<ReactivePoint>> &collisionParts)
 {
+    JPH::Vec3 center;
+    JPH::MassProperties mass;
+    if (!collisionParts.empty() && ReactivePrismMass(parts, center, mass))
+    {
+        auto collision = ReactiveShape(collisionParts);
+        if (!collision) return false;
+        JPH::RefConst<JPH::Shape> adjusted = new JPH::OffsetCenterOfMassShape(collision,
+            center - collision->GetCenterOfMass());
+        impl_->Remove(impl_->moving);
+        impl_->hull = adjusted;
+        impl_->collisionHull = adjusted;
+        impl_->hullMass = mass;
+        impl_->coarseWater = true;
+        impl_->submergedHeight = NAN;
+        return true;
+    }
     auto result = ReactiveShape(parts);
     if (!result) return false;
     auto collision = ReactiveCollider(result, collisionParts);
@@ -619,6 +639,7 @@ bool ReactiveWorld::SetHull(const std::vector<std::vector<ReactivePoint>> &parts
     impl_->hull = result;
     impl_->collisionHull = collision;
     impl_->hullMass = result->GetMassProperties();
+    impl_->coarseWater = false;
     impl_->submergedHeight = NAN;
     return true;
 }
@@ -895,8 +916,16 @@ bool ReactiveWorld::Step(ReactiveBody &state, const std::vector<ReactiveForce> &
                     const auto atBuoyancy = body.GetLinearVelocity() + body.GetAngularVelocity().Cross(center);
                     dragReference.SetX(atBuoyancy.GetX()); dragReference.SetZ(atBuoyancy.GetZ());
                 }
+                // The enclosing hull includes empty interior. At its normal
+                // draft retain the established drag; progressively damp rapid
+                // motion when substantially more of that hull is submerged.
+                const float reference = fluid.buoyancy > 0.f ?
+                    std::clamp(1.f / fluid.buoyancy, 0.f, .95f) : .95f;
+                const float excess = w.coarseWater && total > 0.f ?
+                    std::clamp((submerged / total - reference) / (1.f - reference), 0.f, 1.f) : 0.f;
                 applied = body.ApplyBuoyancyImpulse(total, submerged, center, fluid.buoyancy,
-                    .5f, .1f, dragReference, w.physics.GetGravity(), dt);
+                    .5f + 49.5f * excess * excess, .1f + .9f * excess * excess,
+                    dragReference, w.physics.GetGravity(), dt);
             }
             if (applied) bodies.ActivateBody(w.moving);
             w.wet |= applied;

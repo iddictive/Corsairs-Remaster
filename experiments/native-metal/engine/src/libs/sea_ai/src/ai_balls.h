@@ -3,6 +3,9 @@
 #include "ai_helper.h"
 #include "cannon_trace.h"
 #include <v_particle_system.h>
+#include <array>
+
+namespace storm::ship::phonk::airdefense { struct Contact; }
 
 struct BALL_PARAMS
 {
@@ -26,6 +29,7 @@ struct BALL_PARAMS
     float fMaxFireDistance;
     float fRawAng;
     uint32_t dwCannonType; // Additional parameter
+    uint32_t surrenderEpoch = 0;
     // Transient caches; Save/Load retain the existing four-lane binary layout.
     int32_t dartGood = -1;
     CVECTOR dartTarget{};
@@ -73,6 +77,13 @@ class AIBalls : public Entity
     std::vector<RS_RECT> dartRects;
     std::vector<CVECTOR> dartDirections;
     std::vector<RS_LINE> dartTrace;
+    struct BlastWave { CVECTOR center{}; float age = -1.0f; bool shrapnel = false; };
+    static constexpr size_t MaxBlastWaves = 32;
+    std::array<BlastWave, MaxBlastWaves> blastWaves{};
+    std::vector<RS_LINE> blastWaveVertices;
+    void AddBlastWave(const CVECTOR &center, bool shrapnel);
+    void AdvanceBlastWaves(float seconds);
+    void DrawBlastWaves();
     int32_t dartTexture = -1;
     static constexpr float DefaultDartSize = .4f;
     float dartSize = DefaultDartSize;
@@ -85,6 +96,11 @@ class AIBalls : public Entity
     bool TryAirburst(BALL_PARAMS &ball, const CVECTOR &src, const CVECTOR &dst, std::vector<BALL_PARAMS> &fragments,
                      std::vector<CVECTOR> &visualBursts);
     void BombBlast(BALL_PARAMS &ball, const CVECTOR &burst, entid_t directShip);
+    static bool AirDefenseAcquire(void *context, int32_t defender, CVECTOR origin, float range,
+                                  uint32_t budget, uint32_t *cursor, storm::ship::phonk::airdefense::Contact *out);
+    static uint32_t AirDefenseIntercept(void *context, int32_t defender, CVECTOR center, float radius,
+                                        uint32_t budget, uint32_t *cursor, uint32_t maximum);
+    uint32_t airDefenseSelection = 0;
 
     // inherited functions from Entity
     bool Init() override;

@@ -26,6 +26,11 @@ int iBortReloadGeneration = 0;
 int		iNumShips = 0;
 int		Ships[MAX_SHIPS_ON_SEA];
 
+void Ship_EnsureListCapacity()
+{
+    if (GetArraySize(&Ships) <= iNumShips) SetArraySize(&Ships, iNumShips + 16);
+}
+
 #define SHIP_DETONATE_SMALL		"ShipDetonateSmall"
 
 #event_handler("Ship_StartLoad", "Ship_StartLoad");
@@ -91,9 +96,15 @@ void DeleteShipEnvironment()
 	DelEventHandler(SHIP_FIRE_DAMAGE, "Ship_FireDamage");
 	DelEventHandler("Ship_FireContext", "Ship_FireContext");
 	DelEventHandler("Ship_FireStep", "Ship_FireStep");
+	DelEventHandler("Ship_SurrenderEpoch", "Ship_SurrenderEpoch");
 	DelEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood");
 	DelEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut");
 	DelEventHandler("SeaPhonk_NuclearWave", "SeaPhonk_NuclearWave");
+	DelEventHandler("SeaPhonk_ClusterFlame", "SeaPhonk_ClusterFlame");
+	DelEventHandler("SeaPhonk_MissilePuff", "SeaPhonk_MissilePuff");
+	DelEventHandler("SeaPhonk_ConventionalDamage", "SeaPhonk_ConventionalDamage");
+	DelEventHandler("SeaPhonk_FragmentHit", "SeaPhonk_FragmentHit");
+	DelEventHandler("SeaPhonk_MissileAttack", "SeaPhonk_MissileAttack");
 	DelEventHandler("SeaPhonk_NuclearPower", "SeaPhonk_NuclearPower");
 	DelEventHandler(SHIP_BORT_RELOADED, "Ship_OnBortReloaded");
 	DelEventHandler(SHIP_ACTIVATE_FIRE_PLACE, "Ship_ActivateFirePlace");
@@ -181,7 +192,7 @@ void CreateShipEnvironment()
 	sIslandLocator = "";
 	sIslandID = "";
 	
-	for (int i = 0; i < MAX_SHIPS_ON_SEA; i++) Ships[i] = -1;
+	for (int i = 0; i < GetArraySize(&Ships); i++) Ships[i] = -1;
 
 	aref arCurWeather = GetCurrentWeather();
 	sSeaSoundPostfix = arCurWeather.Sounds.Sea.Postfix;
@@ -198,9 +209,15 @@ void CreateShipEnvironment()
 	SetEventHandler(SHIP_FIRE_DAMAGE, "Ship_FireDamage", 0);
 	SetEventHandler("Ship_FireContext", "Ship_FireContext", 0);
 	SetEventHandler("Ship_FireStep", "Ship_FireStep", 0);
+	SetEventHandler("Ship_SurrenderEpoch", "Ship_SurrenderEpoch", 0);
 	SetEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood", 0);
 	SetEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut", 0);
 	SetEventHandler("SeaPhonk_NuclearWave", "SeaPhonk_NuclearWave", 0);
+	SetEventHandler("SeaPhonk_ClusterFlame", "SeaPhonk_ClusterFlame", 0);
+	SetEventHandler("SeaPhonk_MissilePuff", "SeaPhonk_MissilePuff", 0);
+	SetEventHandler("SeaPhonk_ConventionalDamage", "SeaPhonk_ConventionalDamage", 0);
+	SetEventHandler("SeaPhonk_FragmentHit", "SeaPhonk_FragmentHit", 0);
+	SetEventHandler("SeaPhonk_MissileAttack", "SeaPhonk_MissileAttack", 0);
 	SetEventHandler("SeaPhonk_NuclearPower", "SeaPhonk_NuclearPower", 0);
 	SetEventHandler(SHIP_CHECK_SITUATION, "Ship_CheckSituation", 0);
 	SetEventHandler(SHIP_TO_STRAND, "Ship_OnStrand", 0);
@@ -752,6 +769,7 @@ ref CrimeSea_GetGroupCommander(ref victim)
 
 void CrimeSea_PreparePlayerBallHit(ref victim)
 {
+	if (DebugAI_ProtectRelations()) return;
 	ref groupCommander = CrimeSea_GetGroupCommander(victim);
 	if (CrimeSea_IsTrackedAmbient(groupCommander, victim))
 	{
@@ -1134,39 +1152,11 @@ void Ship_FireAction()
 	aref rCharacter = GetEventData();				// we attack this character
 	aref rMainGroupCharacter = GetEventData();		// commander character for rCharacter
 	int iRelation = GetEventData();
+	if (DebugAI_ProtectRelations()) return;
 	
 	if (LAi_IsDead(rCharacter)) return; // fix - нефиг палить в труп!
-	// The engine sends this only after a successful player aimed-fire command.
-	// Cannonballs already airborne when the target surrendered are not treachery.
-	if (CheckAttribute(rCharacter, "Surrendered"))
-	{
-		bool wasSeaSurrender = CheckAttribute(rCharacter, "SeaSurrender");
-		if (wasSeaSurrender)
-		{
-			DeleteAttribute(rCharacter, "SeaSurrender");
-			DeleteAttribute(rCharacter, "ShipTaskLock");
-		}
-		DeleteAttribute(rCharacter, "Surrendered");
-		rCharacter.NoSurrender = true;
-		if (!wasSeaSurrender)
-		{
-			// Legacy released captains have no native surrender overlay.
-			for (int slot = 0; slot < COMPANION_MAX; slot++)
-			{
-				int companion = GetCompanionIndex(pchar, slot);
-				if (companion >= 0) SetCharacterRelationBoth(companion, sti(rCharacter.index), RELATION_ENEMY);
-			}
-			UpdateRelations();
-		}
-		Ship_SetTaskAttack(PRIMARY_TASK, sti(rCharacter.index), nMainCharacterIndex);
-		Ship_SetTaskAttack(SECONDARY_TASK, sti(rCharacter.index), nMainCharacterIndex);
-		Ship_SetSailState(sti(rCharacter.index), 1.0);
-		Ship_FlagRefresh(rCharacter);
-		Log_SetStringToLog("Вероломство! Сдавшийся корабль снова вступил в бой!");
-		pchar.ship.crew.morale = makeint(stf(pchar.ship.crew.morale) - 15);
-		if (sti(pchar.ship.crew.morale) < MORALE_MIN) pchar.ship.crew.morale = MORALE_MIN;
-		ChangeCharacterReputation(pchar, -5.0);
-	}
+	// A shot is not a hit; keep the surrender and its protections intact.
+	if (CheckAttribute(rCharacter, "Surrendered")) return;
 
 	
 	// if companion - decrease reputation
@@ -1474,6 +1464,11 @@ void Ship_SetTaskDefend(int iTaskPriority, int iCharacterIndex, int iCharacterIn
 
 void Ship_DoFire()
 {
+	if (SeaPhonk_IsActive() && CheckAttribute(&Sea, "Phonk.Weapon"))
+	{
+		int weapon = sti(Sea.Phonk.Weapon);
+		if (weapon == 6 || weapon == 7 || weapon == 8) return;
+	}
 	int bCameraOutside = SeaCameras_isCameraOutside();
 	SendMessage(&AISea, "lal", AI_MESSAGE_CANNON_FIRE, &Characters[nMainCharacterIndex], bCameraOutside);
 }
@@ -1698,6 +1693,7 @@ void Ship_Add2Sea(int iCharacterIndex, bool bFromCoast, string sFantomType, bool
 
 	if(isOffline) ReloadProgressUpdate();
 	
+	Ship_EnsureListCapacity();
 	Ships[iNumShips] = iCharacterIndex;
 	iNumShips++;
 }
@@ -1788,6 +1784,9 @@ void Ship_OnBortReloaded()
 	if (!bSeaLoaded || bAbordageStarted) { return; }  // fix
 	if (sti(aCharacter.index) != nMainCharacterIndex) { return; } // fix
 	if (sBort != "cannonl" && sBort != "cannonr") { return; }
+	// Silence repetitive "Готов к залпу" voiceover during instant reload / phonk mode
+	if (CheckAttribute(aCharacter, "DebugCheats.InstantCannonReload") && sti(aCharacter.DebugCheats.InstantCannonReload) != 0) return;
+	if (SeaPhonk_IsActive()) return;
 
 	if (!sti(aCharacter.Tmp.BortsReloaded.Event))
 	{
@@ -1889,10 +1888,69 @@ void Ship_OnCreate()
 	rCharacter.Ship.Speed.x = 0.0;
 }
 
+// A monotonically increasing epoch survives saves with the main character.
+int Ship_SurrenderEpoch()
+{
+	if (!CheckAttribute(pchar, "SurrenderEpoch")) pchar.SurrenderEpoch = 1;
+	return sti(pchar.SurrenderEpoch);
+}
+
+void Ship_MarkSurrender(ref character)
+{
+	pchar.SurrenderEpoch = Ship_SurrenderEpoch() + 1;
+	character.SurrenderHitEpoch = sti(pchar.SurrenderEpoch);
+	DeleteAttribute(character, "SurrenderHits");
+}
+
+void Ship_SurrenderHit(ref character, int attacker, int launchEpoch)
+{
+	if (!CheckAttribute(character, "Surrendered") || !CheckAttribute(character, "SurrenderHitEpoch")) return;
+	if (launchEpoch < sti(character.SurrenderHitEpoch)) return;
+	if (attacker < 0 || attacker >= TOTAL_CHARACTERS || !IsCompanion(GetCharacter(attacker))) return;
+	if (LAi_IsDead(character) || LAi_IsImmortal(character) || SeaPhonk_ProtectsShip(character) || CheckAttribute(character, "Coastal_Captain") ||
+		CheckAttribute(character, "ShipEnemyDisable") || CheckAttribute(character, "DontRansackCaptain") ||
+		CheckAttribute(character, "relation.UseOtherCharacter")) return;
+	bool seaSurrender = CheckAttribute(character, "SeaSurrender");
+	if (!seaSurrender && CheckAttribute(character, "ShipTaskLock")) return;
+	int hits = 0;
+	if (CheckAttribute(character, "SurrenderHits")) hits = sti(character.SurrenderHits);
+	character.SurrenderHits = hits + 1;
+	if (sti(character.SurrenderHits) < 2) return;
+	if (seaSurrender)
+	{
+		DeleteAttribute(character, "SeaSurrender");
+		DeleteAttribute(character, "ShipTaskLock");
+	}
+	DeleteAttribute(character, "Surrendered");
+	DeleteAttribute(character, "SurrenderHits");
+	DeleteAttribute(character, "SurrenderHitEpoch");
+	DeleteAttribute(character, "AlwaysFriend");
+	character.NoSurrender = true;
+	if (!seaSurrender)
+	{
+		for (int slot = 0; slot < COMPANION_MAX; slot++)
+		{
+			int companion = GetCompanionIndex(pchar, slot);
+			if (companion >= 0) SetCharacterRelationBoth(companion, sti(character.index), RELATION_ENEMY);
+		}
+		UpdateRelations();
+	}
+	Ship_SetTaskAttack(PRIMARY_TASK, sti(character.index), nMainCharacterIndex);
+	Ship_SetTaskAttack(SECONDARY_TASK, sti(character.index), nMainCharacterIndex);
+	Ship_SetSailState(sti(character.index), 1.0);
+	Ship_FlagRefresh(character);
+	PostEvent("BI_CallUpdateShip", 1, "l", sti(character.index));
+	Log_SetStringToLog("Вероломство! Сдавшийся корабль снова вступил в бой!");
+	pchar.ship.crew.morale = makeint(stf(pchar.ship.crew.morale) - 15);
+	if (sti(pchar.ship.crew.morale) < MORALE_MIN) pchar.ship.crew.morale = MORALE_MIN;
+	ChangeCharacterReputation(pchar, -5.0);
+}
+
 // Keep sea surrender separate from the released-captain white-flag marker.
 bool Ship_CheckSeaSurrender(ref rCharacter)
 {
 	if (IsCompanion(rCharacter)) return false;
+	if (CheckAttribute(rCharacter, "Surrendered") && !CheckAttribute(rCharacter, "SurrenderHitEpoch")) Ship_MarkSurrender(rCharacter);
 	if (!CheckAttribute(rCharacter, "SeaSurrender"))
 	{
 		if (CheckAttribute(rCharacter, "Surrendered") || CheckAttribute(rCharacter, "NoSurrender")) return false;
@@ -1910,6 +1968,7 @@ bool Ship_CheckSeaSurrender(ref rCharacter)
 		// Native relations read this as the captor commander index.
 		rCharacter.SeaSurrender = nMainCharacterIndex;
 		rCharacter.Surrendered = true;
+		Ship_MarkSurrender(rCharacter);
 		rCharacter.ShipTaskLock = true;
 		Ship_FlagRefresh(rCharacter);
         PostEvent("BI_CallUpdateShip", 1, "l", sti(rCharacter.index));
@@ -2159,6 +2218,8 @@ void Ship_CheckSituation()
 		{
 			// boal potc -->
 			case AITASK_BRANDER:
+				if (sti(rCharacter.index) != GetMainCharacterIndex() && sti(rCharacter.SeaAI.Task.Target) == GetMainCharacterIndex() &&
+					CheckAttribute(pchar, "DebugInvisibleAI") && sti(pchar.DebugInvisibleAI)) break;
 				ref rCharacter2Brander = GetCharacter(sti(rCharacter.SeaAI.Task.Target));
 				ref rBaseShip = GetRealShip(sti(rCharacter.Ship.Type));
 				float fBranderDistance = 45.0 + (7.0 - stf(rBaseShip.Class)) * 15.0; // просьба масс
@@ -2985,26 +3046,65 @@ float Ship_Ship2ShipCollision()
 
 	float fHP = (1.0 - fSlide) * fPower * 10.0;
 	float hullBefore = Ship_GetHP(rOurCharacter);
-	// Capture a player ram before lethal damage can synchronously remove the reporter.
-	if (iEnemyCharacterIndex == GetMainCharacterIndex() && !IsCompanion(rOurCharacter) && GetRelation(sti(rOurCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY)
+	// TOUCH emits this only for damaging-speed contacts; act before ShipDead.
+	if (iEnemyCharacterIndex == GetMainCharacterIndex() && !IsCompanion(rOurCharacter) &&
+		!bSeaReloadStarted && fHP > 0.0 && !LAi_IsDead(rOurCharacter) && !LAi_IsImmortal(rOurCharacter) &&
+		!SeaPhonk_ProtectsShip(rOurCharacter) && CheckAttribute(rOurCharacter, "Ship.HP") &&
+		!CheckAttribute(rOurCharacter, "Coastal_Captain") && !CheckAttribute(rOurCharacter, "ShipEnemyDisable") &&
+		!CheckAttribute(rOurCharacter, "AlwaysFriend"))
 	{
-		ref ramBaseShip = GetRealShip(sti(rOurCharacter.Ship.Type));
-		float predictedHull = Ship_GetHP(rOurCharacter) - fHP;
-		if (predictedHull <= stf(ramBaseShip.HP) * 0.14) CrimeSea_AmbientAttack(rOurCharacter, rOurCharacter);
+		float ramDamage = SeaPhonk_CollisionDamage(rOurCharacter, fHP * Ship_HullDamageMultiplier(rOurCharacter, iEnemyCharacterIndex));
+		if (ramDamage > 0.0)
+		{
+			ref ramCommander = CrimeSea_GetGroupCommander(rOurCharacter);
+			bool needsHostility = GetRelation(sti(rOurCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY ||
+				GetRelation(sti(ramCommander.index), GetMainCharacterIndex()) != RELATION_ENEMY;
+			int ramGroup = -1;
+			if (CheckAttribute(rOurCharacter, "SeaAI.Group.Name")) ramGroup = Group_FindGroup(rOurCharacter.SeaAI.Group.Name);
+			if (ramGroup >= 0)
+			{
+				int groupSize = Group_GetCharactersNumR(&AIGroups[ramGroup]);
+				for (int slot = 0; slot < groupSize; slot++)
+				{
+					int member = Group_GetCharacterIndexR(&AIGroups[ramGroup], slot);
+					if (member < 0) break;
+					if (GetRelation(member, GetMainCharacterIndex()) != RELATION_ENEMY) { needsHostility = true; break; }
+				}
+			}
+			bool incidentCandidate = false;
+			if (!needsHostility)
+				incidentCandidate = !CrimeSea_IsLawfulPrize(rOurCharacter) && !CheckAttribute(rOurCharacter, "Situation");
+			if (needsHostility || incidentCandidate)
+			{
+				// The current nation is the usual incident owner; retain the canonical
+				// cross-nation lookup when the ship has changed flags or is untracked.
+				int ramNation = sti(rOurCharacter.nation);
+				bool ramTracked = false;
+				if (ramNation >= 0 && ramNation < MAX_NATIONS && ramNation != PIRATE)
+					ramTracked = CheckAttribute(pchar, "Crime.Sea." + NationShortName(ramNation) + ".Targets.t" + rOurCharacter.index);
+				if (!ramTracked) ramTracked = CrimeSea_IsTrackedShip(rOurCharacter);
+				if (!DebugAI_ProtectRelations() && (needsHostility || !ramTracked))
+				{
+					bool participationWarning = false;
+					if (GetNationRelation2MainCharacter(ramNation) != RELATION_ENEMY)
+						participationWarning = WdmMilitaryParticipationHit(rOurCharacter, Crime_HasPlayerIntent(rOurCharacter));
+					if (!participationWarning)
+					{
+						if (!ramTracked) CrimeSea_PreparePlayerBallHit(rOurCharacter);
+						if (needsHostility && rOurCharacter.id != "MQPirate")
+						{
+							SetCharacterRelationBoth(sti(rOurCharacter.index), GetMainCharacterIndex(), RELATION_ENEMY);
+							SetCharacterRelationBoth(sti(ramCommander.index), GetMainCharacterIndex(), RELATION_ENEMY);
+							if (ramGroup >= 0) Group_SetEnemyToCharacter(rOurCharacter.SeaAI.Group.Name, GetMainCharacterIndex());
+							UpdateRelations();
+						}
+					}
+				}
+			}
+		}
 	}
 	//Trace("Ship->Ship touch: idx = " + iOurCharacterIndex + ", fpower = " + fPower + ", fHP = " + fHP + ", fSlide = " + fSlide);
 	Ship_ApplyCollisionHitpoints(rOurCharacter, fHP, KILL_BY_TOUCH, iEnemyCharacterIndex);
-	// зашита от потопления тараном -->
-	if (iEnemyCharacterIndex == GetMainCharacterIndex() && GetHullPercent(rOurCharacter) <= 14  && !LAi_IsDead(rOurCharacter))
-	{
-		if (!IsCompanion(rOurCharacter) && GetRelation(sti(rOurCharacter.index), GetMainCharacterIndex()) != RELATION_ENEMY)
-		{
-			CrimeSea_AmbientAttack(rOurCharacter, rOurCharacter);
-	    	DoQuestCheckDelay("NationUpdate", 0.9);
-    	}
-	}
-	// зашита от потопления тараном <--
-
 	if (fPower>1.0) { Play3DSound("coll_ship2ship", x, y, z); }
 	// Return the accepted fraction to TOUCH before it publishes physical cuts.
 	// Other ships retain their ordinary material response and all death guards.
@@ -3598,6 +3698,8 @@ void Ship_HullHitEvent()
     float   fTmpCannonDamage = 0;
     
     if (bDead) return; // фикс, не нужно обсчитывать труп
+	if (CheckAttribute(AIBalls, "CurrentSurrenderEpoch"))
+		Ship_SurrenderHit(rOurCharacter, iBallCharacterIndex, sti(AIBalls.CurrentSurrenderEpoch));
 	// Cannon damage multiply
 	float fCannonDamageMultiply = Ship_ProjectileCannonDamageMultiply();
 	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
@@ -3650,11 +3752,17 @@ void Ship_HullHitEvent()
 	// Ограничиваем спам взрывов и досок: бомбы взрываются часто, обычные ядра - умеренно
 	if (iBallType == GOOD_BOMBS)
 	{
-		if (rand(2) == 1) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		if (rand(2) == 1) Ball_CreateNavalEffect("blast", x, y, z, 0.0, 0.0, 0.0, 0, 9);
+	}
+	else if (iBallType == GOOD_AIRBURST)
+	{
+		// Airborne bursts must not spawn wood at a rigging-only witness.
+		if (CheckAttribute(AIBalls, "CurrentAirburstHullValid") && sti(AIBalls.CurrentAirburstHullValid) && rand(5) == 0)
+			Ball_CreateNavalEffect("blast", stf(AIBalls.CurrentAirburstHullX), stf(AIBalls.CurrentAirburstHullY), stf(AIBalls.CurrentAirburstHullZ), 0.0, 0.0, 0.0, 0, 9);
 	}
 	else if (iBallType != GOOD_GRAPES && iBallType != GOOD_DARTS)
 	{
-		if (rand(5) == 0) CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
+		if (rand(5) == 0) Ball_CreateNavalEffect("blast", x, y, z, 0.0, 0.0, 0.0, 0, 9);
 	}
 
     if (sti(rOurCharacter.TmpPerks.ShipDefenseProfessional) && rand(1000) < 700) { bSeriousBoom = false; }				// no seriouse boom
@@ -5424,6 +5532,7 @@ void Ship_LoadShip()
 	if (sti(rCharacter.ship.type) != SHIP_NOTUSED)
 	{
 		Event("eSwitchPerks", "l", iCharacterIndex);
+		Ship_EnsureListCapacity();
 		Ships[iNumShips] = iCharacterIndex;
 		Event(SHIP_UPDATE_PARAMETERS, "lf", iCharacterIndex, stf(rCharacter.Ship.Speed.z));		// Parameters      после создания корабля
 		iNumShips++;

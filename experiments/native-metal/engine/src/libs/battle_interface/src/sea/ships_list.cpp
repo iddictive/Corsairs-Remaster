@@ -136,6 +136,10 @@ void SetNLongData(VDATA *pvd, int n, ...)
 int32_t SHIP_DESCRIBE_LIST::SHIP_DESCR::GetDisplayRelation() const
 {
     auto *character = pShip ? pShip->GetACharacter() : nullptr;
+    auto *playerShip = g_ShipList.GetMainCharacterShip();
+    auto *player = playerShip && playerShip->pShip ? playerShip->pShip->GetACharacter() : nullptr;
+    if (player && character && character != player && player->GetAttributeAsDword("DebugEnemyAll", 0) &&
+        !player->GetAttributeAsDword("DebugInvisibleAI", 0)) return BI_RELATION_ENEMY;
     if (IsShipSurrendered(character))
         return BI_RELATION_NEUTRAL;
     return relation;

@@ -4,6 +4,7 @@
 #include "ship_base.h"
 #include "math_inlines.h"
 #include "shared/sea_ai/script_defines.h"
+#include <algorithm>
 
 uint64_t dwTmpRDTSC;
 
@@ -165,17 +166,17 @@ void AICannon::RealFire()
     (*pAIObj->GetMatrix()).Get3X3(mRot);
 
     const bool fixedFrame = UsesFixedBallisticFrame(pAHolder->GetACharacter());
-    // New fixed-frame ammo saves its queued world launch direction in the
-    // existing vector. Ordinary ammunition keeps its world target semantics.
+    // Fixed-frame ammo and explicit sky shots queue a world launch direction;
+    // ordinary point-target shots keep their world target semantics.
     // A point target already contains the controller's moving-target lead and
     // this gun's firing delay. Re-solve from the muzzle that actually fires;
     // translating a queued direction with the ship would translate its hit.
     // Explicit sky pitches and loaded queues retain the saved launch vector.
     const bool fixedPoint = fixedFrame && dartCameraTargetValid;
-    const auto vEnemyDir = fixedFrame && !fixedPoint ? vEnemyPos
+    const auto vEnemyDir = (fixedFrame && !fixedPoint) || directLaunch ? vEnemyPos
         : !((fixedPoint ? dartCameraTarget : vEnemyPos) - vPosTemp);
     const auto fFireDirection = NormalizeAngle(atan2f(vEnemyDir.x, vEnemyDir.z));
-    const auto fFireHeightAngle = fixedFrame && !fixedPoint
+    const auto fFireHeightAngle = (fixedFrame && !fixedPoint) || directLaunch
         ? atan2f(vEnemyDir.y, std::hypot(vEnemyDir.x, vEnemyDir.z))
         : CalcHeightFireAngle(fSpeedV0, vPosTemp, fixedPoint ? dartCameraTarget : vEnemyPos);
 
@@ -183,7 +184,7 @@ void AICannon::RealFire()
     const auto fDirY = NormalizeAngle(atan2f(vDirTemp.x, vDirTemp.z));
 
     float fAngle = 0.f;
-    if (!fixedFrame)
+    if (!fixedFrame && !directLaunch)
     {
         const CVECTOR vFlatEnemyDir = !(CVECTOR(vEnemyPos.x, vPosTemp.y, vEnemyPos.z) - vPosTemp);
         const float dp = vFlatEnemyDir | vEnemyDir;
@@ -201,7 +202,7 @@ void AICannon::RealFire()
         shot->SetAttributeUseFloat("TargetY", cameraTarget.y);
         shot->SetAttributeUseFloat("TargetZ", cameraTarget.z);
         shot->SetAttributeUseDword("TargetIndex", targetCharacter);
-        shot->SetAttributeUseDword("TargetValid", !fixedFrame || dartCameraTargetValid);
+        shot->SetAttributeUseDword("TargetValid", !directLaunch && (!fixedFrame || dartCameraTargetValid));
     }
     core.Event(CANNON_FIRE, "afffffffff", pAHolder->GetACharacter(), vPosTemp.x, vPosTemp.y, vPosTemp.z, fSpeedV0,
                fFireDirection, fFireHeightAngle, fDirY, fMaxFireDistance, fAngle);
@@ -213,7 +214,7 @@ void AICannon::RealFire()
     Recharge();
 }
 
-bool AICannon::CanFireTo(const CVECTOR &_vFirePos) const
+bool AICannon::CanFireTo(const CVECTOR &_vFirePos, bool horizontalOnly) const
 {
     if (!isReady2Fire() || isFired() || isRecharged() || isDamaged() || isEmpty() ||
         !std::isfinite(_vFirePos.x) || !std::isfinite(_vFirePos.y) || !std::isfinite(_vFirePos.z))
@@ -226,10 +227,11 @@ bool AICannon::CanFireTo(const CVECTOR &_vFirePos) const
 
     auto vFireDir = _vFirePos - vPosTemp;
     auto vDirTemp = mRot * vDir;
-    if (UsesFixedBallisticFrame(pAHolder->GetACharacter()))
+    if (horizontalOnly || UsesFixedBallisticFrame(pAHolder->GetACharacter()))
     {
         vFireDir.y = vDirTemp.y = 0.f;
-        if (~vFireDir < 1e-8f || ~vDirTemp < 1e-8f) return false;
+        if (~vFireDir < 1e-8f) return false;
+        if (~vDirTemp < 1e-8f) return horizontalOnly;
         vDirTemp = !vDirTemp;
     }
     vFireDir = !vFireDir;
@@ -240,20 +242,29 @@ bool AICannon::CanFireTo(const CVECTOR &_vFirePos) const
 bool AICannon::Fire(float _fSpeedV0, const CVECTOR &_vFirePos, float fireDelay, int32_t targetIndex,
                     float rawFireAngle)
 {
-    if (!CanFireTo(_vFirePos))
+    if (!CanFireTo(_vFirePos, std::isfinite(rawFireAngle)))
         return false;
 
     bFired = true;
     bReady2Fire = false;
 
     vEnemyPos = _vFirePos;
+    directLaunch = !UsesFixedBallisticFrame(pAHolder->GetACharacter()) && std::isfinite(rawFireAngle);
+    if (directLaunch)
+    {
+        const CVECTOR muzzle = GetPos();
+        const float yaw = atan2f(_vFirePos.x - muzzle.x, _vFirePos.z - muzzle.z);
+        const float horizontal = std::max(0.f, cosf(rawFireAngle));
+        vEnemyPos = CVECTOR(horizontal * sinf(yaw), sinf(rawFireAngle), horizontal * cosf(yaw));
+    }
     if (UsesFixedBallisticFrame(pAHolder->GetACharacter()))
     {
         const CVECTOR muzzle = GetPos();
         const float angle = std::isfinite(rawFireAngle) ? rawFireAngle
             : CalcHeightFireAngle(_fSpeedV0, muzzle, _vFirePos);
         const float yaw = atan2f(_vFirePos.x - muzzle.x, _vFirePos.z - muzzle.z);
-        vEnemyPos = CVECTOR(cosf(angle) * sinf(yaw), sinf(angle), cosf(angle) * cosf(yaw));
+        const float horizontal = std::isfinite(rawFireAngle) ? std::max(0.f, cosf(angle)) : cosf(angle);
+        vEnemyPos = CVECTOR(horizontal * sinf(yaw), sinf(angle), horizontal * cosf(yaw));
         dartCameraTarget = _vFirePos;
         // This is a world aim point even when the optional camera is disabled
         // or the receiver is water. A finite raw angle instead owns sky intent.
@@ -361,10 +372,16 @@ void AICannon::Save(CSaveLoad *pSL) const
     pSL->SaveFloat(fTime2Action);
     pSL->SaveFloat(fTotalTime2Action);
     pSL->SaveFloat(fSpeedV0);
-    pSL->SaveVector(vEnemyPos);
+    const bool point = bFired && UsesFixedBallisticFrame(pAHolder->GetACharacter()) && dartCameraTargetValid;
+    pSL->SaveVector(point ? dartCameraTarget : vEnemyPos);
     pSL->SaveDword(bEmpty);
     pSL->SaveFloat(fDamaged);
-    pSL->SaveDword(bFired);
+    // Bit 1 identifies a vector rather than a world point without changing the
+    // record size. Old saves contain only boolean values 0 and 1.
+    const bool direction = !point && (directLaunch || UsesFixedBallisticFrame(pAHolder->GetACharacter()));
+    const uint32_t target = point && targetCharacter >= 0 && targetCharacter < 0x1fffffff
+        ? static_cast<uint32_t>(targetCharacter) + 1u : 0u;
+    pSL->SaveDword((bFired ? 1u : 0u) | (bFired && direction ? 2u : 0u) | (point ? 4u : 0u) | (target << 3));
     pSL->SaveDword(bReady2Fire);
     pSL->SaveDword(bRecharged);
     pSL->SaveDword(bLoad);
@@ -386,19 +403,32 @@ void AICannon::Load(CSaveLoad *pSL, AIAttributesHolder *_pAHolder, const entid_t
     fTotalTime2Action = pSL->LoadFloat();
     fSpeedV0 = pSL->LoadFloat();
     vEnemyPos = pSL->LoadVector();
-    if (worldFrame)
-    {
-        vPos = worldFrame->Point(vPos);
-        vDir = worldFrame->Point(vDir)-worldFrame->Point(CVECTOR(0.f));
-        vEnemyPos = worldFrame->Point(vEnemyPos);
-    }
-    else if (const auto pose = storm_sea_atlas::Frame::LegacyPose(pAHolder->GetACharacter()))
-        vEnemyPos = pose->Point(vEnemyPos); // ship muzzle position/direction stay parent-local
     targetCharacter = -1;
     dartCameraTargetValid = false;
     bEmpty = pSL->LoadDword() != 0;
     fDamaged = pSL->LoadFloat();
-    bFired = pSL->LoadDword() != 0;
+    const auto firedState = pSL->LoadDword();
+    bFired = (firedState & 1u) != 0;
+    const bool fixedFrame = UsesFixedBallisticFrame(pAHolder->GetACharacter());
+    const bool point = bFired && (firedState & 4u) != 0;
+    if (point && (firedState >> 3) != 0)
+        targetCharacter = static_cast<int32_t>((firedState >> 3) - 1u);
+    // Legacy fixed-frame queues (state 1) stored a direction, not a point.
+    const bool direction = bFired && !point && ((firedState & 2u) != 0 || fixedFrame);
+    directLaunch = direction && !fixedFrame;
+    if (worldFrame)
+    {
+        vPos = worldFrame->Point(vPos);
+        vDir = worldFrame->Point(vDir)-worldFrame->Point(CVECTOR(0.f));
+        vEnemyPos = direction ? worldFrame->Vector(vEnemyPos) : worldFrame->Point(vEnemyPos);
+    }
+    else if (const auto pose = storm_sea_atlas::Frame::LegacyPose(pAHolder->GetACharacter()))
+        vEnemyPos = direction ? pose->Vector(vEnemyPos) : pose->Point(vEnemyPos);
+    if (point)
+    {
+        dartCameraTarget = vEnemyPos;
+        dartCameraTargetValid = true;
+    }
     bReady2Fire = pSL->LoadDword() != 0;
     bRecharged = pSL->LoadDword() != 0;
     bLoad = pSL->LoadDword() != 0;

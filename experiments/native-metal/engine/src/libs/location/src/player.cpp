@@ -254,7 +254,7 @@ void Player::Move(float dltTime)
                         StopFightAnimation();
                     }
                     // boal <--
-                    Attack(FindAttackCharacter(), fgt_attack_force);
+                    Attack(FindAttackCharacter(isFightWOWps ? 1.80f : -1.0f), fgt_attack_force);
                 }
                 else if (IsDoAttackFast())
                 {
@@ -262,7 +262,7 @@ void Player::Move(float dltTime)
                     {
                         StopFightAnimation();
                     }
-                    Attack(FindAttackCharacter(), fgt_attack_fast);
+                    Attack(FindAttackCharacter(isFightWOWps ? 1.65f : -1.0f), fgt_attack_fast);
                 }
                 else if (IsDoAttackRound() && !isFightWOWps)
                 {
@@ -279,7 +279,7 @@ void Player::Move(float dltTime)
                     {
                         StopFightAnimation();
                     }
-                    Attack(FindAttackCharacter(), fgt_attack_break);
+                    Attack(FindAttackCharacter(isFightWOWps ? 1.70f : -1.0f), fgt_attack_break);
                 }
                 else if (IsDoAttackFeint() && !isFightWOWps)
                 {
@@ -694,12 +694,16 @@ bool Player::IsChangeFightMode()
     return (cs.state == CST_ACTIVATED);
 }
 
-// Find an attacking enemy
-Player *Player::FindAttackCharacter()
+Player *Player::FindAttackCharacter(float maxDist)
 {
     auto *const location = GetLocation();
+    float searchDist = CHARACTER_ATTACK_DIST * 1.1f;
+    if (maxDist > 0.0f)
+        searchDist = maxDist;
+    else if (isFightWOWps)
+        searchDist = 1.80f;
     // Find the surrounding characters
-    auto fndCharacter = location->supervisor.FindCharacters(this, CHARACTER_ATTACK_DIST * 1.1f);
+    auto fndCharacter = location->supervisor.FindCharacters(this, searchDist);
     if (fndCharacter.empty())
         return nullptr;
     // Choosing the best

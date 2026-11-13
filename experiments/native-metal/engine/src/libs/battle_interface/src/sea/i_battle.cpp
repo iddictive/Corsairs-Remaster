@@ -133,6 +133,8 @@ void BATTLE_INTERFACE::Execute(uint32_t delta_time)
         }
         if (m_bShowBattleNavigator)
             BattleNavigator.Update();
+        else
+            core.Event("GetCurrentCharge");
 
         /*if(m_pMessageIcons)
         {
@@ -154,7 +156,12 @@ void BATTLE_INTERFACE::Execute(uint32_t delta_time)
 void BATTLE_INTERFACE::Realize(uint32_t delta_time)
 {
     if (core.Controls->GetDebugAsyncKeyState('K') < 0)
-        return;
+    {
+        const auto *sea = core.Entity_GetAttributePointer(core.GetEntityId("sea"));
+        const auto *phonk = sea ? sea->GetAttributeClass("Phonk") : nullptr;
+        if (!phonk || !phonk->GetAttributeAsDword("Active", 0) ||
+            phonk->GetAttributeAsDword("Weapon", 0) != 7) return;
+    }
     if (m_bNeedIslandSet)
     {
         core.Trace("Island Set");
@@ -187,6 +194,12 @@ void BATTLE_INTERFACE::Realize(uint32_t delta_time)
                 if (m_bShowBattleBorder)
                     m_BattleBorder.Draw();
             }
+            else
+            {
+                m_NuclearMenuTitle.Print();
+                m_NuclearMenuMode.Print();
+                m_NuclearMenuPower.Print();
+            }
         }
     }
     else
@@ -212,6 +225,12 @@ void BATTLE_INTERFACE::LoadIniFile()
         pA = AttributesPointer->FindAClass(AttributesPointer, "MessageIcons");
 
         BIUtils::FillTextInfoArray(rs, AttributesPointer->GetAttributeClass("TextInfo"), m_TextArray);
+        if (auto *text = AttributesPointer->GetAttributeClass("TextInfo"))
+        {
+            m_NuclearMenuTitle.Init(rs, text->GetAttributeClass("NuclearMenuTitle"));
+            m_NuclearMenuMode.Init(rs, text->GetAttributeClass("NuclearMenuMode"));
+            m_NuclearMenuPower.Init(rs, text->GetAttributeClass("NuclearMenuPower"));
+        }
         m_LinesInfo.Init(rs, AttributesPointer->GetAttributeClass("LineInfo"));
 
         m_BattleBorder.Init(rs, AttributesPointer->GetAttributeClass("battleborder"));

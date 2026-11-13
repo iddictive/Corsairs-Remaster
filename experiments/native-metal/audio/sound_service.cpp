@@ -5,6 +5,7 @@
 #include "vma.hpp"
 #include "dx9render.h"
 #include "math3d/matrix.h"
+#include "shared/sea_camera_medium.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -45,6 +46,15 @@ bool SoundService::Init()
 void SoundService::RunStart()
 {
     if (!initialized_) return;
+    const float depth = storm::sea_camera_medium::depth();
+    const float target = std::isfinite(depth) ? std::clamp(depth / 1.5f, 0.0f, 1.0f) : 0.0f;
+    const float oldBlend = underwaterBlend_;
+    const float step = std::min(core.GetDeltaTime() * 0.002f, 0.2f);
+    if (!std::isfinite(depth) && core.GetTimeScale() <= 0.0f)
+        underwaterBlend_ = 0.0f;
+    else
+        underwaterBlend_ += std::clamp(target - underwaterBlend_, -step, step);
+    const bool mediumChanged = oldBlend != underwaterBlend_;
     if (auto *rs = static_cast<VDX9RENDER *>(core.GetService("dx9render")))
     {
         CMatrix view;
@@ -63,7 +73,47 @@ void SoundService::RunStart()
     {
         if (!slot.initialized) continue;
         if (slot.terminalStopping && !ma_sound_is_playing(&slot.sound)) { Release(slot); continue; }
-        if (!slot.looped && !slot.paused && !slot.focusSuspended && ma_sound_at_end(&slot.sound)) Release(slot);
+        if (!slot.looped && !slot.paused && !slot.focusSuspended && ma_sound_at_end(&slot.sound)) { Release(slot); continue; }
+        if (mediumChanged && !slot.underwaterAmbience)
+        {
+            if (slot.volumeSuspended && !soundsStopped_) ApplyVolumeLifecycle(slot);
+            else ma_sound_set_volume(&slot.sound, EffectiveVolume(slot));
+        }
+    }
+    auto *ambience = Find(underwaterAmbience_);
+    if (underwaterBlend_ <= 0.0f)
+    {
+        if (ambience) Release(*ambience);
+        underwaterAmbience_ = SOUND_INVALID_ID;
+        underwaterRetryMs_ = 0;
+        underwaterAmbienceStopped_ = false;
+    }
+    else if (ambience)
+    {
+        if (mediumChanged)
+        {
+            ambience->volume = 0.35f * underwaterBlend_;
+            if (ambience->volumeSuspended && !soundsStopped_) ApplyVolumeLifecycle(*ambience);
+            else ma_sound_set_volume(&ambience->sound, EffectiveVolume(*ambience));
+        }
+    }
+    else if (!underwaterAmbienceStopped_ && !soundsStopped_ && active_ && step > 0.0f)
+    {
+        const uint32_t elapsed = core.GetDeltaTime();
+        underwaterRetryMs_ = elapsed >= underwaterRetryMs_ ? 0 : underwaterRetryMs_ - elapsed;
+        if (underwaterRetryMs_ == 0)
+        {
+            // Cache first so the alias's authored gain cannot burst before the fade.
+            underwaterAmbience_ = SoundPlay("underwater_al", PCM_STEREO, VOLUME_FX, true, true,
+                                            false, 0, nullptr, -1, -1, 0, 0.0f, 128);
+            if (auto *created = Find(underwaterAmbience_))
+            {
+                created->underwaterAmbience = true;
+                created->volume = 0.35f * underwaterBlend_;
+                SoundResume(underwaterAmbience_, 0);
+            }
+            else underwaterRetryMs_ = 1000;
+        }
     }
     ProcessSchemes();
 }
@@ -90,7 +140,8 @@ float SoundService::EffectiveVolume(const Slot &slot) const
     float group = fxVolume_;
     if (slot.volumeType == VOLUME_MUSIC) group = musicVolume_;
     else if (slot.volumeType == VOLUME_SPEECH) group = speechVolume_;
-    return enabled_ ? slot.volume * slot.mixGain * group : 0.0f;
+    const float mediumGain = slot.underwaterAmbience ? 1.0f : 1.0f - 0.65f * underwaterBlend_;
+    return enabled_ ? slot.volume * slot.mixGain * group * mediumGain : 0.0f;
 }
 
 size_t SoundService::ActiveVoiceCount(storm::metal::audio::VoiceClass voiceClass) const
@@ -181,6 +232,12 @@ void SoundService::ApplyVolumeLifecycle(Slot &slot, bool allowOneShotStart)
     ma_sound_set_volume(&slot.sound, effective);
     if (slot.terminalStopping || (!slot.looped && !allowOneShotStart))
         return;
+    if (!active_)
+    {
+        // Remember a requested start without reviving a cached or stopped slot.
+        if (!slot.paused) slot.focusSuspended = true;
+        return;
+    }
     constexpr float EPSILON = 0.001f;
     constexpr ma_uint64 FADE_MS = 200;
     if (slot.looped && effective <= EPSILON)
@@ -239,6 +296,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     }
     const bool clusteredImpact = spatial && position && !looped && !simpleCache && volumeType == VOLUME_FX &&
         storm::metal::audio::IsClusteredImpactAlias(aliasKey);
+    const std::string impactKey = aliasKey == "debris_splash" ? "ball_splash" : aliasKey;
     const auto impactStarted = clusteredImpact ? std::chrono::steady_clock::now() :
         std::chrono::steady_clock::time_point{};
     if (clusteredImpact)
@@ -249,7 +307,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
             if (!slot.initialized || slot.terminalStopping || slot.paused || slot.focusSuspended ||
                 slot.impactAlias.empty() || ma_sound_at_end(&slot.sound))
                 continue;
-            if (slot.type != type || slot.impactAlias != aliasKey) continue;
+            if (slot.type != type || slot.impactAlias != impactKey) continue;
             ++activeImpacts;
             const float dx = slot.impactPosition.x - position->x;
             const float dy = slot.impactPosition.y - position->y;
@@ -312,7 +370,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     it->path = path;
     if (clusteredImpact)
     {
-        it->impactAlias = aliasKey;
+        it->impactAlias = impactKey;
         it->impactPosition = *position;
         it->impactStarted = impactStarted;
     }
@@ -392,13 +450,21 @@ void SoundService::SoundSet3DParam(TSD_ID id, eSoundMessage message, const void 
 
 void SoundService::SoundStop(TSD_ID id, int32_t fadeMs)
 {
-    if (id.master() || static_cast<int32_t>(id) == SOUND_INVALID_ID) { for (auto &s : slots_) if (s.initialized) SoundStop(TSD_ID(static_cast<uint32_t>((static_cast<uint32_t>(s.stamp) << 16) | static_cast<uint32_t>(&s - slots_.data() + 1))), fadeMs); return; }
+    if (id.master() || static_cast<int32_t>(id) == SOUND_INVALID_ID)
+    {
+        soundsStopped_ = true;
+        stoppingAll_ = true;
+        for (auto &s : slots_) if (s.initialized) SoundStop(TSD_ID(static_cast<uint32_t>((static_cast<uint32_t>(s.stamp) << 16) | static_cast<uint32_t>(&s - slots_.data() + 1))), fadeMs);
+        stoppingAll_ = false;
+        return;
+    }
     auto *slot = Find(id); if (!slot) return;
+    if (slot->underwaterAmbience && !stoppingAll_) underwaterAmbienceStopped_ = true;
     if (fadeMs > 0) { ma_sound_stop_with_fade_in_milliseconds(&slot->sound, fadeMs); slot->terminalStopping = true; }
     else { ma_sound_stop(&slot->sound); Release(*slot); }
 }
 
-void SoundService::SoundRelease(TSD_ID id) { if (auto *slot = Find(id)) Release(*slot); }
+void SoundService::SoundRelease(TSD_ID id) { if (auto *slot = Find(id)) { if (slot->underwaterAmbience) underwaterAmbienceStopped_ = true; Release(*slot); } }
 void SoundService::SoundSetVolume(TSD_ID id, float volume)
 {
     auto *s = Find(id);
@@ -415,6 +481,7 @@ void SoundService::SoundResume(TSD_ID id, int32_t fadeMs)
 {
     if (id.master())
     {
+        soundsStopped_ = false;
         for (auto &s : slots_) if (s.initialized && !s.terminalStopping)
             SoundResume(TSD_ID(static_cast<uint32_t>((static_cast<uint32_t>(s.stamp) << 16) | static_cast<uint32_t>(&s - slots_.data() + 1))), fadeMs);
         return;
@@ -422,6 +489,7 @@ void SoundService::SoundResume(TSD_ID id, int32_t fadeMs)
     if (auto *s = Find(id))
     {
         if (!s->looped && ma_sound_at_end(&s->sound)) return;
+        if (s->underwaterAmbience) underwaterAmbienceStopped_ = false;
         s->paused = false;
         s->terminalStopping = false;
         ma_sound_reset_stop_time_and_fade(&s->sound);
@@ -444,10 +512,11 @@ void SoundService::SetEnabled(bool enabled) { enabled_ = enabled; RebalanceCanno
 void SoundService::SetActiveWithFade(bool active)
 {
     if (!initialized_) return;
+    active_ = active;
     for (auto &s : slots_)
     {
         if (!s.initialized || s.terminalStopping) continue;
-        if (active && s.focusSuspended) { s.focusSuspended = false; if (s.looped || !ma_sound_at_end(&s.sound)) ApplyVolumeLifecycle(s, true); }
+        if (active && (s.focusSuspended || (s.volumeSuspended && !soundsStopped_))) { s.focusSuspended = false; if (s.looped || !ma_sound_at_end(&s.sound)) ApplyVolumeLifecycle(s, true); }
         else if (!active && ma_sound_is_playing(&s.sound) && (s.looped || !ma_sound_at_end(&s.sound))) { ma_sound_stop(&s.sound); s.focusSuspended = true; }
     }
 }

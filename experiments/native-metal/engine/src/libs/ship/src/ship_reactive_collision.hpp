@@ -7,6 +7,50 @@ namespace roundhouse
 {
 using ReactiveParts = std::vector<std::vector<ReactivePoint>>;
 
+// Support planes enclose the retained material; lower oblique planes form
+// the bilges while the top plane remains flat. Damage retains the original
+// material; collision and buoyancy use the coarse physical hull.
+inline ReactiveParts ReactiveOuterHull(const ReactiveParts &parts)
+{
+    constexpr size_t sides = 10;
+    constexpr size_t planes = sides * 2 + 2;
+    constexpr double pi = 3.14159265358979323846;
+    struct Normal { double x,y,z; } n[planes];
+    for (size_t i = 0; i < sides; ++i) {
+        const double a = 2. * pi * i / sides;
+        n[i] = {std::cos(a), 0., std::sin(a)};
+        n[i+sides] = {std::cos(a), -1., std::sin(a)};
+    }
+    n[2*sides] = {0.,1.,0.}; n[2*sides+1] = {0.,-1.,0.};
+    double support[planes];
+    std::fill(std::begin(support), std::end(support), -INFINITY);
+    for (const auto &part : parts) for (const auto &p : part)
+    {
+        if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) return {};
+        for (size_t i = 0; i < planes; ++i)
+            support[i] = std::max(support[i], p.x*n[i].x + p.y*n[i].y + p.z*n[i].z);
+    }
+    if (!std::isfinite(support[0])) return {};
+    const auto cross = [](Normal a, Normal b) { return Normal{a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; };
+    const auto dot = [](Normal a, Normal b) { return a.x*b.x+a.y*b.y+a.z*b.z; };
+    std::vector<ReactivePoint> hull;
+    for (size_t i = 0; i < planes; ++i) for (size_t j = i+1; j < planes; ++j)
+        for (size_t k = j+1; k < planes; ++k)
+    {
+        const auto a=cross(n[j],n[k]), b=cross(n[k],n[i]), c=cross(n[i],n[j]);
+        const double det=dot(n[i],a);
+        if (std::abs(det)<1e-9) continue;
+        Normal p{(support[i]*a.x+support[j]*b.x+support[k]*c.x)/det,
+                 (support[i]*a.y+support[j]*b.y+support[k]*c.y)/det,
+                 (support[i]*a.z+support[j]*b.z+support[k]*c.z)/det};
+        bool inside=true;
+        for(size_t q=0;q<planes && inside;++q) inside=dot(n[q],p)<=support[q]+1e-8;
+        if (inside) hull.push_back({p.x,p.y,p.z});
+    }
+    if (hull.size()<4) return {};
+    return {std::move(hull)};
+}
+
 inline std::vector<ReactivePoint> ReactivePrismVertices(const storm::ship::contact::MaterialPiece &piece)
 {
     std::vector<ReactivePoint> vertices;

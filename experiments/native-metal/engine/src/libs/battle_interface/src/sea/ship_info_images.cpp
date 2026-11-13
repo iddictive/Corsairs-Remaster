@@ -2,6 +2,8 @@
 #include "bi_utils.h"
 #include "ship_surrender.h"
 #include "ship_base.h"
+#include "core.h"
+#include "../../../ship/src/phonk_ordnance.hpp"
 #include "shared/battle_interface/msg_control.h"
 
 // define the vertices
@@ -37,6 +39,12 @@ void ShipInfoImages::Draw()
 {
     if (!m_bVisible)
         return;
+
+    const auto *sea = core.Entity_GetAttributePointer(core.GetEntityId("sea"));
+    const auto *phonk = sea ? sea->GetAttributeClass("Phonk") : nullptr;
+    const auto *player = g_ShipList.GetMainCharacterShip();
+    m_phonkRange = phonk && phonk->GetAttributeAsDword("Active", 0) && player && player->pShip;
+    if (m_phonkRange) m_phonkOrigin = player->pShip->GetPos();
 
     UpdateShipList();
     if (m_nShipQ <= 0)
@@ -306,7 +314,8 @@ void ShipInfoImages::UpdateShipData(int32_t nShipNum, SHIP_DESCRIBE_LIST::SHIP_D
 
     // write relation square
     WriteSquareVertex(&m_pVBuffRelation[nShipNum * 4], shippos, m_vRelationOffset, m_fpRelationSize,
-                      GetUVForRelation(pSD->isMyShip ? BI_RELATION_NEUTRAL : pSD->GetDisplayRelation()), 1.f);
+                      GetUVForRelation(pSD->GetDisplayRelation() == BI_RELATION_ENEMY ? BI_RELATION_ENEMY :
+                                       (pSD->isMyShip ? BI_RELATION_NEUTRAL : pSD->GetDisplayRelation())), 1.f);
 
     // write progress back square
     WriteSquareVertex(&m_pVBuffBackProgress[nShipNum * 4], shippos, m_vProgressBackOffset, m_fpProgressBackSize,
@@ -327,16 +336,21 @@ void ShipInfoImages::UpdateShipData(int32_t nShipNum, SHIP_DESCRIBE_LIST::SHIP_D
 
 bool ShipInfoImages::IsEnableShowShipInfo(SHIP_DESCRIBE_LIST::SHIP_DESCR *pSD) const
 {
-    if (!pSD)
+    if (!pSD || !pSD->pShip)
         return false;
     if (pSD->isDead)
         return false;
 
-    CVECTOR vpos, vang;
-    float fpersp;
-    pRS->GetCamera(vpos, vang, fpersp);
-    if (~(pSD->pShip->GetPos() - vpos) > MAX_SHIPINFO_DIST_IN_POW2)
-        return false;
+    if (m_phonkRange) {
+        const auto delta = pSD->pShip->GetPos() - m_phonkOrigin;
+        const float range = storm::ship::phonk::nuclearRange;
+        if (delta.x * delta.x + delta.z * delta.z > range * range) return false;
+    } else {
+        CVECTOR vpos, vang;
+        float fpersp;
+        pRS->GetCamera(vpos, vang, fpersp);
+        if (~(pSD->pShip->GetPos() - vpos) > MAX_SHIPINFO_DIST_IN_POW2) return false;
+    }
 	
 	// evganat - режимы отображения баров
 	if(pSD->isMainShip)

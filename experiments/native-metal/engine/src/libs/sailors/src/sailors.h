@@ -8,6 +8,7 @@
 #include "sailors_way_points.h"
 #include "shared/sea_ai/sea_people.h"
 #include "crew_gore.h"
+#include "shared/sea_ai/deck_fall.hpp"
 
 enum ManMode
 {
@@ -107,6 +108,10 @@ class ShipMan
     float fireFaceAngle = 0.f;
     bool detailVisible = true;
     float panicSeconds = 0.f;
+    deck_fall::State heelFall;
+    CVECTOR previousWorld{};
+    CVECTOR heelOffset{};
+    bool previousWorldValid = false;
 };
 
 class ShipWalk
@@ -118,6 +123,7 @@ class ShipWalk
 
     bool Init(entid_t _shipID, int editorMode, const char *shipType, std::vector<std::string> &&shipManModels);
     void CheckPosition(const uint32_t &dltTime);
+    void AdvanceHeelFall(ShipMan &man, uint32_t dltTime);
     void SetMastBroken(int iMastIndex);
     void OnHullHit(const CVECTOR &v, float radius, float lethalRadius, float impulse, float casualtyFraction,
                    CrewGore &gore, VDX9RENDER &renderer);

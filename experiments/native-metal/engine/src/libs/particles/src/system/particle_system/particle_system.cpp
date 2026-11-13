@@ -2,6 +2,8 @@
 
 #include "string_compare.hpp"
 #include "../emitters/point.h"
+#include <algorithm>
+#include <cmath>
 
 // Global GUID to assign to emitters
 uint32_t EmitterID = 0;
@@ -41,6 +43,9 @@ uint32_t ParticleSystem::Execute(float DeltaTime)
     if (EmissionPause)
         return Emitters.size();
 
+    if (navalFading && std::isfinite(DeltaTime) && DeltaTime > 0.f)
+        navalOpacity = std::max(0.f, navalOpacity - DeltaTime * navalFadeRate);
+
     for (uint32_t n = 0; n < Emitters.size(); n++)
     {
         Emitters[n].pEmitter->Execute(DeltaTime);
@@ -58,6 +63,8 @@ void ParticleSystem::CreateFromDataSource(DataSource *pDataSource)
     for (auto n = 0; n < EmitterCount; n++)
     {
         auto *const pEmitterDecription = pDataSource->GetEmitterDesc(n);
+        for (const auto &particle : pEmitterDecription->Particles)
+            if (particle.Type == MODEL_PARTICLE) navalHasModels = true;
         IEmitter *pEmitter = nullptr;
         switch (pEmitterDecription->Type)
         {
@@ -109,6 +116,9 @@ ParticleManager *ParticleSystem::GetMaster() const
 // Restart particle system
 void ParticleSystem::Restart(uint32_t RandomSeed)
 {
+    navalFading = false;
+    navalOpacity = 1.f;
+    navalFadeRate = 0.f;
     srand(RandomSeed);
     for (uint32_t n = 0; n < Emitters.size(); n++)
     {
@@ -253,4 +263,19 @@ void ParticleSystem::Stop()
     {
         Emitters[n].pEmitter->Stop();
     }
+}
+
+void ParticleSystem::SetNavalBudgeted(bool enabled)
+{
+    navalBudgeted = enabled;
+}
+
+void ParticleSystem::BeginNavalFade(float seconds)
+{
+    if (!navalBudgeted || navalFading || !std::isfinite(seconds) || seconds <= 0.f) return;
+    navalFading = true;
+    // Model particles have no alpha channel in this renderer. Keep their
+    // natural lifetime rather than making them pop out when the budget turns.
+    navalFadeRate = navalHasModels ? 0.f : 1.f / seconds;
+    Stop();
 }

@@ -12,12 +12,21 @@ void LAi_Character_FrameUpdate()
 	LAi_QuestDelayProcess(dltTime);
 }
 
+void DebugAI_ClearHiddenFightTarget(aref chr)
+{
+	if (!CheckAttribute(pchar, "DebugInvisibleAI") || !sti(pchar.DebugInvisibleAI)) return;
+	if (sti(chr.index) == GetMainCharacterIndex()) return;
+	if (chr.chr_ai.tmpl == "fight" && LAi_tmpl_fight_GetTarget(chr) == GetMainCharacterIndex())
+		LAi_tmpl_fight_SetWaitState(chr);
+}
+
 void LAi_CharacterUpdate()
 {
 	//Параметры
 	aref chr = GetEventData();
 	float dltTime = GetEventData();
 	if(LAi_CheckCharacter(chr, "LAi_CharacterUpdate") == false) return;
+	DebugAI_ClearHiddenFightTarget(chr);
 	//Процессируем соответствующий тип
 	string func = chr.chr_ai.type;
 	if(func != "")
@@ -25,6 +34,8 @@ void LAi_CharacterUpdate()
 		func = "LAi_type_" + func + "_CharacterUpdate";
 		call func(chr, dltTime);
 	}
+	// Scripted types can assign a fight target without consulting groups.
+	DebugAI_ClearHiddenFightTarget(chr);
 	//Процессируем соответствующий шаблон
 	func = chr.chr_ai.tmpl;
 	if(func == "") return;

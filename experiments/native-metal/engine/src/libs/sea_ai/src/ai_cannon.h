@@ -24,6 +24,7 @@ class AICannon
     int32_t targetCharacter = -1; // transient camera receiver; save layout stays unchanged
     CVECTOR dartCameraTarget{0.f};
     bool dartCameraTargetValid = false;
+    bool directLaunch = false; // ordinary-ammo sky direction stored in vEnemyPos
 
     bool bEmpty;      // is empty cannon(no balls available)
     float fDamaged;   // is cannon damaged(if fDamaged >= 100.0f)
@@ -75,7 +76,7 @@ class AICannon
     VAI_OBJBASE *GetAIObjPointer() const;
 
     float CalcHeightFireAngle(float _fSpeedV0, const CVECTOR &vOur, const CVECTOR &vEnemy) const;
-    bool CanFireTo(const CVECTOR &vFirePos) const;
+    bool CanFireTo(const CVECTOR &vFirePos, bool horizontalOnly = false) const;
     bool Fire(float fSpeedV0, const CVECTOR &vFirePos, float fireDelay = -1.f, int32_t targetIndex = -1,
               float rawFireAngle = std::numeric_limits<float>::quiet_NaN());
     void Load();

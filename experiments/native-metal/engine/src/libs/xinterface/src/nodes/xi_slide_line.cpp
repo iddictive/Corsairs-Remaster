@@ -228,6 +228,9 @@ uint32_t CXI_SLIDELINE::MessageProc(int32_t msgcode, MESSAGE &message)
         SetNewValue(message.Long());
     }
     break;
+    case 3: // Refresh a control without reporting a user change.
+        SetNewValue(static_cast<int32_t>(message.Float() * m_nGrateQuantity), false);
+        break;
     }
 
     return 0;
@@ -309,7 +312,7 @@ void CXI_SLIDELINE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, con
     m_bSelected = true;
 }
 
-void CXI_SLIDELINE::SetNewValue(int32_t newValue)
+void CXI_SLIDELINE::SetNewValue(int32_t newValue, bool notify)
 {
     if (m_nMinValue >= 0 && newValue < m_nMinValue)
         newValue = m_nMinValue;
@@ -336,6 +339,7 @@ void CXI_SLIDELINE::SetNewValue(int32_t newValue)
         pA = pA->GetAttributeClass(m_nodeName);
     if (pA != nullptr)
         pA->SetAttributeUseFloat("value", static_cast<float>(m_nCurValue) / m_nGrateQuantity);
-    core.PostEvent("eSlideChange", 0, "slf", m_nodeName, m_nCurValue,
-                   static_cast<float>(m_nCurValue) / m_nGrateQuantity);
+    if (notify)
+        core.PostEvent("eSlideChange", 0, "slf", m_nodeName, m_nCurValue,
+                       static_cast<float>(m_nCurValue) / m_nGrateQuantity);
 }

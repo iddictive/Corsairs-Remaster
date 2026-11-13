@@ -127,7 +127,8 @@ class PhonkNuclearRenderer
             minX=std::min(minX,px);minY=std::min(minY,py);maxX=std::max(maxX,px);maxY=std::max(maxY,py);
         }
         // Receiver relief is not bounded by the mushroom's source-height box.
-        if (crossesNear || age<pressureLife) {minX=viewport.x;minY=viewport.y;maxX=viewport.x+viewport.z;maxY=viewport.y+viewport.w;}
+        // Never cull the volumetric blast early under camera tilts or near-field views
+        minX=viewport.x;minY=viewport.y;maxX=viewport.x+viewport.z;maxY=viewport.y+viewport.w;
         const auto left=NSUInteger(std::clamp(std::floor(minX)-2.f,0.f,float(target.width)));
         const auto top=NSUInteger(std::clamp(std::floor(minY)-2.f,0.f,float(target.height)));
         const auto right=NSUInteger(std::clamp(std::ceil(maxX)+2.f,0.f,float(target.width)));

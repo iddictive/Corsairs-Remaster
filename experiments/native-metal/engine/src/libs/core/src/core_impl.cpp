@@ -21,6 +21,7 @@ Core &core = core_internal;
 
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
 #include "render_device_api.hpp"
+#include "shared/sea_camera_medium.hpp"
 #endif
 
 #ifdef _WIN32
@@ -623,6 +624,10 @@ void CoreImpl::ProcessExecute()
 void CoreImpl::ProcessRealize()
 {
     uint64_t ticks;
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+    // SoundService consumed the previous frame before this reset.
+    storm::sea_camera_medium::clear();
+#endif
     ProcessRunStart(SECTION_REALIZE);
 
     const auto deltatime = Timer.GetDeltaTime();

@@ -1820,6 +1820,7 @@ int gAutoSaveElapsed = 0;
 
 bool TryMakeAutoSave()
 {
+	if( CheckAttribute(&InterfaceStates,"EnabledAutoSaveMode") && sti(InterfaceStates.EnabledAutoSaveMode) == 0 ) {return false;}
 	if( InterfaceStates.Launched != 0 ) {return false;}
 
 	aref arScrShoter;

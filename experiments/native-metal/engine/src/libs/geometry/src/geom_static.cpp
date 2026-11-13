@@ -1030,7 +1030,7 @@ void GEOM::PollHullRebuild()
         }
         if(input.generation==geometryGeneration&&input.epoch==hullDesiredEpoch&&input.revision==collisionRevision&&!job->cancel->load(std::memory_order_relaxed)){
             std::map<int,std::vector<HullDraw>>replacement;
-            if(!result.valid||!result.visual||!UploadLaserSurface(*result.visual,replacement)){hullRejectedEpoch=hullDesiredEpoch;hullRejectedRevision=collisionRevision;return;}
+            if(!result.valid||!result.visual||!UploadLaserSurface(*result.visual,replacement,nullptr,true)){hullRejectedEpoch=hullDesiredEpoch;hullRejectedRevision=collisionRevision;return;}
             // All CPU preparation and uploads succeeded. No history/event/fragment
             // append here: this replaces the retained reconstruction atomically.
             SetLaserMaterial(std::move(result.render),std::move(result.materialCollision),std::move(result.materialCandidates));
@@ -1254,8 +1254,13 @@ void GEOM::SetHullDrawMaterial(int objectIndex,bool cutWall,MATERIAL_FUNC callba
     if(cutWall){appearance.texture[0]=appearance.texture[1]=-1;appearance.texture_type[0]=appearance.texture_type[1]=TEXTURE_NONE;appearance.diffuse=.7f;appearance.specular=appearance.selfIllum=0;appearance.gloss=1;}
     srv.SetMaterial(appearance);if(callback)callback(appearance);
 }
-bool GEOM::UploadLaserSurface(const storm_ship_laser::Surface&surface,std::map<int,std::vector<HullDraw>>&draws,const std::set<int>*objects) try
+bool GEOM::UploadLaserSurface(const storm_ship_laser::Surface&surface,std::map<int,std::vector<HullDraw>>&draws,const std::set<int>*objects,bool fullHull) try
 {
+    // A full replacement owns every authored object, including objects that
+    // vanished completely. Without an empty override Draw() falls back to the
+    // original GM object and renders it alongside the detached fragment.
+    if(fullHull || (objects && objects->empty()))
+        for(int objectIndex=0;objectIndex<rhead.nobjects;++objectIndex)draws.try_emplace(objectIndex);
     storm_ship_laser::Mesh authored=surface.outer,walls=surface.finiteWalls;
     const auto caps=storm_ship_laser::indexFaces(surface.canonicalCaps);
     for(const auto&o:surface.interior){if(objects&&!objects->empty()&&!objects->count(o.first))continue;
@@ -1281,7 +1286,7 @@ bool GEOM::RebuildLaserSurface(bool upload,storm_ship_laser::Mesh *preparedSourc
     else{if(!CaptureHullRebuildSource())return false;input.authored=hullDecodedSource;}
     input.cuts=hullCutInputs;input.planes=laserPlanes;input.wood=laserWoodThickness;input.enclosed=laserEnclosedFragments;
     const std::atomic<bool> cancel{false};auto result=storm_geom_hull::prepare(input,cancel);if(!result.valid)return false;
-    std::map<int,std::vector<HullDraw>>replacement;if(upload&&(!result.visual||!UploadLaserSurface(*result.visual,replacement)))return false;
+    std::map<int,std::vector<HullDraw>>replacement;if(upload&&(!result.visual||!UploadLaserSurface(*result.visual,replacement,nullptr,true)))return false;
     SetLaserMaterial(std::move(result.render),std::move(result.materialCollision),std::move(result.materialCandidates));
     laserSurface=std::move(result.canonical);laserVisualSurface=std::move(result.visual);laserClosedVolume=result.volume;laserPrepared=true;
     if(upload){ReleaseHullDraws(hullDraws);hullDraws=std::move(replacement);laserRetainedSupport=std::move(result.retainedSupport);laserReleasedSupport=std::move(result.releasedSupport);

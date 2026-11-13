@@ -59,7 +59,7 @@ class Player : public NPCharacter
     bool IsChangeFightMode();
 
     // Find an attacking enemy
-    Player *FindAttackCharacter();
+    Player *FindAttackCharacter(float maxDist = -1.0f);
 
     // --------------------------------------------------------------------------------------------
     // Encapsulation

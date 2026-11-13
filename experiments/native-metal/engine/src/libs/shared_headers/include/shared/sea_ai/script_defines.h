@@ -1,6 +1,9 @@
 #ifndef SEA_AI_SCRIPT_DEFINES
 #define SEA_AI_SCRIPT_DEFINES
 
+// Shared missile-warhead identifier; 5 remains the random selector.
+#define PHONK_WARHEAD_THERMOBARIC 6
+
 //
 #define SEA_GET_LAYERS "SeaGetLayers"
 #define MSG_SEA_WHIRLPOOL_CONTACT 50204 // "lae": character; cumulative fraction of maximum hull, capped .5
@@ -182,6 +185,7 @@
 #define AI_MESSAGE_RELEASE_GROUP 51051 // "ls", queue ordinary group removal at Execute boundary
 #define AI_MESSAGE_RELOCATE_GROUP 51052 // "lsfff", rigidly move live group to x, z, heading without remounting
 #define AI_MESSAGE_REFRESH_SHIP 51053 // "laal", player Character + current RealShip + pre-service charge; empty RealShip retires a sold companion
+#define AI_MESSAGE_TEST_SPAWN_POSITION 51054 // "lff", validate a conservative hull footprint at x,z
 
 // cameras
 #define AI_CAMERAS_ADD_CAMERA 55000

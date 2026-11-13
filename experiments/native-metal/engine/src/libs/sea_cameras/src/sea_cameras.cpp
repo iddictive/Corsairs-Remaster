@@ -117,6 +117,7 @@ SEA_CAMERAS::SEA_CAMERAS()
 
 SEA_CAMERAS::~SEA_CAMERAS()
 {
+    ClearMissileControl();
     RestoreDartView();
     //    ShowCursor(true);
 }
@@ -162,6 +163,10 @@ void SEA_CAMERAS::ProcessStage(Stage stage, uint32_t)
 
 void SEA_CAMERAS::RealizeDartView()
 {
+    if (RealizeMissileView()) return;
+    // Prevent remote impact camera from disconnecting player perspective to horizon
+    CancelDartView();
+    return;
     RestoreDartView();
     if (!render || !AttributesPointer) return;
     const auto pauseRevision = core.GetScenePauseRevision();
@@ -305,6 +310,113 @@ void SEA_CAMERAS::RealizeDartView()
     CVECTOR renderedAngles;
     render->GetCamera(dartPosition, renderedAngles, dartPerspective);
     dartViewApplied = true;
+}
+
+void SEA_CAMERAS::ClearMissileControl()
+{
+    missileManual = false;
+    missileViewSequence = 0;
+    missileInputCamera = nullptr;
+    auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
+    auto *view = phonk ? phonk->GetAttributeClass("MissileView") : nullptr;
+    auto *control = view ? view->GetAttributeClass("Control") : nullptr;
+    if (control) control->SetAttributeUseDword("active", 0);
+}
+
+bool SEA_CAMERAS::RealizeMissileView()
+{
+    RestoreDartView();
+    if (!render || !AttributesPointer || !core.Controls || core.GetTimeScale() <= 0.f ||
+        core.IsLayerFrozen(SEA_EXECUTE) || core.Controls->IsControlLocked("DartImpactCamera")) {
+        ClearMissileControl();
+        return false;
+    }
+    auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
+    auto *view = phonk ? phonk->GetAttributeClass("MissileView") : nullptr;
+    auto *player = mainVisualShip();
+    COMMON_CAMERA *current = nullptr;
+    for (auto *camera : CamerasArray) if (camera->isOn()) current = camera;
+    if (!phonk || !phonk->GetAttributeAsDword("Active", 0) || !phonk->GetAttributeAsDword("MissileViewEnabled", 0) ||
+        !view || !view->GetAttributeAsDword("active", 0) || !player || !current || !current->isActive()) {
+        ClearMissileControl();
+        return false;
+    }
+    auto *character = player->GetACharacter();
+    auto *hp = character ? character->FindAClass(character, "Ship.HP") : nullptr;
+    if (!hp || hp->GetAttributeAsFloat() <= 0.f) { ClearMissileControl(); return false; }
+    const CVECTOR projectile(view->GetAttributeAsFloat("x"), view->GetAttributeAsFloat("y"), view->GetAttributeAsFloat("z"));
+    const CVECTOR target(view->GetAttributeAsFloat("targetX"), view->GetAttributeAsFloat("targetY"), view->GetAttributeAsFloat("targetZ"));
+    const auto sequence = view->GetAttributeAsDword("sequence", 0);
+    if (!std::isfinite(~projectile) || !std::isfinite(~target) || !sequence) { ClearMissileControl(); return false; }
+    const bool flight = view->GetAttributeAsDword("flight", 0) != 0;
+    const bool cluster = view->GetAttributeAsDword("cluster", 0) != 0;
+    const auto now = std::chrono::steady_clock::now();
+    if (flight) {
+        missileLastFlight = now;
+        if (missileExpiredSequence != sequence) missileExpiredSequence = 0;
+    } else if (missileExpiredSequence == sequence ||
+               (missileLastFlight != std::chrono::steady_clock::time_point{} &&
+                std::chrono::duration<float>(now - missileLastFlight).count() >= 1.5f)) {
+        missileExpiredSequence = sequence;
+        ClearMissileControl();
+        return false;
+    }
+    if (sequence != missileViewSequence) {
+        missileManual = false;
+        missileViewSequence = sequence;
+        const auto direction = target - projectile;
+        missileOrbitOffset = CVECTOR(.48f, std::atan2(direction.x, direction.z), 0.f);
+        missileZoom = 1.f;
+    } else {
+        CONTROL_STATE input{};
+        core.Controls->GetControlState("FreeCamera_Turn_H", input);
+        missileOrbitOffset.y = std::remainder(missileOrbitOffset.y + .0015f * input.fValue, 6.2831853f);
+        core.Controls->GetControlState("FreeCamera_Turn_V", input);
+        missileOrbitOffset.x = std::clamp(missileOrbitOffset.x + .0015f * input.fValue, -1.50f, 1.50f);
+        core.Controls->GetControlState("ShipCamera_Forward", input);
+        if (input.state == CST_ACTIVATED) missileZoom *= .83f;
+        core.Controls->GetControlState("ShipCamera_Backward", input);
+        if (input.state == CST_ACTIVATED) missileZoom *= 1.20f;
+        missileZoom = std::clamp(missileZoom, .25f, 8.f);
+    }
+    // W/S pitch, A/D yaw. Steering latches manual
+    // mode for this shot; releasing the keys sends neutral axes, not autopilot.
+    auto *control = view->VerifyAttributeClass("Control");
+    if (flight && !cluster) {
+        const auto held = [](int key) { return core.Controls->GetAsyncKeyState(key) < 0; };
+        const int yaw = int(held('D')) - int(held('A'));
+        const int pitch = int(held('S')) - int(held('W'));
+        missileManual = missileManual || yaw != 0 || pitch != 0;
+        control->SetAttributeUseDword("sequence", sequence);
+        control->SetAttributeUseFloat("yaw", float(yaw));
+        control->SetAttributeUseFloat("pitch", float(pitch));
+        control->SetAttributeUseDword("manual", missileManual);
+        control->SetAttributeUseDword("active", 1);
+    } else {
+        control->SetAttributeUseDword("active", 0);
+        missileManual = false;
+    }
+    const CVECTOR focus = flight && !cluster ? projectile : target;
+    const float azimuth = missileOrbitOffset.y;
+    const float elevation = missileOrbitOffset.x;
+    const float baseRadius = flight && !cluster ? 220.f : 500.f;
+    const float radius = std::clamp(baseRadius * missileZoom, 45.f, 3000.f);
+    CVECTOR position = focus + radius * CVECTOR(-std::sin(azimuth)*std::cos(elevation), std::sin(elevation),
+                                                 -std::cos(azimuth)*std::cos(elevation));
+    if (auto *water = static_cast<SEA_BASE *>(sea))
+        position.y = std::max(position.y, water->WaveXZ(position.x, position.z) + 2.f);
+    float ignoredPerspective;
+    render->GetCamera(returnPosition, returnAngles, ignoredPerspective);
+    returnPerspective = current->GetPerspective();
+    returnMagnification = render->GetCameraMagnification();
+    render->SetCamera(position, focus, CVECTOR(0.f, 1.f, 0.f));
+    render->SetPerspective(.9f, -1.f, 1.f);
+    CVECTOR renderedAngles;
+    render->GetCamera(dartPosition, renderedAngles, dartPerspective);
+    dartViewApplied = true;
+    return true;
 }
 
 bool storm_sea_cameras::ReferencesCharacter(int index)

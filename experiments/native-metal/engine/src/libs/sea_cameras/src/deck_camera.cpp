@@ -1,5 +1,7 @@
 #include "deck_camera.h"
 #include "shared/sea_ai/deck_collision.hpp"
+#include "shared/sea_ai/sea_character_collision.hpp"
+#include "sea_base.h"
 
 #include "core.h"
 #include "animation.h"
@@ -16,6 +18,21 @@
 #define DISCR_F_VAL 0.00001f
 #define EQU_FLOAT(x, y) (x) - (y) > DISCR_F_VAL ? false : (y) - (x) > DISCR_F_VAL ? false : true
 #define BEF_FLOAT(x, y) (y) - (x) >= DISCR_F_VAL
+
+namespace
+{
+CVECTOR CameraAngles(CMatrix rotation)
+{
+    auto forward = rotation * CVECTOR(0.f, 0.f, 1.f);
+    const float yaw = atan2f(forward.x, forward.z);
+    rotation.RotateY(-yaw);
+    forward = rotation * CVECTOR(0.f, 0.f, 1.f);
+    const float pitch = atan2f(-forward.y, forward.z);
+    rotation.RotateX(-pitch);
+    const auto up = rotation * CVECTOR(0.f, 1.f, 0.f);
+    return CVECTOR(pitch, yaw, atan2f(-up.x, up.y));
+}
+}
 
 DECK_CAMERA::DECK_CAMERA()
 {
@@ -184,12 +201,22 @@ void DECK_CAMERA::Execute(uint32_t Delta_Time)
 {
     if (!isOn() || !isActive())
     {
+        if (deckFall.phase == deck_fall::Phase::falling || deckFallWaterPending)
+        { deckFall = {}; deckFallWaterPending = false; StoreDeckFall(); }
+        previousWalkerWorldValid = false;
         aimZoom.reset();
         ReleaseWalker();
         return;
     }
+    if (deckFallWaterPending) return;
+    if (deckFall.phase == deck_fall::Phase::falling)
+    {
+        UpdateDeckFall(Delta_Time);
+        return;
+    }
     if (!FindShip() || !FindPath())
     {
+        previousWalkerWorldValid = false;
         aimZoom.reset();
         ReleaseWalker();
         return;
@@ -203,6 +230,102 @@ void DECK_CAMERA::Execute(uint32_t Delta_Time)
     UpdateAimZoom();
 
     Move(Delta_Time);
+}
+
+void DECK_CAMERA::StoreDeckFall()
+{
+    if (!AttributesPointer) return;
+    auto *state = AttributesPointer->CreateSubAClass(AttributesPointer, "DeckFall");
+    state->SetAttributeUseDword("active", deckFall.phase == deck_fall::Phase::falling);
+    state->SetAttributeUseDword("waterPending", deckFallWaterPending);
+    if (deckFall.phase != deck_fall::Phase::falling) return;
+    state->SetAttributeUseFloat("x", deckFall.position.x); state->SetAttributeUseFloat("y", deckFall.position.y);
+    state->SetAttributeUseFloat("z", deckFall.position.z);
+    state->SetAttributeUseFloat("vx", deckFall.velocity.x); state->SetAttributeUseFloat("vy", deckFall.velocity.y);
+    state->SetAttributeUseFloat("vz", deckFall.velocity.z); state->SetAttributeUseFloat("yaw", deckFall.yaw);
+}
+
+void DECK_CAMERA::RestoreDeckFall()
+{
+    deckFall = {}; deckFallWaterPending = false; previousWalkerWorldValid = false;
+    auto *state = AttributesPointer ? AttributesPointer->FindAClass(AttributesPointer, "DeckFall") : nullptr;
+    if (!state) return;
+    if (state->GetAttributeAsDword("waterPending"))
+    {
+        deckFallWaterPending = true;
+        core.PostEvent("DeckFall_Water", 1, nullptr);
+        return;
+    }
+    if (!state->GetAttributeAsDword("active")) return;
+    deckFall.position = CVECTOR(state->GetAttributeAsFloat("x"), state->GetAttributeAsFloat("y"), state->GetAttributeAsFloat("z"));
+    deckFall.velocity = CVECTOR(state->GetAttributeAsFloat("vx"), state->GetAttributeAsFloat("vy"), state->GetAttributeAsFloat("vz"));
+    deckFall.yaw = state->GetAttributeAsFloat("yaw");
+    if (std::isfinite(~deckFall.position) && std::isfinite(~deckFall.velocity) && std::isfinite(deckFall.yaw))
+        deckFall.phase = deck_fall::Phase::falling;
+    else StoreDeckFall();
+}
+
+void DECK_CAMERA::UpdateDeckFall(uint32_t delta)
+{
+    auto *sea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
+    auto *model = GetModelPointer();
+    if (!sea || !delta) return;
+    auto wave = [sea](float x, float z) { return sea->WaveXZ(x, z); };
+    auto sweep = [model](const CVECTOR &origin, const CVECTOR &shift, float &fraction, CVECTOR &normal) {
+        return model && sea_character_collision::trace(*model, origin, shift, fraction, normal);
+    };
+    deck_fall::fall(deckFall, float(std::min(delta, uint32_t(100))) * .001f, sweep, wave);
+    if (deckFall.phase == deck_fall::Phase::water)
+    {
+        deckFall = {}; deckFallWaterPending = true; StoreDeckFall();
+        walkerVisible = false;
+        core.PostEvent("DeckFall_Water", 1, nullptr);
+        return;
+    }
+    if (model && model->mtx.Vy().y > .8f && ~(deckFall.velocity) < 4.f && model->FindNode("path") && FindPath())
+    {
+        CVECTOR local;
+        pathNode->glob_mtx.MulToInv(deckFall.position, local);
+        const CVECTOR top(local.x, 500.f, local.z), bottom(local.x, -500.f, local.z);
+        const float floor = MultiTrace(top, bottom, local.y);
+        if (floor <= 1.f)
+        {
+            local.y = 500.f - 1000.f * floor;
+            CVECTOR support;
+            if (ResolveWalkerSupport(local, support) && ~(support - deckFall.position) < .09f)
+            {
+                CMatrix localView(camera_ang);
+                CMatrix inverseDeck;
+                pathNode->glob_mtx.Get3X3(&inverseDeck);
+                inverseDeck.Transposition3X3();
+                localView *= inverseDeck;
+                camera_ang = CameraAngles(localView);
+                camera_pos = local; deckFall = {}; StoreDeckFall(); return;
+            }
+        }
+    }
+    StoreDeckFall();
+    CONTROL_STATE cs;
+    core.Controls->GetControlState("DeckCamera_Turn_H", cs);
+    camera_ang.y += fSensivityAzimuthAngle * 3.f * float(cs.fValue);
+    core.Controls->GetControlState("DeckCamera_Turn_V", cs);
+    const float previousPitch = camera_ang.x;
+    camera_ang.x = std::clamp(camera_ang.x - fSensivityHeightAngle * 3.f * float(cs.fValue),
+                              std::min(CAMERA_MIN_X, previousPitch), std::max(CAMERA_MAX_X, previousPitch));
+    const bool third = EnsureWalker();
+    walkerVisible = third;
+    if (walkerVisible)
+    {
+        auto *walker = static_cast<MODEL *>(core.GetEntityPointer(walkerId));
+        walker->mtx = CMatrix(CVECTOR(0.f, deckFall.yaw, 0.f), deckFall.position);
+        auto &player = walker->GetAnimation()->Player(0);
+        if (walkerAction != "fall" || !player.IsPlaying())
+            if (player.SetAction("fall")) { player.Play(); walkerAction = "fall"; }
+    }
+    const CVECTOR eye = deckFall.position + CVECTOR(0.f, 1.2f, 0.f);
+    const CVECTOR direction(sinf(camera_ang.y) * cosf(camera_ang.x), -sinf(camera_ang.x),
+                            cosf(camera_ang.y) * cosf(camera_ang.x));
+    RenderService->SetCamera(third ? eye - direction * 2.7f : eye, camera_ang, GetPerspective());
 }
 
 void DECK_CAMERA::ResetAimZoomProjection()
@@ -283,6 +406,39 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
     Assert(pModel);
 
     pModel->Update();
+    if (walkMode && pACharacter && pACharacter->GetAttributeAsDword("MainCharacter"))
+    {
+        CVECTOR world = pathNode->glob_mtx * camera_pos;
+        const CVECTOR up = pathNode->glob_mtx * CVECTOR(0.f, 1.f, 0.f) - pathNode->glob_mtx * CVECTOR(0.f);
+        CVECTOR velocity(0.f);
+        if (previousWalkerWorldValid && DeltaTime > 0)
+            velocity = (world - previousWalkerWorld) * (1000.f / float(DeltaTime));
+        previousWalkerWorld = world;
+        previousWalkerWorldValid = true;
+        bool phonkActive = false;
+        if (up.y < .55f)
+        {
+            auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
+            auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->FindAClass(sea->AttributesPointer, "Phonk.Active") : nullptr;
+            auto *shipHp = pACharacter->FindAClass(pACharacter, "Ship.HP");
+            phonkActive = phonk && phonk->GetAttributeAsDword() != 0 &&
+                          (!shipHp || shipHp->GetAttributeAsFloat() > 0.f);
+        }
+        if (up.y < .55f && !phonkActive)
+        {
+            ResolveWalkerSupport(camera_pos, world);
+            const CVECTOR forward = pathNode->glob_mtx * CVECTOR(sinf(walkerYaw), 0.f, cosf(walkerYaw)) -
+                                    pathNode->glob_mtx * CVECTOR(0.f);
+            deck_fall::detach(deckFall, world, velocity, atan2f(forward.x, forward.z));
+            CVECTOR viewPosition; float perspective;
+            RenderService->GetCamera(viewPosition, camera_ang, perspective);
+            previousWalkerWorldValid = false;
+            StoreDeckFall();
+            UpdateDeckFall(DeltaTime);
+            return;
+        }
+    }
+    else previousWalkerWorldValid = false;
     CONTROL_STATE cs;
     // Match both mouse axes to this frame's actual zoom without changing
     // user sensitivity settings or unzoomed/spyglass camera input.
@@ -299,12 +455,9 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
         camera_ang.y += fSensivityAzimuthAngle * 15.f * static_cast<float>(cs.fValue);
 
     core.Controls->GetControlState("DeckCamera_Turn_V", cs);
-    camera_ang.x -= fSensivityHeightAngle * 3.0f * static_cast<float>(cs.fValue) * aimInputScale;
-
-    if (camera_ang.x > CAMERA_MAX_X)
-        camera_ang.x = CAMERA_MAX_X;
-    else if (camera_ang.x < CAMERA_MIN_X)
-        camera_ang.x = CAMERA_MIN_X;
+    const float previousPitch = camera_ang.x;
+    camera_ang.x = std::clamp(camera_ang.x - fSensivityHeightAngle * 3.0f * static_cast<float>(cs.fValue) * aimInputScale,
+                              std::min(CAMERA_MIN_X, previousPitch), std::max(CAMERA_MAX_X, previousPitch));
     if (camera_ang.y < 0.f)
         camera_ang.y += PIm2;
     else if (camera_ang.y > PIm2)
@@ -320,19 +473,8 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
     auto sx = sinf(camera_ang.x);
     auto cy = cosf(camera_ang.y);
     auto sy = sinf(camera_ang.y);
-    float xAng, yAng, zAng;
-    auto v = glbRotMtx * CVECTOR(0, 0, 1.f);
-    yAng = atan2f(v.x, v.z);
-    glbRotMtx.RotateY(-yAng);
-    v = glbRotMtx * CVECTOR(0, 0, 1.f);
-    xAng = atan2f(-v.y, v.z);
-    glbRotMtx.RotateX(-xAng);
-    v = glbRotMtx * CVECTOR(0, 1.f, 0);
-    zAng = atan2f(-v.x, v.y);
-    CVECTOR s_ang;
-    s_ang.x = xAng + (camera_ang.x - xAng) * (1.0f - fRockingX);
-    s_ang.y = yAng;
-    s_ang.z = zAng * fRockingZ;
+    // Follow the complete ship-relative view, including pitch and inversion.
+    const CVECTOR s_ang = CameraAngles(glbRotMtx);
 
     // find out new camera position
     auto prev_pos = camera_pos;
@@ -398,6 +540,24 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
         }
         else if (!walkerId)
             walkerYaw = camera_ang.y;
+    }
+
+    if (walkMode && DeltaTime)
+    {
+        CVECTOR gravity;
+        pathNode->glob_mtx.MulToInvNorm(CVECTOR(0.f, -1.f, 0.f), gravity);
+        gravity.y = 0.f;
+        const float slope = sqrtf(~gravity);
+        if (slope > .08f)
+        {
+            // Mild heel produces a small downhill drift. Feed it through the
+            // same navigation and solid sweep as input, including the rails.
+            const float dt = float(std::min(DeltaTime, uint32_t(100))) * .001f;
+            CVECTOR movement = vShift * speed + gravity * (dt * .45f * (slope - .08f) / slope);
+            speed = sqrtf(~movement);
+            if (speed > .000001f) vShift = movement * (1.f / speed);
+            else speed = 0.f;
+        }
     }
 
     if (speed != 0.f)
@@ -583,7 +743,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
     if (walkMode)
     {
         const bool moved = ~(camera_pos - prev_pos) > 0.000001f;
-        UpdateWalker(moved, running);
+        UpdateWalker(moved && (deckForward != 0.f || deckRight != 0.f), running);
         if (thirdPerson && walkerId)
         {
             const CVECTOR direction(sinf(s_ang.y) * cosf(s_ang.x), -sinf(s_ang.x),
@@ -613,10 +773,14 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
 void DECK_CAMERA::SetCharacter(ATTRIBUTES *_pACharacter)
 {
     const bool sameCharacter = pACharacter == _pACharacter;
+    if (!loadingCameraState && !sameCharacter && (deckFall.phase == deck_fall::Phase::falling || deckFallWaterPending))
+    { deckFall = {}; deckFallWaterPending = false; StoreDeckFall(); previousWalkerWorldValid = false; }
     const bool hadPath = pathNode != nullptr;
     const auto previousModel = GetEID();
     pACharacter = _pACharacter;
     const bool replacedModel = _pACharacter && FindShip() && previousModel != GetEID();
+    if (!loadingCameraState && replacedModel && (deckFall.phase == deck_fall::Phase::falling || deckFallWaterPending))
+    { deckFall = {}; deckFallWaterPending = false; StoreDeckFall(); previousWalkerWorldValid = false; }
     const bool retainedView = sameCharacter && hadPath && replacedModel;
     // Ordinary reselection resets aim. A retained view crosses the scene's
     // layer-freeze revision without turning a held aim into a fresh press.
@@ -1061,8 +1225,11 @@ void DECK_CAMERA::Load(CSaveLoad *pSL)
     SetOn(pSL->LoadDword() != 0);
     SetActive(pSL->LoadDword() != 0);
     SetPerspective(pSL->LoadFloat());
+    loadingCameraState = true;
     SetCharacter(pSL->LoadAPointer("character"));
+    loadingCameraState = false;
 
     if (isOn())
         bLoad = true;
+    RestoreDeckFall();
 }

@@ -554,6 +554,7 @@ void NODER::Draw(float inheritedDistanceBlend)
         {
             rs->SetTransform(storm_render::TransformWorld, (storm_render::Matrix *)&glob_mtx);
             gs->SetTechnique(&technique[0]);
+#ifndef STORM_METAL_RENDERER_CONSUMERS
             if (distance_blend > 0.f)
             {
                 gs->SetTechnique("geomdistanceblend");
@@ -561,6 +562,7 @@ void NODER::Draw(float inheritedDistanceBlend)
                 dwTFColor = (static_cast<uint32_t>(255.f - 255.f * distance_blend) << 24) | 0xFFFFFF;
                 rs->SetRenderState(storm_render::RenderTextureFactor, dwTFColor);
             }
+#endif
             // transform viewplanes
             for (p = 0; p < 4; p++)
             {

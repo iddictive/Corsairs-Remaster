@@ -156,6 +156,9 @@ void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float delta
             phonkDrift.worldZ = State.vSpeed.z * c - State.vSpeed.x * s;
             phonkDrift.initialized = true;
         }
+        // The contact solver's final pose and velocity describe the same
+        // impulse. Retain that velocity instead of restoring the pre-hit
+        // speed and driving back into the other hull on the next frame.
         phonkDrift.worldX += METERS2KNOTS(deltaWorldVelocity.x);
         phonkDrift.worldZ += METERS2KNOTS(deltaWorldVelocity.z);
         phonkDrift.lastForward = phonkDrift.magnitude();
@@ -166,6 +169,12 @@ void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float delta
     {
         State.vSpeed.x += METERS2KNOTS(deltaWorldVelocity.x * c - deltaWorldVelocity.z * s);
         State.vSpeed.z += METERS2KNOTS(deltaWorldVelocity.x * s + deltaWorldVelocity.z * c);
+        State.vSpeed.x = std::clamp(State.vSpeed.x, -60.0f, 60.0f);
+        State.vSpeed.z = std::clamp(State.vSpeed.z, -60.0f, 60.0f);
+    }
+    if (std::isfinite(deltaWorldVelocity.y))
+    {
+        State.vSpeed.y = std::clamp(State.vSpeed.y + deltaWorldVelocity.y, -40.0f, 40.0f);
     }
     // Physical torque comes from r x J / I. Legacy shore impulses keep their
     // separate admission rule; this path never competes for Strength slots.
@@ -184,6 +193,8 @@ void SHIP::ApplyHullContactMotion(const CVECTOR &deltaWorldVelocity, float delta
     // Keep native controls, currents and damping. Offset the starting pose so
     // the next native step ends at the solved continuous-contact trajectory.
     if (!TouchMove(milliseconds, nullptr, &predicted)) return;
-    State.vPos.x += endWorldPosition.x - predicted.vPos.x;
-    State.vPos.z += endWorldPosition.z - predicted.vPos.z;
+    const float dx = std::clamp(endWorldPosition.x - predicted.vPos.x, -15.0f, 15.0f);
+    const float dz = std::clamp(endWorldPosition.z - predicted.vPos.z, -15.0f, 15.0f);
+    State.vPos.x += dx;
+    State.vPos.z += dz;
 }

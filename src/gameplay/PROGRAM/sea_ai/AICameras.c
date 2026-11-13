@@ -106,8 +106,8 @@ void CreateSeaCamerasEnvironment()
 	SeaDeckCamera.h_def = 1.6;
 	SeaDeckCamera.MaxAngleX = 0.7;
 	SeaDeckCamera.MinAngleX = -1.3;
-	SeaDeckCamera.RockingX = 0.5;
-	SeaDeckCamera.RockingZ = 0.5;
+	SeaDeckCamera.RockingX = 0.0;
+	SeaDeckCamera.RockingZ = 0.0;
 
 	makearef(Crosshair,SeaCameras.Crosshair);
 
@@ -153,6 +153,16 @@ void SeaCameras_DartViewControl()
 	string controlName = GetEventData();
 	if (controlName != "DartImpactCamera" || !IsEntity(&SeaCameras)) return;
 	if (sti(InterfaceStates.Launched) != 0) return;
+	if (SeaPhonk_IsActive() && ((CheckAttribute(&Sea,"Phonk.Weapon") && sti(Sea.Phonk.Weapon) == 7) ||
+		(CheckAttribute(&Sea,"Phonk.MissileViewEnabled") && sti(Sea.Phonk.MissileViewEnabled) != 0)))
+	{
+		SeaCameras_CancelDartView();
+		if (!CheckAttribute(&Sea,"Phonk.MissileViewEnabled")) Sea.Phonk.MissileViewEnabled = 0;
+		Sea.Phonk.MissileViewEnabled = !sti(Sea.Phonk.MissileViewEnabled);
+		if (sti(Sea.Phonk.MissileViewEnabled)) Log_Info("Камера ракеты: вкл");
+		else Log_Info("Камера ракеты: выкл");
+		return;
+	}
 	SeaCameras_CancelDartView();
 	if (!CheckAttribute(&SeaCameras, "DartViewEnabled")) SeaCameras.DartViewEnabled = 0;
 	SeaCameras.DartViewEnabled = !sti(SeaCameras.DartViewEnabled);
@@ -179,6 +189,8 @@ void SeaCameras_TelescopeActive()
 
 void SeaCameras_Switch()
 {
+	if (CheckAttribute(&SeaDeckCamera, "DeckFall.active") && sti(SeaDeckCamera.DeckFall.active) != 0) return;
+	if (CheckAttribute(&SeaDeckCamera, "DeckFall.waterPending") && sti(SeaDeckCamera.DeckFall.waterPending) != 0) return;
 	SeaCameras_CancelDartView();
 	if (!bCanSwitchCameras) return;
 
@@ -226,6 +238,19 @@ void SeaCameras_Switch()
 		break;
 	}
 	if (bSwitch) SeaCameras_UpdateCamera();
+}
+
+#event_handler("DeckFall_Water", "DeckFall_Water");
+void DeckFall_Water()
+{
+	if (!CheckAttribute(&SeaDeckCamera, "DeckFall.waterPending") || sti(SeaDeckCamera.DeckFall.waterPending) == 0) return;
+	SeaDeckCamera.DeckFall.waterPending = 0;
+	if (!bSeaActive || bAbordageStarted) return;
+	SeaCameras_SetDieCamera();
+	int ghost = GetCharacterIndex("GhostCapt");
+	if (ghost >= 0 && CheckAttribute(pchar, "Killer.Index") && sti(pchar.Killer.Index) == ghost &&
+		CheckAttribute(pchar, "Ship.HP") && stf(pchar.Ship.HP) <= 0.0) return;
+	GameOverE();
 }
 
 void SeaCameras_UpdateCamera()

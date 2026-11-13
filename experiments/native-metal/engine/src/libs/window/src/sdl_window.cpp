@@ -3,6 +3,7 @@
 #include <SDL2/SDL_syswm.h>
 #if defined(__APPLE__)
 #include <SDL2/SDL_metal.h>
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 namespace storm
@@ -19,6 +20,11 @@ constexpr uint32_t fullscreenFlags = SDL_WINDOW_FULLSCREEN;
 SDLWindow::SDLWindow(int width, int height, int preferred_display, bool fullscreen, bool bordered)
     : fullscreen_(fullscreen)
 {
+#if defined(__APPLE__)
+    CFPreferencesSetAppValue(CFSTR("NSQuitAlwaysKeepsWindows"), kCFBooleanFalse, kCFPreferencesCurrentApplication);
+    CFPreferencesSetAppValue(CFSTR("ApplePersistenceIgnoreState"), kCFBooleanTrue, kCFPreferencesCurrentApplication);
+    CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
+#endif
     uint32_t flags = (fullscreen ? fullscreenFlags : 0) | SDL_WINDOW_HIDDEN;
 #if !defined(_WIN32) && !defined(STORM_MESA_NINE) // DXVK-Native
     flags |= SDL_WINDOW_METAL;

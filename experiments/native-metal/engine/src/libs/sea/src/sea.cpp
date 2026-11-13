@@ -1,6 +1,9 @@
 #include "sea.h"
 #include "weather_base.h"
 #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+extern "C" void StormMetalPublishSeaCamera(void *device, float depth);
+#endif
 #include "ship_base.h"
 #include "sea_geomorph.h"
 #include "vai_objbase.h"
@@ -212,6 +215,8 @@ void SEA::CreateVertexDeclaration()
         {0, 12, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Normal, 0},
         {0, 24, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
         {0, 32, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 1},
+        {0, 40, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 2},
+        {0, 48, storm_render::VertexComponent::Float1, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 3},
         storm_render::vertexLayoutTerminator()};
 
     rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
@@ -220,6 +225,7 @@ void SEA::CreateVertexDeclaration()
 bool SEA::Init()
 {
     shipWake.clear();
+    impactWaves.Clear();
     ResetTsunami();
     ResetWhirlpool();
     ResetNuclearWaves();
@@ -703,11 +709,12 @@ void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev, uint32_t viewDimensi
     int32_t iMaxLOD, iMinLOD;
     const int32_t iSize = static_cast<int32_t>(viewDimension >> iLev);
     const float fGSize = fGridStep * iSize;
+    const float nuclearHeightBound = NuclearWaveHeightBound() + impactWaves.HeightBound();
 
     const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
-        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
+        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - nuclearHeightBound - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
     const CVECTOR v2 = v1 + CVECTOR(fGSize,
-        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + NuclearWaveHeightBound() + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
+        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + 2.f * nuclearHeightBound + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
 
     if (!isVisibleBBox(vSeaCenterPos, v1, v2))
         return;
@@ -748,8 +755,11 @@ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *
     height += sample.height + vortex.height + nuclear.height;
     if (eventMaterial)
     {
-        eventMaterial[0] = std::max({sample.height / sample.amplitude, vortex.load, nuclear.load});
-        eventMaterial[1] = std::max({sample.foam, vortex.foam, nuclear.foam});
+        eventMaterial[0] = std::max(sample.height / sample.amplitude, vortex.load);
+        eventMaterial[1] = std::max(sample.foam, vortex.foam);
+        eventMaterial[2] = nuclear.load;
+        eventMaterial[3] = nuclear.foam;
+        eventMaterial[4] = nuclear.height;
     }
     if (normal && (sample.height != 0.f || vortex.height != 0.f || nuclear.height != 0.f))
     {
@@ -757,6 +767,17 @@ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *
         // This also handles the ordinary flat-water distance cutoff.
         normal->x -= (sample.slopeX + vortex.slopeX + nuclear.slopeX) * normal->y;
         normal->z -= (sample.slopeZ + vortex.slopeZ + nuclear.slopeZ) * normal->y;
+        *normal = !(*normal);
+    }
+}
+
+void SEA::ApplyImpactWaves(float x, float z, float &height, CVECTOR *normal) const
+{
+    const auto sample = impactWaves.Evaluate(x, z);
+    height += sample.height;
+    if (normal && (sample.slopeX != 0.f || sample.slopeZ != 0.f)) {
+        normal->x -= sample.slopeX * normal->y;
+        normal->z -= sample.slopeZ * normal->y;
         *normal = !(*normal);
     }
 }
@@ -781,7 +802,7 @@ void SEA::ApplyShipWake(float x, float z, float &height, CVECTOR *normal) const
 {
     const auto *snapshot=shipWake.snapshot.get();
     if (!snapshot) return;
-    const auto wave=snapshot->sample(x,z);
+    const auto wave=snapshot->sample(x,z,normal!=nullptr);
     height+=wave.h;
     if(normal && (wave.sx!=0.f||wave.sz!=0.f)) {
         normal->x-=wave.sx*normal->y;
@@ -863,6 +884,8 @@ void SEA::SSE_WaveXZ(SeaVertex **pArray)
     for (unsigned i = 0; i < 4; ++i) {
         ApplyTsunami(pArray[i]->vPos.x, pArray[i]->vPos.z, pArray[i]->vPos.y,
                      &pArray[i]->vNormal, pArray[i]->eventMaterial);
+        if (impactWaves.Active()) ApplyImpactWaves(pArray[i]->vPos.x, pArray[i]->vPos.z,
+                                                   pArray[i]->vPos.y, &pArray[i]->vNormal);
         ApplyShipWake(pArray[i]->vPos.x,pArray[i]->vPos.z,pArray[i]->vPos.y,&pArray[i]->vNormal);
     }
 }
@@ -873,6 +896,7 @@ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
         if (pNormal) *pNormal = CVECTOR(0.f, 1.f, 0.f);
         float height = 0.f;
         if (tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) ApplyTsunami(x, z, height, pNormal);
+        if (impactWaves.Active()) ApplyImpactWaves(x, z, height, pNormal);
         ApplyShipWake(x,z,height,pNormal);
         return height;
     }
@@ -881,6 +905,7 @@ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
     SampleOrdinaryWaves(x, z, height, pNormal ? &normal : nullptr);
     if (pNormal) *pNormal = !normal;
     if (tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) ApplyTsunami(x, z, height, pNormal);
+    if (impactWaves.Active()) ApplyImpactWaves(x, z, height, pNormal);
     ApplyShipWake(x,z,height,pNormal);
     return height;
 }
@@ -1171,8 +1196,11 @@ void SEA::WaveXZBlock(SeaBlock &pB)
             const auto eventSample = GetTsunamiSample(cx, cz);
             const auto vortexSample = GetWhirlpoolSample(cx, cz);
             const auto nuclear = NuclearWaveSample(cx, cz);
-            pVSea[dwVIndex].eventMaterial[0] = std::max({eventSample.height / eventSample.amplitude, vortexSample.load, nuclear.load});
-            pVSea[dwVIndex].eventMaterial[1] = std::max({eventSample.foam, vortexSample.foam, nuclear.foam});
+            pVSea[dwVIndex].eventMaterial[0] = std::max(eventSample.height / eventSample.amplitude, vortexSample.load);
+            pVSea[dwVIndex].eventMaterial[1] = std::max(eventSample.foam, vortexSample.foam);
+            pVSea[dwVIndex].eventMaterial[2] = nuclear.load;
+            pVSea[dwVIndex].eventMaterial[3] = nuclear.foam;
+            pVSea[dwVIndex].eventMaterial[4] = nuclear.height;
 
             iIStart1++;
         }
@@ -1485,14 +1513,23 @@ void SEA::Realize(uint32_t dwDeltaTime)
     vWorldOffset.y = 0.f;
 #endif
 
-    bUnderSea = false;
-
-    if (vCamPos.y < 0.0f && !whirlpool.Frame().active)
-        bUnderSea = true;
-
-    if ((bStarted || tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) &&
-        vCamPos.y < WaveXZ(vCamPos.x, vCamPos.z))
-        bUnderSea = true;
+    // Update both physical wave maps before sampling. The reflection decision,
+    // renderer and audio all consume the same current camera-relative height.
+    uint64_t dwX;
+    RDTSC_B(dwX);
+    MetalCpuParallelFor(2, [this](size_t index) noexcept {
+        const float frame = index == 0 ? fFrame1 : fFrame2;
+        CalculateHeightMap(frame, 1.0f / 255.0f,
+                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
+        CalculateNormalMap(frame, 1.0f / 255.0f,
+                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
+    });
+    RDTSC_E(dwX);
+    const float cameraDepth = WaveXZ(vCamPos.x, vCamPos.z) - vCamPos.y;
+    bUnderSea = cameraDepth > 0.f;
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+    StormMetalPublishSeaCamera(rs->GetNativeDevice(), cameraDepth);
+#endif
 
     if (!bUnderSea)
         bUnderSeaStarted = false;
@@ -1584,20 +1621,6 @@ void SEA::Realize(uint32_t dwDeltaTime)
     }
 
     memset(pIndices, 0xFF, NUM_VERTEXS * sizeof(pIndices[0]) * 3);
-
-    uint64_t dwX;
-    RDTSC_B(dwX);
-    // SetEvent(hEventCalcMaps);
-    // Independent immutable samples; join before buoyancy/mesh reads them.
-    MetalCpuParallelFor(2, [this](size_t index) noexcept {
-        const float frame = index == 0 ? fFrame1 : fFrame2;
-        CalculateHeightMap(frame, 1.0f / 255.0f,
-                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
-        CalculateNormalMap(frame, 1.0f / 255.0f,
-                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
-    });
-    RDTSC_E(dwX);
-    // core.Trace("dwX = %d", dwX);
 
     aBlocks.clear();
     BuildTree(0, 0, 0, viewDimension);
@@ -1771,12 +1794,13 @@ void SEA::Realize(uint32_t dwDeltaTime)
         // Frenel K, Frenel Max
         rs->SetVertexShaderConstantF(GC_FREE + 7, (const float *)&vec8, 1);
         rs->SetVertexShaderConstantF(GC_FREE + 30, (const float *)&vec9, 1);
-        // x identifies the extended 40-byte SEA layout even when the event is off.
+        // x identifies the extended SEA layout even when the event is off.
         const auto &event = tsunami.Frame();
         const CVECTOR4 eventState(1.f, event.envelope, event.age, event.amplitude);
         const CVECTOR4 eventOrigin(vWorldOffset.x, vWorldOffset.z, event.originX, event.originZ);
         const CVECTOR4 eventFront(event.directionX, event.directionZ, event.frontDistance, tsunami.SupportBound());
-        const CVECTOR4 eventSeverity(event.severity, event.damageFraction, 0.f, 0.f);
+        const bool ordinaryFoam = !bSimpleSea && fFoamK > 0.0f && bFoamEnable && bIniFoamEnable;
+        const CVECTOR4 eventSeverity(event.severity, event.damageFraction, nuclearWavesActive ? 1.f : 0.f, ordinaryFoam ? 1.f : 0.f);
         rs->SetVertexShaderConstantF(240, (const float *)&eventState, 1);
         rs->SetVertexShaderConstantF(241, (const float *)&eventOrigin, 1);
         rs->SetVertexShaderConstantF(242, (const float *)&eventFront, 1);
@@ -2055,7 +2079,7 @@ float SEA::Trace(const CVECTOR &vSrc, const CVECTOR &vDst)
     float fRes = 2.0f;
     const float fDV = 1.0f / static_cast<float>(iNumTests - 1);
 
-    const float traceHeightBound = fMaxSeaHeight + tsunami.HeightBound() + whirlpool.CrestBound() + NuclearWaveHeightBound() + (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f);
+    const float traceHeightBound = fMaxSeaHeight + tsunami.HeightBound() + whirlpool.CrestBound() + NuclearWaveHeightBound() + impactWaves.HeightBound() + (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f);
     if (vSrc.y > traceHeightBound && vDst.y > traceHeightBound)
         return 2.0f;
 
@@ -2104,10 +2128,22 @@ void SEA::StartNuclearWave(float x, float z, unsigned /*slot*/, bool active, flo
 {
     if (!active || !std::isfinite(x) || !std::isfinite(z)) return;
     const float scale = std::isfinite(lengthScale) ? std::clamp(lengthScale, 1.f, 10.f) : 1.f;
-    unsigned nearby = 0;
-    for (const auto &wave : nuclearWaves) {
-        const float dx = wave.x - x, dz = wave.z - z;
-        if (wave.active && wave.lengthScale == scale && dx * dx + dz * dz <= 25.f && ++nearby == 3) return;
+    const auto liveCount = std::count_if(nuclearWaves.begin(), nuclearWaves.end(),
+        [](const auto &wave) { return !wave.retiring; });
+    if (liveCount >= SeaNuclearWave::maxActiveWaves) {
+        // Keep the newest impact and let the oldest surface disappear smoothly.
+        // A bounded retirement reserve handles ordinary sustained bursts.
+        if (nuclearWaves.size() >= 2 * SeaNuclearWave::maxActiveWaves) {
+            const auto retiring = std::find_if(nuclearWaves.begin(), nuclearWaves.end(),
+                [](const auto &wave) { return wave.retiring; });
+            if (retiring != nuclearWaves.end()) nuclearWaves.erase(retiring);
+        }
+        const auto oldest = std::find_if(nuclearWaves.begin(), nuclearWaves.end(),
+            [](const auto &wave) { return !wave.retiring; });
+        if (oldest != nuclearWaves.end()) {
+            oldest->retiring = true;
+            oldest->retirementRemaining = SeaNuclearWave::retirementTime;
+        }
     }
     nuclearWaves.push_back({x, z, 0.f, 0.f, true, scale});
     nuclearWavesActive = true;
@@ -2541,6 +2577,7 @@ void SEA::LostRender()
 void SEA::RestoreRender()
 {
     shipWake.clear();
+    impactWaves.Clear();
     ResetTsunami();
     ResetWhirlpool();
     ResetNuclearWaves();

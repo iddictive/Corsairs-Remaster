@@ -463,15 +463,17 @@ int Fort_GetCannonsQuantity(ref rFortCharacter)
 
 float Fort_CannonDamage()
 {
-    return Fort_ApplyCannonDamage(false);
+    return Fort_ApplyCannonDamage(0);
 }
 
 float SeaPhonk_FortNuclearDamage()
 {
-    return Fort_ApplyCannonDamage(true);
+    if (CheckAttribute(&Sea,"Phonk.FortMissileRadius") && stf(Sea.Phonk.FortMissileRadius) > 0.0)
+        return Fort_ApplyCannonDamage(2);
+    return Fort_ApplyCannonDamage(1);
 }
 
-float Fort_ApplyCannonDamage(bool nuclear)
+float Fort_ApplyCannonDamage(int damageMode)
 {
 	float	x, y, z;
 	aref	aFortLabel;
@@ -521,7 +523,7 @@ float Fort_ApplyCannonDamage(bool nuclear)
 	// independent of whichever ordinary cannonball last populated AIBalls.
 	float fHullDamage = 1.0;
 	float fCrewDamage = 0.0;
-	if (!nuclear)
+	if (damageMode == 0)
 	{
 	// Бомбы рвутся объемом: близкие разрывы скалывают пушки сплэшем.
 	// Ядра и остальная кинетика бьют слабее — осколки камня/дерева и разбитый
@@ -546,6 +548,14 @@ float Fort_ApplyCannonDamage(bool nuclear)
 	if (airburst) fHullDamage = stf(rBall.DamageFort) * fCannonDamageMultiply * 0.4;
 	fCrewDamage = stf(rBall.DamageCrew) * fCannonDamageMultiply * 0.6;
 	}
+	if (damageMode == 2)
+	{
+		float radius = stf(Sea.Phonk.FortMissileRadius);
+		float power = Clampf(1.0 - fDistance / radius);
+		power = power * power * stf(Sea.Phonk.FortMissileMultiplier);
+		fHullDamage = stf(Goods[GOOD_BOMBS].DamageHull) * power * 0.4;
+		fCrewDamage = stf(Goods[GOOD_BOMBS].DamageCrew) * power * 0.6;
+	}
 	fCrewDamage = Ship_AmmoCrewLoss(rFortCharacter, fCrewDamage);
 
 	rFortCharacter.Ship.HP = (1.0 - MakeFloat(iNumDamagedCannons) / MakeFloat(iNumAllCannons)) * stf(rFortCharacter.Fort.HP);
@@ -557,7 +567,7 @@ float Fort_ApplyCannonDamage(bool nuclear)
 	//Log_info("fDamage " + fDamage + " fDistance " + fDistance + " fDistanceMul" + fDistanceMul + " fHullDamage " + fHullDamage);
 	fDamage = (fDamage + fDamagePiece);
 	//Log_info("fDamagePiece " + fDamage);
-	if (iBallCharacterIndex == nMainCharacterIndex)
+	if (iBallCharacterIndex == nMainCharacterIndex && !DebugAI_ProtectRelations())
 	{
 		int iRelation = SeaAI_GetRelation(iFortCharacterIndex, iBallCharacterIndex);
 		if (iRelation != RELATION_ENEMY)
@@ -605,9 +615,7 @@ float Fort_ApplyCannonDamage(bool nuclear)
 	if (fDamage >= 1.0)
 	{ 
 		Play3DSound("fort_cann_explode", x, y, z);
-		CreateBlast(x, y, z);
 		CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
-		CreateParticleSystem("blast", x, y, z, 0.0, 0.0, 0.0, 0);
 
 		if (!bImmortal)
 		{

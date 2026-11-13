@@ -55,6 +55,15 @@ class FortCannonContext
     // frames, skills/perks changes, scene transitions, or restored games.
     static constexpr const char *fields[] = {"SpeedV0", "FireAngMin", "FireAngMax", "BallHeightMultiply",
         "BallTimeSpeedMultiply", "FireAngleSineMultiply"};
+    struct ParameterCodes
+    {
+        std::optional<uint32_t> type, fixed, fields[std::size(FortCannonContext::fields)];
+        static uint32_t Get(ATTRIBUTES *attributes, std::optional<uint32_t> &code, const char *name)
+        {
+            if (!code) code = attributes->GetStringCodec().Convert(name);
+            return *code;
+        }
+    };
     struct Parameters
     {
         uint32_t type = 0, charge = 0, fixed = 0;
@@ -66,17 +75,23 @@ class FortCannonContext
             fixed = attributes->GetAttributeAsDword("FixedBallisticFrame");
             for (size_t n = 0; n < std::size(fields); ++n) values[n] = attributes->GetAttributeAsFloat(fields[n]);
         }
-        void Apply(ATTRIBUTES *attributes) const
+        void Apply(ATTRIBUTES *attributes, ParameterCodes &codes) const
         {
-            attributes->SetAttributeUseDword("Type", type);
+            attributes->SetAttribute(ParameterCodes::Get(attributes, codes.type, "Type"), std::to_string(type));
             attributes->GetAttributeClass("Charge")->SetAttributeUseDword("Type", charge);
-            attributes->SetAttributeUseDword("FixedBallisticFrame", fixed);
-            for (size_t n = 0; n < std::size(fields); ++n) attributes->SetAttributeUseFloat(fields[n], values[n]);
+            attributes->SetAttribute(ParameterCodes::Get(attributes, codes.fixed, "FixedBallisticFrame"), std::to_string(fixed));
+            for (size_t n = 0; n < std::size(fields); ++n)
+            {
+                char buffer[128];
+                sprintf_s(buffer, "%g", values[n]);
+                attributes->SetAttribute(ParameterCodes::Get(attributes, codes.fields[n], fields[n]), std::string_view(buffer));
+            }
         }
     };
     AIFort::AI_FORT &fort;
     ATTRIBUTES *character, *parameters, *charge, *fortState, *ammo, *profiles;
     Parameters original;
+    ParameterCodes codes;
     std::string originalName;
     std::vector<Parameters> cache;
     uint32_t ordinal = 0;
@@ -96,7 +111,7 @@ class FortCannonContext
     ~FortCannonContext()
     {
         if (auto *active = fortState->GetAttributeClass("ActiveGun")) fortState->DeleteAttributeClassX(active);
-        original.Apply(parameters);
+        original.Apply(parameters, codes);
         charge->SetValue(originalName);
     }
     ATTRIBUTES *Profile(uint32_t type) const
@@ -130,7 +145,7 @@ class FortCannonContext
         const uint32_t type = fort.GetCannonType(ordinal), id = profile->GetAttributeAsDword();
         charge->SetValue(profile->GetAttributeClass("Name")->GetValue());
         for (const auto &entry : cache)
-            if (entry.type == type && entry.charge == id) { entry.Apply(parameters); return; }
+            if (entry.type == type && entry.charge == id) { entry.Apply(parameters, codes); return; }
         parameters->SetAttributeUseDword("Type", type);
         charge->SetAttributeUseDword("Type", id);
         core.Event(CANNON_RECALCULATE_PARAMETERS, "l", GetIndex(character));

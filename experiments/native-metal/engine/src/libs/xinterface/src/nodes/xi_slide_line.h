@@ -21,7 +21,7 @@ class CXI_SLIDELINE : public CINODE
 
   protected:
     void LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, const char *name2) override;
-    void SetNewValue(int32_t newValue);
+    void SetNewValue(int32_t newValue, bool notify = true);
     void DoMouseControl();
 
     bool m_bDoChangeSlider;

@@ -67,6 +67,7 @@ class BATTLE_INTERFACE : public Entity
     bool m_bMyShipView;
 
     std::vector<BITextInfo> m_TextArray;
+    BITextInfo m_NuclearMenuTitle, m_NuclearMenuMode, m_NuclearMenuPower;
     BILinesInfo m_LinesInfo;
     bool m_bShowBattleBorder;
     BIBorderInfo m_BattleBorder;

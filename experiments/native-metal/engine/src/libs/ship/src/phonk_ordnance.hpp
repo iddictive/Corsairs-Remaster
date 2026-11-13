@@ -1,6 +1,7 @@
 #pragma once
 
 #include "c_vector.h"
+#include "phonk_missile_profiles.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -15,6 +16,8 @@ inline constexpr float nuclearReload = 1.f;
 inline constexpr float nuclearChargeTime = 3.f;
 inline constexpr float nuclearBlastLife = 9.f;
 inline constexpr float nuclearPressureLife = 8.f;
+inline constexpr float clusterAirDrag = .15f;
+inline float dragTravelTime(float drag, float elapsed) { return -std::expm1(-drag * elapsed) / drag; }
 struct NuclearYield
 {
     uint32_t tier = 1;
@@ -85,7 +88,47 @@ struct NuclearMissile
     int32_t owner = -1;
     bool active = false;
     NuclearYield yield;
+    bool split = false;
+    uint32_t warheadCount = 1;
+    CVECTOR initialVelocity = CVECTOR(0.f);
+    bool continueVelocity = false;
+    bool coasting = false;
+    missile::Type type = missile::Type::Kinzhal;
+    bool conventional = false;
+    bool cluster = false;
+    uint32_t warhead = 0;
+    bool flybyPlayed = false;
+    bool ignitionPlayed = false;
+    bool intercepted = false;
+    bool interceptionFragment = false;
+    CVECTOR interceptedVelocity = CVECTOR(0.f);
+    uint32_t shotId = 0;
+    float damageScale = 1.f;
+    float blastScale = 1.f;
+    float nominalMeanSpeed = 0.f;
+    missile::FlightVariation flightVariation{};
+    uint32_t surrenderEpoch = 0;
+    entid_t guidedShip = 0;
+    CVECTOR guidedOffset = CVECTOR(0.f);
+    CVECTOR aimError = CVECTOR(0.f);
+    CVECTOR guidanceVelocity = CVECTOR(0.f);
+    CVECTOR guidanceAim = CVECTOR(0.f);
+    unsigned guidanceUpdates = 0;
+    bool seeker = false;
+    bool reacquireLostTarget = false;
+    float nextSeekerScan = 0.f;
+    std::array<entid_t, 8> consideredTargets{};
+    float evasionStart = -1.f;
+    unsigned evasionAttempts = 0;
+    CVECTOR evasionOffset = CVECTOR(0.f);
+    bool manualFlight = false;
+    CVECTOR manualVelocity = CVECTOR(0.f);
+    uint8_t submunitionVariant = 0;
 };
+inline bool isClusterSubmunition(const NuclearMissile &missile)
+{
+    return missile.cluster && missile.continueVelocity && !missile.coasting;
+}
 struct NuclearBlast
 {
     CVECTOR center = CVECTOR(0.f);
@@ -93,8 +136,26 @@ struct NuclearBlast
     bool active = false;
     float seed = 0.f;
     int32_t owner = -1;
+    uint32_t surrenderEpoch = 0;
     std::vector<NuclearPressureContact> contacts;
     NuclearYield yield;
+};
+struct HarpoonCable
+{
+    CVECTOR playerLocalAnchor = CVECTOR(0.f);
+    entid_t targetShip = 0;
+    CVECTOR targetLocalAnchor = CVECTOR(0.f);
+    float restingLength = 50.f;
+    float age = 0.f;
+    bool active = true;
+};
+struct HarpoonProjectile
+{
+    CVECTOR position = CVECTOR(0.f);
+    CVECTOR velocity = CVECTOR(0.f);
+    CVECTOR playerLocalAnchor = CVECTOR(0.f);
+    float age = 0.f;
+    bool active = false;
 };
 struct OrdnanceState
 {
@@ -103,17 +164,159 @@ struct OrdnanceState
     float reload = 0.f, targetClock = 0.f, charge = 0.f;
     double burstSeconds = 0.0, burstDebt = 0.0;
     bool burstArmed = false;
+    bool menuOpen = false;
+    uint32_t warheadCount = 1, intervalTenths = 10;
+    uint32_t powerLimit = 10;
+    missile::Type missileType = missile::Type::Kinzhal;
+    bool homing = true;
+    uint32_t warhead = 0, clusterCount = 6;
+    entid_t targetShip = 0;
+    CVECTOR targetOffset = CVECTOR(0.f);
     uint32_t blastSerial = 0;
+    uint32_t cameraShot = 0;
+    float cameraAfterImpact = 0.f;
+    CVECTOR cameraPosition = CVECTOR(0.f), cameraTarget = CVECTOR(0.f);
     CVECTOR target = CVECTOR(0.f);
     // A six-kilometre flight takes over six seconds at the one-second cadence.
     std::vector<NuclearMissile> missiles;
     std::vector<NuclearBlast> blasts;
+    std::vector<HarpoonCable> harpoonCables;
+    std::vector<HarpoonProjectile> harpoonProjectiles;
+    float harpoonReload = 0.f;
+    float conventionalFxCooldown = 0.f;
+    float airDefenseCooldown = 0.f;
+    float airDefenseScanCooldown = 0.f;
+    float launchSoundCooldown = 0.f;
+    float flybySoundCooldown = 0.f;
+    uint32_t airDefenseScanCursor = 0, airDefenseHitCursor = 0, airDefenseSerial = 0;
+    float testEnemyCooldown = 0.f;
+    uint32_t testEnemySerial = 0;
+    uint32_t testVolleyRemaining = 0, testVolleyIndex = 0, testVolleyWarhead = 1;
+    missile::Type testVolleyType = missile::Type::Kinzhal;
+    entid_t testVolleyTarget = 0;
+    float testVolleyDelay = 0.f;
+    double testControllerClock = 0.0, testLastUpdate = -1.0;
+    uint32_t testShipCursor = 0, testTargetCursor = 0, testSourceCursor = 0, testMissileCursor = 0;
+    uint32_t playerSourceCursor = 0, playerMissileCursor = 0;
+    entid_t testDefenseShip = 0;
+    float testDefenseCooldown = 0.f;
+    float testDefenseCharges = 0.f;
+    uint32_t testDefenseRate = 0;
+    struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0; };
+    std::vector<Interceptor> interceptors;
+    std::vector<Interceptor> testInterceptors;
 };
+inline CVECTOR interceptorPosition(const OrdnanceState::Interceptor &interceptor, float t)
+{
+    t = std::clamp(t, 0.f, 1.f);
+    const CVECTOR delta = interceptor.target - interceptor.launch;
+    CVECTOR lateral(-delta.z, 0.f, delta.x);
+    if ((~lateral) > .001f) lateral = !lateral;
+    else lateral = CVECTOR(0.f);
+    uint32_t seed = interceptor.serial * 0x9e3779b9u;
+    seed ^= seed >> 16; seed *= 0x7feb352du; seed ^= seed >> 15;
+    const float early = float(seed & 65535u) / 32767.5f - 1.f;
+    const float late = float(seed >> 16) / 32767.5f - 1.f;
+    const float correction = std::min(3.f, std::sqrt(~delta) * .004f) * t * (1.f-t) *
+                             (early * (1.f-t) + late * t);
+    return interceptor.launch + delta*t + (CVECTOR(0.f, interceptor.arc, 0.f) + lateral*interceptor.lateral)*(t*(1.f-t)) + lateral*correction;
+}
 inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
 {
     const float t = std::clamp(age / missile.duration, 0.f, 1.f);
-    return missile.launch + (missile.target - missile.launch) * t +
-        CVECTOR(0.f, 4.f * missile.arc * t * (1.f - t), 0.f);
+    const CVECTOR delta = missile.target - missile.launch;
+    if (missile.manualFlight) return missile.launch + missile.manualVelocity * (t * missile.duration);
+    if (missile.coasting || isClusterSubmunition(missile)) {
+        const float elapsed = t * missile.duration;
+        if (missile.interceptionFragment || isClusterSubmunition(missile)) {
+            // Linear air resistance with gravity, evaluated from the initial
+            // state so its result does not depend on frame rate.
+            const float drag = missile.interceptionFragment ? .35f : clusterAirDrag;
+            const float travel = dragTravelTime(drag, elapsed);
+            return missile.launch + missile.initialVelocity * travel +
+                CVECTOR(0.f, -9.81f * (elapsed - travel) / drag, 0.f);
+        }
+        return missile.launch + missile.initialVelocity * elapsed + CVECTOR(0.f, -4.905f * elapsed * elapsed, 0.f);
+    }
+    if (missile.continueVelocity)
+        return missile.launch + delta * t +
+            (missile.initialVelocity * missile.duration - delta) * (t * (1.f - t) * (1.f - t));
+    const auto p = storm::ship::phonk::missile::position(missile.type,
+        {missile.launch.x, missile.launch.y, missile.launch.z},
+        {missile.target.x, missile.target.y, missile.target.z}, t, missile.duration, missile.flightVariation);
+    CVECTOR result(p.x, p.y, p.z);
+    if (missile.shotId) {
+        const float horizontal = std::hypot(delta.x, delta.z);
+        if (horizontal > .001f) {
+            uint32_t seed = missile.shotId * 0x9e3779b9u ^ uint32_t(missile.owner);
+            seed ^= seed >> 16; seed *= 0x7feb352du; seed ^= seed >> 15;
+            if (missile.type == missile::Type::Kinzhal) { seed *= 0x846ca68bu; seed ^= seed >> 16; }
+            const float progress = missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
+            const float early = float(seed & 65535u) / 32767.5f - 1.f;
+            const float late = float(seed >> 16) / 32767.5f - 1.f;
+            // A bounded, aperiodic curve per shot. Both position and lateral
+            // slope converge to zero at launch and impact, including ejection.
+            const float envelope = 16.f * progress * progress * (1.f-progress) * (1.f-progress);
+            const float limit = missile.type == missile::Type::Kalibr ? 90.f :
+                                missile.type == missile::Type::Shtorm ? 55.f : 75.f;
+            float bend = std::min(limit, horizontal * .02f) * envelope *
+                         (early * (1.f-progress) + late * progress);
+            // A committed side approach followed by a terminal turn, with a
+            // different direction and timing for each shot. It still converges
+            // on the selected impact point and never uses a periodic wave.
+            if (missile.type == missile::Type::Kinzhal) {
+                const float direction = early < 0.f ? -1.f : 1.f;
+                const float amplitude = std::min(140.f, horizontal * .12f) * (.65f + .35f * std::abs(late));
+                const float turnStart = late < 0.f ? .40f : .55f;
+                const float u = std::clamp(progress / turnStart, 0.f, 1.f);
+                const float v = std::clamp((progress - turnStart) / (1.f - turnStart), 0.f, 1.f);
+                const float rise = u * u * (3.f - 2.f * u);
+                const float fall = 1.f - v * v * (3.f - 2.f * v);
+                const unsigned approach = (seed >> 28) & 3u;
+                // One variant crosses the flight line once; another keeps a
+                // shallow offset for a mostly overhead approach.
+                const float shape = approach == 0 ? (1.f - 2.f * progress) :
+                                    approach == 1 ? .3f : 1.f;
+                bend += direction * amplitude * rise * fall * shape;
+            } else if (missile.type == missile::Type::Shtorm)
+                bend += std::min(200.f, horizontal * .268f) * early * progress * (1.f-progress) * (1.f-progress);
+            result += CVECTOR(-delta.z / horizontal, 0.f, delta.x / horizontal) * bend;
+        }
+    }
+    if (missile.evasionStart >= 0.f) {
+        const float elapsed = std::max(0.f, age - missile.evasionStart);
+        const bool cruise = missile.type == missile::Type::Kalibr;
+        const float enter = std::clamp(elapsed / (cruise ? 1.1f : .35f), 0.f, 1.f);
+        const float exit = std::clamp(((cruise ? 3.5f : 2.f) - elapsed) / (cruise ? 1.3f : .65f), 0.f, 1.f);
+        // Finish the manoeuvre before the planned endpoint, so a late
+        // interception attempt does not permanently displace the impact.
+        const float remaining = missile.seeker && missile.type == missile::Type::Kinzhal ?
+            std::clamp((missile.duration - age) / .6f, 0.f, 1.f) : 1.f;
+        const float terminal = remaining * remaining * (3.f - 2.f * remaining);
+        result += missile.evasionOffset * (enter * enter * (3.f - 2.f * enter)) * (exit * exit * (3.f - 2.f * exit)) * terminal;
+    }
+    return result;
+}
+inline CVECTOR nuclearVelocity(const NuclearMissile &missile, float age)
+{
+    const float t = std::clamp(age / missile.duration, 0.f, 1.f);
+    const CVECTOR delta = missile.target - missile.launch;
+    if (missile.manualFlight) return missile.manualVelocity;
+    if (missile.interceptionFragment || isClusterSubmunition(missile)) {
+        const float elapsed = t * missile.duration;
+        const float drag = missile.interceptionFragment ? .35f : clusterAirDrag;
+        const float decay = std::exp(-drag * elapsed);
+        return missile.initialVelocity * decay + CVECTOR(0.f, -9.81f * (1.f - decay) / drag, 0.f);
+    }
+    if (missile.coasting)
+        return missile.initialVelocity + CVECTOR(0.f, -9.81f * t * missile.duration, 0.f);
+    if (missile.continueVelocity)
+        return (delta + (missile.initialVelocity * missile.duration - delta) *
+            ((1.f - t) * (1.f - 3.f * t))) * (1.f / missile.duration);
+    const float step = std::min(.01f, missile.duration * .01f);
+    const float before = std::max(0.f, age - step), after = std::min(missile.duration, age + step);
+    const float progress = storm::ship::phonk::missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
+    return after > before ? (nuclearPosition(missile, after) - nuclearPosition(missile, before)) * (1.f / (after - before)) + missile.guidanceVelocity * progress : CVECTOR(0.f);
 }
 }
 
@@ -121,3 +324,13 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
 extern "C" void StormMetalDrawPhonkNuclearBlast(void *device, const float *center,
                                                float radius, float age, float seed, float pressureFront,
                                                float pressureLife, bool light);
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+extern "C" void StormMetalMissileVfxTick(void *device, uint64_t sea, float dt);
+extern "C" void StormMetalMissileVfxBurst(void *device, const float *position, unsigned type);
+extern "C" void StormMetalMissileVfxSegment(void *device, const float *from, const float *to, float dt, unsigned type);
+extern "C" bool StormMetalMissileVfxCapture(void *device);
+extern "C" void StormMetalMissileVfxMotor(void *device, const float *tail, const float *direction, unsigned type, float phase);
+extern "C" bool StormMetalClusterImpact(void *device, const float *position, const float *direction, unsigned surface, float radius, unsigned warhead);
+extern "C" void StormMetalClusterImpactCapture(void *device);
+extern "C" bool StormMetalClusterImpactTakeFallback(void *device, float *position, unsigned *surface, unsigned *warhead);
+#endif

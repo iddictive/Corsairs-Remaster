@@ -178,7 +178,7 @@ struct SeaTsunamiMotion
                                  sample.slopeZ * sample.directionZ;
         const float flank = std::clamp(alongSlope * sample.width /
             (sample.amplitude * SeaTsunamiParameters::profileArea), -1.f, 1.f);
-        const float load = flank * sample.severity * sample.severity * std::clamp(protection, 0.f, 1.f);
+        const float load = flank * sample.severity * (sample.severity >= 0.5f ? 1.6f : sample.severity) * std::clamp(protection, 0.f, 1.f);
         const float targetPitch = SeaTsunamiParameters::maxPitch * load * head;
         const float targetRoll = SeaTsunamiParameters::maxRoll * load * beam;
         const float delta = std::min(seconds, .1f);
@@ -197,10 +197,11 @@ struct SeaTsunamiMotion
 
 inline bool SeaTsunamiCanCapsize(const SeaTsunamiSample &sample, float signedBeam, float modelUpY)
 {
+    // Waves over 50% power hitting broadside can capsize and sink ships
     return sample.serial != 0 && sample.height > 0.f &&
-           std::abs(signedBeam) >= SeaTsunamiParameters::capsizeBeamThreshold &&
-           SeaTsunamiParameters::maxRoll * sample.severity * sample.severity >=
-               SeaTsunamiParameters::overturnAngle && modelUpY <= 0.f;
+           std::abs(signedBeam) >= 0.65f &&
+           sample.severity >= 0.5f &&
+           (modelUpY < 0.60f || sample.severity >= 0.80f);
 }
 
 // Current velocity is temporary in Move; only its finite travel budget lives here.

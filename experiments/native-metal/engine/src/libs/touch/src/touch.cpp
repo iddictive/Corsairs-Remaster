@@ -1,3 +1,6 @@
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+#include "seabed_collision.hpp"
+#endif
 #include "touch.h"
 #include "ship_contact_frame.hpp"
 #include "ship_shore_contact.hpp"
@@ -206,14 +209,14 @@ uint64_t TOUCH::ProcessMessage(MESSAGE &message)
                 delete pShips[i];
                 --iNumShips;
                 pShips[i] = pShips[iNumShips];
-                pShips[iNumShips] = nullptr;
+                pShips.pop_back();
                 break;
             }
         break;
     }
     case MSG_SHIP_CREATE:
-        pShips[iNumShips] = new TOUCH_SHIP{};
-        pShips[iNumShips]->eID = message.EntityID();
+        pShips.push_back(new TOUCH_SHIP{});
+        pShips.back()->eID = message.EntityID();
         iNumShips++;
         break;
         /*                case EVENT_Entity_DELETED:
@@ -406,7 +409,7 @@ BOOL TOUCH::BuildContour(int32_t ship_idx)
 BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
 {
     auto *ship = pShips[idx];
-    if (iDeltaTime <= 0 || !pIslandBase || !ship->pShip || ship->pShip->HasRigidFlight() ||
+    if (iDeltaTime <= 0 || !pIslandBase || !ship->pShip ||
         !ship->pShip->TouchMove(iDeltaTime, &ship->TP[0], &ship->TP[1]))
         return false;
     const bool wet = ship->pShip->HasWaterContact();
@@ -417,15 +420,23 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
     bool found = false;
     unsigned contacts = 0;
     for (int point = 0; point < count; ++point)
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+        for (int level = 0; level < (wet ? 1 : 4); ++level)
+#else
         for (int level = 0; level < (wet ? 1 : 3); ++level)
+#endif
         {
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+            const float rise=ship->TP[1].vPos.y-ship->TP[0].vPos.y;
+            if (!wet && level==3 && (lower+std::min(0.f,rise)>0.f || upper+std::max(0.f,rise)<0.f)) continue;
+#endif
             CVECTOR ends[2];
             for (int pose = 0; pose < 2; ++pose)
             {
                 const auto local = wet ? ship->vCoastContour[point] : contour[point];
                 float x = local.x, z = local.z;
                 RotateAroundY(x, z, cosf(ship->TP[pose].vAng.y), sinf(ship->TP[pose].vAng.y));
-                const float y = wet ? 0.f : lower + (upper - lower) * (.5f * level) +
+                const float y = (wet || level==3) ? 0.f : lower + (upper - lower) * (.5f * level) +
                     ship->TP[pose].vPos.y - ship->TP[0].vPos.y;
                 ends[pose] = CVECTOR(ship->TP[pose].vPos.x + x, y, ship->TP[pose].vPos.z + z);
             }
@@ -442,22 +453,28 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
                 return CVECTOR(center.x + x, ends[0].y + travel.y * time, center.z + z);
             };
 
-            // Query the same published island mesh as weapons and grounding.
-            // GetCollideTriangle belongs to the actual traced model, not ISLAND's stub.
-            float time = pIslandBase->Trace(ends[0], ends[1]);
+            // Terrain uses the published island trace. Ship contact also includes seabed;
+            // weapons retain their independent water and terrain policy.
+            float time = level==3 ? 2.f : pIslandBase->Trace(ends[0], ends[1]);
             CVECTOR normal(0.f);
             bool initialDepthOverlap = false;
-            const bool exact = std::isfinite(time) && time >= 0.f && time <= 1.f;
+            bool exact = std::isfinite(time) && time >= 0.f && time <= 1.f;
             if (exact)
             {
                 auto *collision = static_cast<COLLIDE *>(core.GetService("coll"));
-                auto *model = collision ? static_cast<COLLISION_OBJECT *>(
-                    core.GetEntityPointer(collision->GetObjectID())) : nullptr;
+                auto *model = collision ? static_cast<COLLISION_OBJECT *>(core.GetEntityPointer(collision->GetObjectID())) : nullptr;
                 TRIANGLE triangle;
-                if (model && model->GetCollideTriangle(triangle))
-                    normal = -((triangle.vrt[1] - triangle.vrt[0]) ^ (triangle.vrt[2] - triangle.vrt[0]));
+                if (model && model->GetCollideTriangle(triangle)) normal = -((triangle.vrt[1] - triangle.vrt[0]) ^ (triangle.vrt[2] - triangle.vrt[0]));
             }
-            else if (!wet || !pIslandBase->CheckDepthCollision(ends[0], ends[1], fCollisionDepth, 0.f))
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+            TRIANGLE seabedTriangle;
+            const float seabedTime=seabed_collision::trace(pIslandBase,ends[0],ends[1],seabedTriangle);
+            if(std::isfinite(seabedTime)&&seabedTime>=0.f&&seabedTime<=1.f&&(!exact||seabedTime<time)) {
+                time=seabedTime;exact=true;
+                normal=-((seabedTriangle.vrt[1]-seabedTriangle.vrt[0])^(seabedTriangle.vrt[2]-seabedTriangle.vrt[0]));
+            }
+#endif
+            if (!exact && (!wet || !pIslandBase->CheckDepthCollision(ends[0], ends[1], fCollisionDepth, 0.f)))
                 continue;
 
             if (wet && !exact)
@@ -485,7 +502,12 @@ BOOL TOUCH::IsIntersectIsland(int32_t idx, IslandContact &contact)
                         const auto next = pointAt(float(step) / float(depthSteps));
                         float depth;
                         const float crossing = pIslandBase->Trace(previous, next);
-                        retreat = std::isfinite(crossing) && crossing > 1.f &&
+                        bool seabedClear=true;
+#ifdef STORM_METAL_SHIP_HULL_DAMAGE
+                        TRIANGLE retreatTriangle;
+                        seabedClear=seabed_collision::trace(pIslandBase,previous,next,retreatTriangle)>1.f;
+#endif
+                        retreat = std::isfinite(crossing) && crossing > 1.f && seabedClear &&
                             pIslandBase->GetGroundDepth(next.x, next.z, next.y, depth) &&
                             std::isfinite(depth) && depth <= previousDepth;
                         if (retreat) previousDepth = depth;
@@ -678,7 +700,18 @@ void TOUCH::TouchIsland(int32_t idx)
     // The existing shore event still owns HP/perks. Only admitted inward work
     // reaches the same finite material-fracture owner as ship/ship impacts.
     ship = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[idx]->eID));
-    if (structuralContactEnabled() && ship && fraction > 0.f && impact.closing > 0.f)
+    if (ship && ship->GetHullContactHandling().arcade)
+    {
+        // Shore contact braking: absorb excess kinetic energy on land contact
+        const float spd = std::hypot(ship->State.vSpeed.x, ship->State.vSpeed.z);
+        if (spd > 35.0f)
+        {
+            const float damp = 35.0f / spd;
+            ship->State.vSpeed.x *= damp;
+            ship->State.vSpeed.z *= damp;
+        }
+    }
+    if (structuralContactEnabled() && ship && fraction > 0.f && impact.closing > 0.f && !ship->GetHullContactHandling().arcade && impact.closing < 25.0f)
     {
         double work = .5 * double(impact.closing) * impact.closing;
         if (fraction < 1.f)
@@ -703,7 +736,7 @@ void TOUCH::ResolveShips()
     for (int i = 0; i < iNumShips; ++i)
     {
         auto *entry = pShips[i];
-        if (!entry->pShip || entry->pShip->HasRigidFlight() || !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
+        if (!entry->pShip || !entry->pShip->TouchMove(iDeltaTime, &entry->TP[0], &entry->TP[1])) continue;
         FrameBody frame;
         if (entry->pShip->isDead() || entry->pShip->GetHullContourRevision())
         {
@@ -755,7 +788,8 @@ void TOUCH::ResolveShips()
             auto *ship = currentShip(own); auto *opponent = currentShip(other);
             if (!ship || !opponent || !bodies[own].material || !materials[own].prepared) return;
             const double mass = bodies[own].body.mass;
-            constexpr double elasticEnergy = .25;
+            if (event.proposed.normalClosing < 4.0) return;
+            constexpr double elasticEnergy = 8.0;
             const double specific = std::max(0.0, available / mass - elasticEnergy);
             if (!(specific > 0)) return;
             const auto localPoint = detail::rotate(event.contact.point - pose.position, -pose.yaw);
@@ -830,10 +864,12 @@ void TOUCH::ResolveShips()
         return committed;
     };
     FrameLimits limits;
-    // One strong ram can cross several real timber sections. The material
-    // transaction already bounds its admitted fields; three unrelated passes
-    // must not turn the rest of that same impact back into an intact wall.
-    limits.fracturePasses=structuralContact ? storm_hull_damage::MaxBeamSamples : 0;
+    // Bounded real-time contact limits: prevent multi-second CPU freezes and lag on high-speed impacts
+    limits.maxEvents = 4;
+    limits.maxPairAdvances = 4;
+    limits.positionIterations = 4;
+    limits.materialCandidates = 64;
+    limits.fracturePasses = structuralContact ? 1 : 0;
     const auto result = integrateFrame(bodies, seconds, limits,
         structuralContact ? FractureCallback(fracture) : FractureCallback{});
     // Publish material loss at the actual local contact, using the currently
@@ -848,7 +884,8 @@ void TOUCH::ResolveShips()
             // Do not repeatedly charge elastic low-speed contacts as rams.
             // Only closing energy dissipated by the solver can damage material;
             // continuing propulsion supplies no separate pressure-damage rate.
-            constexpr double elasticEnergy = .25; // J per unit mass, m²/s²
+            if (impact.normalClosing < 4.0) return;
+            constexpr double elasticEnergy = 8.0; // J per unit mass, m²/s²
             specificEnergy = std::max(0.0, specificEnergy - elasticEnergy);
             if (!ship || !opponent || !(specificEnergy > 0)) return;
             const CVECTOR point(float(localPoint.x), 0.f, float(localPoint.z));
@@ -892,7 +929,7 @@ void TOUCH::ResolveShips()
             ship = currentShip(own);
             if (!ship || !(materialWork > 0)) return;
             const auto matrix = ship->GetMatrix();
-            if (structuralContact && matrix)
+            if (structuralContact && matrix && !ship->GetHullContactHandling().arcade && specificEnergy < 60.0)
             {
                 auto worldPoint = *matrix * point;
                 worldPoint.y = float(impact.height);
@@ -902,6 +939,7 @@ void TOUCH::ResolveShips()
         };
         publish(impact.a, impact.b, impact.localPointA, impact.localNormalA, impact.specificEnergyA, impact.physicalPaidSpecificA);
         publish(impact.b, impact.a, impact.localPointB, impact.localNormalB, impact.specificEnergyB, impact.physicalPaidSpecificB);
+
     }
     for (size_t n = 0; n < result.motions.size(); ++n)
     {

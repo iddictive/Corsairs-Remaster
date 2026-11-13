@@ -123,9 +123,12 @@ inline bool components(State&state,Budget&budget){state.components.clear();
 }
 inline bool reconnect(State&state,const std::set<uint32_t>&changed,Budget&budget){std::set<uint32_t>dirty=changed;dirty.insert(state.pendingConnectivity.begin(),state.pendingConnectivity.end());std::set<uint32_t>affected=dirty;std::vector<uint32_t>ids;const Vec3 pad{.000002f,.000002f,.000002f};
     for(auto id:dirty){auto box=state.source->material->bounds.at(id);box.lo=box.lo-pad;box.hi=box.hi+pad;state.source->material->index.queryBounds(box,ids);affected.insert(ids.begin(),ids.end());}
-    for(auto id:affected){if(!state.cells[id])continue;auto copy=std::make_shared<Cell>(*state.cells[id]);copy->edges.assign(copy->pieces?copy->pieces->size():0,{});state.cells[id]=std::move(copy);}
+    // An edit changes only dirty cells. Neighbour-to-neighbour contacts are
+    // still valid; retain them rather than running solid intersections again.
+    std::map<uint32_t,std::vector<std::vector<Key>>> prior;
+    for(auto id:affected){if(!state.cells[id])continue;auto copy=std::make_shared<Cell>(*state.cells[id]);if(!dirty.count(id))prior.emplace(id,copy->edges);copy->edges.assign(copy->pieces?copy->pieces->size():0,{});state.cells[id]=std::move(copy);}
     for(auto id:affected){auto entry=std::const_pointer_cast<Cell>(state.cells[id]);if(!entry||!entry->pieces)continue;auto box=state.source->material->bounds[id];box.lo=box.lo-pad;box.hi=box.hi+pad;state.source->material->index.queryBounds(box,ids);
-        for(uint32_t piece=0;piece<entry->pieces->size();++piece){const auto&a=entry->pieces->at(piece);for(auto other:ids){const auto&neighbor=state.cells[other];if(!neighbor||!neighbor->pieces)continue;for(uint32_t n=0;n<neighbor->pieces->size();++n){if(id==other&&n==piece)continue;const auto&b=neighbor->pieces->at(n);if(a.authoredOwner!=b.authoredOwner)continue;if(touching(a,b,budget))entry->edges[piece].push_back({other,n});if(!budget.complete)return false;}}}}
+        for(uint32_t piece=0;piece<entry->pieces->size();++piece){const auto&a=entry->pieces->at(piece);for(auto other:ids){if(!dirty.count(id)&&!dirty.count(other)){for(const auto&key:prior.at(id).at(piece))if(key.cell==other)entry->edges[piece].push_back(key);continue;}const auto&neighbor=state.cells[other];if(!neighbor||!neighbor->pieces)continue;for(uint32_t n=0;n<neighbor->pieces->size();++n){if(id==other&&n==piece)continue;const auto&b=neighbor->pieces->at(n);if(a.authoredOwner!=b.authoredOwner)continue;if(touching(a,b,budget))entry->edges[piece].push_back({other,n});if(!budget.complete)return false;}}}}
     refreshSupportMeasures(state,dirty);
     if(!components(state,budget))return false;state.pendingConnectivity.clear();return true;
 }

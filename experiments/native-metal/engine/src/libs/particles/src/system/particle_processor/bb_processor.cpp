@@ -174,6 +174,7 @@ void BillBoardProcessor::AddParticle(ParticleSystem *pSystem, const Vector &velo
     pData->SpeedOriented = fields.speedOriented ? fields.speedOriented->GetValue() : false;
     pData->EmitterGUID = dwGUID;
     pData->ActiveCount = pActiveCount;
+    pData->NavalOpacity = pSystem->NavalOpacity();
     pData->RenderPos = (pos + PositionOffset) * matWorld;
     pData->Velocity = matWorld.MulNormal(velocity_dir);
     pData->ElapsedTime = 0.0f;
@@ -252,7 +253,7 @@ void BillBoardProcessor::Process(float DeltaTime)
         //        _mm_prefetch ((const char *)Particles[n+1], _MM_HINT_T0);
 
         // immediately kill the dead
-        if (Time > LifeTime)
+        if (Time > LifeTime || (Particles[n]->NavalOpacity && *Particles[n]->NavalOpacity <= 0.f))
         {
             *(Particles[n]->ActiveCount) = (*(Particles[n]->ActiveCount) - 1);
             FreeParticle(Particles[n]);
@@ -410,6 +411,7 @@ void BillBoardProcessor::Draw()
             Alpha = 0.0f;
         if (Alpha > 1.0f)
             Alpha = 1.0f;
+        if (pR->NavalOpacity && *pR->NavalOpacity < 1.f) Alpha *= *pR->NavalOpacity;
         Alpha = Alpha * 255.0f;
 
         auto AddPower = pR->graph_AddPower->GetValue(pR->ElapsedTime, pR->LifeTime, pR->AddPowerK);

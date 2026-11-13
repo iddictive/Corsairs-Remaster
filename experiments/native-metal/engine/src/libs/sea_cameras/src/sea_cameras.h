@@ -25,11 +25,22 @@ class SEA_CAMERAS : public Entity
     float dartInputDistance = 1.f;
     float returnPerspective = 1.f, returnMagnification = 1.f;
     float dartPerspective = 1.f;
+    uint32_t missileViewSequence = 0;
+    uint32_t missileExpiredSequence = 0;
+    std::chrono::steady_clock::time_point missileLastFlight{};
+    bool missileManual = false;
+    CVECTOR missileInputAngles;
+    float missileInputDistance = 1.f;
+    COMMON_CAMERA *missileInputCamera = nullptr;
+    CVECTOR missileOrbitOffset = CVECTOR(0.f);
+    float missileZoom = 1.f;
     std::chrono::steady_clock::time_point dartStarted{}, dartLastHit{};
 
     void RestoreDartView();
     void CancelDartView();
+    void ClearMissileControl();
     void RealizeDartView();
+    bool RealizeMissileView();
 
   public:
     SEA_CAMERAS();

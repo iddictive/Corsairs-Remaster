@@ -106,10 +106,11 @@ void EntityManager::RemoveFromLayer(const layer_index_t index, EntityInternalDat
 entid_t EntityManager::CreateEntity(const char *name, ATTRIBUTES *attr)
 {
     // Find VMA
+    if (!name || !name[0]) return invalid_entity;
     const auto hash = MakeHashValue(name);
     if (hash == 0)
     {
-        throw std::runtime_error("null hash");
+        return invalid_entity;
     }
     VMA *pClass = nullptr;
     for (const auto &c : __STORM_CLASSES_REGISTRY)
@@ -122,14 +123,14 @@ entid_t EntityManager::CreateEntity(const char *name, ATTRIBUTES *attr)
     }
     if (pClass == nullptr)
     {
-        throw std::runtime_error("invalid entity name");
+        return invalid_entity;
     }
 
     // Create entity
     auto *ptr = static_cast<Entity *>(pClass->CreateClass());
     if (ptr == nullptr)
     {
-        throw std::runtime_error("CreateClass returned nullptr");
+        return invalid_entity;
     }
 
     // Init entity

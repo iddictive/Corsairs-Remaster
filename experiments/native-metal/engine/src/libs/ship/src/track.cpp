@@ -461,7 +461,7 @@ uint32_t ShipTracks::AttributeChanged(ATTRIBUTES *pA)
 
 void ShipTracks::ShipTrack::Realize(float fDeltaTime)
 {
-    if (!pShip || !pSea || !pShip->HasWaterContact())
+    if (!pShip || !pSea)
         return;
 
     // pRS->SetTransform(D3DTS_WORLD, CMatrix());

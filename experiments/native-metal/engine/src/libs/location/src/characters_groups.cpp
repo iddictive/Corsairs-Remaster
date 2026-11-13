@@ -249,6 +249,17 @@ void CharactersGroups::CharacterVisibleCheck(Character *chr)
     }
 }
 
+// A directed debug override leaves the underlying group relationship untouched.
+// -1 means the ordinary group rules still apply.
+static int DebugPlayerTarget(Character *actor, Character *target)
+{
+    if (!actor || !target || !target->AttributesPointer || actor->IsPlayer() || !target->IsPlayer())
+        return -1;
+    if (target->AttributesPointer->GetAttributeAsDword("DebugInvisibleAI", 0)) return 0;
+    if (target->AttributesPointer->GetAttributeAsDword("DebugEnemyAll", 0)) return 1;
+    return -1;
+}
+
 // Check found characters for enemies
 void CharactersGroups::FindEnemyFromFindList(Character *chr, Group *grp, bool visCheck)
 {
@@ -261,7 +272,8 @@ void CharactersGroups::FindEnemyFromFindList(Character *chr, Group *grp, bool vi
         if (gi < 0)
             continue;
         auto &r = FindRelation(grp->index, gi);
-        if (r.curState != rs_enemy)
+        const int debug = DebugPlayerTarget(chr, fnd[i].c);
+        if (debug == 0 || (debug < 0 && r.curState != rs_enemy))
             continue;
         // Enemy detected, if invisible, then let him pass
         if (visCheck && !chr->VisibleTest(fnd[i].c))
@@ -316,17 +328,19 @@ bool CharactersGroups::AddEnemyTarget(Character *chr, Character *enemy, float ma
 {
     if (!chr || !enemy)
         return false;
-    // restore the alarm
+    const int debug = DebugPlayerTarget(chr, enemy);
+    if (debug == 0) return false;
+    // restore the alarm only for ordinary relationships
     const auto isSelf = false;
     auto &r = FindRelation(GetCharacterGroup(chr), GetCharacterGroup(enemy));
     Assert(!isSelf);
-    r.alarm = 1.0f;
-    if (r.alarm >= r.alarmmax)
-        r.isActive = true;
-    if (r.isActive)
-        r.curState = r.actState;
-    if (r.actState != rs_enemy)
-        return false;
+    if (debug < 0)
+    {
+        r.alarm = 1.0f;
+        if (r.alarm >= r.alarmmax) r.isActive = true;
+        if (r.isActive) r.curState = r.actState;
+        if (r.actState != rs_enemy) return false;
+    }
     // Looking among added
     for (int32_t i = 0; i < chr->numTargets; i++)
     {
@@ -339,7 +353,7 @@ bool CharactersGroups::AddEnemyTarget(Character *chr, Character *enemy, float ma
     if (chr->numTargets >= sizeof(chr->grpTargets) / sizeof(Character::GrpTarget))
         return false;
     // Add a new target
-    Assert(!storm::iEquals(chr->group, enemy->group));
+    Assert(debug == 1 || !storm::iEquals(chr->group, enemy->group));
     auto &trg = chr->grpTargets[chr->numTargets++];
     trg.chr = enemy->GetId();
     trg.time = 0.0f;
@@ -384,7 +398,8 @@ bool CharactersGroups::RemoveInvalidTargets(Character *chr, Character *check)
                 // The character exists and is remembered
                 const auto gc = GetCharacterGroup(c);
                 auto &r = FindRelation(gi, gc);
-                if (r.curState == rs_enemy)
+                const int debug = DebugPlayerTarget(chr, c);
+                if (debug == 1 || (debug < 0 && r.curState == rs_enemy))
                 {
                     isDelete = false;
                     if (check == c)
@@ -579,6 +594,8 @@ bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
             auto *nc = static_cast<NPCharacter *>(core.GetEntityPointer(c->grpTargets[i].chr));
             if (!nc)
                 continue;
+            if (DebugPlayerTarget(c, nc) == 0)
+                continue;
             if (!nc->IsSetBlade())
                 continue;
             // collect the number of characters fighting with this guy
@@ -615,11 +632,12 @@ bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
         if (s < 0)
             s = 0;
     }
+    auto *actor = c;
     c = static_cast<Character *>(core.GetEntityPointer(c->grpTargets[s].chr));
     // if(!c->IsSetBlade()) return false;
     // The remembered target can already be gone: the group stores the id, not the
     // character, so the lookup above can fail on a target that left the location.
-    if (!c)
+    if (!c || DebugPlayerTarget(actor, c) == 0)
         return false;
     if (c->AttributesPointer)
     {
@@ -635,8 +653,15 @@ bool CharactersGroups::MsgGetOptimalTarget(MESSAGE &message) const
 // Is this character an enemy
 bool CharactersGroups::MsgIsEnemy(MESSAGE &message)
 {
-    const auto g1 = GetCharacterGroup(static_cast<Character *>(core.GetEntityPointer(message.EntityID())));
-    const auto g2 = GetCharacterGroup(static_cast<Character *>(core.GetEntityPointer(message.EntityID())));
+    auto *actor = static_cast<Character *>(core.GetEntityPointer(message.EntityID()));
+    auto *target = static_cast<Character *>(core.GetEntityPointer(message.EntityID()));
+    const int debug = DebugPlayerTarget(actor, target);
+    if (debug >= 0) return debug != 0;
+    // The player must be able to fight an ally who is attacking under this
+    // mode; do not otherwise change the player's ordinary target selection.
+    if (DebugPlayerTarget(target, actor) == 1) return true;
+    const auto g1 = GetCharacterGroup(actor);
+    const auto g2 = GetCharacterGroup(target);
     if (g1 < 0 || g2 < 0)
         return false;
     auto isSelf = false;
@@ -696,9 +721,10 @@ void CharactersGroups::MsgAddTarget(MESSAGE &message)
         return;
     auto isSelf = false;
     auto &r = FindRelation(g1, g2, &isSelf);
-    if (isSelf)
+    const int debug = DebugPlayerTarget(chr, enemy);
+    if (debug == 0 || (isSelf && debug < 0))
         return;
-    if (r.curState != rs_enemy)
+    if (debug < 0 && r.curState != rs_enemy)
         return;
     // Adding the enemy
     AddEnemyTarget(chr, enemy, message.Float());

@@ -16,15 +16,16 @@ struct SeaShipWake {
  struct Sample {float h=0, sx=0, sz=0;};
  struct Snapshot {
   int ox=0,oz=0; float heightBound=0.f; std::vector<float> h;
-  Sample sample(float x,float z) const {
+  Sample sample(float x,float z,bool gradients=true) const {
    const float gx=x/DX-float(ox),gz=z/DX-float(oz);
    if (!(gx>=1.f && gz>=1.f && gx<float(N-2) && gz<float(N-2))) return {};
    const int ix=int(gx),iz=int(gz);const float u=gx-ix,v=gz-iz;
    const float a=h[iz*N+ix],b=h[iz*N+ix+1],c=h[(iz+1)*N+ix],d=h[(iz+1)*N+ix+1];
-   Sample r{(a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v,((b-a)*(1-v)+(d-c)*v)/DX,((c-a)*(1-u)+(d-b)*u)/DX};
+   Sample r{(a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v,0.f,0.f};
+   if(gradients){r.sx=((b-a)*(1-v)+(d-c)*v)/DX;r.sz=((c-a)*(1-u)+(d-b)*u)/DX;}
    if(gx<13.f||gz<13.f||gx>float(N-14)||gz>float(N-14)){
-    auto taper=[](float q,float& derivative){float d=std::min(q-1.f,float(N-2)-q);if(d>=12.f){derivative=0.f;return 1.f;}float t=std::clamp(d/12.f,0.f,1.f);derivative=(q<float(N)*.5f?1.f:-1.f)*(6.f*t*(1.f-t))/(12.f*DX);return t*t*(3.f-2.f*t);};
-    float dx,dz,wx=taper(gx,dx),wz=taper(gz,dz);r.sx=r.sx*wx*wz+r.h*dx*wz;r.sz=r.sz*wx*wz+r.h*dz*wx;r.h*=wx*wz;
+    auto taper=[gradients](float q,float& derivative){float d=std::min(q-1.f,float(N-2)-q);if(d>=12.f){derivative=0.f;return 1.f;}float t=std::clamp(d/12.f,0.f,1.f);derivative=gradients?(q<float(N)*.5f?1.f:-1.f)*(6.f*t*(1.f-t))/(12.f*DX):0.f;return t*t*(3.f-2.f*t);};
+    float dx,dz,wx=taper(gx,dx),wz=taper(gz,dz);if(gradients){r.sx=r.sx*wx*wz+r.h*dx*wz;r.sz=r.sz*wx*wz+r.h*dz*wx;}r.h*=wx*wz;
    }
    return r;
   }

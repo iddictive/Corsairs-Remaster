@@ -7,6 +7,8 @@ technique Cannonballs
         CullMode = none;
         AlphaTestEnable = true;
         AlphaBlendEnable = true;
+        SrcBlend = srcalpha;
+        DestBlend = invsrcalpha;
 
         ColorOp[0] = selectarg1;
         ColorArg1[0] = texture;

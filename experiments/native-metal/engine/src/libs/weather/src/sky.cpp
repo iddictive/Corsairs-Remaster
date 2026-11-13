@@ -19,7 +19,7 @@ extern "C" bool StormMetalPrepareDynamicSky(void *device, float hour, float delt
 extern "C" void StormMetalEndDynamicSky(void *device);
 extern "C" bool StormMetalBeginSkyFog(void *device, uint32_t fogColor);
 extern "C" void StormMetalEndSkyFog(void *device);
-extern "C" void StormMetalSetAuthoredSky(void *device, float stormBlend, bool hasStorm, float amount);
+extern "C" void StormMetalSetAuthoredSky(void *device, float stormBlend, bool hasStorm, float amount, bool seaHorizon);
 extern "C" void StormMetalSetAuthoredSkyFog(void *device, void *const *textures,
                                            float blend, float stormBlend, float amount, float rotation, float cameraHeight);
 
@@ -79,14 +79,14 @@ class MetalSkyFogScope
 class MetalAuthoredSkyScope
 {
   public:
-    MetalAuthoredSkyScope(VDX9RENDER *renderer, float stormBlend, bool hasStorm, float amount)
+    MetalAuthoredSkyScope(VDX9RENDER *renderer, float stormBlend, bool hasStorm, float amount, bool seaHorizon)
         : renderer(renderer)
     {
-        StormMetalSetAuthoredSky(renderer->GetNativeDevice(), stormBlend, hasStorm, amount);
+        StormMetalSetAuthoredSky(renderer->GetNativeDevice(), stormBlend, hasStorm, amount, seaHorizon);
     }
     ~MetalAuthoredSkyScope()
     {
-        StormMetalSetAuthoredSky(renderer->GetNativeDevice(), 0.f, false, 0.f);
+        StormMetalSetAuthoredSky(renderer->GetNativeDevice(), 0.f, false, 0.f, false);
         renderer->TextureSet(2, -1);
         renderer->TextureSet(3, -1);
     }
@@ -608,7 +608,8 @@ void SKY::Realize(uint32_t Delta_Time)
     WEATHER_BASE *metalWeather = nullptr;
     if (const auto weatherId = core.GetEntityId("weather"))
         metalWeather = static_cast<WEATHER_BASE *>(core.GetEntityPointer(weatherId));
-    MetalAuthoredSkyScope authoredSkyScope(pRS, stormTextureBlend, stormTexturesReady && metalWeather, stormAmount);
+    MetalAuthoredSkyScope authoredSkyScope(pRS, stormTextureBlend, stormTexturesReady && metalWeather, stormAmount,
+                                           vPos.y > 0.f && core.GetEntityId("sea"));
     const bool drawLowerSky = true;
 #else
     const bool drawLowerSky = Delta_Time == 0;

@@ -10,6 +10,36 @@
       "title": "RAIZHELL — Faster",
       "url": "https://ncs.io/track/download/b932608b-31f6-48e6-b044-b3a4e4782a56",
       "page": "https://ncs.io/Faster"
+    },
+    "RESOURCE/Sounds/Phonk/missile-heavy.wav": {
+      "source": "missile-heavy.wav", "source_sha256": "bf419da15f140a693ab8e27309740eecd368819d89c762b891d1920da17a9eac",
+      "prepared": "missile-heavy.wav", "sha256": "bf419da15f140a693ab8e27309740eecd368819d89c762b891d1920da17a9eac",
+      "consumer": "phonk_missile_heavy", "provenance": "U.S. Navy Strategic Systems Programs, Trident II launch from USS Wyoming (2021); public domain in the U.S.; audio excerpt 20.0-22.4s, mono 22050 Hz with fades. Original video SHA-256 fbd5e39814f9e2a12353a42c6f1ac1c042a85e72f569248e01be6188b33c81b5.",
+      "url": "https://commons.wikimedia.org/wiki/File:Trident_II_UGM-133A_D5LE_Missile_from_USS_Wyoming,_2021.webm"
+    },
+    "RESOURCE/Sounds/Phonk/missile-cruise.wav": {
+      "source": "missile-cruise.wav", "source_sha256": "88040c02c8ef94b4c259b2001f831be3eac4efbdc192f493933dcbed1f2388e1",
+      "prepared": "missile-cruise.wav", "sha256": "88040c02c8ef94b4c259b2001f831be3eac4efbdc192f493933dcbed1f2388e1",
+      "consumer": "phonk_missile_cruise", "provenance": "U.S. Navy / Jonathan Sunderman, USS Barry Tomahawk launch (2011), public domain in the U.S. and CC BY 2.0; excerpt 1.25-4.05s, converted to mono 22050 Hz with fades. Original SHA-256 058a8f76ec157c803ad0d3b8baa8b56341b074646e1dc53259d6acfa41af391a.",
+      "url": "https://commons.wikimedia.org/wiki/File:USS_Barry_fires_Tomahawk_for_Operation_Odyssey_Dawn.ogv", "license_url": "https://creativecommons.org/licenses/by/2.0/"
+    },
+    "RESOURCE/Sounds/Phonk/missile-interceptor.wav": {
+      "source": "missile-interceptor.wav", "source_sha256": "4e9ff406a4af0b413c3cfd43777d3bafeb92f06b615ae9ce35e9cff23d154b9c",
+      "prepared": "missile-interceptor.wav", "sha256": "4e9ff406a4af0b413c3cfd43777d3bafeb92f06b615ae9ce35e9cff23d154b9c",
+      "consumer": "phonk_missile_interceptor", "provenance": "U.S. Navy, Petty Officer 2nd Class Sawyer Connally, USS Porter SM-2 launch (2023); public domain in the U.S.; audio excerpt 49.5-51.5s, mono 22050 Hz with fades. Original video SHA-256 713c26c4a91f5432eaa7d269ceaae86b9f7e0f3561f693e9da4d253666f57a66.",
+      "url": "https://commons.wikimedia.org/wiki/File:230520-N-NQ285-2004_-_USS_Porter_SM-2_launch_Formidable_Shield_2023.webm"
+    },
+    "RESOURCE/Sounds/Phonk/missile-flyby.wav": {
+      "source": "missile-flyby.wav", "source_sha256": "783df3722c905f0773ad01225f9c3a8411dc85c6bcebe3c3bc045384ed718e3d",
+      "prepared": "missile-flyby.wav", "sha256": "783df3722c905f0773ad01225f9c3a8411dc85c6bcebe3c3bc045384ed718e3d",
+      "consumer": "phonk_missile_flyby", "provenance": "U.S. Navy / Jonathan Sunderman, USS Barry Tomahawk launch (2011), public domain in the U.S. and CC BY 2.0; launch tail used as flyby approximation, excerpt 4.0-5.5s, converted to mono 22050 Hz with fades. Original SHA-256 058a8f76ec157c803ad0d3b8baa8b56341b074646e1dc53259d6acfa41af391a.",
+      "url": "https://commons.wikimedia.org/wiki/File:USS_Barry_fires_Tomahawk_for_Operation_Odyssey_Dawn.ogv", "license_url": "https://creativecommons.org/licenses/by/2.0/"
+    },
+    "RESOURCE/Sounds/Phonk/missile-impact.wav": {
+      "source": "missile-impact.wav", "source_sha256": "80f48ba39bb86f66534d479b3ba16a78f06fcb69fde6d4910b740767f802b086",
+      "prepared": "missile-impact.wav", "sha256": "80f48ba39bb86f66534d479b3ba16a78f06fcb69fde6d4910b740767f802b086",
+      "consumer": "phonk_missile_impact", "provenance": "State Emergency Service of Ukraine, disposal of explosive objects in Mykolaiv Oblast (2024), CC BY 4.0; explosion excerpt 2.17-4.67s, converted to mono 22050 Hz with fades. Original SHA-256 a024dc5b37679c8640b9eb76f9420285e1daf969bc5896afbe54f01bbe98f13c.",
+      "url": "https://commons.wikimedia.org/wiki/File:Disposal_of_explosive_objects_in_Mykolaiv_Oblast_(2024-04-11).webm", "license_url": "https://creativecommons.org/licenses/by/4.0/"
     }
   }
 }

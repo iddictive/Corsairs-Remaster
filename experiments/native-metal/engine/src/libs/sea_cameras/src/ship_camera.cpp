@@ -131,7 +131,8 @@ void SHIP_CAMERA::Move(float fDeltaTime)
     const auto *ship = dynamic_cast<const SHIP_BASE *>(GetAIObj());
     // Rigid flight translates the camera with the ship's waterline frame;
     // altitude is not an increase in hull size or a sea-level look target.
-    const float framingReference = ship && ship->HasRigidFlight() ? ship->GetPos().y : seaReference;
+    const bool airborne = ship && (ship->HasRigidFlight() || ship->GetPos().y > seaReference + 0.5f);
+    const float framingReference = airborne ? ship->GetPos().y : seaReference;
     // Recalculate box size: (box size + immersion) * hand-fitted scale
     boxSize.y += modelMtx->v.pos.y - framingReference;
     boxSize *= CVECTOR(SCMR_BOXSCALE_X * 0.5f, SCMR_BOXSCALE_Y * 0.5f, SCMR_BOXSCALE_Z * 0.5f);
@@ -164,7 +165,8 @@ void SHIP_CAMERA::Move(float fDeltaTime)
     }
     vPos = CMatrix(CVECTOR(0.0f, fModelAy, 0.0f), vCenter) * vPos;
     vCenter.y += fDistance * 2.0f * boxSize.y;
-    vCenter.y = std::min(vCenter.y, framingReference + boxSize.y);
+    if (!airborne)
+        vCenter.y = std::min(vCenter.y, framingReference + boxSize.y);
     if (vAng.x > 0.0f)
         vCenter.y += realBoxSize.y * vAng.x * 6.0f;
     // Limit the height from the bottom
@@ -180,8 +182,8 @@ void SHIP_CAMERA::Move(float fDeltaTime)
         ShipsCollision(vPos);
         IslandCollision(vPos);
     }
-    if (vPos.y > oldPosY)
-        vCenter.y += vPos.y - oldPosY;
+    // Keep vCenter stable on the ship without wave-jerk
+    (void)oldPosY;
     // Set new camera
     pRS->SetCamera(vPos, vCenter, CVECTOR(0.0f, 1.0f, 0.0f));
     pRS->SetPerspective(GetPerspective());

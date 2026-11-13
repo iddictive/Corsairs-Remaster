@@ -60,18 +60,18 @@ void CreateBallsEnvironment()
 
 	// Bombs
 	Bombs.SubTexIndex = 0;		Bombs.Size = 0.3;		Bombs.GoodIndex = GOOD_BOMBS;
-	Bombs.Particle = "bomb_smoke";
+	Bombs.Particle = "Bomb_Smoke";
 
 	// Grapes
 	Grapes.SubTexIndex = 2;		Grapes.Size = 0.055;		Grapes.GoodIndex = GOOD_GRAPES;
-	Grapes.Particle = "grapes_tracer";
+	Grapes.Particle = "";
 
 	// Balls
 	Balls.SubTexIndex = 2;		Balls.Size = 0.2;		Balls.GoodIndex = GOOD_BALLS;
-	Balls.Particle = "balls_tracer";
+	Balls.Particle = "Balls_Tracer";
 	// Knippels
 	Knippels.SubTexIndex = 3;	Knippels.Size = 0.24;	Knippels.GoodIndex = GOOD_KNIPPELS;
-	Knippels.Particle = "knippels_tracer";
+	Knippels.Particle = "Knippels_Tracer";
 
 	AIBalls.isDone = 1;
 
@@ -263,6 +263,8 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 		AIBalls.Event = "@airburst:" + GOOD_AIRBURST;
 	}
 
+	int debugSalvo = 1;
+	if (globalSGMode && sti(aCharacter.index) == GetMainCharacterIndex()) debugSalvo = 6;
 	if (sti(aCharacter.Ship.Cannons.Charge.Type) == GOOD_GRAPES)
 	{
 		float baseDir = stf(AIBalls.Dir);
@@ -271,7 +273,7 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 		float baseSize = stf(AIBalls.SizeMultiply);
 		AIBalls.SizeMultiply = baseSize * 0.40;
 
-		int iPellets = 6;
+		int iPellets = 6 * debugSalvo;
 		for (int ig = 0; ig < iPellets; ig++)
 		{
 			// Физический сноп рассеивания картечи
@@ -285,8 +287,17 @@ void Ball_AddBall(aref aCharacter, float fX, float fY, float fZ, float fSpeedV0,
 	}
 	else
 	{
-		EntityUpdate(1);
-		AIBalls.Add = "";
+		float baseDirShot = stf(AIBalls.Dir);
+		float baseAngShot = stf(AIBalls.Ang);
+		for (int shot = 0; shot < debugSalvo; shot++)
+		{
+			if (shot > 0) {
+				AIBalls.Dir = baseDirShot + (frnd() - 0.5) * 0.035;
+				AIBalls.Ang = baseAngShot + (frnd() - 0.5) * 0.025;
+			}
+			EntityUpdate(1);
+			AIBalls.Add = "";
+		}
 	}
 
 	string sParticleName = "cancloud_fire";		// if (sti(aCharacter.ship.type) < SHIP_CORVETTE)
@@ -308,37 +319,38 @@ void Ball_BombExplosion()
 	float y = GetEventData();
 	float z = GetEventData();
 	int surface = GetEventData();
-	if (surface != 2) CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
-	if (surface == 1) Play3DSound("bomb2bort", x, y, z);
+	Ball_CreateNavalEffect("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0, 10);
+	if (surface != 0) Play3DSound("bomb2bort", x, y, z);
 }
 
 void Ball_WaterHitEvent()
 {
-	int		iCharacterIndex;
-	float	x, y, z, vx, vy, vz;
+	int	iCharacterIndex;
+	float	x, y, z;
 
 	iCharacterIndex = GetEventData();
 	x = GetEventData();
 	y = GetEventData();
 	z = GetEventData();
 
-	if (sti(AIBalls.CurrentAirburstFragment))
+	if (iCharacterIndex < 0 || sti(AIBalls.CurrentAirburstFragment))
 	{
-		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 5, 2);
+		Ball_CreateNavalEffect("splash", x, y, z, 0.0, 0.0, 0.0, 5, 2);
 	}
 	else if (sti(AIBalls.CurrentBallCannonType) >= 0)
 	{
 		ref rCannon = GetCannonByType(sti(AIBalls.CurrentBallCannonType));
-
-		if (sti(rCannon.BigBall))	{ Ball_CreateNavalEffect("splash_big", X, Y, Z, 0.0, 0.0, 0.0, 5, 2); }
-		else						{ Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 5, 2); }
+		if (sti(rCannon.BigBall)) { Ball_CreateNavalEffect("splash_big", x, y, z, 0.0, 0.0, 0.0, 5, 2); }
+		else                     { Ball_CreateNavalEffect("splash", x, y, z, 0.0, 0.0, 0.0, 5, 2); }
 	}
 	else
 	{
-		Ball_CreateNavalEffect("splash", X, Y, Z, 0.0, 0.0, 0.0, 5, 2);
+		Ball_CreateNavalEffect("splash", x, y, z, 0.0, 0.0, 0.0, 5, 2);
 	}
-
-	Play3DSound("ball_splash", x, y, z);
+	string splashAlias = "ball_splash";
+	if (iCharacterIndex < 0) splashAlias = "debris_splash";
+	int splashSound = Play3DSound(splashAlias, x, y, z);
+	if (iCharacterIndex < 0 && splashSound > 0) Sound_SetVolume(splashSound, 0.22);
 }
 
 void Ball_FortHit()
@@ -355,29 +367,22 @@ void Ball_FortHit()
 	// Каменные форты не должны выбивать деревянные доски (blast содержит wood-эмиттер)
 	if (rand(4) == 1)
 	{
-		CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
+		Ball_CreateNavalEffect("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0, 10);
 	}
 	SendMessage(&AIFort, "llfff", AI_MESSAGE_FORT_HIT, iCharacterIndex, x, y, z);
 }
 
 void Ball_IslandHit()
 {
-	int		iCharacterIndex;
+	int	iCharacterIndex;
 	float	x, y, z;
 
 	iCharacterIndex = GetEventData();
-
 	x = GetEventData();
 	y = GetEventData();
 	z = GetEventData();
 
-	// Скалы и земля не должны выбивать деревянные доски
-	if (rand(2) == 1)
-	{
-		CreateParticleSystem("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0);
-	}
-
-	//Ship_SetLightsOff(&Characters[1], 15.0, true, true, false);
+	Ball_CreateNavalEffect("blast_inv", x, y, z, 0.0, 0.0, 0.0, 0, 10);
 }
 
 void Ball_OnFlyUpdate()

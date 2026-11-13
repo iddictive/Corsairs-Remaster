@@ -1,0 +1,177 @@
+{
+  "source": "JangaFX Mid-Air Explosion",
+  "source_url": "https://jangafx.com/software/embergen/download/free-vdb-animations/",
+  "archive_url": "https://www.mediafire.com/file/uwmxisgj9xagrdh/Midair_Explosion_01.rar/file",
+  "license": "CC0-1.0",
+  "source_index_domain": [
+    193,
+    385,
+    385
+  ],
+  "texture_axes": "x,z,y",
+  "frame_dimensions": [
+    64,
+    64,
+    64
+  ],
+  "channels": {
+    "R": "density / 2",
+    "G": "flames / 2"
+  },
+  "packed_file": "MidairExplosion64.rg8",
+  "packed_sha256": "6eb2a0acd92df2b0a3bd43e9a075cdbd9cc682615ff61d358795dbc80cfb7444",
+  "frames": [
+    {
+      "source_frame": 0,
+      "source_time_seconds": 0.0,
+      "packed_key": 0,
+      "source": "source/0000.vdb",
+      "source_sha256": "d3055a08f07766ab6f0e8a813b64ee22fec9803c5c534aa1d8c0f077837a72af",
+      "converted_sha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541"
+    },
+    {
+      "source_frame": 2,
+      "source_time_seconds": 0.033333,
+      "packed_key": 3,
+      "source": "source/0002.vdb",
+      "source_sha256": "cdde2a510cc6d01e557c84d34baefbb1c37743663de801c833ea50d4e991d8d9",
+      "converted_sha256": "047cba485985340e8c7d9772ee7710a8c026fa5254d1feecc17e398c13970d8b"
+    },
+    {
+      "source_frame": 4,
+      "source_time_seconds": 0.066667,
+      "packed_key": 6,
+      "source": "source/0004.vdb",
+      "source_sha256": "c3de2496d8d38270d05403eb7addcd40f78d0aa09302bf692f8977e581e27788",
+      "converted_sha256": "ff1779d502e2a322a2de23073bb17dbdce3182cabc762c119356ac67a9dc9ac4"
+    },
+    {
+      "source_frame": 6,
+      "source_time_seconds": 0.1,
+      "packed_key": 10,
+      "source": "source/0006.vdb",
+      "source_sha256": "f3ba5ffdf35dea014102ad3efd3c1f698acd7cf3263d638e1ded4326f4bee1c8",
+      "converted_sha256": "699229ad863b7d8bd35dfcf2954a327b2e4ad6c5d0afd28988fc5839dcf3b54e"
+    },
+    {
+      "source_frame": 8,
+      "source_time_seconds": 0.133333,
+      "packed_key": 13,
+      "source": "source/0008.vdb",
+      "source_sha256": "0706d2153b1380963c90c4be7f018dbe2757a68e0d56b3bc5e7054b131f3fb6b",
+      "converted_sha256": "d38861a98fa40e642175f5c615feeb1356981c70a42835db10e7c00d3c14bc3b"
+    },
+    {
+      "source_frame": 10,
+      "source_time_seconds": 0.166667,
+      "packed_key": 16,
+      "source": "source/0010.vdb",
+      "source_sha256": "0cff2c087799c1e62ebdcb47ff6033f5aace9ff1378f25bbad00934fffd0fb72",
+      "converted_sha256": "da864c8ae29f40d8d5790f5b12a0642729b19d011147ba703f24708149e143d2"
+    },
+    {
+      "source_frame": 12,
+      "source_time_seconds": 0.2,
+      "packed_key": 19,
+      "source": "source/0012.vdb",
+      "source_sha256": "e49f1a5a06f26ffde181a7192cf953bffb2aca7a0278961e51e869cafdd4a22e",
+      "converted_sha256": "d18b9fc8bbbe6e0682589209d42d69002dfaa61df0b3e377ff687d1ad38e809e"
+    },
+    {
+      "source_frame": 15,
+      "source_time_seconds": 0.25,
+      "packed_key": 24,
+      "source": "source/0015.vdb",
+      "source_sha256": "24ae5206c05ffa9b91c6952f8da02ffc87022cc6bd877ee1bff79a81f491a828",
+      "converted_sha256": "ee194b03501f680f089d71cce5731464f5a24a4678218fa169bf6cd282150870"
+    },
+    {
+      "source_frame": 18,
+      "source_time_seconds": 0.3,
+      "packed_key": 29,
+      "source": "source/0018.vdb",
+      "source_sha256": "0e216fb07e47cf00141ba9301bd776e13793caedf8e69e2e569ad6f843242677",
+      "converted_sha256": "3ebed540589b3ea2a77866f5a1d041090ae929203f749c3e2afa98fae2cef950"
+    },
+    {
+      "source_frame": 22,
+      "source_time_seconds": 0.366667,
+      "packed_key": 35,
+      "source": "source/0022.vdb",
+      "source_sha256": "625465c362d0d552a8107352da42e81692e52a3235e09e9b8a5ba8a17ca45ccb",
+      "converted_sha256": "9e18e0068c0f22d5a382f4c9ac5d542ab7cba3f2ef980eda1f54b0077a93bba5"
+    },
+    {
+      "source_frame": 27,
+      "source_time_seconds": 0.45,
+      "packed_key": 43,
+      "source": "source/0027.vdb",
+      "source_sha256": "827a5e510aacc7ee9b5f3df8cc82e234b6cf23c89b93d571ae2a74ba5558cf09",
+      "converted_sha256": "94488f96969dfbe5b60ce739e13deb6badba72d6bc1bf420547010df4e8db2a1"
+    },
+    {
+      "source_frame": 33,
+      "source_time_seconds": 0.55,
+      "packed_key": 53,
+      "source": "source/0033.vdb",
+      "source_sha256": "69900280496a95ee7a00279e637db67b151b849337fb2c843df546949e3f5aa1",
+      "converted_sha256": "42bf1bd2b980ec84b718a0ea9cfd87f7d4daeaf437eb5c701a4dfbf1e085ea9f"
+    },
+    {
+      "source_frame": 40,
+      "source_time_seconds": 0.666667,
+      "packed_key": 64,
+      "source": "source/0040.vdb",
+      "source_sha256": "01bbf6200dcb5672ad352e0df6ed55d0489b6aaccbf69d9de732613f9f6cf39f",
+      "converted_sha256": "8f0355efbba3880a313387a4cb235a2042fd1dfde06d438e2cc9c11a9c2d4d9f"
+    },
+    {
+      "source_frame": 48,
+      "source_time_seconds": 0.8,
+      "packed_key": 76,
+      "source": "source/0048.vdb",
+      "source_sha256": "13b72600630a763f1485792f9e003389fb2526b3e1a426392c422387e0e102f2",
+      "converted_sha256": "66af11e08747a6d00f2591eec0fa853a917094830e01f644f7aa188e38afd45b"
+    },
+    {
+      "source_frame": 58,
+      "source_time_seconds": 0.966667,
+      "packed_key": 92,
+      "source": "source/0058.vdb",
+      "source_sha256": "6daf23b3eb3caf68ffc30ee4250327c6391447f809c966371c713b56efdeb2c0",
+      "converted_sha256": "ab9ad0ba1ed2402dd98dd03cafc184fc5069d39995e0cbd2c1ef7c14dd4dd5f5"
+    },
+    {
+      "source_frame": 70,
+      "source_time_seconds": 1.166667,
+      "packed_key": 111,
+      "source": "source/0070.vdb",
+      "source_sha256": "9b85878910a4e7f62975f9137f8387cc3f8aa6ae2fe475364dd0a5f7594d812b",
+      "converted_sha256": "b068987001cf680bba00013b90ac92c8f0a72a5d51f5550ff55e3567081cf559"
+    },
+    {
+      "source_frame": 84,
+      "source_time_seconds": 1.4,
+      "packed_key": 134,
+      "source": "source/0084.vdb",
+      "source_sha256": "043f765a8af4c90450f7e069dac75c9a3ad06cdf180133a1236443fcfd9a47e6",
+      "converted_sha256": "2f2d6ed479193076adff644665f02acbb2061bcce2862e47268048a626706adb"
+    },
+    {
+      "source_frame": 100,
+      "source_time_seconds": 1.666667,
+      "packed_key": 159,
+      "source": "source/0100.vdb",
+      "source_sha256": "58c6b60c8aa7f3581bd9fc3fd2e40b72df5577367a3303cc6063c9f5652cd8e2",
+      "converted_sha256": "211cf315cbd29f04a44ab25deb8a58a79d794841589b17ca87c1b190ec07671d"
+    },
+    {
+      "source_frame": 125,
+      "source_time_seconds": 2.083333,
+      "packed_key": 199,
+      "source": "source/0125.vdb",
+      "source_sha256": "452ec0fd107de0db3dd6ab5b3c682947a02481b93e8c25bc5850489c57e52242",
+      "converted_sha256": "56edd5e684b1f2835a67dcc16039e54aae87a6340285304212f389eea909b547"
+    }
+  ]
+}

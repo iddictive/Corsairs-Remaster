@@ -136,7 +136,7 @@ void AIShip::Execute(float fDeltaTime)
                 const bool instant = cheats && cheats->GetAttributeAsDword("InstantCannonReload", 0);
                 const uint32_t mode = (active ? 0x100u + weapon : 0u) | (pCameraController->isCameraOutside() ? 0x1000u : 0u) |
                     (GetCannonController()->IsSingleFireMode() ? 0x2000u : 0u) | (instant ? 0x4000u : 0u);
-                const bool special = active && (weapon == 6 || weapon == 7);
+                const bool special = active && (weapon == 6 || weapon == 7 || weapon == 8);
                 auto *allowed = core.Event("Ship_CanRepeatFire");
                 const bool canRepeat = allowed && allowed->GetInt() && !special;
                 if (!canRepeat) heldFireArmed = false;
@@ -410,7 +410,7 @@ bool AIShip::Fire(bool bCameraOutside)
     if (isMainCharacter() && !isAIControlled() && phonk && phonk->GetAttributeAsDword("Active"))
     {
         const auto weapon = phonk->GetAttributeAsDword("Weapon", 6);
-        if (weapon == 6 || weapon == 7) return false;
+        if (weapon == 6 || weapon == 7 || weapon == 8) return false;
     }
     if (isMainCharacter() && !bCameraOutside)
     {
@@ -425,6 +425,8 @@ bool AIShip::Fire(bool bCameraOutside)
             if (isEnemy(*AIShips[i]))
             {
                 const auto bCanFire = GetCannonController()->isCanFire(AIShips[i]);
+                if (!bCanFire)
+                    continue;
                 if (!isCanFire(AIShips[i]->GetPos()))
                     continue;
                 if (bCanFire)
@@ -444,7 +446,11 @@ bool AIShip::Fire(bool bCameraOutside)
             for (k = 0; k < AIFort::pAIFort->GetNumForts(); k++)
             {
                 auto *pFort = AIFort::pAIFort->GetFort(k);
-                if (!Helper.isEnemy(pFort->GetACharacter(), GetACharacter()))
+                // The fort's incoming view of an invisible player is neutral;
+                // player-controlled fire still uses the player's own relation.
+                const bool hiddenPlayer = isMainCharacter() && GetACharacter()->GetAttributeAsDword("DebugInvisibleAI", 0);
+                if (!(hiddenPlayer ? Helper.isEnemy(GetACharacter(), pFort->GetACharacter()) :
+                                     Helper.isEnemy(pFort->GetACharacter(), GetACharacter())))
                     continue;
                 if (!pFort->isNormalMode())
                     continue;
@@ -452,7 +458,8 @@ bool AIShip::Fire(bool bCameraOutside)
                 for (i = 0; i < iMax; i++)
                 {
                     auto *const pC = pFort->GetCannon(i);
-                    if (pC && !pC->isDamaged() && GetCannonController()->isCanFirePos(pC->GetPos()) &&
+                    if (pC && !pC->isDamaged() &&
+                        (!GetCannonController()->IsSingleFireMode() || GetCannonController()->isCanFirePos(pC->GetPos())) &&
                         isCanFire(pC->GetPos()))
                     {
                         // check for friendly fire
@@ -488,13 +495,27 @@ bool AIShip::Fire(bool bCameraOutside)
             }
 
             const bool single = GetCannonController()->IsSingleFireMode();
+            bool fortSalvoAttempted = false;
             for (i = 0; i < aShipFire.size(); i++)
             {
                 auto *const pFire = &aShipFire[i];
                 if (pFire->pShip && GetCannonController()->Fire(pFire->pShip) && single)
                     return true;
-                if (pFire->pFortCannon && GetCannonController()->Fire(pFire->pFortCannon->GetPos()) && single)
-                    return true;
+                if (pFire->pFortCannon)
+                {
+                    if (single)
+                    {
+                        if (GetCannonController()->Fire(pFire->pFortCannon->GetPos())) return true;
+                    }
+                    else if (!fortSalvoAttempted)
+                    {
+                        std::vector<CVECTOR> targets;
+                        for (const auto &candidate : aShipFire)
+                            if (candidate.pFortCannon) targets.push_back(candidate.pFortCannon->GetPos());
+                        GetCannonController()->FireFortTargets(targets);
+                        fortSalvoAttempted = true;
+                    }
+                }
             }
         }
     }

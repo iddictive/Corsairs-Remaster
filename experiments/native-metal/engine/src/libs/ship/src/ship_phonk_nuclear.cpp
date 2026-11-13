@@ -56,15 +56,26 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         contact.ship = id;
         contact.Query(std::max(.001f, std::hypot(position.x - center.x, position.z - center.z)), 0.f);
         blast.contacts.push_back(contact);
-        // Wrecks retain heat and momentum, but never settle another hull death.
-        if (ship->isDead()) continue;
-        const bool canFloat = ship->CanFloatPhonkNuclearWreck();
+        // Wrecks can still be cut, but must not settle hull death a second time.
+        const bool wasDead = ship->isDead();
+        const bool canFloat = !wasDead && ship->CanFloatPhonkNuclearWreck();
         CVECTOR local; root->glob_mtx.MulToInv(center, local);
         const CVECTOR closest(std::clamp(local.x, info.boxcenter.x - info.boxsize.x * .5f, info.boxcenter.x + info.boxsize.x * .5f),
                               std::clamp(local.y, info.boxcenter.y - info.boxsize.y * .5f, info.boxcenter.y + info.boxsize.y * .5f),
                               std::clamp(local.z, info.boxcenter.z - info.boxsize.z * .5f, info.boxcenter.z + info.boxsize.z * .5f));
         const float distance = std::sqrt(~(root->glob_mtx * closest - center));
         if (!std::isfinite(distance) || distance >= radius) continue;
+        if (!ship->isDead()) {
+            core.Event("SeaPhonk_MissileAttack", "all", character, owner, blast.surrenderEpoch);
+            if (!sourceLive()) return;
+            ship = static_cast<SHIP *>(core.GetEntityPointer(id));
+            character = ship ? ship->GetACharacter() : nullptr;
+            if (!ship || !ship->bMounted || !ATTRIBUTES::IsLive(character) ||
+                character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
+            model = ship->GetModel();
+            root = model ? model->GetNode(0) : nullptr;
+            if (!root || !root->geo) continue;
+        }
         blast.contacts.back().directDamage = true;
         const float strength = 1.f - distance / radius;
         const auto hullCenter = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
@@ -91,6 +102,7 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         ship = static_cast<SHIP *>(core.GetEntityPointer(id));
         character = ship ? ship->GetACharacter() : nullptr;
         if (!ATTRIBUTES::IsLive(character) || character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
+        if (wasDead) continue;
         // Script death/quests, perks and attribution retain their existing owner.
         core.Event("SeaPhonk_HullCut", "alfll", character, owner, strength,
                    int32_t(strength >= .4f), int32_t(1));

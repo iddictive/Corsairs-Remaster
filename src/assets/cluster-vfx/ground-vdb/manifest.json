@@ -1,0 +1,178 @@
+{
+  "source": "JangaFX Ground Explosion VDB",
+  "license": "CC0-1.0",
+  "source_url": "https://jangafx.com/software/embergen/download/free-vdb-animations/",
+  "archive_url": "https://www.mediafire.com/file/vm64xg0vta64qgl/GroundExplosionVDB.zip/file",
+  "dimensions": [
+    64,
+    64,
+    64
+  ],
+  "format": "RG8Unorm",
+  "memory_order": "x fastest, then y, then z; 2 bytes per voxel",
+  "channels": {
+    "R": "density divided by 2",
+    "G": "flames divided by 8"
+  },
+  "source_index_domain": [
+    287,
+    287,
+    319
+  ],
+  "axes": "texture (x,y,z) samples source index (x,z,y)",
+  "playback": "linearly interpolate consecutive texture frames according to time_seconds; clamp outside range to zero",
+  "frames": [
+    {
+      "source_frame": 0,
+      "time_seconds": 0.0,
+      "source": "source/0000.vdb",
+      "source_sha256": "0ceab8b6cfd1555aa20508b80aaf078c64b6fe2d72dd6457e1bd74c3a182c430",
+      "texture": "frames/0000.rg8",
+      "texture_sha256": "b75b67a95ebea7085c95619a60b6252c055ea8965226021e40abc33a2d9c6aed"
+    },
+    {
+      "source_frame": 3,
+      "time_seconds": 0.1,
+      "source": "source/0003.vdb",
+      "source_sha256": "6683315703d719f14875e0814045fa180cbf1239dd516f58dfbff7908d5f43cb",
+      "texture": "frames/0003.rg8",
+      "texture_sha256": "545d91be2819e37d44d23828d8c39c634f09d6ef53a6617170c9517b845b2bb7"
+    },
+    {
+      "source_frame": 6,
+      "time_seconds": 0.2,
+      "source": "source/0006.vdb",
+      "source_sha256": "6d62c1c4317c5d1fd2f0fd228deb6d78dec37ef2cec1477c100256cd5abb5f03",
+      "texture": "frames/0006.rg8",
+      "texture_sha256": "2d59581a6be46fe2b5f8199e67c7aa7cf8c282f551382d58b97e3ed837930c01"
+    },
+    {
+      "source_frame": 10,
+      "time_seconds": 0.333333,
+      "source": "source/0010.vdb",
+      "source_sha256": "1ebd376925e3e161316fd200534b579329a037eca1eb8f0b02e60166290ea988",
+      "texture": "frames/0010.rg8",
+      "texture_sha256": "9a4004e63ca375ea351f6384a3d6a972e1e7881d481fc8f352763e208a66a6ab"
+    },
+    {
+      "source_frame": 14,
+      "time_seconds": 0.466667,
+      "source": "source/0014.vdb",
+      "source_sha256": "ce060162da810a3ff3e05616e2566c3bda80bd9c80a4731247ad0b3bb44f87f9",
+      "texture": "frames/0014.rg8",
+      "texture_sha256": "e94be08f092e317866c2748a685c8cd454b35231a90b91f48e188c837bb745b0"
+    },
+    {
+      "source_frame": 18,
+      "time_seconds": 0.6,
+      "source": "source/0018.vdb",
+      "source_sha256": "0f095549e8533a40412429ce099f336a176c423dea8ba89c797cf7d97c822eae",
+      "texture": "frames/0018.rg8",
+      "texture_sha256": "63d90a51b7ebbfa08531100dd0399fd7e7424e71709ea4762aa73fffdc2eb11e"
+    },
+    {
+      "source_frame": 24,
+      "time_seconds": 0.8,
+      "source": "source/0024.vdb",
+      "source_sha256": "67d88591df84538889061d3bd24482114842f85ef60c8271b5713fb1cf6e9b03",
+      "texture": "frames/0024.rg8",
+      "texture_sha256": "3e5ef3799880e18b5c5509868f5eed46a9f0dec1be67aba0f850053348e08faa"
+    },
+    {
+      "source_frame": 30,
+      "time_seconds": 1.0,
+      "source": "source/0030.vdb",
+      "source_sha256": "158a4a6ae73bf601cb337686e1837423eac090e4688178b265ec20e775e9bd72",
+      "texture": "frames/0030.rg8",
+      "texture_sha256": "b36273b2f8764d79484cb2ef06c343bbd0a5d27952bee144eacec210d44357f2"
+    },
+    {
+      "source_frame": 40,
+      "time_seconds": 1.333333,
+      "source": "source/0040.vdb",
+      "source_sha256": "784799a69140d5ff409cbca0ccec45e3c8f55fc033823996757e9df8d477053f",
+      "texture": "frames/0040.rg8",
+      "texture_sha256": "1b55465c5fc3aa2fa23742f1553adc1c3a438541439aef62f6533e5b9430a4bf"
+    },
+    {
+      "source_frame": 50,
+      "time_seconds": 1.666667,
+      "source": "source/0050.vdb",
+      "source_sha256": "729253c54093e561b7573cd23e993f93f992b762c31cba5821362783c1eee470",
+      "texture": "frames/0050.rg8",
+      "texture_sha256": "5e106d6fa7223133bd214d867dccabf109c6d7a12a59eea9e117a9f364d6fd93"
+    },
+    {
+      "source_frame": 60,
+      "time_seconds": 2.0,
+      "source": "source/0060.vdb",
+      "source_sha256": "c0e95c692ed81fbeb73a60d250040f1a3d2f8590f70d8074a3687e637d3b935d",
+      "texture": "frames/0060.rg8",
+      "texture_sha256": "7a5bfeee3d32de26711c82fbb4a444a1a37f451156484719cb77a3b3f89d5346"
+    },
+    {
+      "source_frame": 75,
+      "time_seconds": 2.5,
+      "source": "source/0075.vdb",
+      "source_sha256": "f0455eeadbad3e0cd13687c366a0f35945878f2642c2db7485f4ff259c835f5a",
+      "texture": "frames/0075.rg8",
+      "texture_sha256": "ac3923d15177910b1f06f7a5998983667d9013c03d459d6052ec9bd81e7c6623"
+    },
+    {
+      "source_frame": 90,
+      "time_seconds": 3.0,
+      "source": "source/0090.vdb",
+      "source_sha256": "e4f3ae326859996b5f554ed9aa5922eed35805e60de7567ab54a7694f7d1a818",
+      "texture": "frames/0090.rg8",
+      "texture_sha256": "d695f6465ba84b406b7f32c714195670e189edb79bbbdc11f0ce634e7f29fc90"
+    },
+    {
+      "source_frame": 110,
+      "time_seconds": 3.666667,
+      "source": "source/0110.vdb",
+      "source_sha256": "84da2c7d8c59f577e0d94f6a2511320ffd57821afafa8c8b75689b29b2e177cd",
+      "texture": "frames/0110.rg8",
+      "texture_sha256": "42c27c17be238cda0ebbbe2f94243b3f92c8ac6742c9fe75a55aef2a53337533"
+    },
+    {
+      "source_frame": 130,
+      "time_seconds": 4.333333,
+      "source": "source/0130.vdb",
+      "source_sha256": "8e4ecd4ecae88289c1323e4de31fbe1dd603496d539c5996e0332c347f8d846a",
+      "texture": "frames/0130.rg8",
+      "texture_sha256": "039ceca3836cc20bd35eacdbdfb4cdc04b9e2c0b0ed8c4e44fb0eb9e02b0aaeb"
+    },
+    {
+      "source_frame": 150,
+      "time_seconds": 5.0,
+      "source": "source/0150.vdb",
+      "source_sha256": "2e54454fce128004290a4b69c25cc095158270dfb7332be6cc46ec3d165c1c72",
+      "texture": "frames/0150.rg8",
+      "texture_sha256": "633fb4815b514cd62837692339ef5fd5e7f148f8e426f21749db6647d7ae4d97"
+    },
+    {
+      "source_frame": 170,
+      "time_seconds": 5.666667,
+      "source": "source/0170.vdb",
+      "source_sha256": "4138bc86c6bf5cddaf34ff1c13914a3ce873fb208087bfce784a4ed7044261e8",
+      "texture": "frames/0170.rg8",
+      "texture_sha256": "01f77fae61fb6c597c1a0ba378449275b52afce8ccc21cfb34e799fe6eb2e901"
+    },
+    {
+      "source_frame": 190,
+      "time_seconds": 6.333333,
+      "source": "source/0190.vdb",
+      "source_sha256": "8e46e785ee6ea7e73b884bf882369e4e98de0680d65378a728d8a424b22ba612",
+      "texture": "frames/0190.rg8",
+      "texture_sha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541"
+    },
+    {
+      "source_frame": 199,
+      "time_seconds": 6.633333,
+      "source": "source/0199.vdb",
+      "source_sha256": "306d475854fc377239d664461f24e39d598c5c9ff6c7d2d5a4ce86a8ac9c90fc",
+      "texture": "frames/0199.rg8",
+      "texture_sha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541"
+    }
+  ]
+}
