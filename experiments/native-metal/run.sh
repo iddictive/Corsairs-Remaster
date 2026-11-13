@@ -35,10 +35,7 @@ fi
 if [[ "$mode" == --settings-hmr ]]; then
     exec python3 "$root/settings_hmr.py" "$runtime"
 fi
-if ps -axo comm= | grep -E '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/null; then
-    echo 'Close the running game before staging or launching the Metal candidate.' >&2
-    exit 1
-fi
+python3 "$root/../../tools/delivery_state.py" --wait-for-idle 0
 if [[ "$mode" == --launch-installed ]]; then
     launch_installed
 fi

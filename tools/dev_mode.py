@@ -53,7 +53,7 @@ if "PIL" not in sys.modules:
 sys.path.insert(0, str(TOOLS))
 import gameplay_sources  # noqa: E402
 import metal_engine_source  # noqa: E402
-from delivery_state import DeliveryState, RECEIPT, atomic_write, transact  # noqa: E402
+from delivery_state import DeliveryState, RECEIPT, atomic_write, engine_process_running, transact  # noqa: E402
 
 
 def timestamp() -> str:
@@ -62,12 +62,9 @@ def timestamp() -> str:
 
 def is_game_running() -> bool:
     try:
-        ps_proc = subprocess.run(["ps", "-axo", "comm="], capture_output=True, text=True, check=False)
-        for line in ps_proc.stdout.splitlines():
-            cmd = line.strip()
-            if cmd.endswith(("/metal-engine", "/native-engine", "/engine-1", "engine.exe")):
-                return True
-    except OSError:
+        if engine_process_running():
+            return True
+    except (OSError, subprocess.CalledProcessError):
         pass
 
     engines = [str(STAGED_ENGINE), str(ENGINE_BIN)]

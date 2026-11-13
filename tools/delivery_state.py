@@ -11,6 +11,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -209,11 +210,19 @@ class DeliveryState:
         return self.before, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode()
 
 
-def require_idle() -> None:
+def engine_process_running() -> bool:
     result = subprocess.run(["ps", "-axo", "comm="], capture_output=True, text=True, check=True)
-    if any(line.rstrip().endswith(("/metal-engine", "/native-engine", "/engine-1", "engine.exe"))
-           for line in result.stdout.splitlines()):
-        raise RuntimeError("Close the game before changing installed content.")
+    return any(line.rstrip().endswith(("/metal-engine", "/native-engine", "/engine-1", "engine.exe"))
+               for line in result.stdout.splitlines())
+
+
+def require_idle(wait_seconds: int = 0) -> None:
+    deadline = time.monotonic() + wait_seconds
+    while engine_process_running():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("Close the game before changing installed content.")
+        time.sleep(min(1, remaining))
 
 
 @contextmanager
@@ -311,3 +320,17 @@ def record_export(app: Path, content: dict[str, bytes] | None = None, sources=No
             raise RuntimeError(f"Stale exported gameplay source: {name}")
         state.track(name, current, source=(sources or {}).get(name))
     atomic_write(state.receipt, state.change()[1])
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Check whether the game engine is stopped.")
+    parser.add_argument("--wait-for-idle", type=int, required=True, metavar="SECONDS")
+    args = parser.parse_args()
+    if args.wait_for_idle < 0:
+        parser.error("--wait-for-idle requires non-negative seconds")
+    try:
+        require_idle(args.wait_for_idle)
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
+        parser.exit(1, f"{error}\n")

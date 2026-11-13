@@ -7,6 +7,20 @@
 # Also syncs the reviewed public launcher and graphics adapter so their
 # staged changes reach the played app even when the engine is unchanged.
 set -euo pipefail
+usage='Usage: install-engine.sh [--wait SECONDS] [--seamless | --verified-engine FILE SHA256 PREDECESSOR_SHA256 MANIFEST MANIFEST_SHA256]'
+wait_seconds=0
+if [[ "${1:-}" == "--help" && "$#" == 1 ]]; then
+    printf '%s\n' "$usage"
+    exit 0
+fi
+if [[ "${1:-}" == "--wait" ]]; then
+    if [[ ! "${2:-}" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$usage" >&2
+        exit 2
+    fi
+    wait_seconds=$2
+    shift 2
+fi
 seamless=0
 verified=0
 if [[ "${1:-}" == "--seamless" && "$#" == 1 ]]; then
@@ -22,7 +36,7 @@ elif [[ "${1:-}" == "--verified-engine" && "$#" == 6 ]]; then
         echo 'Verified delivery requires lowercase SHA-256 hashes.' >&2; exit 2;
     }
 elif [[ "$#" != 0 ]]; then
-    echo 'Usage: install-engine.sh [--seamless | --verified-engine FILE SHA256 PREDECESSOR_SHA256 MANIFEST MANIFEST_SHA256]' >&2
+    printf '%s\n' "$usage" >&2
     exit 2
 fi
 root=$(cd "$(dirname "$0")" && pwd)
@@ -33,10 +47,7 @@ fi
 dest_app="/Applications/Corsairs Iddictive Remaster.app"
 dest="$dest_app/Contents/MacOS/metal-engine"
 backup_dir="$root/.cache/installed-engine-backup"
-if ps -axo comm= | grep -E '(engine\.exe|/(native|metal)-engine|/engine-1)$' >/dev/null; then
-    echo 'Close the running game before installing the Metal engine.' >&2
-    exit 1
-fi
+python3 "$root/../../tools/delivery_state.py" --wait-for-idle "$wait_seconds"
 if [[ ! -f "$staged" || ( "$verified" == 1 && -L "$staged" ) ]]; then
     echo 'Staged engine missing; run run.sh --stage-only first.' >&2
     exit 1
