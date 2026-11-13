@@ -1321,7 +1321,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         missile.guidanceAim = targetShip->GetPos() + offset + lead;
                         if (kalibr || (kinzhalHull &&
                             std::sqrt(~missile.aimError) <= std::max(8.f, kalibrShipSpread(targetShip, std::sqrt(~missile.aimError)) * 3.f))) {
-                            missile.guidanceAim = kalibrHullAim(targetShip, before, missile.guidanceAim, lead, pSea, kalibr);
+                            missile.guidanceAim = kalibrHullAim(targetShip, before, missile.guidanceAim, lead, pSea, kalibr || kinzhalHull);
                         } else if (kinzhalHull) {
                             const float water = pSea->WaveXZ(missile.guidanceAim.x, missile.guidanceAim.z);
                             if (std::abs(targetShip->GetPos().y - water) < 30.f) missile.guidanceAim.y = water - 2.f;
