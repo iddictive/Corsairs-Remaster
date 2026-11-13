@@ -380,6 +380,9 @@ bool SEA_CAMERAS::RealizeMissileView()
         const auto direction = target - projectile;
         missileOrbitOffset = CVECTOR(.48f, std::atan2(direction.x, direction.z), 0.f);
         missileZoom = 1.f;
+        missileSmoothFocus = projectile;
+        missileSmoothRadius = 220.f;
+        missileSmoothTime = now;
     } else {
         CONTROL_STATE input{};
         core.Controls->GetControlState("FreeCamera_Turn_H", input);
@@ -424,10 +427,25 @@ bool SEA_CAMERAS::RealizeMissileView()
         control->SetAttributeUseDword("manual", 0);
     }
     control->SetAttributeUseDword("aimHeld", aimHeld || mouseCapture);
-    const CVECTOR focus = flight && !cluster ? projectile : target;
+    CVECTOR focus = flight && !cluster ? projectile : target;
     const float azimuth = missileOrbitOffset.y;
     const float elevation = missileOrbitOffset.x;
-    const float baseRadius = flight && !cluster ? 220.f : 500.f;
+    float baseRadius = flight && !cluster ? 220.f : 500.f;
+    // The shot owner publishes the impact footprint, not the mutable menu selection.
+    const float impactRadius = view->GetAttributeAsFloat("impactRadius", 0.f);
+    if (std::isfinite(impactRadius) && impactRadius > 500.f && (!flight || cluster)) {
+        baseRadius = std::min(3000.f, impactRadius * 2.4f);
+        const float dt = std::clamp(std::chrono::duration<float>(now - missileSmoothTime).count(), 0.f, .1f);
+        const float blend = 1.f - std::exp(-3.5f * dt);
+        missileSmoothFocus = missileSmoothFocus + (focus - missileSmoothFocus) * blend;
+        missileSmoothRadius += (baseRadius - missileSmoothRadius) * blend;
+        focus = missileSmoothFocus;
+        baseRadius = missileSmoothRadius;
+    } else {
+        missileSmoothFocus = focus;
+        missileSmoothRadius = baseRadius;
+    }
+    missileSmoothTime = now;
     const float radius = std::clamp(baseRadius * missileZoom, 45.f, 3000.f);
     CVECTOR position = focus + radius * CVECTOR(-std::sin(azimuth)*std::cos(elevation), std::sin(elevation),
                                                  -std::cos(azimuth)*std::cos(elevation));

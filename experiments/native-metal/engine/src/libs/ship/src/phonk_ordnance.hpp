@@ -182,6 +182,7 @@ struct OrdnanceState
     uint32_t blastSerial = 0;
     uint32_t cameraShot = 0;
     float cameraAfterImpact = 0.f;
+    float cameraImpactRadius = 0.f;
     CVECTOR cameraPosition = CVECTOR(0.f), cameraTarget = CVECTOR(0.f);
     CVECTOR target = CVECTOR(0.f);
     // A six-kilometre flight takes over six seconds at the one-second cadence.

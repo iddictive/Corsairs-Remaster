@@ -99,7 +99,9 @@ void DeleteShipEnvironment()
 	DelEventHandler("Ship_SurrenderEpoch", "Ship_SurrenderEpoch");
 	DelEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood");
 	DelEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut");
+	DelEventHandler("SeaPhonk_NuclearHullCut", "SeaPhonk_NuclearHullCut");
 	DelEventHandler("SeaPhonk_NuclearWave", "SeaPhonk_NuclearWave");
+	DelEventHandler("SeaPhonk_NuclearPressure", "SeaPhonk_NuclearPressure");
 	DelEventHandler("SeaPhonk_ClusterFlame", "SeaPhonk_ClusterFlame");
 	DelEventHandler("SeaPhonk_MissilePuff", "SeaPhonk_MissilePuff");
 	DelEventHandler("SeaPhonk_ConventionalDamage", "SeaPhonk_ConventionalDamage");
@@ -212,7 +214,9 @@ void CreateShipEnvironment()
 	SetEventHandler("Ship_SurrenderEpoch", "Ship_SurrenderEpoch", 0);
 	SetEventHandler("SeaPhonk_Flood", "SeaPhonk_Flood", 0);
 	SetEventHandler("SeaPhonk_HullCut", "SeaPhonk_HullCut", 0);
+	SetEventHandler("SeaPhonk_NuclearHullCut", "SeaPhonk_NuclearHullCut", 0);
 	SetEventHandler("SeaPhonk_NuclearWave", "SeaPhonk_NuclearWave", 0);
+	SetEventHandler("SeaPhonk_NuclearPressure", "SeaPhonk_NuclearPressure", 0);
 	SetEventHandler("SeaPhonk_ClusterFlame", "SeaPhonk_ClusterFlame", 0);
 	SetEventHandler("SeaPhonk_MissilePuff", "SeaPhonk_MissilePuff", 0);
 	SetEventHandler("SeaPhonk_ConventionalDamage", "SeaPhonk_ConventionalDamage", 0);
@@ -1902,22 +1906,28 @@ void Ship_MarkSurrender(ref character)
 	pchar.SurrenderEpoch = Ship_SurrenderEpoch() + 1;
 	character.SurrenderHitEpoch = sti(pchar.SurrenderEpoch);
 	DeleteAttribute(character, "SurrenderHits");
+	DeleteAttribute(character, "SurrenderBetrayalEpoch");
 }
 
-void Ship_SurrenderHit(ref character, int attacker, int launchEpoch)
+bool Ship_SurrenderHit(ref character, int attacker, int launchEpoch)
 {
-	if (!CheckAttribute(character, "Surrendered") || !CheckAttribute(character, "SurrenderHitEpoch")) return;
-	if (launchEpoch < sti(character.SurrenderHitEpoch)) return;
-	if (attacker < 0 || attacker >= TOTAL_CHARACTERS || !IsCompanion(GetCharacter(attacker))) return;
+	if (attacker < 0 || attacker >= TOTAL_CHARACTERS || !IsCompanion(GetCharacter(attacker))) return false;
 	if (LAi_IsDead(character) || LAi_IsImmortal(character) || SeaPhonk_ProtectsShip(character) || CheckAttribute(character, "Coastal_Captain") ||
 		CheckAttribute(character, "ShipEnemyDisable") || CheckAttribute(character, "DontRansackCaptain") ||
-		CheckAttribute(character, "relation.UseOtherCharacter")) return;
+		CheckAttribute(character, "relation.UseOtherCharacter")) return false;
+	if (!CheckAttribute(character, "Surrendered") || !CheckAttribute(character, "SurrenderHitEpoch"))
+	{
+		return attacker == GetMainCharacterIndex() && CheckAttribute(character, "SurrenderBetrayalEpoch") &&
+			launchEpoch >= sti(character.SurrenderBetrayalEpoch);
+	}
+	if (launchEpoch < sti(character.SurrenderHitEpoch)) return false;
 	bool seaSurrender = CheckAttribute(character, "SeaSurrender");
-	if (!seaSurrender && CheckAttribute(character, "ShipTaskLock")) return;
+	if (!seaSurrender && CheckAttribute(character, "ShipTaskLock")) return false;
 	int hits = 0;
 	if (CheckAttribute(character, "SurrenderHits")) hits = sti(character.SurrenderHits);
 	character.SurrenderHits = hits + 1;
-	if (sti(character.SurrenderHits) < 2) return;
+	if (sti(character.SurrenderHits) < 2) return false;
+	character.SurrenderBetrayalEpoch = sti(character.SurrenderHitEpoch);
 	if (seaSurrender)
 	{
 		DeleteAttribute(character, "SeaSurrender");
@@ -1946,6 +1956,49 @@ void Ship_SurrenderHit(ref character, int attacker, int launchEpoch)
 	pchar.ship.crew.morale = makeint(stf(pchar.ship.crew.morale) - 15);
 	if (sti(pchar.ship.crew.morale) < MORALE_MIN) pchar.ship.crew.morale = MORALE_MIN;
 	ChangeCharacterReputation(pchar, -5.0);
+	return attacker == GetMainCharacterIndex();
+}
+
+void Ship_SurrenderBetrayalSunk(ref victim)
+{
+	if (DebugAI_ProtectRelations()) return;
+	int victimIndex = sti(victim.index);
+	int player = GetMainCharacterIndex();
+	bool changed = false;
+	for (int i = 0; i < iNumShips; i++)
+	{
+		int index = Ships[i];
+		if (index < 0 || index >= TOTAL_CHARACTERS || index == victimIndex || index == player) continue;
+		ref ally = GetCharacter(index);
+		if (LAi_IsDead(ally) || LAi_IsImmortal(ally) || IsCompanion(ally) || SeaPhonk_ProtectsShip(ally)) continue;
+		if (CheckAttribute(ally, "Coastal_Captain") || CheckAttribute(ally, "ShipEnemyDisable") ||
+			CheckAttribute(ally, "AlwaysFriend") || CheckAttribute(ally, "DontRansackCaptain") ||
+			CheckAttribute(ally, "relation.UseOtherCharacter")) continue;
+		if (CheckAttribute(ally, "ShipTaskLock") && !CheckAttribute(ally, "SeaSurrender")) continue;
+		if (GetRelation(victimIndex, index) != RELATION_FRIEND || GetRelation(player, index) == RELATION_FRIEND ||
+			WdmMilitaryEffectiveRelation(player, index) == RELATION_FRIEND) continue;
+		if (!CheckAttribute(ally, "NoSurrender"))
+		{
+			ally.NoSurrender = true;
+			ally.SurrenderBetrayalNoSurrender = true;
+		}
+		if (CheckAttribute(ally, "SeaSurrender"))
+		{
+			DeleteAttribute(ally, "SeaSurrender");
+			DeleteAttribute(ally, "Surrendered");
+			DeleteAttribute(ally, "SurrenderHits");
+			DeleteAttribute(ally, "SurrenderHitEpoch");
+			DeleteAttribute(ally, "ShipTaskLock");
+			Ship_FlagRefresh(ally);
+			PostEvent("BI_CallUpdateShip", 1, "l", index);
+		}
+		SetCharacterRelationBoth(index, player, RELATION_ENEMY);
+		Ship_SetTaskAttack(PRIMARY_TASK, index, player);
+		Ship_SetTaskAttack(SECONDARY_TASK, index, player);
+		Ship_SetSailState(index, 1.0);
+		changed = true;
+	}
+	if (changed) UpdateRelations();
 }
 
 // Keep sea surrender separate from the released-captain white-flag marker.
@@ -3176,17 +3229,27 @@ void Ship_ApplyCrewHitpoints(ref rOurCharacter, float fCrewHP)
 
 void Ship_ApplyHullHitpoints(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex)
 {
-	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, false, false);
+	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, false, false, false);
+}
+
+void Ship_ApplyProjectileHullHitpoints(ref target, float damage, int owner, bool betrayal)
+{
+	Ship_ApplyHullHitpointsInternal(target, damage, KILL_BY_BALL, owner, false, false, betrayal);
 }
 
 void Ship_ApplyCollisionHitpoints(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex)
 {
-	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, true, false);
+	Ship_ApplyHullHitpointsInternal(rOurCharacter, fHP, iKillStatus, iKillerCharacterIndex, true, false, false);
 }
 
 void Ship_ApplyStructuralHullFailure(ref rOurCharacter, int iKillStatus, int iKillerCharacterIndex)
 {
-	Ship_ApplyHullHitpointsInternal(rOurCharacter, stf(rOurCharacter.Ship.HP), iKillStatus, iKillerCharacterIndex, false, true);
+	Ship_ApplyHullHitpointsInternal(rOurCharacter, stf(rOurCharacter.Ship.HP), iKillStatus, iKillerCharacterIndex, false, true, false);
+}
+
+void Ship_ApplyProjectileStructuralHullFailure(ref target, int owner, bool betrayal)
+{
+	Ship_ApplyHullHitpointsInternal(target, stf(target.Ship.HP), KILL_BY_BALL, owner, false, true, betrayal);
 }
 
 float Ship_HullDamageMultiplier(ref rOurCharacter, int iKillerCharacterIndex)
@@ -3204,7 +3267,7 @@ float Ship_HullDamageMultiplier(ref rOurCharacter, int iKillerCharacterIndex)
 	return 1.0 + fPlus - fMinus;
 }
 
-void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex, bool collision, bool structuralFailure)
+void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStatus, int iKillerCharacterIndex, bool collision, bool structuralFailure, bool surrenderBetrayal)
 {
 	if (LAi_IsImmortal(rOurCharacter) || SeaPhonk_ProtectsShip(rOurCharacter)) { return; }
 
@@ -3249,6 +3312,7 @@ void Ship_ApplyHullHitpointsInternal(ref rOurCharacter, float fHP, int iKillStat
 		fCurHP = 0.0;
 		if (WdmHarbourAshore() && IsCompanion(rOurCharacter)) rOurCharacter.Ship.HP = 0.0;
 		if (GreatRecipe_ClaimHullDefeat(rOurCharacter)) return;
+		if (surrenderBetrayal) Ship_SurrenderBetrayalSunk(rOurCharacter);
 		ShipDead(sti(rOurCharacter.index), iKillStatus, iKillerCharacterIndex);
 		if (sti(rOurCharacter.Ship.Type) == SHIP_NOTUSED) return;
 	}
@@ -3700,8 +3764,9 @@ void Ship_HullHitEvent()
     float   fTmpCannonDamage = 0;
     
     if (bDead) return; // фикс, не нужно обсчитывать труп
+	bool surrenderBetrayal = false;
 	if (CheckAttribute(AIBalls, "CurrentSurrenderEpoch"))
-		Ship_SurrenderHit(rOurCharacter, iBallCharacterIndex, sti(AIBalls.CurrentSurrenderEpoch));
+		surrenderBetrayal = Ship_SurrenderHit(rOurCharacter, iBallCharacterIndex, sti(AIBalls.CurrentSurrenderEpoch));
 	// Cannon damage multiply
 	float fCannonDamageMultiply = Ship_ProjectileCannonDamageMultiply();
 	bool airburst = iBallType == GOOD_AIRBURST && CheckAttribute(AIBalls, "CurrentAirburstDetonated") && sti(AIBalls.CurrentAirburstDetonated) == 1;
@@ -3806,7 +3871,7 @@ void Ship_HullHitEvent()
 		}
 		fCrewDamage *= criticalCrew;
 		fHP = fDistanceDamageMultiply * fCannonDamageMultiply * stf(rBall.DamageHull) * criticalHull;
-		Ship_ApplyHullHitpoints(rOurCharacter, fHP, KILL_BY_BALL, iBallCharacterIndex);
+		Ship_ApplyProjectileHullHitpoints(rOurCharacter, fHP, iBallCharacterIndex, surrenderBetrayal);
 
 		if (iBallCharacterIndex == nMainCharacterIndex)
 		{
@@ -3838,7 +3903,7 @@ void Ship_HullHitEvent()
 	else
 	{ 
 		fHP = fDistanceDamageMultiply * fCannonDamageMultiply * stf(rBall.DamageHull);
-		Ship_ApplyHullHitpoints(rOurCharacter, fHP, KILL_BY_BALL, iBallCharacterIndex); 
+		Ship_ApplyProjectileHullHitpoints(rOurCharacter, fHP, iBallCharacterIndex, surrenderBetrayal);
 		// boal  check skill -->
 		if (!isOurCompanion && IsCompanion(rBallCharacter))
 		{

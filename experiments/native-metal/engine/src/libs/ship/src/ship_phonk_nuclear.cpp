@@ -65,17 +65,6 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
                               std::clamp(local.z, info.boxcenter.z - info.boxsize.z * .5f, info.boxcenter.z + info.boxsize.z * .5f));
         const float distance = std::sqrt(~(root->glob_mtx * closest - center));
         if (!std::isfinite(distance) || distance >= radius) continue;
-        if (!ship->isDead()) {
-            core.Event("SeaPhonk_MissileAttack", "all", character, owner, blast.surrenderEpoch);
-            if (!sourceLive()) return;
-            ship = static_cast<SHIP *>(core.GetEntityPointer(id));
-            character = ship ? ship->GetACharacter() : nullptr;
-            if (!ship || !ship->bMounted || !ATTRIBUTES::IsLive(character) ||
-                character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
-            model = ship->GetModel();
-            root = model ? model->GetNode(0) : nullptr;
-            if (!root || !root->geo) continue;
-        }
         blast.contacts.back().directDamage = true;
         const float strength = 1.f - distance / radius;
         const auto hullCenter = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
@@ -104,8 +93,8 @@ void SHIP::ApplyPhonkNuclearImpact(const CVECTOR &center, float radius, int32_t 
         if (!ATTRIBUTES::IsLive(character) || character->GetAttributeAsDword("index", uint32_t(-1)) != characterIndex) continue;
         if (wasDead) continue;
         // Script death/quests, perks and attribution retain their existing owner.
-        core.Event("SeaPhonk_HullCut", "alfll", character, owner, strength,
-                   int32_t(strength >= .4f), int32_t(1));
+        core.Event("SeaPhonk_NuclearHullCut", "alflll", character, owner, strength,
+                   int32_t(strength >= .4f), int32_t(1), int32_t(blast.surrenderEpoch));
         if (!sourceLive()) return;
         ship = static_cast<SHIP *>(core.GetEntityPointer(id));
         character = ship ? ship->GetACharacter() : nullptr;
@@ -150,7 +139,8 @@ void SHIP::AdvancePhonkNuclearPressure(storm::ship::phonk::NuclearBlast &blast,
         auto *character = ship->GetACharacter();
         if (!ATTRIBUTES::IsLive(character)) continue;
         const auto characterIndex = character->GetAttributeAsDword("index", uint32_t(-1));
-        auto *accepted = core.Event("SeaPhonk_NuclearWave", "alf", character, owner, damage);
+        auto *accepted = core.Event("SeaPhonk_NuclearPressure", "alfl", character, owner, damage,
+                                    int32_t(blast.surrenderEpoch));
         if (core.GetEntityPointer(sourceId) != this) return;
         if (phonkOrdnanceGeneration != generation) return;
         if (pSea != blastSea || core.GetEntityPointer(blastSeaId) != blastSea ||

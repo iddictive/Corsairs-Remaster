@@ -232,19 +232,20 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float fz = horizontal > .001f ? d.z / horizontal : 1.f;
     const float sideSpeed = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
     const float forwardSpeed = 1.f + (variationScale - .3f);
-    const Vec3 ejectVelocity{fx*forwardSpeed - fz*sideSpeed, kalibrEjectHeight / (3.f * kalibrEjectTime),
+    const float ejectHeight = kalibrEjectHeight * (.8f + .4f * (variationScale - .3f) / 1.35f);
+    const Vec3 ejectVelocity{fx*forwardSpeed - fz*sideSpeed, ejectHeight / (3.f * kalibrEjectTime),
                              fz*forwardSpeed + fx*sideSpeed};
     if (elapsedFlight < kalibrEjectTime) {
         const float u = elapsedFlight / kalibrEjectTime;
         const float elapsed = u * kalibrEjectTime;
-        return start + Vec3{ejectVelocity.x * elapsed, kalibrEjectHeight * ((5.f/3.f)*u - (2.f/3.f)*u*u),
+        return start + Vec3{ejectVelocity.x * elapsed, ejectHeight * ((5.f/3.f)*u - (2.f/3.f)*u*u),
                             ejectVelocity.z * elapsed};
     }
     const float lift = std::clamp(travel / (.11f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
     const float dive = std::clamp((1.f-travel) / (.15f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
     const float smoothLift = lift*lift*(3.f-2.f*lift);
     const float smoothDive = dive*dive*(3.f-2.f*dive);
-    const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, kalibrEjectHeight,
+    const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, ejectHeight,
                                      ejectVelocity.z * kalibrEjectTime};
     const Vec3 turnAcceleration{fx * 180.f, -ejectVelocity.y / kalibrTurnTime, fz * 180.f};
     if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
@@ -254,8 +255,7 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const Vec3 raised = ejected + ejectVelocity * kalibrTurnTime + turnAcceleration * (.5f * kalibrTurnTime * kalibrTurnTime);
     const Vec3 turnVelocity = ejectVelocity + turnAcceleration * kalibrTurnTime;
     const float elapsed = elapsedFlight - kalibrEjectTime - kalibrTurnTime;
-    const float turn = elapsed / .6f;
-    const float momentum = elapsed / (1.f + turn*turn) * (1.f-travel);
+    const float momentum = elapsed / (1.f + elapsed / .6f) * (1.f-travel);
     return raised + (target-raised)*travel + turnVelocity*momentum + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
 }
 

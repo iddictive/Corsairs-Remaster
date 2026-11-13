@@ -81,6 +81,9 @@ int Fantom_CreateShipFromBaseAtIndex(int iBaseShipType, string sGroupName, strin
 	DeleteAttribute(rFantom, "abordage_twice");
 	DeleteAttribute(rFantom, "QuestDate");
 	DeleteAttribute(rFantom, "ransom");
+	DeleteAttribute(rFantom, "SurrenderBetrayalEpoch");
+	if (CheckAttribute(rFantom, "SurrenderBetrayalNoSurrender")) DeleteAttribute(rFantom, "NoSurrender");
+	DeleteAttribute(rFantom, "SurrenderBetrayalNoSurrender");
 	WdmFleetSeaClearCaptain(rFantom);
 
 	rFantom.SeaAI.Group.Name = sGroupName;

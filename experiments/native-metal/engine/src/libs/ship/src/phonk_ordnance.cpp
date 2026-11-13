@@ -1646,13 +1646,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 missile.age >= missile.duration * storm::ship::phonk::missile::ignitionFraction(missile.duration))
             {
                 missile.ignitionPlayed = true;
-#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-                StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &after.x, 1);
-#endif
                 if (state.ignitionSoundCooldown <= 0.f) {
                     state.ignitionSoundCooldown = .12f;
                     missileSound("phonk_missile_cruise", after);
-                    core.Event("Ball_BombExplosion", "fffl", after.x, after.y, after.z, 0);
                     if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
                 }
             }
@@ -1765,6 +1761,13 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         const float centerSide = 18.f * (shotVariation(missile.shotId, uint32_t(missile.owner), 0x95bbfa41u) * 2.f - 1.f);
                         const float spreadAlong = oreshnik ? 760.f : 38.f, spreadSide = oreshnik ? 760.f : 28.f;
                         target += heading * (centerAlong + std::cos(angle) * radius * spreadAlong) + perpendicular * (centerSide + std::sin(angle) * radius * spreadSide);
+                        // An intact carrier projects its payload forward. Fold
+                        // samples behind the release point into the forward
+                        // half instead of dropping them directly underneath.
+                        if (!missile.intercepted) {
+                            const float alongFlight = (target - burstPosition) | heading;
+                            if (alongFlight < 0.f) target -= heading * (1.35f * alongFlight);
+                        }
                     }
                     if (offset != 0.f && !missile.cluster) target.y = pSea->WaveXZ(target.x, target.z);
                     auto child = missileTo(burstPosition, target, missile.owner, missile.type);
@@ -2075,6 +2078,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     cameraView->SetAttributeUseDword("flight", cameraFlight);
     cameraView->SetAttributeUseDword("cluster", cameraCluster);
     cameraView->SetAttributeUseFloat("flightAge", cameraFlightAge);
+    cameraView->SetAttributeUseFloat("impactRadius", state.cameraImpactRadius);
     cameraView->SetAttributeUseFloat("x", state.cameraPosition.x);
     cameraView->SetAttributeUseFloat("y", state.cameraPosition.y);
     cameraView->SetAttributeUseFloat("z", state.cameraPosition.z);
@@ -2386,6 +2390,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             missile.blastScale *= configuredRadius;
             state.cameraPosition = shotLaunch;
             state.cameraTarget = target;
+            state.cameraImpactRadius = missile.type == missile::Type::Oreshnik ?
+                std::max(1000.f, missileCoverageRadius(missile.type, state.warhead, missile.blastScale,
+                                                       nuclearYieldForTier(state.powerLimit).radius)) : 0.f;
             state.cameraAfterImpact = 1.5f;
             missile.yield = yield;
             missile.yield.radius *= missile.blastScale;

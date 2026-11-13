@@ -323,17 +323,40 @@ int SeaPhonk_HullCut()
     float fraction = GetEventData();
     int fatal = GetEventData();
     int applyPartialDamage = GetEventData();
+    return SeaPhonk_ApplyHullCut(target, owner, fraction, fatal, applyPartialDamage, false, 0);
+}
+
+int SeaPhonk_NuclearHullCut()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float fraction = GetEventData();
+    int fatal = GetEventData();
+    int applyPartialDamage = GetEventData();
+    int launchEpoch = GetEventData();
+    return SeaPhonk_ApplyHullCut(target, owner, fraction, fatal, applyPartialDamage, true, launchEpoch);
+}
+
+int SeaPhonk_ApplyHullCut(ref target, int owner, float fraction, int fatal, int applyPartialDamage, bool nuclear, int launchEpoch)
+{
     if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return 0;
     // Invalid, removed and already-dead ships settle a native reconciliation.
     if (owner < -1 || owner >= TOTAL_CHARACTERS || !SeaPhonk_LiveShip(target)) return 1;
     // An existing fatal cut reconciles only after protection is disabled.
     if (SeaPhonk_ProtectsShip(target)) return 0;
+    bool betrayal = false;
+    if (nuclear && owner >= 0 && sti(target.index) != owner && !LAi_IsImmortal(target))
+    {
+        betrayal = Ship_SurrenderHit(target, owner, launchEpoch);
+        SeaPhonk_RecordMissileAttack(target, owner);
+    }
     if (fatal > 0)
     {
         int cause = KILL_BY_TOUCH;
         if (owner == -1) cause = KILL_BY_ISLAND;
         if (applyPartialDamage > 0) cause = KILL_BY_BALL;
-        Ship_ApplyStructuralHullFailure(target, cause, owner);
+        if (nuclear && applyPartialDamage > 0) Ship_ApplyProjectileStructuralHullFailure(target, owner, betrayal);
+        else Ship_ApplyStructuralHullFailure(target, cause, owner);
         return 1;
     }
     // TOUCH already paid mechanical damage; restored cuts never replay it.
@@ -343,7 +366,8 @@ int SeaPhonk_HullCut()
     float damage = GetCharacterShipHP(target) * Clampf(fraction);
     float limit = stf(target.Ship.HP) * 0.5 / multiplier;
     if (damage > limit) damage = limit;
-    Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
+    if (nuclear) Ship_ApplyProjectileHullHitpoints(target, damage, owner, betrayal);
+    else Ship_ApplyHullHitpoints(target, damage, KILL_BY_BALL, owner);
     return 1;
 }
 
@@ -386,8 +410,25 @@ void SeaPhonk_RecordMissileAttack(ref target, int owner)
     // Match cannon hits: notify the encounter before damage can sink the ship.
     if (owner != GetMainCharacterIndex() || IsCompanion(target) || CheckAttribute(target, "Coastal_Captain")) return;
     if (GetNationRelation2MainCharacter(sti(target.nation)) == RELATION_ENEMY) return;
-    if (!WdmMilitaryParticipationHit(target, Crime_HasPlayerIntent(target)))
-        CrimeSea_PreparePlayerBallHit(target);
+    if (WdmMilitaryParticipationHit(target, Crime_HasPlayerIntent(target))) return;
+    ref commander = CrimeSea_GetGroupCommander(target);
+    int targetRelation = GetRelation(sti(target.index), owner);
+    int commanderRelation = GetRelation(sti(commander.index), owner);
+    bool tracked = CrimeSea_IsTrackedAmbient(commander, target);
+    CrimeSea_PreparePlayerBallHit(target);
+    // An incident already tracking the group records a new victim but does not
+    // itself change that victim's relation. Keep quest protections in the owner.
+    if (tracked && targetRelation == RELATION_NEUTRAL &&
+        GetRelation(sti(target.index), owner) == RELATION_NEUTRAL && !DebugAI_ProtectRelations())
+    {
+        CrimeSea_AmbientAttack(commander, target);
+        if (GetRelation(sti(target.index), owner) == RELATION_ENEMY &&
+            CrimeSea_IsTrackedShip(target) && CheckAttribute(target, "SeaAI.Group.Name"))
+            Group_SetEnemyToCharacter(target.SeaAI.Group.Name, owner);
+    }
+    // Script relations and the native sea-AI matrix are separate owners.
+    if (GetRelation(sti(target.index), owner) != targetRelation ||
+        GetRelation(sti(commander.index), owner) != commanderRelation) UpdateRelations();
 }
 
 void SeaPhonk_MissileAttack()
@@ -415,7 +456,7 @@ void SeaPhonk_ConventionalDamage()
     if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target)) return;
     if (power <= 0.0 || bombMultiplier <= 0.0) return;
     if (Ship_HullDamageMultiplier(target, owner) <= 0.0) return;
-    Ship_SurrenderHit(target, owner, launchEpoch);
+    bool surrenderBetrayal = Ship_SurrenderHit(target, owner, launchEpoch);
     target.Ship.LastBallCharacter = owner;
     SeaPhonk_RecordMissileAttack(target, owner);
     // HE and legacy fragmentation both use the fragmentation crew effect.
@@ -430,7 +471,7 @@ void SeaPhonk_ConventionalDamage()
     if (sailDamage > 0.0) MakeSailDmg(sti(target.index), sailDamage);
     // GOOD_BOMBS owns the reference HP; ordinary hull perks and kill attribution
     // remain in Ship_ApplyHullHitpoints instead of being reproduced here.
-    Ship_ApplyHullHitpoints(target, stf(Goods[GOOD_BOMBS].DamageHull) * bombMultiplier * Clampf(power), KILL_BY_BALL, owner);
+    Ship_ApplyProjectileHullHitpoints(target, stf(Goods[GOOD_BOMBS].DamageHull) * bombMultiplier * Clampf(power), owner, surrenderBetrayal);
 }
 
 void SeaPhonk_FragmentHit()
@@ -452,6 +493,20 @@ int SeaPhonk_NuclearWave()
     aref target = GetEventData();
     int owner = GetEventData();
     float fraction = GetEventData();
+    return SeaPhonk_ApplyNuclearWave(target, owner, fraction, false, 0);
+}
+
+int SeaPhonk_NuclearPressure()
+{
+    aref target = GetEventData();
+    int owner = GetEventData();
+    float fraction = GetEventData();
+    int launchEpoch = GetEventData();
+    return SeaPhonk_ApplyNuclearWave(target, owner, fraction, true, launchEpoch);
+}
+
+int SeaPhonk_ApplyNuclearWave(ref target, int owner, float fraction, bool hasEpoch, int launchEpoch)
+{
     if (!bSeaActive || !IsEntity(&Sea) || bSeaReloadStarted || fHighPrecisionDeltaTime <= 0.0) return 0;
     if (owner < 0 || owner >= TOTAL_CHARACTERS || !SeaPhonk_ValidShip(target)) return 0;
     if (sti(target.index) == owner || SeaPhonk_ProtectsShip(target) || LAi_IsImmortal(target)) return 0;
@@ -463,8 +518,10 @@ int SeaPhonk_NuclearWave()
     // outer hull damage; native thermal fire retains the sole burning DOT.
     if (fraction > 0.0)
     {
+        bool betrayal = false;
+        if (hasEpoch) betrayal = Ship_SurrenderHit(target, owner, launchEpoch);
         SeaPhonk_RecordMissileAttack(target, owner);
-        Ship_ApplyHullHitpoints(target, GetCharacterShipHP(target) * Clampf(fraction), KILL_BY_BALL, owner);
+        Ship_ApplyProjectileHullHitpoints(target, GetCharacterShipHP(target) * Clampf(fraction), owner, betrayal);
     }
     // Damage can remove the entity/attributes; native reacquires its ID before
     // applying movement or ignition, so do not read this aref after the callback.
