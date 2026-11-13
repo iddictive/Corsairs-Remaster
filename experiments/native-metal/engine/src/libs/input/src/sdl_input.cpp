@@ -330,8 +330,20 @@ void SDLInput::ProcessEvent(const SDL_Event &event)
     }
     else if (event.type == SDL_MOUSEWHEEL)
     {
-        out.type = InputEvent::MouseWheel;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+        wheelRemainderX_ += event.wheel.preciseX;
+        wheelRemainderY_ += event.wheel.preciseY;
+        const int x = static_cast<int>(wheelRemainderX_);
+        const int y = static_cast<int>(wheelRemainderY_);
+        wheelRemainderX_ -= x;
+        wheelRemainderY_ -= y;
+        if (x == 0 && y == 0)
+            return;
+        out.data = MousePos{x, y};
+#else
         out.data = MousePos{event.wheel.x, event.wheel.y};
+#endif
+        out.type = InputEvent::MouseWheel;
     }
     else if (event.type == SDL_KEYDOWN)
     {

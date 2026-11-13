@@ -246,6 +246,8 @@ void XINTERFACE::SetDevice()
     }
 
     m_pMouseWeel = core.Event("evGetMouseWeel");
+    if (m_pMouseWeel)
+        m_pMouseWeel->Set(0);
 
     m_pEditor = new GIEditor(this);
 
@@ -2200,12 +2202,28 @@ void XINTERFACE::DoControl()
         int32_t nWeel = 0;
         if (m_pMouseWeel)
             m_pMouseWeel->Get(nWeel);
-        if (nWeel != 0 && m_pCurNode && m_pCurNode->IsWeelActive())
+        if (nWeel != 0)
         {
-            if (nWeel > 0)
-                curKS.upButton = true;
-            else
-                curKS.downButton = true;
+            CINODE *wheelNode = m_pNodes ? m_pNodes->FindNode(fXMousePos + m_lXMouse, fYMousePos + m_lYMouse) : nullptr;
+            while (wheelNode && (!wheelNode->m_bUse || wheelNode->m_bLockedNode ||
+                                 !wheelNode->m_bSelected || !wheelNode->IsWeelActive()))
+                wheelNode = wheelNode->m_next ? wheelNode->m_next->FindNode(fXMousePos + m_lXMouse, fYMousePos + m_lYMouse) : nullptr;
+            if (!wheelNode && m_pCurNode && m_pCurNode->IsWeelActive())
+                wheelNode = m_pCurNode;
+            if (wheelNode && !wheelNode->m_bLockStatus)
+            {
+                const int action = nWeel > 0 ? ACTION_UPSTEP : ACTION_DOWNSTEP;
+                for (; nWeel != 0; nWeel += nWeel > 0 ? -1 : 1)
+                {
+                    bool breakPress = false;
+                    CINODE *nextNode = wheelNode->DoAction(action, breakPress, true);
+                    if (nextNode)
+                    {
+                        SetCurNode(nextNode);
+                        break;
+                    }
+                }
+            }
         }
 
         //

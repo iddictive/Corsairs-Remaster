@@ -56,9 +56,13 @@ void initializePatriot(OrdnanceState::Interceptor &i, const CVECTOR &observed)
     bits ^= bits >> 16; bits *= 0x7feb352du; bits ^= bits >> 15;
     i.speedScale = .96f + .08f * float(bits & 65535u) / 65535.f;
     i.accelerationScale = .96f + .08f * float(bits >> 16) / 65535.f;
-    i.velocity = direction * (80.f * i.speedScale);
     const float angle = 6.2831853f * float(bits & 65535u) / 65535.f;
     const float radius = 16.5f * std::sqrt(float(bits >> 16) / 65535.f);
+    // Each launch starts on its own gently displaced course; guidance then
+    // corrects naturally towards the tracked target.
+    const float launchSpread = .02f + .035f * float(bits >> 16) / 65535.f;
+    const auto launchDirection = !(direction + side * (launchSpread * std::cos(angle)) + up * (launchSpread * std::sin(angle)));
+    i.velocity = launchDirection * (80.f * i.speedScale);
     i.seekerBias = side * (radius * std::cos(angle)) + up * (radius * std::sin(angle));
 }
 // Fixed simulated steps, with a bounded catch-up budget. The debt is retained.
@@ -302,9 +306,14 @@ void observeShtorm(const NuclearMissile &shot, const CVECTOR &position, CVECTOR 
     acceleration = (position - previous * 2.f + earlier) * (1.f / (interval * interval));
     const float magnitudeSquared = ~acceleration;
     if (!std::isfinite(magnitudeSquared)) { acceleration = CVECTOR(0.f); return; }
-    constexpr float maxAcceleration = 250.f;
+    const float maxAcceleration = shot.type == missile::Type::Oreshnik ? 900.f : 250.f;
     if (magnitudeSquared > maxAcceleration * maxAcceleration)
         acceleration = acceleration * (maxAcceleration / std::sqrt(magnitudeSquared));
+}
+bool observeBallistic(missile::Type type) { return type == missile::Type::Shtorm || type == missile::Type::Oreshnik; }
+float patriotLostTimeout(uint32_t serial, entid_t owner)
+{
+    return .8f + .4f * shotVariation(serial, uint32_t(owner), 0xb62d7431u);
 }
 CVECTOR observedMissileAcceleration(const NuclearMissile &shot, const CVECTOR &staleVelocity)
 {
@@ -1093,7 +1102,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         interceptor.nextTargetSearch = .2f;
                         tracked = reacquirePatriot(interceptor, testShip->GetACharacter());
                     }
-                    if (!tracked && interceptor.lostTargetTime >= 1.f) {
+                    if (!tracked && interceptor.lostTargetTime >= patriotLostTimeout(interceptor.serial, interceptor.missileShip)) {
                         interceptor.target = interceptor.position;
                         interceptor.duration = std::max(.001f, interceptor.age);
                         interceptor.age = interceptor.duration;
@@ -1153,17 +1162,17 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 if (!shot.active || shot.interceptionFragment || shot.intercepted || shot.continueVelocity) continue;
                 const auto position = nuclearPosition(shot, shot.age);
                 CVECTOR shtormVelocity, shtormAcceleration;
-                if (shot.type == missile::Type::Shtorm) observeShtorm(shot, position, shtormVelocity, shtormAcceleration);
-                const auto currentVelocity = shot.type == missile::Type::Shtorm ? shtormVelocity : nuclearVelocity(shot, shot.age);
+                if (observeBallistic(shot.type)) observeShtorm(shot, position, shtormVelocity, shtormAcceleration);
+                const auto currentVelocity = observeBallistic(shot.type) ? shtormVelocity : nuclearVelocity(shot, shot.age);
                 const auto relative = position - testShip->GetPos();
                 if ((~relative) > testRange*testRange || (relative | currentVelocity) >= 0.f ||
                     !interceptorForwardSector(testShip->GetModel()->mtx.Vz(), testShip->GetPos(), position)) continue;
                 const auto launch = testShip->GetModel()->mtx * CVECTOR(0.f, std::max(4.f, testShip->State.vBoxSize.y * .35f) + 1.5f, 0.f);
                 float hi = 0.f;
                 CVECTOR target;
-                const auto observedVelocity = shot.type == missile::Type::Shtorm ? shtormVelocity : nuclearVelocity(shot, std::max(0.f, shot.age - .12f));
+                const auto observedVelocity = observeBallistic(shot.type) ? shtormVelocity : nuclearVelocity(shot, std::max(0.f, shot.age - .12f));
                 const auto limit = std::min(customDefense ? 60.f : 2.f, shot.duration - shot.age);
-                bool reachable = shot.type == missile::Type::Shtorm ?
+                bool reachable = observeBallistic(shot.type) ?
                     interceptorEstimateShtorm(launch, position, shtormVelocity, shtormAcceleration, testSpeed, limit, hi, target) : shot.type == missile::Type::Kalibr ?
                     interceptorEstimateAccelerating(launch, position, observedVelocity, observedMissileAcceleration(shot, observedVelocity), testSpeed, limit, hi, target) :
                     interceptorEstimate(launch, position, observedVelocity, testSpeed, limit, hi, target);
@@ -1224,8 +1233,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 if (!incoming.active || incoming.interceptionFragment || incoming.intercepted || incoming.continueVelocity) continue;
                 const auto position = nuclearPosition(incoming, incoming.age);
                 CVECTOR shtormVelocity, shtormAcceleration;
-                if (incoming.type == missile::Type::Shtorm) observeShtorm(incoming, position, shtormVelocity, shtormAcceleration);
-                const auto velocity = incoming.type == missile::Type::Shtorm ? shtormVelocity : nuclearVelocity(incoming, incoming.age);
+                if (observeBallistic(incoming.type)) observeShtorm(incoming, position, shtormVelocity, shtormAcceleration);
+                const auto velocity = observeBallistic(incoming.type) ? shtormVelocity : nuclearVelocity(incoming, incoming.age);
                 const auto rel = position - GetPos();
                 const float speedSquared = velocity.x*velocity.x + velocity.z*velocity.z;
                 if ((~rel) > range*range || (rel | velocity) >= 0.f || speedSquared < 1.f) continue;
@@ -1247,8 +1256,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const float limit = std::min(60.f, incoming.duration - incoming.age);
                 float candidateFlight = 0.f;
                 CVECTOR candidateTarget;
-                const auto stale = incoming.type == missile::Type::Shtorm ? velocity : nuclearVelocity(incoming, std::max(0.f, incoming.age - .12f));
-                const bool reachable = incoming.type == missile::Type::Shtorm ?
+                const auto stale = observeBallistic(incoming.type) ? velocity : nuclearVelocity(incoming, std::max(0.f, incoming.age - .12f));
+                const bool reachable = observeBallistic(incoming.type) ?
                     interceptorEstimateShtorm(defenseStart, position, shtormVelocity, shtormAcceleration, interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget) :
                     incoming.type == missile::Type::Kalibr ?
                     interceptorEstimateAccelerating(defenseStart, position, stale, observedMissileAcceleration(incoming, stale), interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget) :
@@ -1296,11 +1305,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 if (trackedShip && missileHint < trackedShip->phonkOrdnance.missiles.size())
                     tracked = &trackedShip->phonkOrdnance.missiles[missileHint];
                 if (tracked) {
-                    const auto observedVelocity = tracked->type == missile::Type::Shtorm ? contact.velocity : nuclearVelocity(*tracked, std::max(0.f, tracked->age - .12f));
+                    const auto observedVelocity = observeBallistic(tracked->type) ? contact.velocity : nuclearVelocity(*tracked, std::max(0.f, tracked->age - .12f));
                     const float limit = std::min(60.f, tracked->duration - tracked->age);
                     CVECTOR shtormVelocity, shtormAcceleration;
-                    if (tracked->type == missile::Type::Shtorm) observeShtorm(*tracked, contact.position, shtormVelocity, shtormAcceleration);
-                    reachable = tracked->type == missile::Type::Shtorm ?
+                    if (observeBallistic(tracked->type)) observeShtorm(*tracked, contact.position, shtormVelocity, shtormAcceleration);
+                    reachable = observeBallistic(tracked->type) ?
                         interceptorEstimateShtorm(start, contact.position, shtormVelocity, shtormAcceleration, interceptorSpeed / speedScale, limit, flight, target) : tracked->type == missile::Type::Kalibr ?
                         interceptorEstimateAccelerating(start, contact.position, observedVelocity, observedMissileAcceleration(*tracked, observedVelocity), interceptorSpeed / speedScale, limit, flight, target) :
                         interceptorEstimate(start, contact.position, observedVelocity, interceptorSpeed / speedScale, limit, flight, target);
@@ -1361,7 +1370,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     interceptor.nextTargetSearch = .2f;
                     tracked = reacquirePatriot(interceptor, character);
                 }
-                if (!tracked && interceptor.lostTargetTime >= 1.f) {
+                if (!tracked && interceptor.lostTargetTime >= patriotLostTimeout(interceptor.serial, interceptor.missileShip)) {
                     interceptor.target = interceptor.position;
                     interceptor.duration = std::max(.001f, interceptor.age);
                     interceptor.age = interceptor.duration;

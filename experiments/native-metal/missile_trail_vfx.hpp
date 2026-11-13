@@ -94,8 +94,11 @@ class MissileTrailVfx {
     struct Puff { simd_float3 origin, drift, axis; double birth; float life, size, seed; MissileVfxType type; };
     struct RetiringPuff { Puff puff; double retired; size_t slot; };
     struct Flash { simd_float3 position; double birth; MissileVfxType type; };
-    static constexpr size_t capacity=2048, maxHeads=128;
-    std::array<Puff,capacity> puffs{}; size_t next=0, count=0;
+    // Nine one-second cohorts cover the maximum eight-second lifetime,
+    // including both partially occupied end seconds.
+    static constexpr size_t cohortCount=9, cohortCapacity=227, capacity=cohortCount*cohortCapacity, maxHeads=128;
+    struct Cohort { int64_t second=INT64_MIN; uint64_t seen=0; size_t count=0; };
+    std::array<Puff,capacity> puffs{}; std::array<Cohort,cohortCount> cohorts{}; size_t count=0;
     static constexpr size_t retirementCapacity=256;
     static constexpr float retirementDuration=.25f;
     std::array<RetiringPuff,retirementCapacity> retiring{}; size_t retireNext=0, retireCount=0;
@@ -106,18 +109,34 @@ class MissileTrailVfx {
     id<MTLDevice> owner=nil; id<MTLLibrary> library=nil; id<MTLRenderPipelineState> pipeline=nil;
     id<MTLDepthStencilState> depthStates[2]={nil,nil}; MTLPixelFormat colorFormat=MTLPixelFormatInvalid, depthFormat=MTLPixelFormatInvalid;
     static bool finite(simd_float3 v) { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z); }
-    float random() { serial^=serial<<13; serial^=serial>>17; serial^=serial<<5; return float(serial&65535)/65535.f; }
+    uint32_t randomBits() { serial^=serial<<13; serial^=serial>>17; serial^=serial<<5; return serial; }
+    float random() { return float(randomBits()&65535)/65535.f; }
     void store(const Puff &p) {
-        // The insertion ring replaces the oldest admitted sample. Keep a bounded
-        // fading copy when it is still alive; extreme bursts can exhaust even
-        // this reserve, in which case its oldest fading copy is replaced.
-        const size_t slot=next; next=(next+1)%capacity;
-        if(count==capacity && clock-puffs[slot].birth<puffs[slot].life) {
+        if(clock-p.birth>=8.0) return;
+        const int64_t second=static_cast<int64_t>(std::floor(p.birth));
+        const size_t bucket=size_t((second%int64_t(cohortCount)+int64_t(cohortCount))%int64_t(cohortCount));
+        auto &cohort=cohorts[bucket];
+        if(cohort.second!=second) {
+            if(cohort.second>second) return;
+            count-=cohort.count; cohort={second,0,0};
+        }
+        // Reservoir sampling shares each second's fixed budget across all
+        // emitters. A burst cannot evict smoke from a different age cohort.
+        ++cohort.seen;
+        size_t index;
+        if(cohort.count<cohortCapacity) { index=cohort.count++; ++count; }
+        else {
+            const uint64_t choice=(uint64_t(randomBits())*cohort.seen)>>32;
+            if(choice>=cohortCapacity) return;
+            index=size_t(choice);
+        }
+        const size_t slot=bucket*cohortCapacity+index;
+        if(cohort.seen>cohortCapacity && clock-puffs[slot].birth<puffs[slot].life) {
             retiring[retireNext]={puffs[slot],clock,slot};
             retireNext=(retireNext+1)%retirementCapacity;
             retireCount=std::min(retirementCapacity,retireCount+1);
         }
-        puffs[slot]=p; count=std::min(capacity,count+1);
+        puffs[slot]=p;
     }
     bool prepare(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) {
         if(owner!=device){ owner=device; library=nil; pipeline=nil; depthStates[0]=depthStates[1]=nil; }
@@ -139,8 +158,8 @@ public:
     bool ready(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) { return device && prepare(device,color,depth); }
     // Once per render frame, including after all missiles disappear. dt is game time.
     // Large gaps advance time but never schedule delayed emissions.
-    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; if(clock-lastEmission>=8.f) { next=count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=0; }
-    void clear() { next=count=retireNext=retireCount=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
+    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; if(clock-lastEmission>=8.f) { cohorts={}; count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=0; }
+    void clear() { cohorts={}; count=retireNext=retireCount=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
     size_t storedCount() const { return count; }
     bool hasVisible() const { return headCount || (count && clock-lastEmission<8.f) || (flashCount && clock-lastEmission<.45f); }
     // One-shot launch/ignition cloud. The cloud stays in world space and is
@@ -275,7 +294,12 @@ public:
             float t=std::clamp(float((clock-r.retired)/retirementDuration),0.f,1.f);
             appendPuff(r.puff,r.slot,1.f-t*t*(3.f-2.f*t));
         }
-        for(size_t j=0;j<count;j++) { const size_t slot=(next+capacity-count+j)%capacity; appendPuff(puffs[slot],slot,1.f); }
+        const int64_t currentSecond=static_cast<int64_t>(std::floor(clock));
+        for(int64_t second=currentSecond-int64_t(cohortCount)+1;second<=currentSecond;second++) {
+            const size_t bucket=size_t((second%int64_t(cohortCount)+int64_t(cohortCount))%int64_t(cohortCount));
+            const auto &cohort=cohorts[bucket]; if(cohort.second!=second) continue;
+            for(size_t j=0;j<cohort.count;j++) { const size_t slot=bucket*cohortCapacity+j; appendPuff(puffs[slot],slot,1.f); }
+        }
         for(size_t j=0;j<flashCount;j++) { const auto &f=flashes[(flashNext+flashes.size()-flashCount+j)%flashes.size()]; float age=clock-f.birth; if(age<0||age>=.45f)continue;
             float scale=f.type==MissileVfxType::Kinzhal?11.f:f.type==MissileVfxType::Kalibr?7.f:5.f;
             float size=scale*(.35f+age*2.f),alpha=.9f*(1.f-age/.45f);

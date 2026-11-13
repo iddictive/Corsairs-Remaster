@@ -37,5 +37,7 @@ private:
     const uint8_t *keyStates_;
     std::unique_ptr<SDL_GameController, std::function<void(SDL_GameController *)>> controller_;
     SDL_JoystickID joyID_;
+    float wheelRemainderX_ = 0.f;
+    float wheelRemainderY_ = 0.f;
 };
 } // namespace storm

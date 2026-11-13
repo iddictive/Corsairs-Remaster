@@ -1641,7 +1641,7 @@ void StartLanguageSetting(string lngID)
 int nWeelStep = 0;
 void procMouseWeel()
 {
-	nWeelStep = GetEventData();
+	nWeelStep += GetEventData();
 }
 ref procGetMouseWeel()
 {
