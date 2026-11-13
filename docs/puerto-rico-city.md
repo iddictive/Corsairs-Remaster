@@ -38,6 +38,8 @@ must use the same resulting triangles. Reflection uses the same target surface.
 
 ## Geometry evidence
 
+The [seabed and reactive-jet collision diagnosis](evidence/puerto-rico-city/seabed-reactive-collision-20261113.md) records the resource hash, read-only reproduction and limits of the source inspection.
+
 The source sea town is objects4/5, 2755 triangles, BSP faces60263..63017.
 The native town is100365 triangles, approximately114x112 world units; its
 seabed is500 triangles. Placement is near(1100,0,650), with no scale enlargement.
