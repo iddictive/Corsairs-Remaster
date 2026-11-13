@@ -270,8 +270,12 @@ bool interceptorEstimateShtorm(const CVECTOR &start, const CVECTOR &position, co
     };
     // The selected endpoint remains fixed after the interceptor is launched.
     float previous = 0.f;
-    for (unsigned n = 1; n <= 32; ++n) {
-        float next = limit * float(n) / 32.f;
+    // A short interception window can disappear between coarse samples over a
+    // long forecast; resolve the first three seconds before the distant leg.
+    const float nearLimit = std::min(limit, 3.f);
+    for (unsigned n = 1; n <= 64; ++n) {
+        float next = n <= 32 ? nearLimit * float(n) / 32.f :
+            nearLimit + (limit - nearLimit) * float(n - 32) / 32.f;
         if (reachable(next)) {
             for (unsigned k = 0; k < 12; ++k) {
                 const float mid = (previous + next) * .5f;
@@ -1158,8 +1162,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 float hi = 0.f;
                 CVECTOR target;
                 const auto observedVelocity = shot.type == missile::Type::Shtorm ? shtormVelocity : nuclearVelocity(shot, std::max(0.f, shot.age - .12f));
-                const auto limit = shot.type == missile::Type::Shtorm ? (customDefense ? 60.f : 2.f) :
-                    std::min(customDefense ? 60.f : 2.f, shot.duration - shot.age);
+                const auto limit = std::min(customDefense ? 60.f : 2.f, shot.duration - shot.age);
                 bool reachable = shot.type == missile::Type::Shtorm ?
                     interceptorEstimateShtorm(launch, position, shtormVelocity, shtormAcceleration, testSpeed, limit, hi, target) : shot.type == missile::Type::Kalibr ?
                     interceptorEstimateAccelerating(launch, position, observedVelocity, observedMissileAcceleration(shot, observedVelocity), testSpeed, limit, hi, target) :
@@ -1271,7 +1274,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     tracked = &trackedShip->phonkOrdnance.missiles[missileHint];
                 if (tracked) {
                     const auto observedVelocity = tracked->type == missile::Type::Shtorm ? contact.velocity : nuclearVelocity(*tracked, std::max(0.f, tracked->age - .12f));
-                    const float limit = tracked->type == missile::Type::Shtorm ? 60.f : std::min(60.f, tracked->duration - tracked->age);
+                    const float limit = std::min(60.f, tracked->duration - tracked->age);
                     CVECTOR shtormVelocity, shtormAcceleration;
                     if (tracked->type == missile::Type::Shtorm) observeShtorm(*tracked, contact.position, shtormVelocity, shtormAcceleration);
                     reachable = tracked->type == missile::Type::Shtorm ?

@@ -194,7 +194,7 @@ bool AirDefenseIncoming(const BALL_PARAMS &ball, const CVECTOR &origin, float ra
     const float x = relative.x + velocity.x*t + .5f*acceleration.x*t*t;
     const float z = relative.z + velocity.z*t + .5f*acceleration.z*t*t;
     const float y = relative.y + velocity.y*t + .5f*acceleration.y*t*t;
-    return std::isfinite(y) && x*x + z*z <= 150.f*150.f && std::abs(y) <= 150.f;
+    return std::isfinite(y) && x*x + z*z <= 500.f*500.f && std::abs(y) <= 150.f;
 }
 
 // Identity rides the existing saved event string: the four native ball lanes and
