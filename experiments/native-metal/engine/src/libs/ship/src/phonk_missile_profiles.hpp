@@ -318,12 +318,12 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float sideSpeed = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
     const float forwardSpeed = 1.f + (variationScale - .3f);
     const float ejectHeight = kalibrEjectHeight * (.8f + .4f * (variationScale - .3f) / 1.35f);
-    const Vec3 ejectVelocity{fx*forwardSpeed - fz*sideSpeed, ejectHeight / (3.f * kalibrEjectTime),
+    const Vec3 ejectVelocity{fx*forwardSpeed - fz*sideSpeed, .8f * ejectHeight / kalibrEjectTime,
                              fz*forwardSpeed + fx*sideSpeed};
     if (elapsedFlight < kalibrEjectTime) {
         const float u = elapsedFlight / kalibrEjectTime;
         const float elapsed = u * kalibrEjectTime;
-        return start + Vec3{ejectVelocity.x * elapsed, ejectHeight * ((5.f/3.f)*u - (2.f/3.f)*u*u),
+        return start + Vec3{ejectVelocity.x * elapsed, ejectHeight * (1.2f*u - .2f*u*u),
                             ejectVelocity.z * elapsed};
     }
     const float lift = std::clamp(travel / (.11f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
@@ -332,16 +332,22 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float smoothDive = dive*dive*(3.f-2.f*dive);
     const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, ejectHeight,
                                      ejectVelocity.z * kalibrEjectTime};
-    const Vec3 turnAcceleration{fx * (50.4f / kalibrTurnTime), -ejectVelocity.y / kalibrTurnTime,
-                                fz * (50.4f / kalibrTurnTime)};
+    // Redirect the ejection momentum through the turn instead of braking it away.
+    constexpr float halfPi = 1.57079632679f;
+    const float turnRadius = ejectVelocity.y * kalibrTurnTime / halfPi;
     if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
         const float elapsed = elapsedFlight - kalibrEjectTime;
-        return ejected + ejectVelocity * elapsed + turnAcceleration * (.5f * elapsed * elapsed);
+        const float angle = halfPi * elapsed / kalibrTurnTime;
+        const float forward = turnRadius * (1.f - std::cos(angle));
+        return ejected + Vec3{ejectVelocity.x * elapsed + fx * forward, turnRadius * std::sin(angle),
+                              ejectVelocity.z * elapsed + fz * forward};
     }
-    const Vec3 raised = ejected + ejectVelocity * kalibrTurnTime + turnAcceleration * (.5f * kalibrTurnTime * kalibrTurnTime);
-    const Vec3 turnVelocity = ejectVelocity + turnAcceleration * kalibrTurnTime;
+    const Vec3 raised = ejected + Vec3{ejectVelocity.x * kalibrTurnTime + fx * turnRadius, turnRadius,
+                                      ejectVelocity.z * kalibrTurnTime + fz * turnRadius};
+    const Vec3 turnVelocity{ejectVelocity.x + fx * ejectVelocity.y, 0.f, ejectVelocity.z + fz * ejectVelocity.y};
     const float elapsed = elapsedFlight - kalibrEjectTime - kalibrTurnTime;
-    const float momentum = elapsed / (1.f + elapsed / .6f) * (1.f-travel);
+    const float remaining = 1.f - travel;
+    const float momentum = 3.f * (1.f - std::exp(-elapsed / 3.f)) * remaining * remaining;
     return raised + (target-raised)*travel + turnVelocity*momentum + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
 }
 
