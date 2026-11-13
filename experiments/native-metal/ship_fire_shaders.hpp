@@ -111,11 +111,12 @@ float2 shipFireDensity(float3 world,thread const ShipFireVolume&v){
 struct ShipFireVolumePixel {float4 color [[color(0)]];float front [[color(1)]];};
 fragment ShipFireVolumePixel ship_fire_volume_fs(ShipFireVolumeO o [[stage_in]],const device ShipFireVolume*volumes [[buffer(0)]],constant ShipFireCamera&c [[buffer(1)]],depth2d<float,access::read>sceneDepth [[texture(0)]]){
  float2 pixel=o.p.xy/max(c.lighting.y,.125f);
- ShipFireVolume v=volumes[o.index];float3 nearPoint=shipFireUnproject(pixel,0,c);
+ bool reverseZ=c.lighting.z>.5f;
+ ShipFireVolume v=volumes[o.index];float3 nearPoint=shipFireUnproject(pixel,reverseZ?1.f:0.f,c);
  float3 ray=normalize(nearPoint-c.eye.xyz);float2 span=shipFireRayBox(c.eye.xyz,ray,v.boundsMin.xyz,v.boundsMax.xyz);
  span.x=max(span.x,length(nearPoint-c.eye.xyz));
  float depth=sceneDepth.read(uint2(pixel));
- if(depth<1.f){float3 solid=shipFireUnproject(pixel,depth,c);span.y=min(span.y,dot(solid-c.eye.xyz,ray));}
+ if(reverseZ?depth>0.f:depth<1.f){float3 solid=shipFireUnproject(pixel,depth,c);span.y=min(span.y,dot(solid-c.eye.xyz,ray));}
  if(span.y<=span.x)discard_fragment();
  // Keep sample spacing continuous across camera LOD boundaries. Only the
  // final integration segment is partial; crossing an integer adds no reset.
@@ -129,7 +130,7 @@ fragment ShipFireVolumePixel ship_fire_volume_fs(ShipFireVolumeO o [[stage_in]],
   float2 density=shipFireDensity(p,v);float flame=density.x,smoke=density.y;
   float extinction=(flame*1.65f+smoke*.82f)*segmentStep/radius;
   float alpha=1.f-exp(-extinction);if(alpha<.0001f)continue;
-  if(front==1.f&&alpha>.003f){float4 clip=c.viewProjection*float4(p,1);front=saturate(clip.z/clip.w);}
+  if(front==1.f&&alpha>.003f){float4 clip=c.viewProjection*float4(p,1);float d=saturate(clip.z/clip.w);front=reverseZ?-d:d;}
   float y=max((p.y-v.sourceRadius.y)/radius,0.f);
   float hot=saturate(flame*.89f+(1.f-y/(2.1f+3.9f*v.burn.x))*.17f);
   float3 fire=mix(float3(1.7f,.065f,.003f),float3(3.4f,.57f,.019f),smoothstep(.12f,.72f,hot));
@@ -148,7 +149,7 @@ vertex ShipFireCompositeO ship_fire_composite_vs(uint id [[vertex_id]]){float2 q
 fragment float4 ship_fire_composite_fs(ShipFireCompositeO o [[stage_in]],constant ShipFireCamera&c [[buffer(1)]],texture2d<float,access::read>volume [[texture(0)]],texture2d<float,access::read>frontDepth [[texture(1)]],depth2d<float,access::read>sceneDepth [[texture(2)]]){
  float scale=c.lighting.y;float2 sample=o.p.xy*scale-.5f,weight=fract(sample);int2 base=int2(floor(sample));
  int2 backingSize=min(int2(volume.get_width(),volume.get_height()),int2(ceil(float2(sceneDepth.get_width(),sceneDepth.get_height())*scale)));
- float solid=sceneDepth.read(uint2(o.p.xy));float4 value=0;float total=0;
+ bool reverseZ=c.lighting.z>.5f;float solid=sceneDepth.read(uint2(o.p.xy));float solidOrdered=reverseZ?-solid:solid;float4 value=0;float total=0;
  float solidLinear=1.f/max(abs((c.inverseViewProjection*float4(0,0,solid,1)).w),1.e-8f);
  float4 guidedValue=0;float guidedTotal=0;bool allSky=true;
  for(uint i=0;i<4;i++){int2 offset=int2(i&1u,i>>1u);int2 at=clamp(base+offset,int2(0),backingSize-1);float w=(offset.x?weight.x:1.f-weight.x)*(offset.y?weight.y:1.f-weight.y);
@@ -158,15 +159,15 @@ fragment float4 ship_fire_composite_fs(ShipFireCompositeO o [[stage_in]],constan
   // A fixed world-depth epsilon chooses almost one tap on sloping sails.
   // Relative tolerance keeps those surfaces smooth without crossing rigging.
   float guidedWeight=w/(abs(tapLinear-solidLinear)+max(1.e-5f,solidLinear*.005f)),front=frontDepth.read(uint2(at)).r;float4 tap=volume.read(uint2(at));
-  allSky=allSky&&(tapDepth==1.f);
+  allSky=allSky&&(reverseZ?tapDepth==0.f:tapDepth==1.f);
   // Occluded taps are transparent, but their weights remain in the sum:
   // matching opaque samples must suppress sky taps instead of amplifying them.
   guidedTotal+=guidedWeight;
-  if(front>solid+1.e-6f)continue;
+  if(front>solidOrdered+(reverseZ?abs(solid)*1.e-6f:1.e-6f))continue;
   guidedValue+=tap*guidedWeight;
   value+=tap*w;total+=w;
  }
- if(scale==1.f||(solid==1.f&&allSky)){
+ if(scale==1.f||((reverseZ?solid==0.f:solid==1.f)&&allSky)){
   if(total<=.0001f||value.a<.001f)discard_fragment();
   value/=max(total,.35f);
  }else{
@@ -194,8 +195,9 @@ vertex ShipFireEmberO ship_fire_ember_vs(uint id [[vertex_id]],uint instance [[i
  clip.xy+=q*pixels/c.viewport.zw*2.f*clip.w;
  ShipFireEmberO o;o.p=clip;o.uv=q;o.alpha=v.burn.x*smoothstep(0.f,.07f,age)*(1.f-smoothstep(.44f,1.f,age));o.depth=clip.z/clip.w;return o;
 }
-fragment float4 ship_fire_ember_fs(ShipFireEmberO o [[stage_in]],depth2d<float,access::read>sceneDepth [[texture(0)]]){
- if(o.depth<0.f||o.depth>sceneDepth.read(uint2(o.p.xy)))discard_fragment();
+fragment float4 ship_fire_ember_fs(ShipFireEmberO o [[stage_in]],constant ShipFireCamera&c [[buffer(1)]],depth2d<float,access::read>sceneDepth [[texture(0)]]){
+ float solid=sceneDepth.read(uint2(o.p.xy));
+ if(o.depth<0.f||o.depth>1.f||(c.lighting.z>.5f?o.depth<solid:o.depth>solid))discard_fragment();
  float alpha=exp(-dot(o.uv,o.uv)*5.f)*o.alpha;return float4(float3(2.2f,.61f,.06f)*alpha,0);
 }
 )MSL";

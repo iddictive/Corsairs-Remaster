@@ -182,7 +182,7 @@ fragment half4 shaft_temporal(float4 position [[position]],texture2d<half,access
   float4 world=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,z,1.f); world/=max(abs(world.w),1e-5f);
   float4 oldClip=u.previousViewProjection*world; float2 oldUV=float2(oldClip.x/oldClip.w*.5f+.5f,.5f-oldClip.y/oldClip.w*.5f);
   bool valid=all(oldUV>=0.f)&&all(oldUV<=1.f)&&u.openingCountFrameReset.z<.5f; half4 old=history.sample(linearClamp,oldUV);
-  valid=valid&&abs(float(old.a)-z)<.012f; half lo=now.r,hi=now.r; float2 texel=1.f/u.dimensions.xy;
+  valid=valid&&oldClip.w>0.f&&abs(float(old.a)-oldClip.z/oldClip.w)<.012f; half lo=now.r,hi=now.r; float2 texel=1.f/u.dimensions.xy;
   for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){half v=current.sample(linearClamp,uv+float2(x,y)*texel).r;lo=min(lo,v);hi=max(hi,v);} old.rgb=clamp(old.rgb,half3(lo),half3(hi));
   half w=valid?half(u.openingCountFrameReset.w):0.h; return half4(mix(now.rgb,old.rgb,w),half(z));
 }
@@ -203,7 +203,7 @@ class VolumetricLightShafts {
               const LightShaftOpening *openings, unsigned openingCount,
               simd_float4x4 viewProjection, simd_float3 cameraPosition,
               simd_float3 worldOrigin, simd_float3 lightDirection,
-              bool globallyEnabled, bool locationActive, bool indoor) {
+              bool globallyEnabled, bool locationActive, bool indoor, bool reverseZ=false) {
     const auto quality=budget_.quality();
     if (!lightShaftsEnabled(globallyEnabled,locationActive,indoor,openingCount,
                             depth && depth.pixelFormat==MTLPixelFormatDepth32Float) ||
@@ -236,11 +236,11 @@ class VolumetricLightShafts {
     }
     if (u.openingCountFrameReset.x<.5f) { reset(); return false; }
     float cameraDelta=0.f;for(unsigned column=0;column<4;column++)for(unsigned row=0;row<4;row++)cameraDelta=std::max(cameraDelta,std::abs(viewProjection.columns[column][row]-previousViewProjection_.columns[column][row]));
-    bool resetHistory=!historyValid_||topology!=previousTopology_||cameraDelta>.45f;u.openingCountFrameReset.y=float(encodedFrames_&1023u);u.openingCountFrameReset.z=resetHistory?1.f:0.f;u.openingCountFrameReset.w=quality.historyWeight;
+    bool resetHistory=!historyValid_||topology!=previousTopology_||cameraDelta>.45f||reverseZ!=previousReverseZ_;u.openingCountFrameReset.y=float(encodedFrames_&1023u);u.openingCountFrameReset.z=resetHistory?1.f:0.f;u.openingCountFrameReset.w=quality.historyWeight;
     encodePass(command,current_,accumulate_,depth,nil,u,false);
     const unsigned next=historyIndex_^1u;encodePass(command,history_[next],temporal_,current_,history_[historyIndex_],u,false,depth);
     encodePass(command,target,composite_,history_[next],nil,u,true);
-    historyIndex_=next;historyValid_=true;previousTopology_=topology;previousViewProjection_=viewProjection;++encodedFrames_;return true;
+    historyIndex_=next;historyValid_=true;previousTopology_=topology;previousViewProjection_=viewProjection;previousReverseZ_=reverseZ;++encodedFrames_;return true;
   }
 
  private:
@@ -252,6 +252,6 @@ class VolumetricLightShafts {
   }
   bool allocate(id<MTLDevice>device,unsigned width,unsigned height){if(current_&&current_.width==width&&current_.height==height)return true;auto d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA16Float width:width height:height mipmapped:NO];d.storageMode=MTLStorageModePrivate;d.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead;current_=[device newTextureWithDescriptor:d];history_[0]=[device newTextureWithDescriptor:d];history_[1]=[device newTextureWithDescriptor:d];reset();return current_&&history_[0]&&history_[1];}
   void encodePass(id<MTLCommandBuffer>command,id<MTLTexture>dst,id<MTLRenderPipelineState>pipeline,id<MTLTexture>a,id<MTLTexture>b,const LightShaftUniforms&u,bool load,id<MTLTexture>c=nil){auto p=[MTLRenderPassDescriptor renderPassDescriptor];p.colorAttachments[0].texture=dst;p.colorAttachments[0].loadAction=load?MTLLoadActionLoad:MTLLoadActionDontCare;p.colorAttachments[0].storeAction=MTLStoreActionStore;auto e=[command renderCommandEncoderWithDescriptor:p];[e setRenderPipelineState:pipeline];[e setFragmentTexture:a atIndex:0];[e setFragmentTexture:b atIndex:1];[e setFragmentTexture:c atIndex:2];[e setFragmentBytes:&u length:sizeof(u) atIndex:0];[e setFragmentSamplerState:sampler_ atIndex:0];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[e endEncoding];}
-  LightShaftBudget budget_;id<MTLLibrary>library_;id<MTLRenderPipelineState>accumulate_,temporal_,composite_;id<MTLSamplerState>sampler_;id<MTLTexture>current_,history_[2];MTLPixelFormat compositeFormat_=MTLPixelFormatInvalid;simd_float4x4 previousViewProjection_=matrix_identity_float4x4;unsigned historyIndex_=0;bool historyValid_=false;uint64_t previousTopology_=0,encodedFrames_=0;
+  LightShaftBudget budget_;id<MTLLibrary>library_;id<MTLRenderPipelineState>accumulate_,temporal_,composite_;id<MTLSamplerState>sampler_;id<MTLTexture>current_,history_[2];MTLPixelFormat compositeFormat_=MTLPixelFormatInvalid;simd_float4x4 previousViewProjection_=matrix_identity_float4x4;unsigned historyIndex_=0;bool historyValid_=false,previousReverseZ_=false;uint64_t previousTopology_=0,encodedFrames_=0;
 };
 }

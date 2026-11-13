@@ -749,7 +749,7 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
         core.Controls->GetControlState("Phonk_DeckCameraDown", downControl);
         const float up = upControl.state == CST_ACTIVE || upControl.state == CST_ACTIVATED ? 1.f : 0.f;
         const float down = downControl.state == CST_ACTIVE || downControl.state == CST_ACTIVATED ? 1.f : 0.f;
-        phonkViewLift = std::clamp(phonkViewLift + (up-down)*18.f*std::min(float(DeltaTime)*.001f, .1f), 0.f, 80.f);
+        phonkViewLift = std::clamp(phonkViewLift + (up-down)*18.f*std::min(float(DeltaTime)*.001f, .1f), 0.f, 160.f);
         s_pos.y += phonkViewLift;
     }
     else phonkViewLift = 0.f;

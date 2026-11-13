@@ -118,13 +118,13 @@ struct ShipFireRenderer {
     }
     bool append(const float*world,const StormMetalShipFirePoint*points,uint32_t count,
         const float*wind,float seconds,simd_float3 origin,const simd_float4x4&view,const simd_float4x4&projection,
-        simd_float4 viewport,simd_float4 fogColor,simd_float4 fogParams,float daylight){
+        simd_float4 viewport,simd_float4 fogColor,simd_float4 fogParams,float daylight,bool reverseZ=false){
         if(!ShipFireSurfaceScope::finiteMatrix(world)||!points||count>shipFirePointLimit||!wind||!std::isfinite(seconds))return false;
         for(unsigned i=0;i<3;i++)if(!std::isfinite(wind[i]))return false;
         if(viewport.z<=0.f||viewport.w<=0.f)return false;
         const auto viewProjection=simd_mul(projection,view);
-        if(!cameraValid){camera={simd_inverse(viewProjection),viewProjection,simd_inverse(view).columns[3],viewport,fogColor,fogParams,{std::clamp(daylight,0.f,1.f),0,0,0}};cameraValid=true;}
-        else if(std::memcmp(&camera.viewProjection,&viewProjection,sizeof(viewProjection))||std::memcmp(&camera.viewport,&viewport,sizeof(viewport)))return false;
+        if(!cameraValid){camera={simd_inverse(viewProjection),viewProjection,simd_inverse(view).columns[3],viewport,fogColor,fogParams,{std::clamp(daylight,0.f,1.f),0,float(reverseZ),0}};cameraValid=true;}
+        else if(std::memcmp(&camera.viewProjection,&viewProjection,sizeof(viewProjection))||std::memcmp(&camera.viewport,&viewport,sizeof(viewport))||camera.lighting.z!=float(reverseZ))return false;
         simd_float4x4 root;std::memcpy(&root,world,sizeof(root));
         const float scale=std::max({simd_length(root.columns[0].xyz),simd_length(root.columns[1].xyz),simd_length(root.columns[2].xyz)});
         if(!std::isfinite(scale)||scale<.001f)return false;
@@ -142,7 +142,7 @@ struct ShipFireRenderer {
             simd_float2 lo={1.f,1.f},hi={-1.f,-1.f};bool crossedNear=false;unsigned visible=0;
             for(unsigned corner=0;corner<8;corner++){
                 simd_float3 p={corner&1?high.x:low.x,corner&2?high.y:low.y,corner&4?high.z:low.z};auto clip=simd_mul(viewProjection,simd_make_float4(p,1.f));
-                if(clip.w<=.001f||clip.z<0.f){crossedNear=true;continue;}simd_float2 xy=clip.xy/clip.w;lo=simd_min(lo,xy);hi=simd_max(hi,xy);++visible;
+                if(clip.w<=.001f||(reverseZ?clip.z>clip.w:clip.z<0.f)){crossedNear=true;continue;}simd_float2 xy=clip.xy/clip.w;lo=simd_min(lo,xy);hi=simd_max(hi,xy);++visible;
             }
             const bool eyeInside=simd_all(camera.eye.xyz>=low)&&simd_all(camera.eye.xyz<=high);
             if(!visible&&!eyeInside)continue;if(crossedNear){lo={-1,-1};hi={1,1};}

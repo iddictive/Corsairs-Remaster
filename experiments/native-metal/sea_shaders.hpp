@@ -57,7 +57,7 @@ struct SeaU {
     uint stride; uint fogEnabled; uint bumpIsVolume; uint padding;
     float4x4 inverseProjection; float4x4 projection; float4x4 viewMatrix;
     float4 viewport; float4 sceneSize;
-    uint depthRefractionEnabled; uint depthPad0; uint depthPad1; uint depthPad2;
+    uint depthRefractionEnabled; uint sceneReverseZ; uint depthPad1; uint depthPad2;
     float4 waterIrradiance; // RGB: actual weather ambient + enabled directional light; W: validity
     float4 weatherWater;    // RGB: display-space palette; W: broad reflection luminance ceiling/validity
     float4 weatherFoam;     // RGB: display-space palette; alpha remains texture/authored
@@ -65,6 +65,7 @@ struct SeaU {
     float4 sunScreen;
     float4 solarSpectrum;   // same atmospheric spectrum as the clouds and geometry
     float4 reflectionCameraOffset; // main camera minus capture origin; W: current valid faces
+    float4 logicalClipZRow; // forward WVP row 2, supplied separately for reverse-Z draws
 };
 struct SeaO {
     float4 position [[position]];
@@ -88,11 +89,14 @@ SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU
     return v;
 }
 float3 seaNormalize(float3 v) {return v*rsqrt(max(dot(v,v),1.e-20f));}
-SeaO seaBase(SeaInput v,constant SeaU& u) {
+SeaO seaBase(SeaInput v,constant SeaU& u,thread float& logicalClipZ) {
     SeaO o;
     // m4x4 uses four constant rows; sea.cpp explicitly transposes the WVP.
+    // vc[24..27] hold the physical WVP, formed from the physical projection
+    // before multiplication by view/world; logicalClipZRow stays forward.
     o.position=float4(dot(v.p,u.vc[24]),dot(v.p,u.vc[25]),dot(v.p,u.vc[26]),dot(v.p,u.vc[27]));
-    o.fog=exp2(-o.position.z*u.vc[1].w);
+    logicalClipZ=u.sceneReverseZ?dot(v.p,u.logicalClipZRow):o.position.z;
+    o.fog=exp2(-logicalClipZ*u.vc[1].w);
     o.surfaceNormal=v.n;o.viewToEye=u.vc[23].xyz-v.p.xyz;
     o.eventMaterial=v.eventMaterial;o.nuclearMaterial=v.nuclearMaterial;o.worldXZ=v.p.xz+u.vc[241].xy;
     o.fogColor=u.fogColor.rgb;
@@ -135,20 +139,22 @@ void seaBasis(thread SeaO& o,SeaInput v,constant SeaU& u) {
     o.t3=float4(dot(tangent,u.vc[38].xyz),dot(bitangent,u.vc[38].xyz),dot(third,u.vc[38].xyz),eye.z);
 }
 vertex SeaO sea2_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaColors(o,v,u);seaBasis(o,v,u);return o;
+    SeaInput v=seaInput(bytes,id,u.stride,u);float logicalClipZ;SeaO o=seaBase(v,u,logicalClipZ);seaColors(o,v,u);seaBasis(o,v,u);return o;
 }
 vertex SeaO seasun_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaBasis(o,v,u);return o;
+    SeaInput v=seaInput(bytes,id,u.stride,u);float logicalClipZ;SeaO o=seaBase(v,u,logicalClipZ);seaBasis(o,v,u);return o;
 }
 vertex SeaO seafoam_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaBasis(o,v,u);
+    SeaInput v=seaInput(bytes,id,u.stride,u);float logicalClipZ;SeaO o=seaBase(v,u,logicalClipZ);seaBasis(o,v,u);
     o.t0=o.t1;o.t1=o.t2;o.t2=o.t3;
     o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-v.nuclearHeight-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
     o.t4=float4(v.uv,u.vc[2].x,0);return o;
 }
 vertex SeaO sea3_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
-    SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaColors(o,v,u);
-    float3 projected=o.position.xyz/o.position.w*u.vc[0].z;
+    SeaInput v=seaInput(bytes,id,u.stride,u);float logicalClipZ;SeaO o=seaBase(v,u,logicalClipZ);seaColors(o,v,u);
+    float3 logicalPosition=o.position.xyz;
+    logicalPosition.z=logicalClipZ;
+    float3 projected=logicalPosition/o.position.w*u.vc[0].z;
     projected.y*=u.vc[1].y;projected.xy+=u.vc[0].z+u.vc[0].w;
     o.t3=float4(projected,o.position.w);projected.xy+=v.n.xz;o.t1=float4(projected,o.position.w);o.t2=o.t0;return o;
 }
@@ -415,6 +421,9 @@ float3 modernSeaLocalContribution(float3 water,float3 coverage,float4 transport)
     float3 source=modernSeaDisplay(water/max(coverage,float3(1.e-6f)));
     return modernSeaLinear(source*transport.a+transport.rgb)*coverage;
 }
+bool seaSceneClearDepth(float depth,constant SeaU&u) {
+    return u.sceneReverseZ?depth<=0.f:depth>=1.f;
+}
 float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,float3 sun,
                                texture2d<float> scene,depth2d<float> depth,float4 localTransport=float4(0,0,0,1)) {
     constexpr sampler depthSampler(coord::normalized,address::clamp_to_edge,filter::nearest);
@@ -425,7 +434,7 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
     float3 behindView=modernSeaViewPosition(pixel,depth0,u);
     // Only the exact clear depth is sky. Real far terrain also occupies the
     // last depth interval and must keep its reconstructed water thickness.
-    float thickness=depth0>=1.f?10000.f:length(behindView-waterView);
+    float thickness=seaSceneClearDepth(depth0,u)?10000.f:length(behindView-waterView);
     // A single pre-water snapshot has no information for pixels disoccluded by
     // camera motion. Sampling a projected ray therefore switches abruptly at
     // foreground silhouettes. Keep transmission on the observed screen ray;
@@ -433,7 +442,7 @@ float4 modernSeaDepthComposite(SeaO o,constant SeaU&u,float3 normal,float3 env,f
     // A resolved MSAA edge can contain foreground depth and sky color even
     // though this water sample is uncovered. That foreground is not a bottom;
     // transmitting it preserves a bright sky fringe around sails and rigging.
-    if(depth0<o.position.z)thickness=10000.f;
+    if(u.sceneReverseZ?depth0>o.position.z:depth0<o.position.z)thickness=10000.f;
     float3 eye=seaNormalize(o.viewToEye);
     // Macro-surface grazing incidence remains reflective despite fine ripples.
     float fresnel=max(modernSeaFresnel(dot(normal,eye)),modernSeaFresnel(dot(seaNormalize(o.surfaceNormal),eye)));
@@ -575,7 +584,7 @@ float seaSolarVisibility(constant SeaU& u,depth2d<float> sceneDepth,texture2d<fl
     // depth; offscreen sources retain the producer's collision-layer result.
     if(u.depthRefractionEnabled&&u.sunScreen.z>.5f&&all(u.sunScreen.xy>=0.f)&&all(u.sunScreen.xy<=1.f)){
         constexpr sampler depthSampler(coord::normalized,address::clamp_to_edge,filter::nearest);
-        if(sceneDepth.sample(depthSampler,u.sunScreen.xy)<1.f)visibility=0.f;
+        if(!seaSceneClearDepth(sceneDepth.sample(depthSampler,u.sunScreen.xy),u))visibility=0.f;
     }
     return visibility;
 }

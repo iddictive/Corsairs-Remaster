@@ -164,8 +164,10 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
                                   depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],texture2d<float> atlas [[texture(2)]],texture3d<float> volumeA [[texture(4)]],texture3d<float> volumeB [[texture(5)]],texture2d<float> background [[texture(6)]]) {
     uint2 ij=min(uint2(pixel.xy),uint2(depth.get_width()-1,depth.get_height()-1));
     float d=depth.read(ij), radius=u.centerRadius.w;
-    float3 ray=normalize(ciUnproject(pixel.xy,1,u)-u.eye.xyz);
-    float stop=d<1 ? max(0.,dot(ciUnproject(pixel.xy,d,u)-u.eye.xyz,ray))/radius : 1e7;
+    bool reverseZ=u.waveParams.y>0.5;
+    float3 ray=normalize(ciUnproject(pixel.xy,reverseZ?0.:1.,u)-u.eye.xyz);
+    bool hasScene=reverseZ ? d>0. : d<1.;
+    float stop=hasScene ? max(0.,dot(ciUnproject(pixel.xy,d,u)-u.eye.xyz,ray))/radius : 1e7;
     float3 origin=(u.eye.xyz-u.centerRadius.xyz)/radius;
     float3 safe=select(ray,select(float3(-1e-6),float3(1e-6),ray>=0),abs(ray)<1e-6);
     bool air=u.params.y>1.5;
@@ -262,8 +264,9 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
                     float3 original=background.sample(screenSampler,uv).rgb;
                     float2 shifted=clamp(uv+shift,float2(0.),float2(1.)-1./size);
                     float shiftedDepth=depth.read(uint2(shifted*size));
-                    bool compatible=(d>=1.)==(shiftedDepth>=1.);
-                    if(compatible && d<1.)
+                    bool shiftedHasScene=reverseZ ? shiftedDepth>0. : shiftedDepth<1.;
+                    bool compatible=hasScene==shiftedHasScene;
+                    if(compatible && hasScene)
                         compatible=length(ciUnproject(pixel.xy,d,u)-ciUnproject(shifted*size,shiftedDepth,u))<radius*2.;
                     if(compatible) {
                         float3 bent=background.sample(screenSampler,shifted).rgb;
@@ -423,7 +426,10 @@ public:
         const size_t prev=next-1;
         const float mix=std::clamp((frame-times[prev])/float(times[next]-times[prev]),0.f,1.f);
         u.volumeParams={mix,seed*2.39996f,.80f+.40f*variation,.85f+.30f*std::fmod(std::fabs(seed)*.56984f,1.f)};
-        u.waveParams={backgroundValid?1.f:0.f,0,0,0};
+        // Perspective projections use a negative translation for forward Z;
+        // the physical reverse-Z projection has the opposite sign.
+        const bool reverseZ=projection.columns[3].z>0.f;
+        u.waveParams={backgroundValid?1.f:0.f,reverseZ?1.f:0.f,0,0};
         float left=viewport.x+viewport.z,top=viewport.y+viewport.w,right=viewport.x,bottom=viewport.y;
         bool nearPlane=false;
         const float volumeBound=std::min(1.2f,.18f+volumeAge*2.2f)*1.28f;
@@ -435,7 +441,7 @@ public:
         const float highY=midair?1.3f:2.8f;
         for(float x:{-bound,bound}) for(float y:{lowY,highY}) for(float z:{-bound,bound}) {
             auto clip=simd_mul(vp,simd_make_float4(u.centerRadius.xyz+simd_make_float3(x,y,z)*radius,1));
-            if(clip.w<=1e-5f||clip.z<=0) { nearPlane=true; continue; }
+            if(clip.w<=1e-5f||(reverseZ?clip.z>=clip.w:clip.z<=0)) { nearPlane=true; continue; }
             float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
             float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
             left=std::min(left,px);right=std::max(right,px);top=std::min(top,py);bottom=std::max(bottom,py);

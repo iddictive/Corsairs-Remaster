@@ -42,16 +42,16 @@ struct SceneMSAA {
   if(!color||!depth)return false;
   resolvedColor=c;resolvedDepth=d;samples=count;invalidate();return true;
  }
- void attachments(MTLRenderPassDescriptor*p){
+ void attachments(MTLRenderPassDescriptor*p,bool reverseZ){
   p.colorAttachments[0].texture=color;p.colorAttachments[0].resolveTexture=resolvedColor;p.colorAttachments[0].storeAction=MTLStoreActionStoreAndMultisampleResolve;
   p.depthAttachment.texture=depth;p.depthAttachment.resolveTexture=resolvedDepth;p.depthAttachment.storeAction=MTLStoreActionStoreAndMultisampleResolve;
-  p.depthAttachment.depthResolveFilter=MTLMultisampleDepthResolveFilterMin;
+  p.depthAttachment.depthResolveFilter=reverseZ?MTLMultisampleDepthResolveFilterMax:MTLMultisampleDepthResolveFilterMin;
  }
- bool attach(id<MTLCommandBuffer>command,MTLRenderPassDescriptor*p){
+ bool attach(id<MTLCommandBuffer>command,MTLRenderPassDescriptor*p,bool reverseZ=false){
   const bool clearColor=p.colorAttachments[0].loadAction==MTLLoadActionClear,clearDepth=p.depthAttachment.loadAction==MTLLoadActionClear;
   const unsigned mask=(!colorValid&&!clearColor?1u:0u)|(!depthValid&&!clearDepth?2u:0u);
   if(mask){
-   auto seed=[MTLRenderPassDescriptor renderPassDescriptor];attachments(seed);
+   auto seed=[MTLRenderPassDescriptor renderPassDescriptor];attachments(seed,reverseZ);
    seed.colorAttachments[0].loadAction=colorValid?MTLLoadActionLoad:MTLLoadActionDontCare;
    seed.depthAttachment.loadAction=depthValid?MTLLoadActionLoad:MTLLoadActionDontCare;
    // Seeding must not resolve undefined components that the next pass clears.
@@ -61,7 +61,7 @@ struct SceneMSAA {
    [e setRenderPipelineState:seedPipeline[mask-1]];[e setDepthStencilState:seedDepth[(mask&2)?1:0]];
    [e setFragmentTexture:resolvedColor atIndex:0];[e setFragmentTexture:resolvedDepth atIndex:1];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];[e endEncoding];++seeds;
   }
-  attachments(p);colorValid=depthValid=true;++passes;return true;
+  attachments(p,reverseZ);colorValid=depthValid=true;++passes;return true;
  }
 };
 }

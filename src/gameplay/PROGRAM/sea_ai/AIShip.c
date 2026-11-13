@@ -1464,6 +1464,7 @@ void Ship_SetTaskDefend(int iTaskPriority, int iCharacterIndex, int iCharacterIn
 
 void Ship_DoFire()
 {
+	if (CheckAttribute(&Sea, "Phonk.MissileView.Control.active") && sti(Sea.Phonk.MissileView.Control.active)) return;
 	if (SeaPhonk_IsActive() && CheckAttribute(&Sea, "Phonk.Weapon"))
 	{
 		int weapon = sti(Sea.Phonk.Weapon);
@@ -1476,6 +1477,7 @@ void Ship_DoFire()
 bool Ship_CanRepeatFire()
 {
 	return bSeaActive && !bAbordageStarted && !bSeaReloadStarted && !dialogRun &&
+		(!CheckAttribute(&Sea, "Phonk.MissileView.Control.active") || !sti(Sea.Phonk.MissileView.Control.active)) &&
 		!sti(InterfaceStates.Launched) && !CheckAttribute(pchar, "pause") && !IsEntity(&worldMap);
 }
 

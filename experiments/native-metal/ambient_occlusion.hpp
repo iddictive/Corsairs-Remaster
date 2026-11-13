@@ -15,6 +15,7 @@ struct AmbientOcclusionUniforms {
     float bias;
     float intensity;
     float depthSigma;
+    simd_float4 depthConvention;
 };
 
 inline const char* ambientOcclusionShaderSource = R"MSL(
@@ -29,7 +30,10 @@ struct AOU {
     float bias;
     float intensity;
     float depthSigma;
+    float4 depthConvention;
 };
+
+bool aoEmpty(float d, constant AOU& u) { return u.depthConvention.x > .5f ? d <= 0.f : d >= .999999f; }
 
 float3 aoPosition(float2 uv, float depth, constant AOU& u) {
     float4 p = u.inverseProjection * float4(uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), depth, 1.0f);
@@ -64,7 +68,7 @@ kernel void ambient_occlusion_half(depth2d<float, access::read> depth [[texture(
     if (any(h >= uint2(u.halfSize))) return;
     uint2 q = min(h * 2 + 1, uint2(u.fullSize) - 1);
     float d = depth.read(q);
-    if (d >= 0.999999f || coverage.read(q).r < .5f) { output.write(float4(1.0f), h); return; }
+    if (aoEmpty(d,u) || coverage.read(q).r < .5f) { output.write(float4(1.0f), h); return; }
     float2 uv = (float2(q) + .5f) / u.fullSize;
     float3 p = aoPosition(uv, d, u);
     // Perspective Depth32 cannot resolve sub-metre contacts at kilometre
@@ -94,7 +98,7 @@ kernel void ambient_occlusion_half(depth2d<float, access::read> depth [[texture(
         int2 si = int2(q) + int2(round(dir * scale));
         si = clamp(si, int2(0), int2(u.fullSize)-1);
         uint2 s = uint2(si); float sd = depth.read(s);
-        if (sd >= .999999f || coverage.read(s).r < .5f) continue;
+        if (aoEmpty(sd,u) || coverage.read(s).r < .5f) continue;
         float3 delta = aoPosition((float2(s)+.5f)/u.fullSize, sd, u) - p;
         float distance = length(delta);
         float range = saturate(1.0f - distance / max(u.radius, 1.0e-4f));
@@ -113,7 +117,7 @@ kernel void ambient_occlusion_bilateral_upscale(
     constant AOU& u [[buffer(0)]], uint2 q [[thread_position_in_grid]]) {
     if (any(q >= uint2(u.fullSize))) return;
     float centerDepth = fullDepth.read(q);
-    if (centerDepth >= .999999f || coverage.read(q).r < .5f) { fullAO.write(float4(1.0f), q); return; }
+    if (aoEmpty(centerDepth,u) || coverage.read(q).r < .5f) { fullAO.write(float4(1.0f), q); return; }
     float centerZ = aoPosition((float2(q)+.5f)/u.fullSize, centerDepth, u).z;
     int2 hc = int2(q / 2); float sum=0.0f, weights=0.0f;
     for (int y=-1; y<=1; ++y) for (int x=-1; x<=1; ++x) {
@@ -155,11 +159,11 @@ struct AmbientOcclusionPass {
 
     id<MTLTexture> encode(id<MTLCommandBuffer> command,id<MTLTexture> depth,
                           id<MTLTexture> opaqueCoverage,const simd_float4x4& inverseProjection,
-                          float radius=.8f,float intensity=1.15f) {
+                          float radius=.8f,float intensity=1.15f,bool reverseZ=false) {
         if(!command||!depth||!opaqueCoverage||depth.width!=opaqueCoverage.width||depth.height!=opaqueCoverage.height||
            !halfPipeline||!upscalePipeline||!resize(command.device,depth.width,depth.height))return nil;
         AmbientOcclusionUniforms u{inverseProjection,{float(depth.width),float(depth.height)},
-          {float(halfAO.width),float(halfAO.height)},radius,.035f,intensity,80.f};
+          {float(halfAO.width),float(halfAO.height)},radius,.035f,intensity,80.f,{float(reverseZ),0,0,0}};
         auto dispatch=[&](id<MTLComputePipelineState> p,id<MTLTexture> a,id<MTLTexture> b,id<MTLTexture> c,id<MTLTexture> d,NSUInteger w,NSUInteger h){
             auto e=[command computeCommandEncoder];[e setComputePipelineState:p];[e setTexture:a atIndex:0];[e setTexture:b atIndex:1];[e setTexture:c atIndex:2];if(d)[e setTexture:d atIndex:3];[e setBytes:&u length:sizeof(u) atIndex:0];
             NSUInteger tw=std::min<NSUInteger>(p.threadExecutionWidth,8),th=std::max<NSUInteger>(1,std::min<NSUInteger>(p.maxTotalThreadsPerThreadgroup/tw,8));

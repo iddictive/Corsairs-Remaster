@@ -6,11 +6,11 @@
 #include <mutex>
 
 namespace storm_metal {
-struct UnderwaterUniforms { simd_float4x4 inverseProjection, inverseView; simd_float4 parameters, viewport; };
+struct UnderwaterUniforms { simd_float4x4 inverseProjection, inverseView; simd_float4 parameters, viewport; simd_float4 depthConvention{}; };
 inline const char *underwaterMediumMSL = R"MSL(
 #include <metal_stdlib>
 using namespace metal;
-struct U { float4x4 inverseProjection, inverseView; float4 parameters, viewport; };
+struct U { float4x4 inverseProjection, inverseView; float4 parameters, viewport, depthConvention; };
 struct V { float4 position [[position]]; };
 vertex V underwater_vs(uint i [[vertex_id]]) {
     float2 p = float2((i << 1) & 2, i & 2);
@@ -23,16 +23,19 @@ fragment float4 underwater_fs(V in [[stage_in]], texture2d<float, access::read> 
     float2 uv = (float2(pixel) + .5f - u.viewport.xy) / u.viewport.zw;
     if (any(uv < 0.f) || any(uv >= 1.f)) return original;
     float z = depth.read(pixel);
-    float4 p = u.inverseProjection * float4(uv * float2(2.f,-2.f) + float2(-1.f,1.f), min(z,.99999f), 1.f);
+    bool reverseZ = u.depthConvention.x > .5f;
+    bool empty = reverseZ ? z <= 0.f : z >= .99999f;
+    float safeDepth = reverseZ ? (empty ? .00001f : z) : min(z,.99999f);
+    float4 p = u.inverseProjection * float4(uv * float2(2.f,-2.f) + float2(-1.f,1.f), safeDepth, 1.f);
     float signedW = abs(p.w) > 1.e-6f ? p.w : (p.w < 0.f ? -1.e-6f : 1.e-6f);
     float3 view = p.xyz / signedW;
-    float distance = z >= .99999f ? 180.f : min(length(view),180.f);
+    float distance = empty ? 180.f : min(length(view),180.f);
     float3 direction = normalize((u.inverseView * float4(normalize(view),0.f)).xyz);
     float waterDistance = direction.y > .001f ? min(distance, u.parameters.x / direction.y) : distance;
     float fade = smoothstep(0.f, .8f, u.parameters.x);
     // Downward geometry has a clearer medium. Upward surface and empty sky
     // keep their established response; the horizon transition is continuous.
-    bool geometry = z < .99999f;
+    bool geometry = !empty;
     float bottomView = geometry ? smoothstep(0.f,.12f,-direction.y) : 0.f;
     float3 extinction = mix(float3(.008f,.005f,.003f),float3(.004f,.0025f,.0015f),bottomView);
     float3 transmission = exp(-max(waterDistance,0.f) * extinction);
@@ -43,7 +46,7 @@ fragment float4 underwater_fs(V in [[stage_in]], texture2d<float, access::read> 
     // An empty ray aimed below the surface never exits the water. The lower
     // authored sky is a mirrored background, not a distant underwater object.
     // Fade only at the crossing and horizon; upward rays keep their sky view.
-    if (z >= .99999f) {
+    if (empty) {
         float lowerSky = smoothstep(.01f,.18f,-direction.y) * smoothstep(0.f,.12f,u.parameters.x);
         color = mix(color,scatter,lowerSky);
     }

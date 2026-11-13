@@ -4,6 +4,7 @@
 #include "gpu_skinning_bridge.hpp"
 #include "string_compare.hpp"
 #include "rdf.h"
+#include "metal_producer_depth_bridge.h"
 #include <cmath>
 #include <set>
 #include <limits>
@@ -674,6 +675,14 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
             return;
         }
 #endif
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+        // Publish inside each technique pass, after that pass has selected its state.
+        if (bCaustic && block && block[0]) {
+            if (RenderService->TechniqueExecuteStart(block))
+                do { draw(nullptr); } while (RenderService->TechniqueExecuteNext());
+            return;
+        }
+#endif
         draw(block);
     };
 
@@ -704,6 +713,28 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
         // RenderService->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, *(int*)&SSBias);
     }
 
+    const auto publishCausticMatrices = [&] {
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+        if (!bCaustic)
+            return;
+        void *device = RenderService->GetNativeDevice();
+        CMatrix physicalProjection;
+        if (!StormMetalGetProducerPhysicalProjection(device, (float *)&physicalProjection))
+            return;
+        CMatrix world, view, projection, worldView, physical, logical;
+        RenderService->GetTransform(storm_render::TransformWorld, world);
+        RenderService->GetTransform(storm_render::TransformView, view);
+        RenderService->GetTransform(storm_render::TransformProjection, projection);
+        worldView.EqMultiply(world, view);
+        physical.EqMultiply(worldView, physicalProjection);
+        logical.EqMultiply(worldView, projection);
+        physical.Transposition4x4();
+        logical.Transposition4x4();
+        StormMetalSetProducerDrawMatrices(device, StormMetalDepthCaustic,
+                                           (const float *)&physical, (const float *)&logical);
+#endif
+    };
+
     // draw animation
     if (CurentVertexBuffer >= SHIFT_VALUE)
     {
@@ -727,6 +758,7 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
         {
             RenderService->SetStreamSource(0, transformed_vb, cavb.stride);
             submit("caustic", [&](const char *block) {
+                publishCausticMatrices();
                 RenderService->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, CurentVertexBuffer, 0, CurentIndexBuffer,
                                                             minv, numv, startidx, numtrg, block);
             });
@@ -741,6 +773,7 @@ void GEOM_SERVICE_R::DrawIndexedPrimitive(int32_t minv, int32_t numv, int32_t vr
             });
         else
             submit("caustic", [&](const char *block) {
+                publishCausticMatrices();
                 RenderService->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, CurentVertexBuffer, vrtsize,
                                                             CurentIndexBuffer, minv, numv, startidx, numtrg, block);
             });

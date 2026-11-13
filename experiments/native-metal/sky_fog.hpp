@@ -11,20 +11,21 @@ struct SkyFogDraw {
     simd_float4x4 volumeClipFromWorld;
     simd_float4 volumeCameraRange;
     simd_float4 volumeAngles;
+    simd_float4 depthConvention; // x: 1 for reverse-Z, 0 for forward-Z
 };
 
 inline SkyFogDraw makeSkyFogDraw(simd_float4x4 worldFromClip, simd_float4 viewport,
-                               bool current, bool veil = false) {
+                               bool current, bool veil = false, bool reverseZ = false) {
     const float determinant = simd_determinant(worldFromClip);
     return {worldFromClip, viewport,
             {float(current && std::isfinite(determinant) && std::abs(determinant)>1.e-12f &&
-                   viewport.z>0.f && viewport.w>0.f), float(veil), 0, 0}};
+                   viewport.z>0.f && viewport.w>0.f), float(veil), 0, 0}, {}, {}, {}, {float(reverseZ),0,0,0}};
 }
 
 inline const char* skyFogMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
-struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;float4x4 volumeClipFromWorld;float4 volumeCameraRange,volumeAngles;};
+struct SkyFogDraw {float4x4 worldFromClip;float4 viewport,options;float4x4 volumeClipFromWorld;float4 volumeCameraRange,volumeAngles,depthConvention;};
 // A fixed world-direction lattice, with continuous extra resolution near the
 // thin ground-fog layer. Both the producer and receiver use this same mapping.
 float skyLocalTheta(float elevation){return sinh((elevation*2.f-1.f)*7.f)/sinh(7.f)*1.57079632679f;}
@@ -33,22 +34,23 @@ float4 skyLocalMedium(float3 pixel,constant SkyFogDraw&draw,texture3d<float>volu
     if(draw.options.z<.5f||draw.options.x<.5f)return float4(0,0,0,1);
     // The sky veil is a background mask, not an atmospheric endpoint at the
     // radius of its mesh. Match the sky's full view-ray transport at its edge.
-    if(draw.options.y>.5f)pixel.z=1.f;
+    float farDepth=draw.depthConvention.x>.5f?0.f:1.f;
+    if(draw.options.y>.5f)pixel.z=farDepth;
     float2 uv=(pixel.xy-draw.viewport.xy)/draw.viewport.zw;
     if(any(uv<0)||any(uv>1))return float4(0,0,0,1);
-    float4 near=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,0,1);
-    float4 far=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1,1);
+    float4 near=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1.f-farDepth,1);
+    float4 far=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,farDepth,1);
     float3 ray=normalize(far.xyz*near.w-near.xyz*far.w);
     float4 p=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,pixel.z,1);
-    if(abs(p.w)<1.e-8f)return float4(0,0,0,1);
-    float3 world=p.xyz/p.w;
+    if(abs(p.w)<1.e-8f && pixel.z!=farDepth)return float4(0,0,0,1);
+    float3 world=p.xyz/(abs(p.w)<1.e-8f?1.f:p.w);
     float azimuth=atan2(ray.z,ray.x);
     float column=fmod(azimuth-draw.volumeAngles.x+12.56637061436f,6.28318530718f)/draw.volumeAngles.y;
     if(column>draw.volumeAngles.z-1.f)return float4(0,0,0,1);
     float theta=asin(clamp(ray.y,-1.f,1.f));
     float elevation=skyLocalElevation(theta);
     float2 screen=float2((column+.5f)/float(volume.get_width()),(elevation*float(volume.get_height()-1)+.5f)/float(volume.get_height()));
-    float distance=pixel.z>=1.f?draw.volumeCameraRange.w:length(world-draw.volumeCameraRange.xyz);
+    float distance=pixel.z==farDepth?draw.volumeCameraRange.w:length(world-draw.volumeCameraRange.xyz);
     float z=clamp(log(1.f+distance/8.f)/log(1.f+draw.volumeCameraRange.w/8.f),0.f,1.f);
     // Slice zero is the camera (identity transport). Prefix endpoints occupy
     // the other slices; map endpoints to texel centres, not texture edges.
@@ -67,9 +69,10 @@ float4 skyLocalComposite(float4 value,float3 pixel,constant SkyFogDraw&draw,text
 float3 skyFogColor(float2 pixel,float3 authored,constant SkyFogDraw&draw,texture2d<float> environment,bool includeGlow=false) {
     if(draw.options.x<.5f)return authored;
     float2 uv=(pixel-draw.viewport.xy)/draw.viewport.zw;
-    float4 a=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,0,1);
-    float4 b=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1,1);
-    float3 ray=normalize(b.xyz/b.w-a.xyz/a.w);
+    float farDepth=draw.depthConvention.x>.5f?0.f:1.f;
+    float4 a=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,1.f-farDepth,1);
+    float4 b=draw.worldFromClip*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,farDepth,1);
+    float3 ray=normalize(b.xyz*a.w-a.xyz*b.w);
     // Invert the environment's signed elevation lattice in both hemispheres.
     float theta=asin(clamp(ray.y,-1.f,1.f));
     float2 skyUV=float2(atan2(ray.z,ray.x)/6.28318530718f+.5f,

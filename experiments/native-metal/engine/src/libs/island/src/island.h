@@ -95,8 +95,6 @@ class ISLAND : public ISLAND_BASE
     bool LocalDepthCollision(const CVECTOR &previous, const CVECTOR &next, float broadDepth, float minDepth);
     bool LocalGroundDepth(float x, float z, float keelY, float &depth);
     bool RegionVisible() const;
-    float RegionDistanceBlend() const;
-    float RawRegionDistanceBlend(const CVECTOR &camera) const;
     float DistanceToRegionSquared(const CVECTOR &point) const;
     bool RegionIntersects(const CVECTOR &from, const CVECTOR &to, float margin = 50.f) const;
     void IncludeFortTraceBounds(entid_t fort);
@@ -267,10 +265,15 @@ class ISLAND : public ISLAND_BASE
     }
     float GetIslandViewDistance(entid_t model) const override
     {
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+        // The map snapshot restores the model's actual distance-fade setting.
+        return 0.f;
+#else
         if (model == model_id) return maxViewDistance;
         for (const auto id : residentRegions) if (auto *region = Region(id))
             if (model == region->model_id) return region->maxViewDistance;
         return 0.f;
+#endif
     }
 
     bool Check2DBoxDepth(CVECTOR vPos, CVECTOR vSize, float fAngY, float fMinDepth);

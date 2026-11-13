@@ -4,6 +4,10 @@
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
 extern "C" void StormMetalPublishSeaCamera(void *device, float depth);
 #endif
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+extern "C" bool StormMetalGetSeaPhysicalProjection(void *device, float outProjection[16]);
+extern "C" bool StormMetalSetSeaDrawMatrices(void *device, const float physicalWvp[16], const float logicalWvp[16]);
+#endif
 #include "ship_base.h"
 #include "sea_geomorph.h"
 #include "vai_objbase.h"
@@ -1812,12 +1816,34 @@ void SEA::Realize(uint32_t dwDeltaTime)
         rs->SetVertexShaderConstantF(246, (const float *)&vortexTime, 1);
         PublishWeatherWaveLattices();
         const bool tsunamiFoam = (event.active && event.envelope > 0.f) || vortexOrigin.w > 0.f || nuclearWavesActive;
+        const auto publishSeaDrawMatrices = [&] {
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+            // Query at each draw: reflection and scene targets can use different depth conventions.
+            CMatrix physicalProjection;
+            void *device = rs->GetNativeDevice();
+            if (!StormMetalGetSeaPhysicalProjection(device, (float *)&physicalProjection))
+                return;
+
+            CMatrix drawView = rs->GetView();
+#ifndef OLD_WORLD_POS
+            drawView.MoveInversePosition(-vWorldOffset.x, 0.f, -vWorldOffset.z);
+#endif
+            CMatrix drawWorldView, physicalWvp, logicalWvp;
+            drawWorldView.EqMultiply(mWorld, drawView);
+            physicalWvp.EqMultiply(drawWorldView, physicalProjection);
+            logicalWvp.EqMultiply(drawWorldView, rs->GetProjection());
+            physicalWvp.Transposition4x4();
+            logicalWvp.Transposition4x4();
+            StormMetalSetSeaDrawMatrices(device, (const float *)&physicalWvp, (const float *)&logicalWvp);
+#endif
+        };
         const auto drawSeaFoam = [&] {
             const auto vec = CVECTOR4(fFoamTextureDisturb, 0.0f, 0.0f, 0.0f);
             rs->SetPixelShaderConstantF(0, (const float *)&vec, 1);
             rs->TextureSet(0, iFoamTexture);
             rs->SetTexture(4, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
                                                : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
+            publishSeaDrawMatrices();
             rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea2_Foam");
         };
@@ -1845,6 +1871,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
             rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix01, F2DW(0.0f));
             rs->SetTextureStageState(3, storm_render::StageBumpEnvMatrix11, F2DW(0.05f));
 
+            publishSeaDrawMatrices();
             rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea3");
             if (tsunamiFoam) drawSeaFoam();
@@ -1857,6 +1884,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
             rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
                                                : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
             rs->SetTexture(3, pEnvMap);
+            publishSeaDrawMatrices();
             rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea2");
 
@@ -1865,6 +1893,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
             rs->SetTexture(0, (pVolumeTexture) ? static_cast<storm_render::BaseTexture *>(pVolumeTexture)
                                                : static_cast<storm_render::BaseTexture *>(pRenderTargetBumpMap));
             rs->SetTexture(3, pSunRoadMap);
+            publishSeaDrawMatrices();
             rs->DrawIndexedPrimitiveNoVShader(storm_render::PrimitiveTriangleList, iVSeaBuffer, sizeof(SeaVertex), iISeaBuffer, 0,
                                               iVStart, 0, iTStart, "Sea2_SunRoad");
         }

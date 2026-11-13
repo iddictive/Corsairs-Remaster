@@ -2,6 +2,7 @@
 #include "sea_map_transition.hpp"
 #include "antialiasing.hpp"
 #include "metal_renderer_consumers.h"
+#include "metal_producer_depth_bridge.h"
 #ifdef STORM_METAL_ROCKK2
 extern "C" void storm_metal_label_texture(storm_render::BaseTexture *, const char *);
 #endif
@@ -3694,6 +3695,19 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
             do
             {
                 CHECKD3DERR(SetStreamSource(0, rectsVBuffer, sizeof(RECT_VERTEX)));
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+                if (cBlockName && storm::iEquals(cBlockName, "WdmClouds"))
+                {
+                    CMatrix physicalProjection, logicalProjection;
+                    if (StormMetalGetProducerPhysicalProjection(GetNativeDevice(), (float *)&physicalProjection))
+                    {
+                        GetTransform(storm_render::TransformProjection, logicalProjection);
+                        StormMetalSetProducerDrawMatrices(GetNativeDevice(), StormMetalDepthWorldMapCloud,
+                                                           (const float *)&physicalProjection,
+                                                           (const float *)&logicalProjection);
+                    }
+                }
+#endif
                 CHECKD3DERR(DrawPrimitive(storm_render::PrimitiveTriangleList, 0, drawCount * 2));
             } while (cBlockName && TechniqueExecuteNext());
     }

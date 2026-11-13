@@ -16,9 +16,9 @@ namespace storm_metal
 struct PhonkNuclearUniforms
 {
     simd_float4x4 inverseViewProjection, viewProjection;
-    simd_float4 eye, sourceRadius, params, viewport;
+    simd_float4 eye, sourceRadius, params, viewport, depthConvention;
 };
-static_assert(sizeof(PhonkNuclearUniforms) == 192);
+static_assert(sizeof(PhonkNuclearUniforms) == 208);
 class PhonkNuclearRenderer
 {
     id<MTLLibrary> library = nil;
@@ -112,6 +112,9 @@ class PhonkNuclearRenderer
         // Age, authoritative pressure-front radius/lifetime, stable blast seed.
         uniform.params = {age,pressureFront/radius,light ? -pressureLife : pressureLife,seed};
         uniform.viewport = viewport;
+        // The perspective projection passed here must match the attached depth.
+        const bool reverseZ=projection.columns[3].z>0.f;
+        uniform.depthConvention = {reverseZ?1.f:0.f,0,0,0};
         if (viewport.z<=0.f || viewport.w<=0.f || !prepare(device,target.pixelFormat)) return false;
         float minX=viewport.x+viewport.z,minY=viewport.y+viewport.w,maxX=viewport.x,maxY=viewport.y;
         bool crossesNear=false;
@@ -121,7 +124,7 @@ class PhonkNuclearRenderer
         {
             const auto corner=uniform.sourceRadius.xyz+simd_make_float3(x,y,z)*radius;
             const auto clip=simd_mul(uniform.viewProjection,simd_make_float4(corner,1.f));
-            if (clip.w<=1.e-5f || clip.z<=0.f) { crossesNear=true; continue; }
+            if (clip.w<=1.e-5f || (reverseZ?clip.z>=clip.w:clip.z<=0.f)) { crossesNear=true; continue; }
             const float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
             const float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
             minX=std::min(minX,px);minY=std::min(minY,py);maxX=std::max(maxX,px);maxY=std::max(maxY,py);

@@ -1942,9 +1942,15 @@ bool SHIP::ReconcileFireSails()
 void SHIP::ExecuteShipFire(uint32_t deltaTime)
 {
     const float frameSeconds=std::min(1.f,float(deltaTime)*.001f);
+    const float rise=1.f-std::exp(-frameSeconds/1.2f);
+    const float fall=1.f-std::exp(-frameSeconds/.35f);
     bool thermal=false,charredCloth=false;
     for (std::size_t i=0;i<shipFire.count;++i) {
-        const auto &c=shipFire.cells[i];thermal|=c.heat>.0001f || c.burned>.000001f;
+        auto &c=shipFire.cells[i];
+        const float intensity=c.intensity();
+        c.visualIntensity+=(intensity-c.visualIntensity)*(intensity>c.visualIntensity?rise:fall);
+        c.visualHeat+=(c.heat-c.visualHeat)*(c.heat>c.visualHeat?rise:fall);
+        thermal|=c.heat>.0001f || c.burned>.000001f;
         charredCloth|=c.cloth && c.charred>.001f;
     }
     if (!thermal && firePendingHull==0.f && firePendingCrew==0.f) {

@@ -275,25 +275,6 @@ float ISLAND::DistanceToRegionSquared(const CVECTOR &point) const
     return x * x + z * z;
 }
 
-float ISLAND::RegionDistanceBlend() const
-{
-    if (legacyExposureFallback) return 0.f;
-    CVECTOR camera, angles; float perspective;
-    pRS->GetCamera(camera, angles, perspective);
-    float blend = RawRegionDistanceBlend(camera);
-    for (const auto id : legacyExposureSources)
-        if (const auto *source = Region(id)) blend = std::min(blend, source->RawRegionDistanceBlend(camera));
-    return blend;
-}
-
-float ISLAND::RawRegionDistanceBlend(const CVECTOR &camera) const
-{
-    if (maxViewDistance <= 0.f) return 0.f;
-    const float start = maxViewDistance * maxViewDistance;
-    const float end = (maxViewDistance * 1.3f) * (maxViewDistance * 1.3f);
-    return std::clamp((DistanceToRegionSquared(camera) - start) / (end - start), 0.f, 1.f);
-}
-
 bool ISLAND::BindLegacySeaExposure()
 {
     std::vector<ISLAND*> regions{this};
@@ -467,17 +448,9 @@ void ISLAND::Realize(uint32_t Delta_Time)
         return;
     }
 #ifdef STORM_METAL_RENDERER_CONSUMERS
-    const float distanceBlend = RegionDistanceBlend();
-    if (distanceBlend >= 1.f) {
-        if (islandTrace.record()) {
-            CVECTOR camera, angles; float perspective;
-            pRS->GetCamera(camera, angles, perspective);
-            core.Trace("IslandTrace region=%s skipped=distance blend=%.9g reflection=%d camera=%.9g,%.9g,%.9g center=%.9g,%.9g,%.9g extent=%.9g,%.9g maxDistance=%.9g",
-                       logicalRegionID.c_str(), distanceBlend, int(bDrawReflections), camera.x,camera.y,camera.z,
-                       vBoxCenter.x,vBoxCenter.y,vBoxCenter.z,vRealBoxSize.x,vRealBoxSize.z,maxViewDistance);
-        }
-        return;
-    }
+    // Terrain, forts and seabed share full visibility; the model frustum and
+    // scene projection still reject geometry outside the view and far plane.
+    const float distanceBlend = 0.f;
 #else
     if (!RegionVisible()) return;
 #endif
@@ -797,7 +770,11 @@ uint64_t ISLAND::ProcessMessage(MESSAGE &message)
         break;
     case MSG_MODEL_SET_MAX_VIEW_DIST:
         maxViewDistance = message.Float();
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+        core.Send_Message(model_id, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, 0.f);
+#else
         core.Send_Message(model_id, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, maxViewDistance);
+#endif
         break;
     }
     return 1;

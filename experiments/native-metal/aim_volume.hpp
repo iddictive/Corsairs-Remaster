@@ -44,7 +44,7 @@ struct AimVolumeUniforms {
   simd_uint4 receiverFlags;
   simd_float4 waterAtlas;
   simd_uint4 contactCounts;
-  simd_float4 surfaceStyle; // x: solar daylight from the existing weather clock
+  simd_float4 surfaceStyle; // x: solar daylight; y: reverse-Z
 };
 static_assert(sizeof(AimVolumeUniforms) == 320);
 static_assert(offsetof(AimVolumeUniforms,surfaceStyle)==304);
@@ -88,6 +88,9 @@ struct AimPlane { float x,y,offset0,offset1; };
 struct AimU { float4x4 inverseViewProjection,viewProjection; float4 camera,axis,lateral,up,boundsMin,boundsMax,viewport,params; uint4 receiverFlags; float4 waterAtlas; uint4 contactCounts; float4 surfaceStyle; };
 struct AimContactField {packed_float3 center;float chart;float metric[6];float nearDepth,farDepth;packed_float3 normal;float unused;};
 struct AimContactTriangle {packed_float3 a;float thickness;packed_float3 b;uint receiverToken;packed_float3 c;uint padding;packed_float3 normal;float reserved;};
+bool aim_has_receiver(float z,constant AimU&u) {
+  return isfinite(z)&&z>=0.f&&z<=1.f&&(u.surfaceStyle.y>0.5f?z>0.f:z<1.f);
+}
 vertex float4 aim_volume_vs(uint id [[vertex_id]]) {
   const float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
   return float4(p[id],0,1);
@@ -174,7 +177,7 @@ bool aim_water_neighbor(int2 pixel,constant AimU&u,depth2d<float,access::read> s
   int2 size=int2(sceneDepth.get_width(),sceneDepth.get_height());
   if(any(pixel<0)||any(pixel>=size))return false;
   float depth=sceneDepth.read(uint2(pixel));
-  if(!isfinite(depth)||depth<0.f||depth>=1.f||waterDepth.read(uint2(pixel)).r!=depth)return false;
+  if(!aim_has_receiver(depth,u)||waterDepth.read(uint2(pixel)).r!=depth)return false;
   float2 uv=(float2(pixel)+.5f-u.viewport.xy)/u.viewport.zw;
   float4 p=u.inverseViewProjection*float4(uv.x*2.f-1.f,1.f-uv.y*2.f,depth,1.f);
   if(abs(p.w)<1.e-8f)return false;world=p.xyz/p.w;return all(isfinite(world));
@@ -239,7 +242,7 @@ fragment float4 aim_prism_fs(AimPrismO input [[stage_in]],constant AimU&u [[buff
     const device AimContactTriangle*triangles [[buffer(1)]],depth2d<float,access::read>sceneDepth [[texture(0)]],
     texture2d<uint,access::read>relation [[texture(1)]],texture2d<float,access::read>relationDepth [[texture(2)]]){
   uint2 pixel=uint2(input.position.xy);float z=sceneDepth.read(pixel);
-  if(!isfinite(z)||z<0.f||z>=1.f)discard_fragment();
+  if(!aim_has_receiver(z,u))discard_fragment();
   uint token=u.receiverFlags.w&&relationDepth.read(pixel).r==z?relation.read(pixel).x:0u;
   AimContactTriangle p=triangles[input.triangle];
   if((token&0xc0000000u)||(token&0x3fffffffu)!=p.receiverToken)discard_fragment();
@@ -269,7 +272,7 @@ bool aim_solid_neighbor(int2 pixel,float depth,float3 receiver,uint receiverToke
   int2 size=int2(sceneDepth.get_width(),sceneDepth.get_height());
   if(any(pixel<0)||any(pixel>=size))return false;
   uint2 index=uint2(pixel);float z=sceneDepth.read(index);
-  if(!isfinite(z)||z<0.f||z>=1.f||ownDepth.read(index).r==z||(u.receiverFlags.y&&waterDepth.read(index).r==z))return false;
+  if(!aim_has_receiver(z,u)||ownDepth.read(index).r==z||(u.receiverFlags.y&&waterDepth.read(index).r==z))return false;
   uint token=u.receiverFlags.w&&relationDepth.read(index).r==z?relation.read(index).x:0u;
   if((token&0x40000000u)||(token&0x3fffffffu)!=receiverToken)return false;
   float2 uv=(float2(pixel)+.5f-u.viewport.xy)/u.viewport.zw;
@@ -325,16 +328,17 @@ fragment float aim_air_fs(AimAirO o [[stage_in]],constant AimU&u [[buffer(0)]],
   if(boundary<1.e-6f)return 0.f;
   float3 ray=delta/boundary;float2 ndc=(o.position.xy-u.viewport.xy)/u.viewport.zw;
   ndc=float2(ndc.x*2.f-1.f,1.f-ndc.y*2.f);
-  float4 near4=u.inverseViewProjection*float4(ndc,0.f,1.f);
+  float nearZ=u.surfaceStyle.y>0.5f?1.f:0.f,farZ=1.f-nearZ;
+  float4 near4=u.inverseViewProjection*float4(ndc,nearZ,1.f);
   if(abs(near4.w)<1.e-8f)return 0.f;
   float nearDistance=dot(near4.xyz/near4.w-u.camera.xyz,ray);
   float receiver=boundary;
-  float4 far4=u.inverseViewProjection*float4(ndc,1.f,1.f);
+  float4 far4=u.inverseViewProjection*float4(ndc,farZ,1.f);
   if(abs(far4.w)>1.e-8f)receiver=min(receiver,dot(far4.xyz/far4.w-u.camera.xyz,ray));
   uint2 size=uint2(sceneDepth.get_width(),sceneDepth.get_height());
   float depth=sceneDepth.read(min(uint2(o.position.xy),size-1));
   if(!isfinite(depth)||depth<0.f||depth>1.f)return 0.f;
-  if(depth<1.f){float4 p=u.inverseViewProjection*float4(ndc,depth,1.f);
+  if(aim_has_receiver(depth,u)){float4 p=u.inverseViewProjection*float4(ndc,depth,1.f);
     if(abs(p.w)<1.e-8f)return 0.f;
     receiver=min(receiver,dot(p.xyz/p.w-u.camera.xyz,ray));}
   float t=max(0.f,receiver-nearDistance);
@@ -361,14 +365,15 @@ fragment float4 aim_volume_fs(float4 pixel [[position]],
   uint2 size=uint2(sceneDepth.get_width(),sceneDepth.get_height());
   uint2 pixelIndex=min(uint2(pixel.xy),size-1);float depth=sceneDepth.read(pixelIndex);
   bool validDepth=isfinite(depth)&&depth>=0.f&&depth<=1.f;
-  bool hasReceiver=validDepth&&depth<1.f;
+  bool hasReceiver=validDepth&&aim_has_receiver(depth,u);
   bool actualOwn=false;
   // MetalFX restores native depth with nearest sampling. Keep the captured
   // receiver on that same texel when aiming follows an early HUD boundary.
   uint2 relationSize=uint2(relationDepth.get_width(),relationDepth.get_height());
   uint2 relationPixel=min(uint2((float2(pixelIndex)+.5f)*float2(relationSize)/float2(size)),relationSize-1u);
-  bool actualModel=hasReceiver&&u.receiverFlags.w&&relationDepth.read(relationPixel).r==depth;
-  uint2 identity=actualModel?relation.read(relationPixel).xy:uint2(0u);
+  bool depthMatchesModel=hasReceiver&&u.receiverFlags.w&&relationDepth.read(relationPixel).r==depth;
+  uint2 identity=depthMatchesModel?relation.read(relationPixel).xy:uint2(0u);
+  bool actualModel=depthMatchesModel&&identity.x!=0u;
   bool actualWater=actualModel&&(identity.x&0x20000000u);
   actualOwn=actualOwn||(actualModel&&(identity.x&0x40000000u));
   uint receiverToken=(!actualOwn&&!actualWater)?(identity.x&0x3fffffffu):0u;
@@ -477,7 +482,8 @@ class SoftAimVolume {
   void attachModelTargets(MTLRenderPassDescriptor*pass){
     for(unsigned i=1;i<=2;++i){auto a=pass.colorAttachments[i];a.texture=i==1?model_.depth:model_.identity;
       a.loadAction=model_.ready?MTLLoadActionLoad:MTLLoadActionClear;a.storeAction=MTLStoreActionStore;}
-    pass.colorAttachments[1].clearColor=MTLClearColorMake(1,0,0,0);
+    // No valid device depth can equal this sentinel, in either convention.
+    pass.colorAttachments[1].clearColor=MTLClearColorMake(-1,0,0,0);
     pass.colorAttachments[2].clearColor=MTLClearColorMake(0,0,0,0);
     model_.stamp=model_.captureStamp;model_.ready=true;
   }
@@ -523,6 +529,20 @@ class SoftAimVolume {
     for(unsigned c=0;c<4;++c)for(unsigned r=0;r<4;++r)
       if(!std::isfinite(u.inverseViewProjection.columns[c][r]))return fail(Camera,"invalid inverse camera matrix");
     u.camera=simd_make_float4(inverseView.columns[3].xyz,1.f);
+    // The supplied matrix is the physical projection used by the depth
+    // attachment. Compare unprojected endpoints to the supplied camera;
+    // an endpoint at infinity is necessarily the far endpoint.
+    const auto endpoint0=simd_mul(u.inverseViewProjection,simd_make_float4(0.f,0.f,0.f,1.f));
+    const auto endpoint1=simd_mul(u.inverseViewProjection,simd_make_float4(0.f,0.f,1.f,1.f));
+    auto endpointDistance=[&](simd_float4 p)->double {
+      if(p.w==0.f)return std::numeric_limits<double>::infinity();
+      const double x=double(p.x)/p.w-u.camera.x,y=double(p.y)/p.w-u.camera.y,z=double(p.z)/p.w-u.camera.z;
+      return x*x+y*y+z*z;
+    };
+    const double distance0=endpointDistance(endpoint0),distance1=endpointDistance(endpoint1);
+    if(std::isnan(distance0)||std::isnan(distance1)||distance0==distance1)return fail(Camera,"ambiguous projection depth direction");
+    const bool reverseZ=distance1<distance0;
+    u.surfaceStyle.y=reverseZ?1.f:0.f;
     u.axis=simd_make_float4(ax,0.f);u.lateral=simd_make_float4(lat,0.f);u.up=simd_make_float4(vertical,0.f);u.viewport=viewport;
     readiness=std::clamp(readiness,0.f,1.f);
     // Air is a quiet trajectory cue; contact owns the aiming information.
@@ -555,7 +575,7 @@ class SoftAimVolume {
         const auto corner=center+lat*(float(x)*(source.halfWidth+.02f))+vertical*(float(y)*(source.halfHeight+.02f));
         const auto clip=simd_mul(viewProjection,simd_make_float4(corner,1.f));
         if(!std::isfinite(clip.x)||!std::isfinite(clip.y)||!std::isfinite(clip.z)||!std::isfinite(clip.w))return fail(Camera,"nonfinite projected volume bound");
-        if(clip.w<=1.e-5f||clip.z<=0.f){crossesNear=true;continue;}
+        if(clip.w<=1.e-5f||(reverseZ?clip.z>=clip.w:clip.z<=0.f)){crossesNear=true;continue;}
         const float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
         const float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
         minX=std::min(minX,px);minY=std::min(minY,py);maxX=std::max(maxX,px);maxY=std::max(maxY,py);
@@ -632,7 +652,7 @@ class SoftAimVolume {
       for(int x:{-1,1})for(int y:{-1,1})for(int z:{-1,1}){
         const auto corner=boxCenter+radius*simd_make_float3(float(x),float(y),float(z));
         const auto clip=simd_mul(viewProjection,simd_make_float4(corner,1.f));
-        if(clip.w<=1.e-5f||clip.z<=0.f){contactNear=true;continue;}
+        if(clip.w<=1.e-5f||(reverseZ?clip.z>=clip.w:clip.z<=0.f)){contactNear=true;continue;}
         const float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
         const float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
         contactMinX=std::min(contactMinX,px);contactMinY=std::min(contactMinY,py);

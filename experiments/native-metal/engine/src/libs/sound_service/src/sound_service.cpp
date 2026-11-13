@@ -1,5 +1,6 @@
 #include "sound_service.h"
 
+#include <cstring>
 #include <thread>
 
 #include "matrix.h"
@@ -329,6 +330,7 @@ TSD_ID SoundService::SoundPlay(const char *_name, eSoundType _type, eVolumeType 
                                int32_t _prior)
 {
     std::string FileName = _name;
+    const bool missileEffect = std::strncmp(_name, "phonk_missile_", 14) == 0 && !_looped;
 
     // aliases don`t contain `\`
     if (!strchr(_name, '\\'))
@@ -426,6 +428,7 @@ TSD_ID SoundService::SoundPlay(const char *_name, eSoundType _type, eVolumeType 
 
     //--------
     PlayingSounds[SoundIdx].type = _volumeType;
+    if (missileEffect) _volume *= .92f + rand(.16f);
     PlayingSounds[SoundIdx].fSoundVolume = _volume;
 
     // start to play the sound, but paused ...
@@ -506,7 +509,7 @@ TSD_ID SoundService::SoundPlay(const char *_name, eSoundType _type, eVolumeType 
         CHECKFMODERR(PlayingSounds[SoundIdx].channel->setVolume(0));
     }
 
-    CHECKFMODERR(PlayingSounds[SoundIdx].channel->setPitch(fPitch));
+    CHECKFMODERR(PlayingSounds[SoundIdx].channel->setPitch(fPitch * (missileEffect ? .97f + rand(.06f) : 1.f)));
 
     PlayingSounds[SoundIdx].Name = std::move(SoundName);
     PlayingSounds[SoundIdx].sound_type = _type;

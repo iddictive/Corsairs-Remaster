@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace storm_metal {
-enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment };
+enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry };
 
 // Matched by the Metal shader; all positions are absolute world coordinates.
 struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color; };
@@ -28,7 +28,7 @@ float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); r
 vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
  constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
  S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz;
- if(a.params.z>0.5 && a.params.z<1.5) {
+ if((a.params.z>0.5 && a.params.z<1.5) || a.params.z>2.5) {
   u=normalize(a.axisLength.xyz); r=cross(u,view.eye.xyz-a.positionSize.xyz); if(dot(r,r)<1e-8) r=view.right.xyz; else r=normalize(r);
   // Only widen motor billboards narrower than 3 pixels, capped at 4x world width.
   float4 center=view.vp*float4(a.positionSize.xyz,1.);
@@ -66,6 +66,18 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   return float4(i.color.rgb*(.68+.32*detail)*alpha,alpha);
  }
  float2 p=i.uv*2.-1.;
+ if(i.params.z>2.5) {
+  // A tapered, asymmetric hot wake, with its brightest material at the head.
+  float t=i.uv.y;
+  float n=missile_noise(float2(t*8.-i.params.w*3.,i.params.w*.31));
+  float bend=(n-.5)*.24*(1.-t);
+  float width=(.07+.47*pow(t,.8))*(.78+.36*n);
+  float d=abs(p.x+bend)/width;
+  float body=(1.-smoothstep(.32,1.,d))*smoothstep(0.,.16,t)*(1.-smoothstep(.86,1.,t));
+  float core=pow(max(0.,1.-d),3.)*smoothstep(.42,.95,t);
+  float alpha=body*i.color.a;
+  return float4(mix(i.color.rgb,float3(1.,.94,.72),core)*alpha,alpha);
+ }
  if(i.params.z>1.5) { float r=length(p); float a=(1.-smoothstep(.12,1.,r))*i.color.a; return float4(mix(i.color.rgb,float3(1.,.95,.78),1.-smoothstep(0.,.45,r))*a,a); }
  float along=(p.y+1.)*.5;
  float noise=missile_noise(float2(p.x*3.5+i.params.w*1.3,along*7.-i.params.w*5.));
@@ -88,12 +100,12 @@ class MissileTrailVfx {
     double lastEmission=-100.0;
     double clock=0; uint32_t serial=1;
     id<MTLDevice> owner=nil; id<MTLLibrary> library=nil; id<MTLRenderPipelineState> pipeline=nil;
-    id<MTLDepthStencilState> depthState=nil; MTLPixelFormat colorFormat=MTLPixelFormatInvalid, depthFormat=MTLPixelFormatInvalid;
+    id<MTLDepthStencilState> depthStates[2]={nil,nil}; MTLPixelFormat colorFormat=MTLPixelFormatInvalid, depthFormat=MTLPixelFormatInvalid;
     static bool finite(simd_float3 v) { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z); }
     float random() { serial^=serial<<13; serial^=serial>>17; serial^=serial<<5; return float(serial&65535)/65535.f; }
     bool prepare(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) {
-        if(owner!=device){ owner=device; library=nil; pipeline=nil; depthState=nil; }
-        if(pipeline && color==colorFormat && depth==depthFormat) return true;
+        if(owner!=device){ owner=device; library=nil; pipeline=nil; depthStates[0]=depthStates[1]=nil; }
+        if(pipeline && depthStates[0] && depthStates[1] && color==colorFormat && depth==depthFormat) return true;
         NSError *error=nil;
         if(!library) library=[device newLibraryWithSource:[NSString stringWithUTF8String:missileVfxMSL] options:nil error:&error];
         if(!library) { fprintf(stderr,"missile VFX shader: %s\n",error.localizedDescription.UTF8String); return false; }
@@ -102,8 +114,10 @@ class MissileTrailVfx {
         c.sourceRGBBlendFactor=c.sourceAlphaBlendFactor=MTLBlendFactorOne; c.destinationRGBBlendFactor=c.destinationAlphaBlendFactor=MTLBlendFactorOneMinusSourceAlpha;
         d.depthAttachmentPixelFormat=depth; pipeline=[device newRenderPipelineStateWithDescriptor:d error:&error];
         if(!pipeline) { fprintf(stderr,"missile VFX pipeline: %s\n",error.localizedDescription.UTF8String); return false; }
-        auto ds=[MTLDepthStencilDescriptor new]; ds.depthCompareFunction=MTLCompareFunctionLessEqual; ds.depthWriteEnabled=NO; depthState=[device newDepthStencilStateWithDescriptor:ds];
-        colorFormat=color; depthFormat=depth; return depthState!=nil;
+        auto ds=[MTLDepthStencilDescriptor new]; ds.depthWriteEnabled=NO;
+        ds.depthCompareFunction=MTLCompareFunctionLessEqual; depthStates[0]=[device newDepthStencilStateWithDescriptor:ds];
+        ds.depthCompareFunction=MTLCompareFunctionGreaterEqual; depthStates[1]=[device newDepthStencilStateWithDescriptor:ds];
+        colorFormat=color; depthFormat=depth; return depthStates[0]!=nil && depthStates[1]!=nil;
     }
 public:
     bool ready(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) { return device && prepare(device,color,depth); }
@@ -129,6 +143,8 @@ public:
     // Actual segment observed this frame, including guided turns. At most 24 newest
     // samples; remaining distance is dropped, never enqueued. Call only while burning.
     void emitSegment(simd_float3 from, simd_float3 to, float dt, MissileVfxType type) {
+        // Reentry glow is attached to the moving head, not a persistent smoke trail.
+        if(type==MissileVfxType::OreshnikReentry) return;
         if(!finite(from)||!finite(to)||!std::isfinite(dt)||dt<=0) return;
         float length=simd_length(to-from); if(!std::isfinite(length)) return;
         // A stalled missile must not manufacture a cloud every frame. At low
@@ -166,6 +182,13 @@ public:
         if(headCount>=maxHeads||!finite(tail)||!finite(direction)||!std::isfinite(phase)) return;
         if(type==MissileVfxType::Fragment && phase>=2.5f) return;
         float l=simd_length(direction); if(l<1e-4f||!std::isfinite(l)) return; direction/=l;
+        if(type==MissileVfxType::OreshnikReentry) {
+            // phase is seconds plus a stable per-element offset, supplied by the caller.
+            float flicker=.88f+.12f*std::sin(phase*13.f);
+            constexpr float length=14.f, width=1.15f;
+            heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),simd_make_float4(direction,length*.5f),{0,1,3,phase},{1.f,.24f,.025f,.92f*flicker}};
+            return;
+        }
         float length=type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
         float width=type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
         simd_float4 color=type==MissileVfxType::Kalibr?simd_make_float4(.40f,.68f,1.f,.85f):simd_make_float4(1.f,.30f,.035f,.9f);
@@ -190,8 +213,9 @@ public:
     // Invoke once per frame outside another encoder, after opaque color/depth.
     // Atlas is WispySmoke02_8x8, premultiplied RGBA, no mipmaps. Matrices and
     // eye share absolute coordinates; no hidden origin conversion is performed.
+    // reverseZ describes both vp and the attached depth, not the render target globally.
     bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,id<MTLTexture> atlas,
-                simd_float4x4 vp,simd_float3 eye,simd_float3 right,simd_float3 up,simd_float4 viewport,simd_float3 worldOrigin={0,0,0}) {
+                simd_float4x4 vp,simd_float3 eye,simd_float3 right,simd_float3 up,simd_float4 viewport,simd_float3 worldOrigin={0,0,0},bool reverseZ=false) {
         if(!device||!command||!target||!depth||!atlas||atlas.device!=device||target.sampleCount!=1||depth.sampleCount!=1||target.width!=depth.width||target.height!=depth.height||!finite(eye)||!finite(right)||!finite(up)||viewport.z<=0||viewport.w<=0) return false;
         std::vector<MissileVfxSprite> sprites; sprites.reserve(count+headCount+flashCount);
         for(size_t j=0;j<count;j++) { const size_t slot=(next+capacity-count+j)%capacity; const Puff &p=puffs[slot]; float age=clock-p.birth; if(age<0||age>=p.life) continue;
@@ -233,7 +257,7 @@ public:
         MissileVfxView view{vp,simd_make_float4(eye,1),simd_make_float4(right,0),simd_make_float4(up,0),viewport};
         auto pass=[MTLRenderPassDescriptor renderPassDescriptor]; pass.colorAttachments[0].texture=target; pass.colorAttachments[0].loadAction=MTLLoadActionLoad; pass.colorAttachments[0].storeAction=MTLStoreActionStore;
         pass.depthAttachment.texture=depth; pass.depthAttachment.loadAction=MTLLoadActionLoad; pass.depthAttachment.storeAction=MTLStoreActionStore;
-        auto e=[command renderCommandEncoderWithDescriptor:pass]; if(!e)return false; [e setRenderPipelineState:pipeline]; [e setDepthStencilState:depthState];
+        auto e=[command renderCommandEncoderWithDescriptor:pass]; if(!e)return false; [e setRenderPipelineState:pipeline]; [e setDepthStencilState:depthStates[reverseZ?1:0]];
         [e setViewport:MTLViewport{viewport.x,viewport.y,viewport.z,viewport.w,0,1}]; [e setVertexBytes:&view length:sizeof(view) atIndex:0]; [e setVertexBuffer:buffer offset:0 atIndex:1]; [e setFragmentTexture:atlas atIndex:0];
         [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:sprites.size()]; [e endEncoding]; return true;
     }

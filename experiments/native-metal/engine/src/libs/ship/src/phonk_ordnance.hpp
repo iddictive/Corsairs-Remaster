@@ -107,6 +107,7 @@ struct NuclearMissile
     uint32_t shotId = 0;
     float damageScale = 1.f;
     float blastScale = 1.f;
+    float terrainLift = 0.f;
     float nominalMeanSpeed = 0.f;
     missile::FlightVariation flightVariation{};
     uint32_t surrenderEpoch = 0;
@@ -162,7 +163,7 @@ struct HarpoonProjectile
 struct OrdnanceState
 {
     unsigned weapon = 6;
-    bool triggerHeld = false, targetValid = false, targetOutside = false, charging = false;
+    bool triggerHeld = false, fireBlockedUntilRelease = false, targetValid = false, targetOutside = false, charging = false;
     float reload = 0.f, targetClock = 0.f, charge = 0.f, rangefinderClock = 0.f;
     float manualAssistClock = 0.f;
     CVECTOR manualAssistTarget = CVECTOR(0.f);
@@ -250,11 +251,19 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
         {missile.launch.x, missile.launch.y, missile.launch.z},
         {missile.target.x, missile.target.y, missile.target.z}, t, missile.duration, missile.flightVariation);
     CVECTOR result(p.x, p.y, p.z);
+    if (missile.terrainLift > 0.f) {
+        const float progress = missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
+        const float envelope = 4.f * progress * (1.f - progress);
+        result.y += missile.terrainLift * envelope * envelope;
+    }
     if (missile.cluster && missile.split && !missile.intercepted) {
         // Raise the carrier over the chosen impact area before opening it.
         const float progress = missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
         const float u = std::clamp((progress - .65f) / .35f, 0.f, 1.f);
-        result.y += 65.f * u * u * (3.f - 2.f * u);
+        uint32_t seed = missile.shotId * 0x9e3779b9u ^ uint32_t(missile.owner);
+        seed ^= seed >> 16; seed *= 0x7feb352du; seed ^= seed >> 15;
+        const float lift = 40.f + 45.f * float(seed & 65535u) / 65535.f;
+        result.y += lift * u * u * (3.f - 2.f * u);
     }
     if (missile.shotId) {
         const float horizontal = std::hypot(delta.x, delta.z);
@@ -274,14 +283,14 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
                          (early * (1.f-progress) + late * progress);
             // Some cruise missiles take one broad side approach; the curve
             // rejoins the aim point smoothly instead of oscillating.
-            if (missile.type == missile::Type::Kalibr && (seed & 3u) == 0u) {
+            if (missile.type == missile::Type::Kalibr && (seed & 1u) == 0u) {
                 const float side = early < 0.f ? -1.f : 1.f;
                 const float peak = .30f + .40f * float((seed >> 18) & 255u) / 255.f;
                 const float u = std::clamp(progress / peak, 0.f, 1.f);
                 const float v = std::clamp((progress - peak) / (1.f - peak), 0.f, 1.f);
                 const float rise = u * u * (3.f - 2.f * u);
                 const float fall = 1.f - v * v * (3.f - 2.f * v);
-                bend += side * std::min(260.f, horizontal * .10f) * rise * fall *
+                bend += side * std::min(340.f, horizontal * .14f) * rise * fall *
                         (.55f + .45f * std::abs(late));
             }
             // A committed side approach followed by a terminal turn, with a

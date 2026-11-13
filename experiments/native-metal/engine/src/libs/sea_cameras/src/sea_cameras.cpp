@@ -321,7 +321,10 @@ void SEA_CAMERAS::ClearMissileControl()
     auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
     auto *view = phonk ? phonk->GetAttributeClass("MissileView") : nullptr;
     auto *control = view ? view->GetAttributeClass("Control") : nullptr;
-    if (control) control->SetAttributeUseDword("active", 0);
+    if (control) {
+        control->SetAttributeUseDword("aimHeld", 0);
+        control->SetAttributeUseDword("active", 0);
+    }
 }
 
 bool SEA_CAMERAS::RealizeMissileView()
@@ -381,14 +384,15 @@ bool SEA_CAMERAS::RealizeMissileView()
         if (input.state == CST_ACTIVATED) missileZoom *= 1.20f;
         missileZoom = std::clamp(missileZoom, .25f, 8.f);
     }
-    // W/S pitch, A/D yaw. Steering latches manual
-    // mode for this shot; releasing the keys sends neutral axes, not autopilot.
     auto *control = view->VerifyAttributeClass("Control");
+    const bool aimHeld = flight && !cluster && !phonk->GetAttributeAsDword("MissileSettings", 0) &&
+        !core.Controls->IsControlLocked("Ship_Fire") && core.Controls->GetAsyncKeyState(VK_LBUTTON) < 0;
+    // W/S pitch, A/D yaw. Any steering latches manual mode for this shot.
     if (flight && !cluster) {
         const auto held = [](int key) { return core.Controls->GetAsyncKeyState(key) < 0; };
         const int yaw = int(held('D')) - int(held('A'));
         const int pitch = int(held('S')) - int(held('W'));
-        missileManual = missileManual || yaw != 0 || pitch != 0;
+        missileManual = missileManual || aimHeld || yaw != 0 || pitch != 0;
         control->SetAttributeUseDword("sequence", sequence);
         control->SetAttributeUseFloat("yaw", float(yaw));
         control->SetAttributeUseFloat("pitch", float(pitch));
@@ -398,6 +402,7 @@ bool SEA_CAMERAS::RealizeMissileView()
         control->SetAttributeUseDword("active", 0);
         missileManual = false;
     }
+    control->SetAttributeUseDword("aimHeld", aimHeld);
     const CVECTOR focus = flight && !cluster ? projectile : target;
     const float azimuth = missileOrbitOffset.y;
     const float elevation = missileOrbitOffset.x;
@@ -407,6 +412,13 @@ bool SEA_CAMERAS::RealizeMissileView()
                                                  -std::cos(azimuth)*std::cos(elevation));
     if (auto *water = static_cast<SEA_BASE *>(sea))
         position.y = std::max(position.y, water->WaveXZ(position.x, position.z) + 2.f);
+    if (aimHeld) {
+        // The actual camera ray includes water-height correction and zoom.
+        const CVECTOR aim = !(focus - position);
+        control->SetAttributeUseFloat("aimX", aim.x);
+        control->SetAttributeUseFloat("aimY", aim.y);
+        control->SetAttributeUseFloat("aimZ", aim.z);
+    }
     float ignoredPerspective;
     render->GetCamera(returnPosition, returnAngles, ignoredPerspective);
     returnPerspective = current->GetPerspective();

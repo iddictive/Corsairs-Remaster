@@ -9,7 +9,7 @@
 // deliberately independent of warhead and impact handling.
 namespace storm::ship::phonk::missile
 {
-enum class Type : uint32_t { Kinzhal = 0, Kalibr = 1, Shtorm = 2 };
+enum class Type : uint32_t { Kinzhal = 0, Kalibr = 1, Shtorm = 2, Oreshnik = 4 };
 
 struct Vec3 { float x, y, z; };
 inline Vec3 operator+(Vec3 a, Vec3 b) { return {a.x+b.x, a.y+b.y, a.z+b.z}; }
@@ -48,7 +48,8 @@ inline float blastPower(float distance, float radius)
 inline Profile profile(Type type)
 {
     // Gameplay values, not real-world performance specifications.
-    return type == Type::Shtorm ? Profile{700.f, 2.f, 1000.f, .25f}
+    return type == Type::Oreshnik ? Profile{1600.f, 3.f, 9000.f, 1.2f}
+         : type == Type::Shtorm ? Profile{700.f, 2.f, 1000.f, .25f}
          : type == Type::Kalibr ? Profile{260.f, 2.f, 42.f, .035f}
                                 : Profile{1800.f, 1.2f, 650.f, .16f};
 }

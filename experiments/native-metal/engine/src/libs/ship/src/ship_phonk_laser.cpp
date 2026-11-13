@@ -2091,7 +2091,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     }
     CONTROL_STATE fire;
     core.Controls->GetControlState("Ship_Fire", fire);
-    const bool held = phonkOrdnance.weapon == 6 &&
+    const bool held = !MissileCameraControlsActive() && phonkOrdnance.weapon == 6 &&
         (fire.state == CST_ACTIVE || fire.state == CST_ACTIVATED);
     // The player requested an unlimited beam for destruction acceptance.
     phonkLaser.charge = 1.f;

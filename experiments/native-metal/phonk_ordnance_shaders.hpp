@@ -4,7 +4,7 @@ namespace storm_metal
 inline constexpr const char *phonkNuclearMSL = R"MSL(
 struct PhonkNuclearUniforms {
     float4x4 inverseViewProjection,viewProjection;
-    float4 eye,sourceRadius,params,viewport;
+    float4 eye,sourceRadius,params,viewport,depthConvention;
 };
 vertex float4 phonk_nuclear_vs(uint index [[vertex_id]]) {
     constexpr float2 corners[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
@@ -153,10 +153,13 @@ float4 phonkPressureComposite(float4 effect,float4 pressure,float2 pixel,float3 
     float2 shifted=clamp(uv+offset,float2(0),float2(1));
     uint2 at=min(uint2(shifted*float2(depth.get_width(),depth.get_height())),uint2(depth.get_width()-1,depth.get_height()-1));
     float shiftedDepth=depth.read(at),sourceDepth=depth.read(uint2(pixel));
-    bool discontinuity=shiftedDepth<center.z/center.w;
-    if(sourceDepth<1.f) {
-        discontinuity|=shiftedDepth>=1.f;
-        if(shiftedDepth<1.f) {
+    bool reverseZ=u.depthConvention.x>0.5f;
+    bool sourceHasScene=reverseZ?sourceDepth>0.f:sourceDepth<1.f;
+    bool shiftedHasScene=reverseZ?shiftedDepth>0.f:shiftedDepth<1.f;
+    bool discontinuity=reverseZ?shiftedDepth>center.z/center.w:shiftedDepth<center.z/center.w;
+    if(sourceHasScene) {
+        discontinuity|=!shiftedHasScene;
+        if(shiftedHasScene) {
             float3 source=phonkNuclearUnproject(pixel,sourceDepth,u);
             float3 receiver=phonkNuclearUnproject(shifted*float2(depth.get_width(),depth.get_height()),shiftedDepth,u);
             discontinuity|=length(receiver-source)>u.eye.w*u.sourceRadius.w*8.f;
@@ -171,8 +174,10 @@ fragment float4 phonk_nuclear_fs(float4 pixel [[position]],constant PhonkNuclear
                                 texture2d<float> smokeSprite [[texture(2)]],texture2d<float> scene [[texture(3)]]) {
     uint2 location=min(uint2(pixel.xy),uint2(depth.get_width()-1,depth.get_height()-1));
     float sceneDepth=depth.read(location);
-    float3 ray=normalize(phonkNuclearUnproject(pixel.xy,1.f,u)-u.eye.xyz);
-    float stop=sceneDepth<1.f?max(0.f,dot(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.eye.xyz,ray)):1.e8f;
+    bool reverseZ=u.depthConvention.x>0.5f;
+    float3 ray=normalize(phonkNuclearUnproject(pixel.xy,reverseZ?0.f:1.f,u)-u.eye.xyz);
+    bool hasScene=reverseZ?sceneDepth>0.f:sceneDepth<1.f;
+    float stop=hasScene?max(0.f,dot(phonkNuclearUnproject(pixel.xy,sceneDepth,u)-u.eye.xyz,ray)):1.e8f;
     float radius=u.sourceRadius.w;
     float3 origin=(u.eye.xyz-u.sourceRadius.xyz)/radius;
     // Older overlapping blasts retain their plume and pressure haze with a

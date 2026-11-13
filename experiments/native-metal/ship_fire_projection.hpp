@@ -7,7 +7,7 @@
 namespace storm_ship_fire {
 
 inline StormMetalShipFirePoint renderPoint(const Cell& cell, std::size_t index, float seed) {
-    return {{cell.x,cell.y,cell.z},cell.radius,cell.intensity(),cell.charred,cell.heat,
+    return {{cell.x,cell.y,cell.z},cell.radius,cell.visualIntensity,cell.charred,cell.visualHeat,
             float(index)*17.31f+seed};
 }
 

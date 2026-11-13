@@ -2327,7 +2327,7 @@ void Sea_LoadAtlasBody(int bodyIndex, int source)
     SendMessage(reflection, "ls", MSG_MODEL_LOAD_GEO, body.reflection);
     SendMessage(reflection, "lffffffffffff", MSG_MODEL_SET_POSITION, stf(pose.tx), 0.0, stf(pose.tz),
         stf(pose.a), 0.0, stf(pose.c), 0.0, 1.0, 0.0, stf(pose.b), 0.0, stf(pose.d));
-    SendMessage(reflection, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, viewDistance);
+    SendMessage(reflection, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, 0.0);
     SendMessage(reflection, "lllf", MSG_MODEL_SET_FOG, 1, 1, stf(Weather.Fog.IslandDensity));
     LayerAddObject(SEA_REFLECTION2, reflection, -1);
     Sea_CreateRegionGrass(source, targetIsland, stf(pose.tx), stf(pose.tz));
@@ -2406,7 +2406,7 @@ void Sea_LoadIslandRegion(int iIslandIndex)
 		SendMessage(regionRefl, "l", MSG_MODEL_COMMIT_ENVIRONMENT_LIGHTING);
 		SendMessage(regionRefl, "ls", MSG_MODEL_LOAD_GEO, sReflModel);
 		SendMessage(regionRefl, "lffffffffffff", MSG_MODEL_SET_POSITION, dx, 0.0, dz, 1,0,0, 0,1,0, 0,0,1);
-		SendMessage(regionRefl, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, fMaxViewDist);
+		SendMessage(regionRefl, "lf", MSG_MODEL_SET_MAX_VIEW_DIST, 0.0);
 		SendMessage(regionRefl, "lllf", MSG_MODEL_SET_FOG, 1, 1, stf(Weather.Fog.IslandDensity));
 		LayerAddObject(SEA_REFLECTION2, regionRefl, -1);
 		SendMessage(&SeaLighter, "ssi", "AddModel", Islands[iIslandIndex].refl_model, regionRefl);

@@ -1468,6 +1468,7 @@ ref GetCurrentCharge()
 			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 1) missileName = "Калибр";
 			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 2) missileName = "Шторм";
 			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 3) missileName = "Случайная ракета";
+			if (CheckAttribute(&Sea,"Phonk.MissileType") && sti(Sea.Phonk.MissileType) == 4) missileName = "Орешник";
 			if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && (sti(Sea.Phonk.MissileWarhead) == 1 || sti(Sea.Phonk.MissileWarhead) == 3))
 				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (осколочно-фугасная)";
 			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == 4)

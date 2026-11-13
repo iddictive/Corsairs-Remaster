@@ -18,6 +18,7 @@ inline float unit(float x) { return std::isfinite(x) ? std::clamp(x, 0.f, 1.f) :
 struct Cell {
     float x = 0.f, y = 0.f, z = 0.f, radius = 2.f;
     float heat = 0.f, fuel = 1.f, charred = 0.f;
+    float visualIntensity = 0.f, visualHeat = 0.f;
     float burned = 0.f; // unconsumed cloth damage; checkpointed with the cell
     int32_t owner = -1;
     bool cloth = false, available = true;
@@ -85,6 +86,7 @@ public:
         auto &c = cells[i];
         c.heat = std::isfinite(heat) ? std::clamp(heat, 0.f, 1.25f) : 0.f;
         c.fuel = unit(fuel); c.charred = unit(charred); c.burned = unit(burned); c.owner = owner;
+        c.visualIntensity = c.intensity(); c.visualHeat = c.heat;
     }
 
     Output step(const Context &ctx, float dt = StepSeconds) {

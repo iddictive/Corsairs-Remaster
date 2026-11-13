@@ -15,6 +15,7 @@
 #include "character.h"
 #include "entity.h"
 #include "island_base.h"
+#include "metal_producer_depth_bridge.h"
 #ifdef STORM_METAL_GRASS_BRIDGE
 #include "model.h"
 #include "island_forest.hpp"
@@ -1230,6 +1231,19 @@ void Grass::DrawBuffer()
 #else
     if (numPoints > 0)
     {
+#ifdef STORM_METAL_RENDERER_CONSUMERS
+        CMatrix physicalProjection;
+        void *device = rs->GetNativeDevice();
+        if (StormMetalGetProducerPhysicalProjection(device, (float *)&physicalProjection))
+        {
+            CMatrix view, physical, logical;
+            rs->GetTransform(storm_render::TransformView, view);
+            physical.EqMultiply(view, physicalProjection);
+            logical = (CMatrix &)consts[32];
+            StormMetalSetProducerDrawMatrices(device, StormMetalDepthGrass,
+                                               (const float *)&physical, (const float *)&logical);
+        }
+#endif
         // The native shader derives corner coordinates and atlas UVs from
         // vertex_id while retaining the authored per-blade wind and LOD alpha.
         // These are the exact Grass.fx cutout/blend values.
