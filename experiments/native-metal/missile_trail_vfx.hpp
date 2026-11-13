@@ -194,7 +194,7 @@ public:
             float size=p.size*(1.f+age*.5f)*(older?.8f:1.f); float dist=simd_length(pos-eye); if(dist>3600.f) continue;
             float visibility=1.f-std::clamp((dist-600.f)/3000.f,0.f,1.f);
             float opacity=visibility*visibility*(1.f-.65f*t)*(p.type==MissileVfxType::Interceptor?.12f:.17f);
-            const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.78f,.84f,.88f):
+            const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.56f,.59f,.60f):
                 p.type==MissileVfxType::Interceptor?simd_make_float3(.93f,.93f,.90f):
                 p.type==MissileVfxType::Shtorm?simd_make_float3(.72f,.74f,.76f):
                 p.type==MissileVfxType::Fragment?simd_make_float3(.16f,.15f,.14f):simd_make_float3(.91f,.88f,.82f);

@@ -261,6 +261,13 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
                                 missile.type == missile::Type::Shtorm ? 55.f : 75.f;
             float bend = std::min(limit, horizontal * .02f) * envelope *
                          (early * (1.f-progress) + late * progress);
+            // Some cruise missiles take one broad side approach; the curve
+            // rejoins the aim point smoothly instead of oscillating.
+            if (missile.type == missile::Type::Kalibr && (seed & 3u) == 0u) {
+                const float side = early < 0.f ? -1.f : 1.f;
+                bend += side * std::min(260.f, horizontal * .10f) * envelope *
+                        (.55f + .45f * std::abs(late));
+            }
             // A committed side approach followed by a terminal turn, with a
             // different direction and timing for each shot. It still converges
             // on the selected impact point and never uses a periodic wave.

@@ -2244,6 +2244,10 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
             if(phonkLaser.stroke->next==stroke.steps)phonkLaser.stroke.reset();
             if(phonkLaser.burn>=laserBurnTime||phonkLaser.pendingBeam.size()>=storm_hull_damage::MaxBeamSamples)if(!commitBeam())return false;
         }
+        // A long sweep can exhaust this frame's trace budget before it fills
+        // a dose. Start its completed cuts now instead of holding them until
+        // the remaining sweep has been traced over later frames.
+        if(phonkLaser.stroke&&!phonkLaser.pendingBeam.empty()&&!commitBeam())return false;
         return !phonkLaser.stroke;
     };
     if(!held&&phonkLaser.stroke){drainStroke();commitBeam();phonkLaser.beamAge=1.f;return;}
@@ -2286,6 +2290,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     phonkLaser.rays.push_back(ray);
     const bool changedContact=phonkLaser.contact!=ray.target||phonkLaser.contactWorld!=ray.worldTarget;
     if(changedContact||ray.fragment||ray.cloth){previousRay.reset();phonkLaser.sampledRay.reset();}
+    const auto previousFragment = phonkLaser.fragment;
     phonkLaser.fragment=ray.fragment;
     phonkLaser.contact=ray.fragment?0:ray.target;
     phonkLaser.contactWorld=ray.worldTarget;
@@ -2296,7 +2301,7 @@ void SHIP::ExecutePhonkLaser(uint32_t deltaTime)
     phonkLaser.sampleClock-=sampleTime;
     if (ray.fragment)
     {
-        const auto before = phonkLaser.fragment;
+        const auto &before = previousFragment;
         phonkLaser.fragment = ray.fragment;
         phonkLaser.contact = 0;
         if(!commitBeam()){phonkLaser.sampleClock+=sampleTime;return;}

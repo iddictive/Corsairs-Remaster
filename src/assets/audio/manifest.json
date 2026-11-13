@@ -40,6 +40,24 @@
       "prepared": "missile-impact.wav", "sha256": "80f48ba39bb86f66534d479b3ba16a78f06fcb69fde6d4910b740767f802b086",
       "consumer": "phonk_missile_impact", "provenance": "State Emergency Service of Ukraine, disposal of explosive objects in Mykolaiv Oblast (2024), CC BY 4.0; explosion excerpt 2.17-4.67s, converted to mono 22050 Hz with fades. Original SHA-256 a024dc5b37679c8640b9eb76f9420285e1daf969bc5896afbe54f01bbe98f13c.",
       "url": "https://commons.wikimedia.org/wiki/File:Disposal_of_explosive_objects_in_Mykolaiv_Oblast_(2024-04-11).webm", "license_url": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    "RESOURCE/Sounds/Phonk/missile-heavy-trident-2014.wav": {
+      "source": "missile-heavy-trident-2014.wav", "source_sha256": "837b045be6ef805bee4a3ae7af4e04b159ab26a41f697403714b79949b1279f8",
+      "prepared": "missile-heavy-trident-2014.wav", "sha256": "837b045be6ef805bee4a3ae7af4e04b159ab26a41f697403714b79949b1279f8",
+      "consumer": "phonk_missile_heavy", "provenance": "U.S. Navy Strategic Systems Programs, USS West Virginia Trident II test launch (2014); public domain in the U.S. Excerpt starting 13.35s, 2.8s requested; mono 22050 Hz PCM, 20ms fade-in, 350ms fade-out starting 2.45s. Original video SHA-256 79e6c05da05099f3cd40685d62f88bbe0a5938f0247c651dab6553135cbb187a.",
+      "url": "https://commons.wikimedia.org/wiki/File:DASO_25_Video_(Cleared_for_Release)_VP8_001_Trident_II_UGM_133A_Test_Launch_02_June_2014.webm"
+    },
+    "RESOURCE/Sounds/Phonk/missile-interceptor-oscar-austin.wav": {
+      "source": "missile-interceptor-oscar-austin.wav", "source_sha256": "451bc6a637b7bb3f36fe8c4ebb7f5cd683b002b1555cc829882d10eb2a38f38c",
+      "prepared": "missile-interceptor-oscar-austin.wav", "sha256": "451bc6a637b7bb3f36fe8c4ebb7f5cd683b002b1555cc829882d10eb2a38f38c",
+      "consumer": "phonk_missile_interceptor", "provenance": "U.S. Navy / Lt.j.g. Thomas McGowan, USS Oscar Austin SM-2 launch (2023); public domain in the U.S. Excerpt 3.65-6.15s; mono 22050 Hz PCM, 20ms fade-in and 350ms fade-out. Original video SHA-256 b64f4ee2be684bfa8c8e186887e5cb3859a842b94f87505eb98f06649376f5b4.",
+      "url": "https://commons.wikimedia.org/wiki/File:230520-N-UD253-915_-_USS_Oscar_Austin_(DDG-79)_Completes_an_SM-2_Engagement_In_Support_of_Exercise_Formidable_Shield_2023.webm"
+    },
+    "RESOURCE/Sounds/Phonk/missile-impact-festival.wav": {
+      "source": "missile-impact-festival.wav", "source_sha256": "717d238ae3e9b0055a9c112b20f1cbba2af8ec93aa8c45c048873006febb88c4",
+      "prepared": "missile-impact-festival.wav", "sha256": "717d238ae3e9b0055a9c112b20f1cbba2af8ec93aa8c45c048873006febb88c4",
+      "consumer": "phonk_missile_impact", "provenance": "Fg2, single explosion recorded at Nikko Toshogu Spring Festival (2009), released to the public domain worldwide by the author. Converted to mono 22050 Hz PCM, 5ms fade-in and 200ms fade-out starting 1.35s; original recording peaks at full scale. Original Ogg SHA-256 d61096c83e7d63867e9f26f8d1a5e029bdda00e60a333d07b0fd1ca2093dc71e.",
+      "url": "https://commons.wikimedia.org/wiki/File:Explosion-LS100155.ogg"
     }
   }
 }

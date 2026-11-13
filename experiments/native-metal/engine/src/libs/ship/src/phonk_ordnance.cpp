@@ -332,6 +332,58 @@ bool pickTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &
     const CVECTOR distance(target.x - origin.x, 0.f, target.z - origin.z);
     return manual_aim::finite(target) && (~distance) <= nuclearRange * nuclearRange + 16.f;
 }
+// Reuse the cannon's angular range aperture for manual missile targeting.
+// The reticle can cover masts/sails or pass just beside the hull; only the
+// selected ship's hull becomes the aim point, and foreground terrain still wins.
+bool pickManualMissileShip(VDX9RENDER *renderer, SEA_BASE *sea, ISLAND_BASE *island,
+                           const std::vector<entid_t> &ships, SHIP &owner, const CMatrix &view,
+                           CVECTOR &target, entid_t &targetShip)
+{
+    CMatrix projection;
+    renderer->GetTransform(storm_render::TransformProjection, projection);
+    const auto camera = view.Pos(), forward = !view.Vz(), right = !view.Vx(), up = !view.Vy();
+    const float zoom = renderer->GetCameraMagnification();
+    const float tx = manual_aim::rangeApertureSlope(60.f/2048.f, projection.m[0][0], zoom);
+    const float ty = manual_aim::rangeApertureSlope(34.f/1285.f, projection.m[1][1], zoom);
+    SHIP *best = nullptr;
+    float bestScore = std::numeric_limits<float>::infinity();
+    CVECTOR bestHull;
+    for (const auto id : ships) {
+        auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
+        auto *model = ship ? ship->GetModel() : nullptr;
+        auto *root = model ? model->GetNode(0) : nullptr;
+        if (!ship || ship == &owner || static_cast<SHIP_BASE *>(ship)->isDead() || !root || !root->geo) continue;
+        const auto relative = ship->GetPos() - owner.GetPos();
+        if (relative.x*relative.x + relative.z*relative.z > nuclearRange*nuclearRange) continue;
+        const auto box = ship->State.vRealBoxSize;
+        const float breadth = .5f * std::hypot(box.x, box.z);
+        const float height = std::max(1.f, box.y);
+        auto center = ship->GetPos(); center.y += height*.35f;
+        const auto delta = center-camera;
+        const float depth = delta | forward;
+        if (!manual_aim::finite(delta) || depth <= .01f || !std::isfinite(breadth) || !std::isfinite(height)) continue;
+        const float x = std::max(0.f, std::abs(delta | right) - breadth) / std::max(.01f, depth*tx);
+        const float y = std::max(0.f, std::abs(delta | up) - height*.55f - breadth*.5f) / std::max(.01f, depth*ty);
+        const float aperture = x*x + y*y;
+        const float score = aperture + depth * (0.001f / nuclearRange);
+        if (aperture > 1.f || score >= bestScore) continue;
+        GEOS::INFO info{}; root->geo->GetInfo(info);
+        auto hull = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
+        if (!manual_aim::finite(hull)) continue;
+        if (sea) hull.y = std::max(hull.y, sea->WaveXZ(hull.x, hull.z) + 2.f);
+        best = ship; bestScore = score; bestHull = hull;
+    }
+    if (!best) return false;
+    const auto direction = bestHull-camera;
+    if ((~direction) < .001f) return false;
+    const auto end = bestHull + !direction * std::max(10.f, best->State.vRealBoxSize.z);
+    entid_t hitShip = 0;
+    const float hit = firstSurface(sea, island, ships, camera, end, owner.GetId(), nullptr, true, &hitShip);
+    if (hit <= 1.f && hitShip != best->GetId()) return false;
+    target = kalibrHullAim(best, camera, bestHull, CVECTOR(0.f), sea, true);
+    targetShip = best->GetId();
+    return manual_aim::finite(target);
+}
 NuclearMissile missileTo(const CVECTOR &launch, const CVECTOR &target, int32_t owner, missile::Type type)
 {
     const float distance = std::sqrt(~(target - launch));
@@ -1919,6 +1971,17 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             conventionalMissileRadius(state.missileType, state.warhead == 2, state.warhead) * configuredRadius * 1.04f + (state.warhead == 2 ? 63.f : 0.f)) + aimSpread;
         state.targetValid = automatic ? automaticTarget(pSea, pIsland, receivers, *this, ai, launch, state.target, state.missileType, safetyRadius, state.targetShip, state.targetOffset, nextShot, ownerSeed) :
             pickTarget(pSea, pIsland, receivers, GetPos(), view.Pos(), view.Vz(), state.target, true);
+        if (!automatic && launchRequested) {
+            CVECTOR assistedTarget;
+            entid_t assistedShip = 0;
+            if (pickManualMissileShip(pRS, pSea, pIsland, receivers, *this, view, assistedTarget, assistedShip)) {
+                state.target = assistedTarget;
+                state.targetShip = assistedShip;
+                if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(assistedShip)))
+                    state.targetOffset = assistedTarget - ship->GetPos();
+                state.targetValid = true;
+            }
+        }
         if (state.targetValid)
         {
             auto missile = missileTo(launch, state.target, -1, state.missileType);
@@ -1926,7 +1989,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             missile.flightVariation.configuredAcceleration = configuredAcceleration;
             missile.duration = missile::duration(missile.type, {launch.x, launch.y, launch.z},
                 {state.target.x, state.target.y, state.target.z}, missile.flightVariation);
-            if (!automatic && state.homing)
+            if (!automatic && state.homing && !state.targetShip)
                 for (const auto id : receivers) {
                     auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
                     if (ship && (~(ship->GetPos() - state.target)) < 100.f * 100.f) {
@@ -2109,6 +2172,10 @@ void SHIP::DrawPhonkOrdnance()
         const bool burning = !missile.interceptionFragment && !isClusterSubmunition(missile) && (!cruise || missile.continueVelocity || missile.ignitionPlayed);
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
         if (missileVfx && missile.interceptionFragment) StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
+        if (missileVfx && cruise && !burning && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
+            const auto tail = head - axis * (4.f * modelScale);
+            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 4, missile.age);
+        }
         if (missileVfx && burning) { const auto tail=head-axis*((missile.continueVelocity&&missile.cluster?2.f:(cruise?4.f:missile.type==missile::Type::Shtorm?6.f:5.f))*modelScale); StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, missileVfxType(missile.type), missile.age); }
 #endif
         if (!missileVfx && burning) strip(head - axis * 10.f, head - axis * 4.f, trailSide * (cruise ? .8f : 1.4f), cruise ? 0xffa6d8ffu : 0xffffad37u);

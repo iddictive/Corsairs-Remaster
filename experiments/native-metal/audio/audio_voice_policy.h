@@ -37,7 +37,10 @@ constexpr SpatialVoicePolicy SpatialPolicyForAlias(std::string_view lowerAlias)
     // Hull collisions stay local; distant ships must not carry collision noise.
     if (lowerAlias == "coll_ship2rock" || lowerAlias == "coll_ship2ship")
         return {true, 1.0f, 1.0f};
-    if (lowerAlias == "debris_splash")
+    // Water fragments may use either alias; missile impacts also layer bomb2bort.
+    // The authored maximum is a silence boundary for these positional effects.
+    if (lowerAlias == "debris_splash" || lowerAlias == "ball_splash" ||
+        lowerAlias == "bomb2bort" || lowerAlias.starts_with("phonk_missile_"))
         return {true, 1.0f, 1.0f};
     // Ordinary effects decay smoothly instead of cutting off at the authored range.
     return {false, 0.45f, 1.0f};
