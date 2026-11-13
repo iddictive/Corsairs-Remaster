@@ -4,6 +4,7 @@
 #include "phonk_targeting.hpp"
 #include "ship_debris_bridge.hpp"
 #include "ship_hull_hit_admission.hpp"
+#include "cannon_trace.h"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
 #include "shared/sea_ai/script_defines.h"
 #include "shared/sea_ai/phonk_warhead.hpp"
@@ -347,33 +348,37 @@ bool pickManualMissileShip(VDX9RENDER *renderer, SEA_BASE *sea, ISLAND_BASE *isl
     const float ty = manual_aim::rangeApertureSlope(34.f/1285.f, projection.m[1][1], zoom);
     SHIP *best = nullptr;
     float bestScore = std::numeric_limits<float>::infinity();
-    CVECTOR bestHull;
-    for (const auto id : ships) {
-        auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
-        auto *model = ship ? ship->GetModel() : nullptr;
-        auto *root = model ? model->GetNode(0) : nullptr;
-        if (!ship || ship == &owner || static_cast<SHIP_BASE *>(ship)->isDead() || !root || !root->geo) continue;
+    auto *sail = dynamic_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(core.GetEntityId("sail")));
+    // Require a real hull, rigging or sail hit within the reticle aperture.
+    // The center ray wins; surrounding samples provide the small aim assist.
+    constexpr std::array<std::array<int, 2>, 9> samples{{{{0,0}},{{-1,0}},{{1,0}},{{0,-1}},{{0,1}},{{-1,-1}},{{1,-1}},{{-1,1}},{{1,1}}}};
+    for (const auto &sample : samples) {
+        const auto ray = !(forward + right * (float(sample[0])*tx*.7f) + up * (float(sample[1])*ty*.7f));
+        const auto end = camera + ray * nuclearRange;
+        entid_t hitShip = 0;
+        float hit = firstSurface(sea, island, ships, camera, end, owner.GetId(), nullptr, false, &hitShip);
+        if (sail) {
+            entid_t sailShip = 0;
+            const float sailHit = sail->Pick(camera, end, owner.GetId(), sailShip);
+            if (sailShip && std::isfinite(sailHit) && sailHit >= 0.f && sailHit <= 1.f && sailHit < hit) {
+                hit = sailHit; hitShip = sailShip;
+            }
+        }
+        auto *ship = hitShip ? static_cast<SHIP *>(core.GetEntityPointer(hitShip)) : nullptr;
+        if (!ship || ship == &owner || static_cast<SHIP_BASE *>(ship)->isDead()) continue;
         const auto relative = ship->GetPos() - owner.GetPos();
         if (relative.x*relative.x + relative.z*relative.z > nuclearRange*nuclearRange) continue;
-        const auto box = ship->State.vRealBoxSize;
-        const float breadth = .5f * std::hypot(box.x, box.z);
-        const float height = std::max(1.f, box.y);
-        auto center = ship->GetPos(); center.y += height*.35f;
-        const auto delta = center-camera;
-        const float depth = delta | forward;
-        if (!manual_aim::finite(delta) || depth <= .01f || !std::isfinite(breadth) || !std::isfinite(height)) continue;
-        const float x = std::max(0.f, std::abs(delta | right) - breadth) / std::max(.01f, depth*tx);
-        const float y = std::max(0.f, std::abs(delta | up) - height*.55f - breadth*.5f) / std::max(.01f, depth*ty);
-        const float aperture = x*x + y*y;
-        const float score = aperture + depth * (0.001f / nuclearRange);
-        if (aperture > 1.f || score >= bestScore) continue;
-        GEOS::INFO info{}; root->geo->GetInfo(info);
-        auto hull = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
-        if (!manual_aim::finite(hull)) continue;
-        if (sea) hull.y = std::max(hull.y, sea->WaveXZ(hull.x, hull.z) + 2.f);
-        best = ship; bestScore = score; bestHull = hull;
+        const float score = float(sample[0]*sample[0]+sample[1]*sample[1]) + hit*.001f;
+        if (score < bestScore) { best = ship; bestScore = score; }
     }
     if (!best) return false;
+    auto *model = best->GetModel();
+    auto *root = model ? model->GetNode(0) : nullptr;
+    if (!root || !root->geo) return false;
+    GEOS::INFO info{}; root->geo->GetInfo(info);
+    auto bestHull = root->glob_mtx * CVECTOR(info.boxcenter.x, info.boxcenter.y, info.boxcenter.z);
+    if (!manual_aim::finite(bestHull)) return false;
+    if (sea) bestHull.y = std::max(bestHull.y, sea->WaveXZ(bestHull.x, bestHull.z) + 2.f);
     const auto direction = bestHull-camera;
     if ((~direction) < .001f) return false;
     const auto end = bestHull + !direction * std::max(10.f, best->State.vRealBoxSize.z);
@@ -1311,7 +1316,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     missile.guidedShip = 0;
                     targetShip = nullptr;
                 }
-                if (missile.age >= missile.nextSeekerScan) {
+                // A free-aim launch must not immediately lock a nearby ship
+                // outside the reticle; later fly-by retargeting remains enabled.
+                if (missile.age >= missile.nextSeekerScan &&
+                    (missile.guidedShip || missile.reacquireLostTarget || (~(before-missile.launch)) >= 350.f*350.f)) {
                     missile.nextSeekerScan = missile.age + .5f;
                     SHIP *nearest = nullptr;
                     const float searchRadius = missile.reacquireLostTarget ? 1000.f : 350.f;
@@ -1989,13 +1997,6 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             missile.flightVariation.configuredAcceleration = configuredAcceleration;
             missile.duration = missile::duration(missile.type, {launch.x, launch.y, launch.z},
                 {state.target.x, state.target.y, state.target.z}, missile.flightVariation);
-            if (!automatic && state.homing && !state.targetShip)
-                for (const auto id : receivers) {
-                    auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id));
-                    if (ship && (~(ship->GetPos() - state.target)) < 100.f * 100.f) {
-                        state.targetShip = id; state.targetOffset = state.target - ship->GetPos(); break;
-                    }
-                }
             if (!automatic) state.targetValid = blastClearOfOwner(*this, ai, state.target, missile.duration, safetyRadius);
             if (state.targetValid && state.warhead == 0 && state.warheadCount > 1)
             {

@@ -265,7 +265,12 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
             // rejoins the aim point smoothly instead of oscillating.
             if (missile.type == missile::Type::Kalibr && (seed & 3u) == 0u) {
                 const float side = early < 0.f ? -1.f : 1.f;
-                bend += side * std::min(260.f, horizontal * .10f) * envelope *
+                const float peak = .30f + .40f * float((seed >> 18) & 255u) / 255.f;
+                const float u = std::clamp(progress / peak, 0.f, 1.f);
+                const float v = std::clamp((progress - peak) / (1.f - peak), 0.f, 1.f);
+                const float rise = u * u * (3.f - 2.f * u);
+                const float fall = 1.f - v * v * (3.f - 2.f * v);
+                bend += side * std::min(260.f, horizontal * .10f) * rise * fall *
                         (.55f + .45f * std::abs(late));
             }
             // A committed side approach followed by a terminal turn, with a

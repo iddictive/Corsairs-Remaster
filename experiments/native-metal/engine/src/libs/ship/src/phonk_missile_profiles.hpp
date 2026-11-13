@@ -135,7 +135,8 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float distance = std::sqrt(d.x*d.x+d.z*d.z);
     const float variationScale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
     const float altitude = std::min(p.maxAltitude, distance * p.altitudeFraction) *
-        (type == Type::Kinzhal ? variationScale : .9f + .2f * (variationScale - .3f) / 1.35f);
+        (type == Type::Kinzhal ? variationScale : type == Type::Kalibr ?
+            .35f + 1.05f * (variationScale - .3f) / 1.35f : .9f + .2f * (variationScale - .3f) / 1.35f);
     const float total = flightDuration > 0.f ? flightDuration : duration(type, start, target, variation);
     const float travel = trajectoryProgress(type, t, total, variation);
     if (type != Type::Kalibr) {
@@ -152,8 +153,8 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
         // stationary over the deck before it begins to climb.
         return start + Vec3{0.f, kalibrEjectHeight * (.8f*u + .2f*u*u), 0.f};
     }
-    const float lift = std::clamp(travel / .16f, 0.f, 1.f);
-    const float dive = std::clamp((1.f-travel) / .2f, 0.f, 1.f);
+    const float lift = std::clamp(travel / (.11f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
+    const float dive = std::clamp((1.f-travel) / (.15f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
     const float smoothLift = lift*lift*(3.f-2.f*lift);
     const float smoothDive = dive*dive*(3.f-2.f*dive);
     const Vec3 raised = start + Vec3{0.f,kalibrEjectHeight,0.f};
