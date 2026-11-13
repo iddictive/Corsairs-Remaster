@@ -116,6 +116,7 @@ struct NuclearMissile
     CVECTOR aimError = CVECTOR(0.f);
     CVECTOR guidanceVelocity = CVECTOR(0.f);
     CVECTOR guidanceAim = CVECTOR(0.f);
+    float divertStart = -1.f;
     unsigned guidanceUpdates = 0;
     bool seeker = false;
     bool reacquireLostTarget = false;
@@ -206,14 +207,21 @@ struct OrdnanceState
     uint32_t playerSourceCursor = 0, playerMissileCursor = 0;
     entid_t testDefenseShip = 0;
     float testDefenseCooldown = 0.f;
+    float testDefenseScanCooldown = 0.f;
     float testDefenseCharges = 0.f;
     uint32_t testDefenseRate = 0;
-    struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0; };
+    struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0;
+        bool patriot = false, diverting = false, patriotContact = false;
+        CVECTOR position{}, previousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
+        float simulationDebt = 0.f;
+    };
     std::vector<Interceptor> interceptors;
     std::vector<Interceptor> testInterceptors;
 };
 inline CVECTOR interceptorPosition(const OrdnanceState::Interceptor &interceptor, float t)
 {
+    if (interceptor.patriot)
+        return t + .000001f < interceptor.age / interceptor.duration ? interceptor.previousPosition : interceptor.position;
     t = std::clamp(t, 0.f, 1.f);
     const CVECTOR delta = interceptor.target - interceptor.launch;
     CVECTOR lateral(-delta.z, 0.f, delta.x);
@@ -362,6 +370,7 @@ extern "C" void StormMetalMissileVfxBurst(void *device, const float *position, u
 extern "C" void StormMetalMissileVfxSegment(void *device, const float *from, const float *to, float dt, unsigned type);
 extern "C" bool StormMetalMissileVfxCapture(void *device);
 extern "C" void StormMetalMissileVfxMotor(void *device, const float *tail, const float *direction, unsigned type, float phase);
+extern "C" void StormMetalMissileVfxDivert(void *device, const float *position, const float *direction, float intensity, float phase);
 extern "C" bool StormMetalClusterImpact(void *device, const float *position, const float *direction, unsigned surface, float radius, unsigned warhead);
 extern "C" void StormMetalClusterImpactCapture(void *device);
 extern "C" bool StormMetalClusterImpactTakeFallback(void *device, float *position, unsigned *surface, unsigned *warhead);

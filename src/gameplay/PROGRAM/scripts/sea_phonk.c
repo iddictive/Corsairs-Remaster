@@ -1,6 +1,23 @@
 // Local-sea mode: one transient scene flag drives ship physics, lighting and music.
 string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
+string SeaPhonk_MissileName(int type)
+{
+    if (type == 0) return "Кинжал";
+    if (type == 1) return "Калибр";
+    if (type == 2) return "Шторм";
+    if (type == 3) return "Случайная";
+    if (type == 4) return "Орешник";
+    return "";
+}
+
+int SeaPhonk_NextMissileType(int type)
+{
+    type = type + 1;
+    if (SeaPhonk_MissileName(type) == "") return 0;
+    return type;
+}
+
 void SeaPhonk_DeckCameraControl(string name, string keyName, bool reevaluate)
 {
     if (!reevaluate && CheckAttribute(&objControlsState, "keygroups.Sailing1Pers." + name)) return;

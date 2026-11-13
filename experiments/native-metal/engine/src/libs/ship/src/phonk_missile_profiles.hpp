@@ -61,8 +61,8 @@ inline float travelTime(float seconds, float ramp, float initial)
     const float u = std::max(0.f, seconds) / ramp;
     return ramp * (initial*u + (1.f-initial)*(u*u*u - .5f*u*u*u*u));
 }
-inline float rampTime(Type type) { return type == Type::Shtorm ? 3.5f : type == Type::Kalibr ? 3.f : 2.f; }
-inline float initialSpeed(Type type) { return type == Type::Shtorm ? .05f : type == Type::Kalibr ? 0.f : .1f; }
+inline float rampTime(Type type) { return type == Type::Oreshnik ? 9.f : type == Type::Shtorm ? 3.5f : type == Type::Kalibr ? 3.f : 2.f; }
+inline float initialSpeed(Type type) { return type == Type::Oreshnik ? .002f : type == Type::Shtorm ? .05f : type == Type::Kalibr ? 0.f : .1f; }
 // One stable value per shot; callers choose the random values and retain them.
 // startScale applies to absolute start speed, not its fraction of cruise speed.
 struct FlightVariation { float speedScale = 1.f, rampScale = 1.f, startScale = 1.f, configuredSpeed = 1.f, configuredAcceleration = 1.f, arcScale = 1.f; unsigned arcPattern = 0; };
@@ -75,6 +75,7 @@ inline float variedInitial(Type type, FlightVariation v)
     return initialSpeed(type) * flightScale(v.startScale) / (flightScale(v.speedScale) * settingScale(v.configuredSpeed));
 }
 inline constexpr float kalibrEjectTime = 1.2f;
+inline constexpr float kalibrTurnTime = .45f;
 inline constexpr float kalibrEjectHeight = 36.f;
 // Fictional game units: sqrt(2 * acceleration * 3000) == 520.
 inline constexpr float kalibrAcceleration = 520.f * 520.f / 6000.f;
@@ -89,7 +90,7 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         const float horizontalDistance = std::sqrt(d.x*d.x + d.z*d.z);
         // A vertical-only target still gets a finite powered phase.
         const float distance = horizontalDistance > 0.f ? horizontalDistance : std::abs(d.y);
-        return kalibrEjectTime + std::max(.1f, std::sqrt(2.f * distance / variedKalibrAcceleration(variation)));
+        return kalibrEjectTime + kalibrTurnTime + std::max(.1f, std::sqrt(2.f * distance / variedKalibrAcceleration(variation)));
     }
     const auto p = profile(type);
     const float distance = magnitude(d);
@@ -108,7 +109,7 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
 }
 inline float ignitionFraction(float flightDuration)
 {
-    return std::min(kalibrEjectTime / std::max(.1f, flightDuration), .999999f);
+    return std::min((kalibrEjectTime + kalibrTurnTime) / std::max(.1f, flightDuration), .999999f);
 }
 // Weight of the linear target interpolation. During vertical ejection the
 // missile does not follow target movement. Arc altitude also depends on the
@@ -146,26 +147,38 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
         if (type == Type::Kinzhal && variation.arcPattern == 2) arcProgress = 1.f - (1.f - travel) * (1.f - travel);
         return start + d*travel + Vec3{0.f, 4.f*altitude*arcProgress*(1.f-arcProgress), 0.f};
     }
-    // Vertical ejection precedes ignition and the cruise turn.
-    const float ejectEnd = ignitionFraction(total);
-    if (t < ejectEnd) {
-        const float u = t / ejectEnd;
-        // Launch ejection starts with upward momentum instead of appearing
-        // stationary over the deck before it begins to climb.
-        return start + Vec3{0.f, kalibrEjectHeight * (.8f*u + .2f*u*u), 0.f};
+    // Deck ejection loses upward speed, then carries that velocity into the turn.
+    const float elapsedFlight = t * total;
+    const float horizontal = std::sqrt(d.x*d.x + d.z*d.z);
+    const float fx = horizontal > .001f ? d.x / horizontal : 0.f;
+    const float fz = horizontal > .001f ? d.z / horizontal : 1.f;
+    const float sideSpeed = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
+    const float forwardSpeed = 1.f + (variationScale - .3f);
+    const Vec3 ejectVelocity{fx*forwardSpeed - fz*sideSpeed, kalibrEjectHeight / (3.f * kalibrEjectTime),
+                             fz*forwardSpeed + fx*sideSpeed};
+    if (elapsedFlight < kalibrEjectTime) {
+        const float u = elapsedFlight / kalibrEjectTime;
+        const float elapsed = u * kalibrEjectTime;
+        return start + Vec3{ejectVelocity.x * elapsed, kalibrEjectHeight * ((5.f/3.f)*u - (2.f/3.f)*u*u),
+                            ejectVelocity.z * elapsed};
     }
     const float lift = std::clamp(travel / (.11f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
     const float dive = std::clamp((1.f-travel) / (.15f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
     const float smoothLift = lift*lift*(3.f-2.f*lift);
     const float smoothDive = dive*dive*(3.f-2.f*dive);
-    const Vec3 raised = start + Vec3{0.f,kalibrEjectHeight,0.f};
-    // Carry ejection velocity into the powered turn. The correction vanishes
-    // at the target while the forward motion continues accelerating.
-    const float elapsed = total * (t-ejectEnd);
-    const float ejectVelocity = 1.2f * kalibrEjectHeight / (total * ejectEnd);
-    const float turn = elapsed / 2.f;
-    const float momentum = ejectVelocity * elapsed / (1.f + turn*turn) * (1.f-travel);
-    return raised + (target-raised)*travel + Vec3{0.f, altitude*smoothLift*smoothDive + momentum, 0.f};
+    const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, kalibrEjectHeight,
+                                     ejectVelocity.z * kalibrEjectTime};
+    const Vec3 turnAcceleration{fx * 20.f, -ejectVelocity.y / kalibrTurnTime, fz * 20.f};
+    if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
+        const float elapsed = elapsedFlight - kalibrEjectTime;
+        return ejected + ejectVelocity * elapsed + turnAcceleration * (.5f * elapsed * elapsed);
+    }
+    const Vec3 raised = ejected + ejectVelocity * kalibrTurnTime + turnAcceleration * (.5f * kalibrTurnTime * kalibrTurnTime);
+    const Vec3 turnVelocity = ejectVelocity + turnAcceleration * kalibrTurnTime;
+    const float elapsed = elapsedFlight - kalibrEjectTime - kalibrTurnTime;
+    const float turn = elapsed / .6f;
+    const float momentum = elapsed / (1.f + turn*turn) * (1.f-travel);
+    return raised + (target-raised)*travel + turnVelocity*momentum + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
 }
 
 // Length is along +z. Ring radius and fin positions are model-relative;

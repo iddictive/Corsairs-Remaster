@@ -1,6 +1,13 @@
 {
   "version": 1,
   "files": {
+    "RESOURCE/Sounds/Phonk/missile-patriot-launch.wav": {
+      "source": "missile-patriot-source.wav", "source_sha256": "80b67598d5b49fc8cc299f7c5b0315453b8e0b58a3a930c934b2326992dc552f",
+      "prepared": "missile-patriot-launch.wav", "sha256": "f617974275fa0543ff5f6d51326be202f24920037ff6c85cee89088bfc5e2858",
+      "consumer": "phonk_missile_interceptor_patriot",
+      "provenance": "PAC-3 launch recorded by John Drew Hamilton, White Sands Missile Range Public Affairs, 2018; DVIDS marks this video public domain. Excerpt 7.90–11.10s, mono 22050 Hz; high-pass 32 Hz, low-pass 8500 Hz and short fades. Source video SHA-256 b1636ab23302165c7e27e99e797db432226d17b56417cb598fa6f57e972dce84.",
+      "url": "https://www.dvidshub.net/video/782607/pac-3-launch"
+    },
     "RESOURCE/Sounds/MUSIC/phonk-drive.mp3": {
       "source": "phonk-drive.mp3",
       "source_sha256": "b3b5b954a1b8887dd41a81ae71b622b541b7ea61be09e0a8a7fbac2b78d8c935",

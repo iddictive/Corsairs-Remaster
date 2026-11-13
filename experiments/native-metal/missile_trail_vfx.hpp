@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace storm_metal {
-enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry };
+enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry, Patriot = 7 };
 
 // Matched by the Metal shader; all positions are absolute world coordinates.
 struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color; };
@@ -155,7 +155,7 @@ public:
             if(std::floor(clock/interval)<=std::floor((clock-dt)/interval))return;
         }
         lastEmission=clock;
-        float spacing=type==MissileVfxType::Fragment?18.f:type==MissileVfxType::Interceptor?7.f:type==MissileVfxType::Kalibr?11.f:10.f;
+        float spacing=type==MissileVfxType::Fragment?18.f:type==MissileVfxType::Patriot?6.f:type==MissileVfxType::Interceptor?7.f:type==MissileVfxType::Kalibr?11.f:10.f;
         const int maxSamples=type==MissileVfxType::Fragment?6:24;
         int n=std::min(maxSamples,std::max(1,int(std::ceil(std::min(length,spacing*float(maxSamples))/spacing))));
         float covered=std::min(length,spacing*float(n));
@@ -164,7 +164,7 @@ public:
             float t=(float(i)+.35f+.30f*random())/float(n); Puff p{}; p.origin=to-direction*(covered*(1.f-t));
             p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?1.6f:2.8f)*(.78f+random()*.22f);
             p.seed=random()*6.28318f;
-            p.size=(type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?3.0f:4.0f)*(.78f+random()*.44f);
+            p.size=(type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Patriot?1.8f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?3.0f:4.0f)*(.78f+random()*.44f);
             float sampleSpacing=std::max(4.f,covered/float(n));
             p.axis=direction*std::clamp(sampleSpacing/(p.size*.65f),1.f,2.6f);
             // Spread off the centerline in the emitter's own cross-section;
@@ -189,9 +189,10 @@ public:
             heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),simd_make_float4(direction,length*.5f),{0,1,3,phase},{1.f,.24f,.025f,.92f*flicker}};
             return;
         }
-        float length=type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
-        float width=type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
+        float length=type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Patriot?13.f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
+        float width=type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Patriot?1.55f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
         simd_float4 color=type==MissileVfxType::Kalibr?simd_make_float4(.40f,.68f,1.f,.85f):simd_make_float4(1.f,.30f,.035f,.9f);
+        if(type==MissileVfxType::Patriot) color={1.f,.53f,.15f,.96f};
         if(type==MissileVfxType::Fragment) {
             color.w *= std::clamp(1.f-phase/2.5f,0.f,1.f);
             heads[headCount++]={simd_make_float4(tail,.38f),simd_make_float4(0,1,0,.38f),{0,1,2,phase},color};
@@ -201,6 +202,19 @@ public:
         // the overlap against the missile body rather than leaving a seam.
         constexpr float overlap=.25f;
         heads[headCount++]={simd_make_float4(tail-direction*(length-overlap)*.5f,width),simd_make_float4(direction,(length+overlap)*.5f),{0,1,1,phase},color};
+    }
+    // One instantaneous lateral attitude-motor jet. Caller supplies the
+    // actual outward exhaust direction and controls the short firing window.
+    // Uses the shared head budget; no extra pass or persistent allocation.
+    void divert(simd_float3 position, simd_float3 exhaustDirection, float intensity, float phase) {
+        if(headCount>=maxHeads || !finite(position) || !finite(exhaustDirection) ||
+           !std::isfinite(intensity) || !std::isfinite(phase) || intensity<=0.f) return;
+        float length=simd_length(exhaustDirection);
+        if(!std::isfinite(length) || length<1e-4f) return;
+        auto axis=exhaustDirection/length;
+        float strength=std::clamp(intensity,0.f,1.f), jetLength=2.f+2.f*strength;
+        heads[headCount++]={simd_make_float4(position+axis*jetLength*.5f,.32f+.18f*strength),
+            simd_make_float4(-axis,jetLength*.5f),{0,1,1,phase},{1.f,.64f,.25f,.9f*strength}};
     }
     // Explicit launch or ignition flash: call each frame with event age in
     // seconds. The caller owns crossing detection and keeps the event position.
@@ -240,7 +254,7 @@ public:
             }
             float opacity=visibility*(p.type==MissileVfxType::Interceptor?.12f:.17f);
             const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.56f,.59f,.60f):
-                p.type==MissileVfxType::Interceptor?simd_make_float3(.93f,.93f,.90f):
+                (p.type==MissileVfxType::Interceptor||p.type==MissileVfxType::Patriot)?simd_make_float3(.93f,.93f,.90f):
                 p.type==MissileVfxType::Shtorm?simd_make_float3(.72f,.74f,.76f):
                 p.type==MissileVfxType::Fragment?simd_make_float3(.16f,.15f,.14f):simd_make_float3(.91f,.88f,.82f);
             sprites.push_back({simd_make_float4(pos,size),simd_make_float4(p.axis,size),{age,p.life,older?-1.f:0.f,p.seed},simd_make_float4(tint,opacity)});

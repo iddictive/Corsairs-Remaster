@@ -1129,12 +1129,9 @@ void ProcessControls()
 	}
 	if (SeaPhonk_IsActive() && ControlName == "Phonk_NuclearMode")
 	{
-		Sea.Phonk.MissileType = (sti(Sea.Phonk.MissileType) + 1) % 4;
+		Sea.Phonk.MissileType = SeaPhonk_NextMissileType(sti(Sea.Phonk.MissileType));
 		Sea.Phonk.Weapon = 7;
-		string missileName = "случайная";
-		if (sti(Sea.Phonk.MissileType) == 0) missileName = "Кинжал";
-		if (sti(Sea.Phonk.MissileType) == 1) missileName = "Калибр";
-		if (sti(Sea.Phonk.MissileType) == 2) missileName = "Шторм";
+		string missileName = SeaPhonk_MissileName(sti(Sea.Phonk.MissileType));
 		Log_Info("Ракета: " + missileName);
 		return;
 	}
