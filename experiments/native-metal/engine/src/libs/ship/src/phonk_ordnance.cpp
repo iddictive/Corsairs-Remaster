@@ -1204,6 +1204,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             state.airDefenseScanCooldown = std::min(defenseInterval, .1f);
             entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; size_t missileHint = 0;
             float bestThreatTime = std::numeric_limits<float>::infinity();
+            const CVECTOR defenseStart = GetModel()->mtx * CVECTOR(0.f, std::max(4.f, State.vBoxSize.y * .35f) + 1.5f, -State.vBoxSize.z * .15f);
+            uint32_t defenseVariation = (state.airDefenseSerial + 1u) * 0x9e3779b9u;
+            defenseVariation ^= defenseVariation >> 16; defenseVariation *= 0x7feb352du; defenseVariation ^= defenseVariation >> 15;
+            const float defenseSpeedScale = .96f + .08f * (float(defenseVariation & 65535u) / 65535.f);
             size_t traversedSources = 0;
             for (unsigned scanned = 0; scanned < 128 && !testShips.empty() && traversedSources < testShips.size(); ++scanned) {
                 const size_t sourceIndex = state.playerSourceCursor % testShips.size();
@@ -1238,6 +1242,18 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     const auto predicted = position + velocity * remaining;
                     return (~(predicted - launched.target)) <= 35.f * 35.f;
                 })) continue;
+                // Rank only targets that this interceptor can actually reach;
+                // an impossible first choice must not mask the next threat.
+                const float limit = std::min(60.f, incoming.duration - incoming.age);
+                float candidateFlight = 0.f;
+                CVECTOR candidateTarget;
+                const auto stale = incoming.type == missile::Type::Shtorm ? velocity : nuclearVelocity(incoming, std::max(0.f, incoming.age - .12f));
+                const bool reachable = incoming.type == missile::Type::Shtorm ?
+                    interceptorEstimateShtorm(defenseStart, position, shtormVelocity, shtormAcceleration, interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget) :
+                    incoming.type == missile::Type::Kalibr ?
+                    interceptorEstimateAccelerating(defenseStart, position, stale, observedMissileAcceleration(incoming, stale), interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget) :
+                    interceptorEstimate(defenseStart, position, stale, interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget);
+                if (!reachable && !(playerPatriot && incoming.type == missile::Type::Oreshnik)) continue;
                 contact.position = position; contact.velocity = velocity; contact.acceleration = CVECTOR(0.f);
                 missileShip = testShip->GetId(); missileShot = incoming.shotId; missileVariant = interceptorVariant(incoming);
                 missileHint = state.playerMissileCursor - 1; bestThreatTime = threatTime;
@@ -1253,10 +1269,17 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const auto predicted = shell.position + shell.velocity * remaining + shell.acceleration * (.5f * remaining * remaining);
                 return (~(predicted - launched.target)) <= 35.f * 35.f;
             });
-            if (shellFound && !shellCovered && shell.timeToApproach < bestThreatTime) {
+            float shellFlight = shellFound ? std::clamp(std::sqrt(~(shell.position-defenseStart)) / interceptorSpeed * defenseSpeedScale, .15f, 60.f) : 0.f;
+            if (shellFound) for (unsigned n = 0; n < 3; ++n) {
+                const auto predicted = shell.position + shell.velocity*shellFlight + shell.acceleration*(.5f*shellFlight*shellFlight);
+                if (!manual_aim::finite(predicted)) break;
+                shellFlight = std::clamp(std::sqrt(~(predicted-defenseStart)) / interceptorSpeed * defenseSpeedScale, .15f, 60.f);
+            }
+            const bool shellReachable = shellFound && std::isfinite(shell.timeToApproach) && shell.timeToApproach > 0.f && shellFlight <= shell.timeToApproach;
+            if (shellReachable && !shellCovered && shell.timeToApproach < bestThreatTime) {
                 contact = shell; missileShip = 0;
             }
-            const bool found = missileShip || (shellFound && !shellCovered && std::isfinite(contact.timeToApproach) && contact.timeToApproach > 0.f);
+            const bool found = missileShip || (shellReachable && !shellCovered && std::isfinite(contact.timeToApproach) && contact.timeToApproach > 0.f);
             if (found && manual_aim::finite(contact.position) &&
                 manual_aim::finite(contact.velocity) && manual_aim::finite(contact.acceleration))
             {
