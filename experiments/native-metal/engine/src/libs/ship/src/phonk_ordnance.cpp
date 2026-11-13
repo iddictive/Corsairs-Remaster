@@ -305,7 +305,7 @@ float firstSurface(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t
     return contact;
 }
 bool pickTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships, const CVECTOR &origin,
-                const CVECTOR &camera, CVECTOR direction, CVECTOR &target, bool hullOnly = false)
+                const CVECTOR &camera, CVECTOR direction, CVECTOR &target, bool hullOnly = false, float range = nuclearRange)
 {
     if (!sea || !manual_aim::finite(origin) || !manual_aim::finite(camera) ||
         !manual_aim::finite(direction) || (~direction) < .5f) return false;
@@ -313,10 +313,10 @@ bool pickTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &
     const CVECTOR offset(camera.x - origin.x, 0.f, camera.z - origin.z);
     const CVECTOR flat(direction.x, 0.f, direction.z);
     const float a = ~flat, b = offset | flat;
-    const float c = (~offset) - nuclearRange * nuclearRange;
+    const float c = (~offset) - range * range;
     if (c > 0.f) return false;
     const float discriminant = b * b - a * c;
-    float reach = nuclearRange * 4.f;
+    float reach = range * 4.f;
     if (a > 1.e-8f) reach = std::min(reach, (-b + std::sqrt(std::max(0.f, discriminant))) / a);
     const auto end = camera + direction * reach;
     const float hit = firstSurface(sea, island, ships, camera, end, 0, nullptr, hullOnly);
@@ -331,14 +331,14 @@ bool pickTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &
         if (land >= 0.f && land <= 1.f) target = top + (target - top) * land;
     }
     const CVECTOR distance(target.x - origin.x, 0.f, target.z - origin.z);
-    return manual_aim::finite(target) && (~distance) <= nuclearRange * nuclearRange + 16.f;
+    return manual_aim::finite(target) && (~distance) <= range * range + 16.f;
 }
 // Reuse the cannon's angular range aperture for manual missile targeting.
 // The reticle can cover masts/sails or pass just beside the hull; only the
 // selected ship's hull becomes the aim point, and foreground terrain still wins.
 bool pickManualMissileShip(VDX9RENDER *renderer, SEA_BASE *sea, ISLAND_BASE *island,
                            const std::vector<entid_t> &ships, SHIP &owner, const CMatrix &view,
-                           CVECTOR &target, entid_t &targetShip)
+                           CVECTOR &target, entid_t &targetShip, float range)
 {
     CMatrix projection;
     renderer->GetTransform(storm_render::TransformProjection, projection);
@@ -354,7 +354,7 @@ bool pickManualMissileShip(VDX9RENDER *renderer, SEA_BASE *sea, ISLAND_BASE *isl
     constexpr std::array<std::array<int, 2>, 9> samples{{{{0,0}},{{-1,0}},{{1,0}},{{0,-1}},{{0,1}},{{-1,-1}},{{1,-1}},{{-1,1}},{{1,1}}}};
     for (const auto &sample : samples) {
         const auto ray = !(forward + right * (float(sample[0])*tx*.7f) + up * (float(sample[1])*ty*.7f));
-        const auto end = camera + ray * nuclearRange;
+        const auto end = camera + ray * range;
         entid_t hitShip = 0;
         float hit = firstSurface(sea, island, ships, camera, end, owner.GetId(), nullptr, false, &hitShip);
         if (sail) {
@@ -367,9 +367,12 @@ bool pickManualMissileShip(VDX9RENDER *renderer, SEA_BASE *sea, ISLAND_BASE *isl
         auto *ship = hitShip ? static_cast<SHIP *>(core.GetEntityPointer(hitShip)) : nullptr;
         if (!ship || ship == &owner || static_cast<SHIP_BASE *>(ship)->isDead()) continue;
         const auto relative = ship->GetPos() - owner.GetPos();
-        if (relative.x*relative.x + relative.z*relative.z > nuclearRange*nuclearRange) continue;
+        if (relative.x*relative.x + relative.z*relative.z > range*range) continue;
         const float score = float(sample[0]*sample[0]+sample[1]*sample[1]) + hit*.001f;
         if (score < bestScore) { best = ship; bestScore = score; }
+        // The center sample has score <= .001; all other samples score >= 1.
+        // Its selected ship is therefore identical to the full nine-ray scan.
+        if (sample[0] == 0 && sample[1] == 0) break;
     }
     if (!best) return false;
     auto *model = best->GetModel();
@@ -386,6 +389,8 @@ bool pickManualMissileShip(VDX9RENDER *renderer, SEA_BASE *sea, ISLAND_BASE *isl
     const float hit = firstSurface(sea, island, ships, camera, end, owner.GetId(), nullptr, true, &hitShip);
     if (hit <= 1.f && hitShip != best->GetId()) return false;
     target = kalibrHullAim(best, camera, bestHull, CVECTOR(0.f), sea, true);
+    const auto offset = target - owner.GetPos();
+    if (offset.x * offset.x + offset.z * offset.z > range * range) return false;
     targetShip = best->GetId();
     return manual_aim::finite(target);
 }
@@ -478,6 +483,11 @@ float conventionalMissileAimRadius(missile::Type type, bool cluster, unsigned wa
     return type == missile::Type::Kinzhal && !cluster && (warhead == 1 || warhead == 3) ? radius * (2.f / 3.f) : radius;
 }
 unsigned missileVfxType(missile::Type type) { return type == missile::Type::Kalibr ? 1u : type == missile::Type::Shtorm ? 3u : 0u; }
+const char *missileLaunchSound(missile::Type type)
+{
+    return type == missile::Type::Kalibr ? "phonk_missile_launch_kalibr" :
+        type == missile::Type::Shtorm ? "phonk_missile_launch_shtorm" : "phonk_missile_launch_kinzhal";
+}
 bool blastClearOfOwner(SHIP &owner, AIShip *ai, const CVECTOR &point, float seconds, float blastRadius)
 {
     auto *model = owner.GetModel();
@@ -529,9 +539,9 @@ bool clearTrajectory(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid
 bool automaticTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
                      SHIP &owner, AIShip *ai, const CVECTOR &launch, CVECTOR &target,
                      missile::Type type, float blastRadius, entid_t &targetShip, CVECTOR &targetOffset,
-                     uint32_t shot, uint32_t ownerSeed)
+                     uint32_t shot, uint32_t ownerSeed, float range)
 {
-    auto candidates = hostileTargets(owner.GetACharacter(), owner.GetPos(), nuclearRange);
+    auto candidates = hostileTargets(owner.GetACharacter(), owner.GetPos(), range);
     // Weighted random order: nearer targets are more likely, but a distant
     // eligible target still has a chance. Keep the order stable until firing.
     struct RankedTarget { size_t index; float priority; };
@@ -551,7 +561,7 @@ bool automaticTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid
         for (unsigned n = 0; n < 4 && candidate.ship; ++n)
             missile = missileTo(launch, predictedTarget(candidate, missile.duration), -1, type);
         const CVECTOR distance(missile.target.x - owner.GetPos().x, 0.f, missile.target.z - owner.GetPos().z);
-        if (!manual_aim::finite(missile.target) || (~distance) > nuclearRange * nuclearRange) continue;
+        if (!manual_aim::finite(missile.target) || (~distance) > range * range) continue;
         if (!clearTrajectory(sea, island, ships, owner, ai, missile, blastRadius,
                              candidate.ship ? candidate.receiver : 0)) continue;
         target = missile.target;
@@ -674,6 +684,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     state.airDefenseCooldown = std::max(0.f, state.airDefenseCooldown - seconds);
     state.airDefenseScanCooldown = std::max(0.f, state.airDefenseScanCooldown - seconds);
     state.launchSoundCooldown = std::max(0.f, state.launchSoundCooldown - seconds);
+    state.ignitionSoundCooldown = std::max(0.f, state.ignitionSoundCooldown - seconds);
     state.flybySoundCooldown = std::max(0.f, state.flybySoundCooldown - seconds);
 
     // The projectile owner performs hostility, incoming-motion and scan-budget
@@ -810,7 +821,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
 #endif
                 --enemyState.testVolleyRemaining;
                 enemyState.testVolleyDelay = .2f + .15f * shotVariation(enemyState.testEnemySerial, enemyIndex, 0xb192a437u);
-                missileSound("phonk_missile_heavy", shotLaunch);
+                if (state.launchSoundCooldown <= 0.f) {
+                    state.launchSoundCooldown = .12f;
+                    missileSound(missileLaunchSound(kind), shotLaunch);
+                }
                 }
             }
         // Each registered ship defends against missiles from actual enemies.
@@ -1409,8 +1423,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                 StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &after.x, 1);
 #endif
-                if (state.launchSoundCooldown <= 0.f) {
-                    state.launchSoundCooldown = .12f;
+                if (state.ignitionSoundCooldown <= 0.f) {
+                    state.ignitionSoundCooldown = .12f;
                     missileSound("phonk_missile_cruise", after);
                     core.Event("Ball_BombExplosion", "fffl", after.x, after.y, after.z, 0);
                     if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
@@ -1804,6 +1818,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     }
     EnsureCutFragments(); // Shared late scene owner also renders missiles and blasts.
     auto *attributes = pSea->AttributesPointer->VerifyAttributeClass("Phonk");
+    const float firingRange = missileRange(attributes->GetAttributeAsFloat("MissileRange", nuclearRange));
     auto *cameraView = attributes->VerifyAttributeClass("MissileView");
     cameraView->SetAttributeUseDword("sequence", state.cameraShot);
     cameraView->SetAttributeUseDword("active", state.cameraShot && (cameraFlight || state.cameraAfterImpact > 0.f));
@@ -1955,6 +1970,45 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
          conventionalMissileAimRadius(state.missileType, state.warhead == 2, state.warhead) * configuredRadius * 1.04f + (state.warhead == 2 ? 63.f : 0.f));
     auto *ai = dynamic_cast<AIShip *>(AIHelper::FindAIInnerObj(GetACharacter()));
     CVECTOR launch = GetModel()->mtx * CVECTOR(0.f, std::max(4.f, State.vBoxSize.y * .35f), 0.f);
+    if (attempt == 0 && attributes->GetAttributeAsDword("Rangefinder", 0) && !state.menuOpen)
+    {
+        state.rangefinderClock -= seconds;
+        if (state.rangefinderClock <= 0.f)
+        {
+            state.rangefinderClock = .2f;
+            const auto camera = view.Pos();
+            const auto direction = !view.Vz();
+            const auto end = camera + direction * firingRange;
+            float fraction = firstSurface(pSea, pIsland, receivers, camera, end, GetId());
+            if (auto *sail = dynamic_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(core.GetEntityId("sail")))) {
+                entid_t sailShip = 0;
+                const float sailHit = sail->Pick(camera, end, GetId(), sailShip);
+                if (sailShip && std::isfinite(sailHit) && sailHit >= 0.f && sailHit <= 1.f && sailHit < fraction)
+                    fraction = sailHit;
+            }
+            const bool hit = std::isfinite(fraction) && fraction >= 0.f && fraction <= 1.f;
+            attributes->SetAttributeUseDword("RangefinderHit", hit);
+            attributes->SetAttributeUseDword("RangefinderTimeValid", 0);
+            if (hit)
+            {
+                const auto point = camera + (end - camera) * fraction;
+                attributes->SetAttributeUseFloat("RangefinderDistance", std::sqrt(~(point - camera)));
+                if (state.weapon == 7 && missileSelection != 3)
+                {
+                    auto estimate = missileTo(launch, point, -1, state.missileType);
+                    estimate.flightVariation.configuredSpeed = configuredSpeed;
+                    estimate.flightVariation.configuredAcceleration = configuredAcceleration;
+                    const float duration = missile::duration(estimate.type, {launch.x, launch.y, launch.z},
+                        {point.x, point.y, point.z}, estimate.flightVariation);
+                    if (std::isfinite(duration)) {
+                        attributes->SetAttributeUseFloat("RangefinderTime", duration);
+                        attributes->SetAttributeUseDword("RangefinderTimeValid", 1);
+                    }
+                }
+            }
+        }
+    }
+    else if (attempt == 0) state.rangefinderClock = 0.f;
     if (launchRequested && state.weapon == 7 && state.missileType == missile::Type::Kalibr) {
         auto *root = GetModel()->GetNode(0);
         if (root && root->geo) {
@@ -1969,7 +2023,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         }
     }
     if (attempt == 0) state.targetClock += seconds;
-    if (state.weapon != 7) { state.targetValid = false; state.targetClock = .1f; }
+    if (state.weapon != 7) { state.targetValid = false; state.targetClock = .1f; state.manualAssistClock = 0.f; state.manualAssistShip = 0; }
     else if (!automatic || launchRequested || state.targetClock >= .1f || automatic != state.targetOutside ||
              (fire && !state.triggerHeld))
     {
@@ -1977,19 +2031,29 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         state.targetShip = 0;
         const float safetyRadius = (state.warhead == 0 ? nuclearYieldForTier(state.powerLimit).radius * 1.04f :
             conventionalMissileRadius(state.missileType, state.warhead == 2, state.warhead) * configuredRadius * 1.04f + (state.warhead == 2 ? 63.f : 0.f)) + aimSpread;
-        state.targetValid = automatic ? automaticTarget(pSea, pIsland, receivers, *this, ai, launch, state.target, state.missileType, safetyRadius, state.targetShip, state.targetOffset, nextShot, ownerSeed) :
-            pickTarget(pSea, pIsland, receivers, GetPos(), view.Pos(), view.Vz(), state.target, true);
-        if (!automatic && launchRequested) {
-            CVECTOR assistedTarget;
-            entid_t assistedShip = 0;
-            if (pickManualMissileShip(pRS, pSea, pIsland, receivers, *this, view, assistedTarget, assistedShip)) {
-                state.target = assistedTarget;
-                state.targetShip = assistedShip;
-                if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(assistedShip)))
-                    state.targetOffset = assistedTarget - ship->GetPos();
-                state.targetValid = true;
+        state.targetValid = automatic ? automaticTarget(pSea, pIsland, receivers, *this, ai, launch, state.target, state.missileType, safetyRadius, state.targetShip, state.targetOffset, nextShot, ownerSeed, firingRange) :
+            pickTarget(pSea, pIsland, receivers, GetPos(), view.Pos(), view.Vz(), state.target, true, firingRange);
+        if (!automatic) {
+            if (attempt == 0) state.manualAssistClock -= seconds;
+            if (launchRequested || state.manualAssistClock <= 0.f) {
+                state.manualAssistClock = .1f;
+                state.manualAssistShip = 0;
+                pickManualMissileShip(pRS, pSea, pIsland, receivers, *this, view,
+                    state.manualAssistTarget, state.manualAssistShip, firingRange);
+            }
+            if (state.manualAssistShip) {
+                auto *ship = static_cast<SHIP *>(core.GetEntityPointer(state.manualAssistShip));
+                const auto offset = state.manualAssistTarget - GetPos();
+                if (ship && ship->bMounted && !ship->isDead() &&
+                    offset.x * offset.x + offset.z * offset.z <= firingRange * firingRange) {
+                    state.target = state.manualAssistTarget;
+                    state.targetShip = state.manualAssistShip;
+                    state.targetOffset = state.target - ship->GetPos();
+                    state.targetValid = true;
+                }
             }
         }
+        else { state.manualAssistClock = 0.f; state.manualAssistShip = 0; }
         if (state.targetValid)
         {
             auto missile = missileTo(launch, state.target, -1, state.missileType);
@@ -2085,10 +2149,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
 #endif
             if (state.launchSoundCooldown <= 0.f) {
                 state.launchSoundCooldown = .12f;
+                missileSound(missileLaunchSound(state.missileType), shotLaunch);
                 if (state.missileType == storm::ship::phonk::missile::Type::Kalibr)
                     core.Event("SeaPhonk_MissilePuff", "fff", shotLaunch.x, shotLaunch.y, shotLaunch.z);
                 else {
-                    missileSound("phonk_missile_heavy", shotLaunch);
                     core.Event("Ball_BombExplosion", "fffl", shotLaunch.x, shotLaunch.y, shotLaunch.z, 0);
                 }
                 if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;

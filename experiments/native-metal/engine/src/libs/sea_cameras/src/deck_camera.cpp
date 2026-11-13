@@ -739,6 +739,20 @@ void DECK_CAMERA::Move(uint32_t DeltaTime)
                           AttributesPointer->GetAttributeAsDword("ThirdPerson") == 0) ? 0.5f : 0.f;
     const float eyeHeight = eyeLift > 0.f ? std::max(h_eye, DEFAULT_HEIGHT) + eyeLift : h_eye;
     s_pos = pathNode->glob_mtx * (camera_pos + CVECTOR(0.f, eyeHeight, 0.f));
+    auto *seaForLift = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *phonkForLift = seaForLift && seaForLift->AttributesPointer ?
+        seaForLift->AttributesPointer->FindAClass(seaForLift->AttributesPointer, "Phonk.Active") : nullptr;
+    if (walkMode && phonkForLift && phonkForLift->GetAttributeAsDword() != 0)
+    {
+        CONTROL_STATE upControl{}, downControl{};
+        core.Controls->GetControlState("Phonk_DeckCameraUp", upControl);
+        core.Controls->GetControlState("Phonk_DeckCameraDown", downControl);
+        const float up = upControl.state == CST_ACTIVE || upControl.state == CST_ACTIVATED ? 1.f : 0.f;
+        const float down = downControl.state == CST_ACTIVE || downControl.state == CST_ACTIVATED ? 1.f : 0.f;
+        phonkViewLift = std::clamp(phonkViewLift + (up-down)*18.f*std::min(float(DeltaTime)*.001f, .1f), 0.f, 80.f);
+        s_pos.y += phonkViewLift;
+    }
+    else phonkViewLift = 0.f;
 
     if (walkMode)
     {

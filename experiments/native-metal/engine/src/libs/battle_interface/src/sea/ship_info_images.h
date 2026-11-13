@@ -42,6 +42,7 @@ class ShipInfoImages
     VDX9RENDER *pRS;
     bool m_bVisible;
     bool m_phonkRange = false;
+    float m_phonkMaxRange = 9000.f;
     CVECTOR m_phonkOrigin;
 
     int32_t m_idRelationTexture;

@@ -200,6 +200,20 @@ void BATTLE_INTERFACE::Realize(uint32_t delta_time)
                 m_NuclearMenuMode.Print();
                 m_NuclearMenuPower.Print();
             }
+            const auto *sea = core.Entity_GetAttributePointer(core.GetEntityId("sea"));
+            const auto *phonk = sea ? sea->GetAttributeClass("Phonk") : nullptr;
+            if (phonk && phonk->GetAttributeAsDword("Active", 0) &&
+                phonk->GetAttributeAsDword("Rangefinder", 0) && !phonk->GetAttributeAsDword("MissileSettings", 0))
+            {
+                char label[96];
+                if (!phonk->GetAttributeAsDword("RangefinderHit", 0))
+                    snprintf(label, sizeof(label), "-- m");
+                else if (phonk->GetAttributeAsDword("RangefinderTimeValid", 0))
+                    snprintf(label, sizeof(label), "%.0f m  ~%.1f s", phonk->GetAttributeAsFloat("RangefinderDistance"), phonk->GetAttributeAsFloat("RangefinderTime"));
+                else snprintf(label, sizeof(label), "%.0f m", phonk->GetAttributeAsFloat("RangefinderDistance"));
+                m_RangefinderMark.Print("+");
+                m_Rangefinder.Print(label);
+            }
         }
     }
     else
@@ -230,6 +244,8 @@ void BATTLE_INTERFACE::LoadIniFile()
             m_NuclearMenuTitle.Init(rs, text->GetAttributeClass("NuclearMenuTitle"));
             m_NuclearMenuMode.Init(rs, text->GetAttributeClass("NuclearMenuMode"));
             m_NuclearMenuPower.Init(rs, text->GetAttributeClass("NuclearMenuPower"));
+            m_Rangefinder.Init(rs, text->GetAttributeClass("Rangefinder"));
+            m_RangefinderMark.Init(rs, text->GetAttributeClass("RangefinderMark"));
         }
         m_LinesInfo.Init(rs, AttributesPointer->GetAttributeClass("LineInfo"));
 

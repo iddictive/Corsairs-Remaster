@@ -34,7 +34,7 @@ void PhonkMissile_Refresh()
 	bool cluster = sti(Sea.Phonk.MissileWarhead) == 2;
 	for (i = 0; i < 12; i++)
 	{
-		bool visible = (PhonkMissileSection == 0 && (i < 6 || (sti(Sea.Phonk.MissileType) != 3 && i < 10) || i == 11)) || (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
+		bool visible = (PhonkMissileSection == 0 && (i < 6 || (sti(Sea.Phonk.MissileType) != 3 && i < 10) || i == 10 || i == 11)) || (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
 		if (PhonkMissileSection == 1 && !nuclear && sti(Sea.Phonk.MissileWarhead) != 5 && i >= 7 && i <= 10) visible = true;
 		if (PhonkMissileSection == 2 && (i == 3 || i == 5)) visible = false;
 		SetNodeUsing("ACTION" + i, visible);
@@ -78,6 +78,7 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION7",0,"#Скорость +");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION8",0,"#Ускорение -");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION9",0,"#Ускорение +");
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#Дальность: " + sti(Sea.Phonk.MissileRange) + " м");
 		if (sti(Sea.Phonk.MissileType) == 3) label = "Случайная [выбрана]"; else label = "Случайная";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION11",0,"#" + label);
 		if (sti(Sea.Phonk.MissileType) == 3) label = "Выбрана: случайная"; else if (sti(Sea.Phonk.MissileType) == 0) label = "Выбрана: Кинжал"; else if (sti(Sea.Phonk.MissileType) == 2) label = "Выбрана: Шторм"; else label = "Выбрана: Калибр";
@@ -224,6 +225,7 @@ void PhonkMissile_Command(string node)
 		case "ACTION3": Sea.Phonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval) - 0.1; if (stf(Sea.Phonk.NuclearInterval) < 0.0) Sea.Phonk.NuclearInterval = 0.0; break;
 		case "ACTION4": Sea.Phonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval) + 0.1; if (stf(Sea.Phonk.NuclearInterval) > 10.0) Sea.Phonk.NuclearInterval = 10.0; break;
 		case "ACTION5": Sea.Phonk.MissileType = 2; Sea.Phonk.Weapon = 7; break;
+		case "ACTION10": Sea.Phonk.MissileRange = sti(Sea.Phonk.MissileRange) + 500; if (sti(Sea.Phonk.MissileRange) > 20000) Sea.Phonk.MissileRange = 500; break;
 		case "ACTION11": Sea.Phonk.MissileType = 3; Sea.Phonk.Weapon = 7; break;
 		}
 	}
@@ -633,6 +635,7 @@ void InitInterface(string iniName)
 	PhonkMissileSettings = CheckAttribute(&Sea,"Phonk.MissileSettings") && sti(Sea.Phonk.MissileSettings) != 0;
 	if (PhonkMissileSettings)
 	{
+		if (!CheckAttribute(&Sea,"Phonk.MissileRange")) Sea.Phonk.MissileRange = 9000;
 		if (!CheckAttribute(&Sea,"Phonk.MissileType")) Sea.Phonk.MissileType = 3;
 		if (!CheckAttribute(&Sea,"Phonk.MissileHoming")) Sea.Phonk.MissileHoming = 1;
 		if (!CheckAttribute(&Sea,"Phonk.MissileWarhead")) Sea.Phonk.MissileWarhead = 5;

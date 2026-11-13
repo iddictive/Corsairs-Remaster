@@ -48,6 +48,7 @@ class DECK_CAMERA : public COMMON_CAMERA
     VDX9RENDER *RenderService;
     CVECTOR camera_pos, camera_ang;
     float h_eye;
+    float phonkViewLift = 0.f; // Transient camera offset, not walker position or save data.
     storm_render::Rect Screen_Rect;
     int32_t lock_x;
     int32_t lock_y;

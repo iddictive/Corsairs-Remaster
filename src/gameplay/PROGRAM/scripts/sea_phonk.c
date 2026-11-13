@@ -1,8 +1,41 @@
 // Local-sea mode: one transient scene flag drives ship physics, lighting and music.
 string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
+void SeaPhonk_DeckCameraControl(string name, string keyName, bool reevaluate)
+{
+    if (!reevaluate && CheckAttribute(&objControlsState, "keygroups.Sailing1Pers." + name)) return;
+    int key = CI_GetKeyCode(keyName);
+    aref group, item, groups;
+    makearef(group, objControlsState.keygroups.Sailing1Pers);
+    for (int i = 0; i < GetAttributesNum(group); i++)
+    {
+        item = GetAttributeN(group, i);
+        if (GetAttributeName(item) != name && GetAttributeValue(item) == keyName) key = -1;
+    }
+    // The reverse map also contains controls in other, mutually exclusive
+    // groups. Only an ungrouped control is active alongside the deck group.
+    string path = "map.keys.key_" + CI_GetKeyCode(keyName);
+    if (CheckAttribute(&objControlsState, path))
+    {
+        string other = objControlsState.(path);
+        bool grouped = false;
+        makearef(groups, objControlsState.keygroups);
+        for (i = 0; i < GetAttributesNum(groups); i++)
+        {
+            group = GetAttributeN(groups, i);
+            if (CheckAttribute(group, other)) grouped = true;
+        }
+        if (other != name && !grouped) key = -1;
+    }
+    int flags = 0;
+    if (key < 0) flags = -1;
+    CI_CreateAndSetControls("Sailing1Pers", name, key, flags, true);
+}
+
 void SeaPhonk_InitControls()
 {
+    SeaPhonk_DeckCameraControl("Phonk_DeckCameraUp", "KEY_Z", false);
+    SeaPhonk_DeckCameraControl("Phonk_DeckCameraDown", "KEY_X", false);
     if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Jet"))
     {
         CI_CreateAndSetControls("Sailing3Pers", "Phonk_Jet", CI_GetKeyCode("VK_CONTROL"), 0, true);
@@ -40,6 +73,30 @@ void SeaPhonk_InitControls()
         CI_CreateAndSetControls("Sailing3Pers", "Phonk_NuclearPower", CI_GetKeyCode("KEY_L"), 0, true);
         MapControlToGroup("Phonk_NuclearPower", "Sailing1Pers");
         MapControlToGroup("Phonk_NuclearPower", "BattleInterfaceControls");
+    }
+    if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_Rangefinder"))
+    {
+        int key = CI_GetKeyCode("VK_A_POINT");
+        if (CheckAttribute(&objControlsState, "map.keys.key_186")) key = -1;
+        aref group, control;
+        string groupName;
+        for (int g = 0; g < 3; g++)
+        {
+            if (g == 0) groupName = "Sailing3Pers";
+            if (g == 1) groupName = "Sailing1Pers";
+            if (g == 2) groupName = "BattleInterfaceControls";
+            makearef(group, objControlsState.keygroups.(groupName));
+            for (int i = 0; i < GetAttributesNum(group); i++)
+            {
+                control = GetAttributeN(group, i);
+                if (GetAttributeValue(control) == "VK_A_POINT") key = -1;
+            }
+        }
+        int state = 0;
+        if (key < 0) state = -1;
+        CI_CreateAndSetControls("Sailing3Pers", "Phonk_Rangefinder", key, state, true);
+        MapControlToGroup("Phonk_Rangefinder", "Sailing1Pers");
+        MapControlToGroup("Phonk_Rangefinder", "BattleInterfaceControls");
     }
     if (!CheckAttribute(&objControlsState, "keygroups.Sailing3Pers.Phonk_NuclearInterval") ||
         objControlsState.keygroups.Sailing3Pers.Phonk_NuclearInterval == "KEY_I")

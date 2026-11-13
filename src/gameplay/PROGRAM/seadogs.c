@@ -1121,6 +1121,42 @@ void ProcessControls()
 
     if (dialogRun) return;
 	if (sti(InterfaceStates.Launched)==true) return;
+	if (SeaPhonk_IsActive() && ControlName == "Phonk_Rangefinder")
+	{
+		if (!CheckAttribute(&Sea, "Phonk.Rangefinder")) Sea.Phonk.Rangefinder = 0;
+		Sea.Phonk.Rangefinder = !sti(Sea.Phonk.Rangefinder);
+		return;
+	}
+	if (SeaPhonk_IsActive() && ControlName == "Phonk_NuclearMode")
+	{
+		Sea.Phonk.MissileType = (sti(Sea.Phonk.MissileType) + 1) % 4;
+		Sea.Phonk.Weapon = 7;
+		string missileName = "случайная";
+		if (sti(Sea.Phonk.MissileType) == 0) missileName = "Кинжал";
+		if (sti(Sea.Phonk.MissileType) == 1) missileName = "Калибр";
+		if (sti(Sea.Phonk.MissileType) == 2) missileName = "Шторм";
+		Log_Info("Ракета: " + missileName);
+		return;
+	}
+	if (SeaPhonk_IsActive() && ControlName == "Phonk_NuclearPower")
+	{
+		int warhead = sti(Sea.Phonk.MissileWarhead);
+		if (warhead == 0) warhead = 1;
+		else if (warhead == 1 || warhead == 3) warhead = 2;
+		else if (warhead == 2) warhead = 4;
+		else if (warhead == 4) warhead = PHONK_WARHEAD_THERMOBARIC;
+		else if (warhead == PHONK_WARHEAD_THERMOBARIC) warhead = 5;
+		else warhead = 0;
+		Sea.Phonk.MissileWarhead = warhead;
+		string warheadName = "ядерная";
+		if (warhead == 1) warheadName = "осколочно-фугасная";
+		if (warhead == 2) warheadName = "кассетная";
+		if (warhead == 4) warheadName = "зажигательная";
+		if (warhead == PHONK_WARHEAD_THERMOBARIC) warheadName = "термобарическая";
+		if (warhead == 5) warheadName = "случайная";
+		Log_Info("Боеголовка: " + warheadName);
+		return;
+	}
 	if (ControlName == "Phonk_NuclearMenu" && SeaPhonk_IsActive())
 	{
 		pchar.Ship.Cannons.CancelHeldFire = true;

@@ -44,6 +44,7 @@ void ShipInfoImages::Draw()
     const auto *phonk = sea ? sea->GetAttributeClass("Phonk") : nullptr;
     const auto *player = g_ShipList.GetMainCharacterShip();
     m_phonkRange = phonk && phonk->GetAttributeAsDword("Active", 0) && player && player->pShip;
+    if (m_phonkRange) m_phonkMaxRange = storm::ship::phonk::missileRange(phonk->GetAttributeAsFloat("MissileRange", storm::ship::phonk::nuclearRange));
     if (m_phonkRange) m_phonkOrigin = player->pShip->GetPos();
 
     UpdateShipList();
@@ -343,7 +344,7 @@ bool ShipInfoImages::IsEnableShowShipInfo(SHIP_DESCRIBE_LIST::SHIP_DESCR *pSD) c
 
     if (m_phonkRange) {
         const auto delta = pSD->pShip->GetPos() - m_phonkOrigin;
-        const float range = storm::ship::phonk::nuclearRange;
+        const float range = m_phonkMaxRange;
         if (delta.x * delta.x + delta.z * delta.z > range * range) return false;
     } else {
         CVECTOR vpos, vang;

@@ -11,6 +11,8 @@
 namespace storm::ship::phonk
 {
 inline constexpr float nuclearRange = 9000.f;
+inline constexpr float maximumMissileRange = 20000.f;
+inline float missileRange(float value) { return std::isfinite(value) ? std::clamp(value, 500.f, maximumMissileRange) : nuclearRange; }
 inline constexpr float nuclearRadius = 220.f;
 inline constexpr float nuclearReload = 1.f;
 inline constexpr float nuclearChargeTime = 3.f;
@@ -161,7 +163,10 @@ struct OrdnanceState
 {
     unsigned weapon = 6;
     bool triggerHeld = false, targetValid = false, targetOutside = false, charging = false;
-    float reload = 0.f, targetClock = 0.f, charge = 0.f;
+    float reload = 0.f, targetClock = 0.f, charge = 0.f, rangefinderClock = 0.f;
+    float manualAssistClock = 0.f;
+    CVECTOR manualAssistTarget = CVECTOR(0.f);
+    entid_t manualAssistShip = 0;
     double burstSeconds = 0.0, burstDebt = 0.0;
     bool burstArmed = false;
     bool menuOpen = false;
@@ -186,7 +191,7 @@ struct OrdnanceState
     float conventionalFxCooldown = 0.f;
     float airDefenseCooldown = 0.f;
     float airDefenseScanCooldown = 0.f;
-    float launchSoundCooldown = 0.f;
+    float launchSoundCooldown = 0.f, ignitionSoundCooldown = 0.f;
     float flybySoundCooldown = 0.f;
     uint32_t airDefenseScanCursor = 0, airDefenseHitCursor = 0, airDefenseSerial = 0;
     float testEnemyCooldown = 0.f;

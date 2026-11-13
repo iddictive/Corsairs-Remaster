@@ -210,6 +210,12 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 		CI_CreateAndSetControls("FightModeControls", "ChrRoundhouseJump", jumpKey, jumpState, true);
 	}
 	Roundhouse_InitControls();
+	// Older profiles have no deck-camera entries; reconsider defaults after
+	// restoring their other bindings, but never replace a saved assignment.
+	if (!CheckAttribute(arControlsRoot, "Sailing1Pers.Phonk_DeckCameraUp"))
+		SeaPhonk_DeckCameraControl("Phonk_DeckCameraUp", "KEY_Z", true);
+	if (!CheckAttribute(arControlsRoot, "Sailing1Pers.Phonk_DeckCameraDown"))
+		SeaPhonk_DeckCameraControl("Phonk_DeckCameraDown", "KEY_X", true);
 	ControlsInitFixedShortcuts();
 	RunControlsContainers();
 }

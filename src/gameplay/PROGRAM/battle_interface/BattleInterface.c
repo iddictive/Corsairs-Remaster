@@ -2000,6 +2000,16 @@ void SetParameterData()
 	BattleInterface.textinfo.NuclearMenuPower.pos.y = RecalculateVIcon(makeint(142 * fHtRatio));
 	BattleInterface.textinfo.NuclearMenuPower.text = "";
 	BattleInterface.textinfo.NuclearMenuPower.refreshable = true;
+	BattleInterface.textinfo.Rangefinder.font = "interface_normal";
+	BattleInterface.textinfo.Rangefinder.scale = 0.8 * fHtRatio;
+	BattleInterface.textinfo.Rangefinder.pos.x = sti(showWindow.right) / 2;
+	BattleInterface.textinfo.Rangefinder.pos.y = sti(showWindow.bottom) / 2 + RecalculateVIcon(makeint(28 * fHtRatio));
+	BattleInterface.textinfo.Rangefinder.text = "";
+	BattleInterface.textinfo.RangefinderMark.font = "interface_normal";
+	BattleInterface.textinfo.RangefinderMark.scale = 0.8 * fHtRatio;
+	BattleInterface.textinfo.RangefinderMark.pos.x = sti(showWindow.right) / 2;
+	BattleInterface.textinfo.RangefinderMark.pos.y = sti(showWindow.bottom) / 2 - RecalculateVIcon(makeint(8 * fHtRatio));
+	BattleInterface.textinfo.RangefinderMark.text = "";
 	
 	BattleInterface.LineInfo.speed.color = argb(255,0,0,0);
 	BattleInterface.LineInfo.speed.begin.x = sti(showWindow.right) - RecalculateHIcon(makeint(168* fHtRatio));

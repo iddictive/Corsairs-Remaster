@@ -68,6 +68,7 @@ class BATTLE_INTERFACE : public Entity
 
     std::vector<BITextInfo> m_TextArray;
     BITextInfo m_NuclearMenuTitle, m_NuclearMenuMode, m_NuclearMenuPower;
+    BITextInfo m_Rangefinder, m_RangefinderMark;
     BILinesInfo m_LinesInfo;
     bool m_bShowBattleBorder;
     BIBorderInfo m_BattleBorder;

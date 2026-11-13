@@ -14,21 +14,30 @@ enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment };
 
 // Matched by the Metal shader; all positions are absolute world coordinates.
 struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color; };
-struct MissileVfxView { simd_float4x4 vp; simd_float4 eye, right, up; };
+struct MissileVfxView { simd_float4x4 vp; simd_float4 eye, right, up, viewport; };
 static_assert(sizeof(MissileVfxSprite)==64);
 
 static const char *missileVfxMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
 struct S { float4 positionSize, axisLength, params, color; };
-struct V { float4x4 vp; float4 eye, right, up; };
+struct V { float4x4 vp; float4 eye, right, up, viewport; };
 struct O { float4 p [[position]]; float2 uv; float4 params, color; };
 float missile_hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
 float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(missile_hash(a),missile_hash(a+float2(1,0)),f.x),mix(missile_hash(a+float2(0,1)),missile_hash(a+1.),f.x),f.y); }
 vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
  constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
  S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz;
- if(a.params.z>0.5 && a.params.z<1.5) { u=normalize(a.axisLength.xyz); r=cross(u,view.eye.xyz-a.positionSize.xyz); if(dot(r,r)<1e-8) r=view.right.xyz; else r=normalize(r); }
+ if(a.params.z>0.5 && a.params.z<1.5) {
+  u=normalize(a.axisLength.xyz); r=cross(u,view.eye.xyz-a.positionSize.xyz); if(dot(r,r)<1e-8) r=view.right.xyz; else r=normalize(r);
+  // Only widen motor billboards narrower than 3 pixels, capped at 4x world width.
+  float4 center=view.vp*float4(a.positionSize.xyz,1.);
+  float4 edge=view.vp*float4(a.positionSize.xyz+r*a.positionSize.w,1.);
+  if(center.w>1e-4 && edge.w>1e-4) {
+   float halfPixels=length((edge.xy/edge.w-center.xy/center.w)*view.viewport.zw*.5);
+   r*=clamp(1.5/max(halfPixels,1e-4),1.,4.);
+  }
+ }
  if(a.params.z<.5) {
   float angle=a.params.w+a.params.x*.12; float c=cos(angle),s=sin(angle); float3 old=r; r=old*c+u*s; u=u*c-old*s;
   // Project the emitted segment onto the camera plane, then elongate the
@@ -49,7 +58,7 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   float2 p=float2(i.uv.x,1.-i.uv.y);
   float2 uv=clamp((cell+p)/8.,cell/8.+texel*.51,(cell+1.)/8.-texel*.51);
   float4 a=smoke.sample(sm,uv);
-  float fade=smoothstep(0.,.06,i.params.x)*(1.-smoothstep(.12,1.,progress));
+  float fade=smoothstep(0.,.06,i.params.x)*(1.-smoothstep(.4,1.,progress));
   // The atlas is premultiplied dark smoke. Preserve its density and texture
   // while lighting it with the exhaust's material instead of multiplying black.
   float detail=clamp(dot(a.rgb,float3(.2126,.7152,.0722))/max(a.a,.001),0.,1.);
@@ -185,15 +194,27 @@ public:
                 simd_float4x4 vp,simd_float3 eye,simd_float3 right,simd_float3 up,simd_float4 viewport,simd_float3 worldOrigin={0,0,0}) {
         if(!device||!command||!target||!depth||!atlas||atlas.device!=device||target.sampleCount!=1||depth.sampleCount!=1||target.width!=depth.width||target.height!=depth.height||!finite(eye)||!finite(right)||!finite(up)||viewport.z<=0||viewport.w<=0) return false;
         std::vector<MissileVfxSprite> sprites; sprites.reserve(count+headCount+flashCount);
-        for(size_t j=0;j<count;j++) { const Puff &p=puffs[(next+capacity-count+j)%capacity]; float age=clock-p.birth; if(age<0||age>=p.life) continue;
-            float t=age/p.life, turbulence=std::sin(age*1.4f+p.seed)*age*.22f;
+        for(size_t j=0;j<count;j++) { const size_t slot=(next+capacity-count+j)%capacity; const Puff &p=puffs[slot]; float age=clock-p.birth; if(age<0||age>=p.life) continue;
+            float turbulence=std::sin(age*1.4f+p.seed)*age*.22f;
             auto pos=p.origin+worldOrigin+p.drift*age+simd_make_float3(turbulence,0,std::cos(age*1.1f+p.seed)*age*.18f);
             // Under a full pool, keep recent plumes at full detail and reduce
             // overdraw on older particles without moving or delaying them.
             bool older=count>1024 && j+1024<count;
-            float size=p.size*(1.f+age*.5f)*(older?.8f:1.f); float dist=simd_length(pos-eye); if(dist>3600.f) continue;
-            float visibility=1.f-std::clamp((dist-600.f)/3000.f,0.f,1.f);
-            float opacity=visibility*visibility*(1.f-.65f*t)*(p.type==MissileVfxType::Interceptor?.12f:.17f);
+            float size=p.size*(1.f+age*.5f)*(older?.8f:1.f); float dist=simd_length(pos-eye); if(dist>=10000.f) continue;
+            // Stable pool-slot selection bounds the far plume to 512 sprites.
+            // Mix slot bits to avoid selecting the same emitter in a repeating
+            // multi-missile emission order. Fade other slots before dropping them.
+            const bool farSample=((slot^(slot>>5)^(slot>>2))&3u)==0;
+            if(dist>=4200.f && !farSample) continue;
+            float visibility;
+            if(dist<=3000.f) {
+                float remaining=std::clamp((3600.f-dist)/3000.f,0.f,1.f);
+                visibility=.25f+.75f*remaining;
+            } else {
+                visibility=(.4f-.24f*std::clamp((dist-3000.f)/6000.f,0.f,1.f))*std::clamp((10000.f-dist)/1000.f,0.f,1.f);
+                if(!farSample) { float t=std::clamp((dist-3000.f)/1200.f,0.f,1.f); visibility*=1.f-t*t*(3.f-2.f*t); }
+            }
+            float opacity=visibility*(p.type==MissileVfxType::Interceptor?.12f:.17f);
             const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.56f,.59f,.60f):
                 p.type==MissileVfxType::Interceptor?simd_make_float3(.93f,.93f,.90f):
                 p.type==MissileVfxType::Shtorm?simd_make_float3(.72f,.74f,.76f):
@@ -209,7 +230,7 @@ public:
         if(sprites.empty())return true;
         if(!prepare(device,target.pixelFormat,depth.pixelFormat))return false;
         auto buffer=[device newBufferWithBytes:sprites.data() length:sprites.size()*sizeof(MissileVfxSprite) options:MTLResourceStorageModeShared]; if(!buffer)return false;
-        MissileVfxView view{vp,simd_make_float4(eye,1),simd_make_float4(right,0),simd_make_float4(up,0)};
+        MissileVfxView view{vp,simd_make_float4(eye,1),simd_make_float4(right,0),simd_make_float4(up,0),viewport};
         auto pass=[MTLRenderPassDescriptor renderPassDescriptor]; pass.colorAttachments[0].texture=target; pass.colorAttachments[0].loadAction=MTLLoadActionLoad; pass.colorAttachments[0].storeAction=MTLStoreActionStore;
         pass.depthAttachment.texture=depth; pass.depthAttachment.loadAction=MTLLoadActionLoad; pass.depthAttachment.storeAction=MTLStoreActionStore;
         auto e=[command renderCommandEncoderWithDescriptor:pass]; if(!e)return false; [e setRenderPipelineState:pipeline]; [e setDepthStencilState:depthState];
