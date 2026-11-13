@@ -187,7 +187,9 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION2",0,"#Дальность: " + sti(Sea.Phonk.AirDefenseRange) + " м");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION4",0,"#Интервал: " + FloatToString(stf(Sea.Phonk.AirDefenseInterval), 2) + " с");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION6",0,"#Одновременно в воздухе: " + sti(Sea.Phonk.AirDefenseMax));
-		if (sti(Sea.Phonk.AirDefenseType) == 1) label = "Patriot"; else label = "Панцирь";
+		label = "Панцирь";
+		if (sti(Sea.Phonk.AirDefenseType) == 1) label = "Patriot";
+		if (sti(Sea.Phonk.AirDefenseType) == 2) label = "Панцирь + Patriot";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#Перехватчик: " + label);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE0",3,(stf(Sea.Phonk.AirDefenseRange)-400.0)/7600.0 + 0.000001);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(Sea.Phonk.AirDefenseInterval)-0.05)/4.95 + 0.000001);
@@ -304,7 +306,7 @@ void PhonkMissile_Command(string node)
 		case "ACTION1": SeaPhonkTest_Start(); break;
 		case "ACTION8": SeaPhonkTest_StartAlly(); break;
 		case "ACTION9": Sea.Phonk.AirDefenseEconomy = !sti(Sea.Phonk.AirDefenseEconomy); break;
-		case "ACTION10": Sea.Phonk.AirDefenseType = (sti(Sea.Phonk.AirDefenseType) + 1) % 2; break;
+		case "ACTION10": Sea.Phonk.AirDefenseType = (sti(Sea.Phonk.AirDefenseType) + 1) % 3; pchar.SeaPhonk.AirDefenseType = sti(Sea.Phonk.AirDefenseType); break;
 		case "ACTION2": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) - 0.1; if (stf(Sea.Phonk.AirDefenseInterval) < 0.1) Sea.Phonk.AirDefenseInterval = 0.1; break;
 		case "ACTION3": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) + 0.1; if (stf(Sea.Phonk.AirDefenseInterval) > 2.0) Sea.Phonk.AirDefenseInterval = 2.0; break;
 		case "ACTION4": if (sti(Sea.Phonk.AirDefenseMax) > 1) Sea.Phonk.AirDefenseMax = sti(Sea.Phonk.AirDefenseMax) - 1; break;
@@ -657,7 +659,7 @@ void InitInterface(string iniName)
 		if (!CheckAttribute(&Sea,"Phonk.NuclearInterval")) Sea.Phonk.NuclearInterval = 1.0;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseEnabled")) Sea.Phonk.AirDefenseEnabled = 0;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseType")) Sea.Phonk.AirDefenseType = 0;
-		if (sti(Sea.Phonk.AirDefenseType) < 0 || sti(Sea.Phonk.AirDefenseType) > 1) Sea.Phonk.AirDefenseType = 0;
+		Sea.Phonk.AirDefenseType = SeaPhonk_PlayerDefenseType(sti(Sea.Phonk.AirDefenseType));
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseEconomy")) Sea.Phonk.AirDefenseEconomy = 1;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseRange")) Sea.Phonk.AirDefenseRange = 800;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseInterval")) Sea.Phonk.AirDefenseInterval = 0.25;

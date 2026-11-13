@@ -1,6 +1,12 @@
 // Local-sea mode: one transient scene flag drives ship physics, lighting and music.
 string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
+int SeaPhonk_PlayerDefenseType(int type)
+{
+    if (type < 0 || type > 2) return 0;
+    return type;
+}
+
 string SeaPhonk_MissileName(int type)
 {
     if (type == 0) return "Кинжал";
@@ -172,6 +178,12 @@ void SeaPhonk_SetActive(bool active)
         CheckAttribute(pchar, "Ship.Cannons.Charge.Type"))
         SendMessage(&AISea, "la", AI_MESSAGE_CANNON_RELOAD, pchar);
     Sea.Phonk.Active = active;
+    if (active)
+    {
+        Sea.Phonk.AirDefenseType = 0;
+        if (CheckAttribute(pchar, "SeaPhonk.AirDefenseType"))
+            Sea.Phonk.AirDefenseType = SeaPhonk_PlayerDefenseType(sti(pchar.SeaPhonk.AirDefenseType));
+    }
     if (active && !CheckAttribute(&Sea, "Phonk.MissileType")) Sea.Phonk.MissileType = 3;
     if (active && !CheckAttribute(&Sea, "Phonk.MissileWarhead")) Sea.Phonk.MissileWarhead = 5;
     if (active && sti(Sea.Phonk.MissileWarhead) == 3) Sea.Phonk.MissileWarhead = 1;

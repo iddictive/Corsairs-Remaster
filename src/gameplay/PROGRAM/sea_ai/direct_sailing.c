@@ -143,6 +143,8 @@ void Sea_DirectSailRestore()
         makearef(destination, Sea.Phonk);
         SeaPhonk_SetActive(true);
         CopyAttributes(destination, source);
+        if (CheckAttribute(&Sea, "Phonk.AirDefenseType"))
+            Sea.Phonk.AirDefenseType = SeaPhonk_PlayerDefenseType(sti(Sea.Phonk.AirDefenseType));
         SeaPhonk_InitControls();
         SetEventHandler("frame", "SeaPhonk_Frame", 0);
         SeaPhonk_Music(SEA_PHONK_TRACK);

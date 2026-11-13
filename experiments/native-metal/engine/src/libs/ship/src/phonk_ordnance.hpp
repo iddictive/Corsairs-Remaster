@@ -214,7 +214,8 @@ struct OrdnanceState
     struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0;
         bool patriot = false, diverting = false, patriotContact = false;
         CVECTOR position{}, previousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
-        float simulationDebt = 0.f;
+        float simulationDebt = 0.f, speedScale = 1.f, accelerationScale = 1.f;
+        float lostTargetTime = 0.f, nextTargetSearch = 0.f;
     };
     std::vector<Interceptor> interceptors;
     std::vector<Interceptor> testInterceptors;

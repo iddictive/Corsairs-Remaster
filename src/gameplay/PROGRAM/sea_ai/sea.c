@@ -1773,7 +1773,7 @@ void Sea_FirstInit()
 		if (CheckAttribute(pchar, "SeaPhonk.NuclearWarheads")) Sea.Phonk.NuclearWarheads = sti(pchar.SeaPhonk.NuclearWarheads);
 		if (CheckAttribute(pchar, "SeaPhonk.NuclearPowerLimit")) Sea.Phonk.NuclearPowerLimit = sti(pchar.SeaPhonk.NuclearPowerLimit);
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseEnabled")) Sea.Phonk.AirDefenseEnabled = sti(pchar.SeaPhonk.AirDefenseEnabled);
-		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseType")) Sea.Phonk.AirDefenseType = sti(pchar.SeaPhonk.AirDefenseType);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseType")) Sea.Phonk.AirDefenseType = SeaPhonk_PlayerDefenseType(sti(pchar.SeaPhonk.AirDefenseType));
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseEconomy")) Sea.Phonk.AirDefenseEconomy = sti(pchar.SeaPhonk.AirDefenseEconomy);
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseRange")) Sea.Phonk.AirDefenseRange = sti(pchar.SeaPhonk.AirDefenseRange);
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseInterval")) Sea.Phonk.AirDefenseInterval = stf(pchar.SeaPhonk.AirDefenseInterval);
@@ -1879,7 +1879,7 @@ void Sea_Save()
 		if (CheckAttribute(&Sea, "Phonk.NuclearWarheads")) pchar.SeaPhonk.NuclearWarheads = sti(Sea.Phonk.NuclearWarheads);
 		if (CheckAttribute(&Sea, "Phonk.NuclearPowerLimit")) pchar.SeaPhonk.NuclearPowerLimit = sti(Sea.Phonk.NuclearPowerLimit);
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseEnabled")) pchar.SeaPhonk.AirDefenseEnabled = sti(Sea.Phonk.AirDefenseEnabled);
-		if (CheckAttribute(&Sea, "Phonk.AirDefenseType")) pchar.SeaPhonk.AirDefenseType = sti(Sea.Phonk.AirDefenseType);
+		if (CheckAttribute(&Sea, "Phonk.AirDefenseType")) pchar.SeaPhonk.AirDefenseType = SeaPhonk_PlayerDefenseType(sti(Sea.Phonk.AirDefenseType));
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseEconomy")) pchar.SeaPhonk.AirDefenseEconomy = sti(Sea.Phonk.AirDefenseEconomy);
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseRange")) pchar.SeaPhonk.AirDefenseRange = sti(Sea.Phonk.AirDefenseRange);
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseInterval")) pchar.SeaPhonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval);
