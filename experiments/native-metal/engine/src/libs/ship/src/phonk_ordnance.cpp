@@ -1029,8 +1029,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 incoming.cluster = incoming.warhead == 2;
                 incoming.warheadCount = incoming.cluster ? 24u : 1u;
                 incoming.split = incoming.cluster;
-                incoming.seeker = kind != missile::Type::Shtorm && kind != missile::Type::Oreshnik;
+                incoming.seeker = true;
                 incoming.guidedShip = incoming.seeker ? target->GetId() : 0;
+                incoming.lastGuidedPosition = target->GetPos();
+                incoming.hasLastGuidedPosition = true;
                 incoming.guidedOffset = hullAim - target->GetPos() + offset;
                 incoming.aimError = offset;
                 enemyState.missiles.push_back(incoming);
@@ -1631,10 +1633,15 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             }
             if (missile.seeker && !missile.continueVelocity)
             {
+                const bool ballistic = missile.type == missile::Type::Shtorm || missile.type == missile::Type::Oreshnik;
                 auto *targetShip = static_cast<SHIP *>(core.GetEntityPointer(missile.guidedShip));
                 auto *targetCaptain = targetShip ? targetShip->GetACharacter() : nullptr;
                 const bool hiddenTarget = ATTRIBUTES::IsLive(targetCaptain) && targetCaptain != GetACharacter() &&
                                           targetCaptain->GetAttributeAsDword("DebugInvisibleAI", 0) != 0;
+                if (targetShip && targetShip->bMounted && !targetShip->isDead() && !hiddenTarget) {
+                    missile.lastGuidedPosition = targetShip->GetPos();
+                    missile.hasLastGuidedPosition = true;
+                }
                 if (!targetShip || !targetShip->bMounted || targetShip->isDead() || hiddenTarget) {
                     if (missile.guidedShip) {
                         missile.reacquireLostTarget = true;
@@ -1646,28 +1653,40 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 // A free-aim launch must not immediately lock a nearby ship
                 // outside the reticle; later fly-by retargeting remains enabled.
                 if (missile.age >= missile.nextSeekerScan &&
-                    (missile.guidedShip || missile.reacquireLostTarget || (~(before-missile.launch)) >= 350.f*350.f)) {
+                    (ballistic ? missile.reacquireLostTarget :
+                     (missile.guidedShip || missile.reacquireLostTarget || (~(before-missile.launch)) >= 350.f*350.f))) {
                     missile.nextSeekerScan = missile.age + .5f;
                     SHIP *nearest = nullptr;
-                    const float searchRadius = missile.reacquireLostTarget ? 1000.f : 350.f;
-                    const CVECTOR searchCenter = missile.reacquireLostTarget ? missile.target : before;
+                    const CVECTOR searchCenter = missile.reacquireLostTarget ?
+                        (missile.hasLastGuidedPosition ? missile.lastGuidedPosition : missile.target) : before;
+                    const float searchRadius = missile.reacquireLostTarget ? .5f * std::sqrt(~(searchCenter - before)) : 350.f;
                     float closest = searchRadius * searchRadius;
+                    unsigned eligible = 0;
                     for (const auto id : receivers) {
                         if (id == missile.guidedShip || (!missile.reacquireLostTarget && std::find(missile.consideredTargets.begin(), missile.consideredTargets.end(), id) != missile.consideredTargets.end())) continue;
                         auto *candidate = static_cast<SHIP *>(core.GetEntityPointer(id));
                         auto *captain = candidate ? candidate->GetACharacter() : nullptr;
-                        if (!candidate || !candidate->bMounted || candidate->isDead() || !ATTRIBUTES::IsLive(captain) || !Helper.isEnemy(GetACharacter(), captain)) continue;
+                        if (!candidate || !candidate->bMounted || candidate->isDead() || !ATTRIBUTES::IsLive(captain) ||
+                            captain->GetAttributeAsDword("DebugInvisibleAI", 0) || !Helper.isEnemy(GetACharacter(), captain)) continue;
                         const float distance = ~(candidate->GetPos() - searchCenter);
-                        if (distance < closest) { closest = distance; nearest = candidate; }
+                        if (distance < closest) {
+                            if (missile.reacquireLostTarget) {
+                                ++eligible;
+                                const auto key = uint32_t(id) ^ uint32_t(uint64_t(id) >> 32) ^ 0x0c39c911u;
+                                if (eligible == 1 || shotVariation(missile.shotId, uint32_t(missile.owner), key) < 1.f / float(eligible)) nearest = candidate;
+                            } else { closest = distance; nearest = candidate; }
+                        }
                     }
                     if (nearest) {
                         const auto id = nearest->GetId();
                         if (missile.reacquireLostTarget) {
                             missile.guidedShip = id;
                             missile.guidedOffset = missile.aimError;
+                            missile.lastGuidedPosition = nearest->GetPos();
+                            missile.hasLastGuidedPosition = true;
                             missile.reacquireLostTarget = false;
                             missile.guidanceUpdates = 0;
-                            missile.guidanceVelocity = CVECTOR(0.f);
+                            missile.nextApexCheck = 0.f;
                             targetShip = nearest;
                         } else {
                         auto slot = std::find(missile.consideredTargets.begin(), missile.consideredTargets.end(), entid_t(0));
@@ -1691,12 +1710,17 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     const bool kinzhalHull = missile.type == missile::Type::Kinzhal && !missile.cluster;
                     const float progress = missile::trajectoryProgress(missile.type, missile.age / missile.duration,
                                                                        missile.duration, missile.flightVariation);
-                    const unsigned maxUpdates = kalibr ? 1u : 3u;
+                    const unsigned maxUpdates = (kalibr || ballistic) ? 1u : 3u;
                     const float correctionPoint = kalibr ? .75f :
                         (missile.guidanceUpdates == 0 ? .30f : missile.guidanceUpdates == 1 ? .60f : .90f);
-                    if (missile.guidanceUpdates < maxUpdates && progress >= correctionPoint) {
-                        const float leadQuality = kalibr ? 1.f : testShot ? .45f + .35f * shotVariation(missile.shotId, uint32_t(missile.owner), 0x33592b61u) : .85f;
-                        const float horizon = kalibr ? std::max(0.f, missile.duration - missile.age) : std::clamp(missile.duration - missile.age, 0.f, 2.f);
+                    bool correctionDue = !ballistic && progress >= correctionPoint;
+                    if (ballistic && missile.guidanceUpdates < maxUpdates && missile.age > .1f && missile.age >= missile.nextApexCheck) {
+                        missile.nextApexCheck = missile.age + .15f;
+                        correctionDue = nuclearVelocity(missile, missile.age).y <= 0.f;
+                    }
+                    if (missile.guidanceUpdates < maxUpdates && correctionDue) {
+                        const float leadQuality = (kalibr || ballistic) ? 1.f : testShot ? .45f + .35f * shotVariation(missile.shotId, uint32_t(missile.owner), 0x33592b61u) : .85f;
+                        const float horizon = (kalibr || ballistic) ? std::max(0.f, missile.duration - missile.age) : std::clamp(missile.duration - missile.age, 0.f, 2.f);
                         const auto lead = ShipTurnLead(targetShip->State, horizon) * leadQuality;
                         auto offset = missile.guidedOffset;
                         missile.guidanceAim = targetShip->GetPos() + offset + lead;
@@ -1720,7 +1744,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     auto point = storm::ship::phonk::missile::Vec3{missile.target.x,missile.target.y,missile.target.z};
                     auto velocity = storm::ship::phonk::missile::Vec3{missile.guidanceVelocity.x,missile.guidanceVelocity.y,missile.guidanceVelocity.z};
                     const float remaining = std::max(.05f, missile.duration - missile.age);
-                    const float speed = kalibr ? std::clamp(std::sqrt(~(missile.guidanceAim - missile.target)) / remaining * 1.5f, 55.f, 400.f) : kinzhalHull ?
+                    const float speed = (kalibr || ballistic) ? std::clamp(std::sqrt(~(missile.guidanceAim - missile.target)) / remaining * 1.5f, 55.f, ballistic ? 1200.f : 400.f) : kinzhalHull ?
                         std::clamp(std::sqrt(~(missile.guidanceAim - missile.target)) / remaining * 1.5f, 120.f, 800.f) : 120.f;
                     const auto &desired = missile.guidanceAim;
                     if (missile.guidanceUpdates)
@@ -2499,8 +2523,15 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             missile.warhead = state.warhead;
             missile.conventional = state.warhead != 0;
             missile.cluster = state.warhead == 2;
-            missile.seeker = state.homing && missile.type != missile::Type::Shtorm && missile.type != missile::Type::Oreshnik;
+            missile.seeker = state.homing && (state.targetShip ||
+                (missile.type != missile::Type::Shtorm && missile.type != missile::Type::Oreshnik));
             missile.guidedShip = missile.seeker ? state.targetShip : 0;
+            if (missile.guidedShip) {
+                if (auto *guided = static_cast<SHIP *>(core.GetEntityPointer(missile.guidedShip))) {
+                    missile.lastGuidedPosition = guided->GetPos();
+                    missile.hasLastGuidedPosition = true;
+                }
+            }
             missile.guidedOffset = state.targetOffset + aimError;
             missile.aimError = aimError;
             missile.warheadCount = missile.cluster ? state.clusterCount : (missile.conventional ? 1 : state.warheadCount);

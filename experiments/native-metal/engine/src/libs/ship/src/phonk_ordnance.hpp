@@ -114,6 +114,8 @@ struct NuclearMissile
     uint32_t surrenderEpoch = 0;
     entid_t guidedShip = 0;
     CVECTOR guidedOffset = CVECTOR(0.f);
+    CVECTOR lastGuidedPosition = CVECTOR(0.f);
+    bool hasLastGuidedPosition = false;
     CVECTOR aimError = CVECTOR(0.f);
     CVECTOR guidanceVelocity = CVECTOR(0.f);
     CVECTOR guidanceAim = CVECTOR(0.f);
@@ -122,6 +124,7 @@ struct NuclearMissile
     bool seeker = false;
     bool reacquireLostTarget = false;
     float nextSeekerScan = 0.f;
+    float nextApexCheck = 0.f;
     std::array<entid_t, 8> consideredTargets{};
     float evasionStart = -1.f;
     unsigned evasionAttempts = 0;

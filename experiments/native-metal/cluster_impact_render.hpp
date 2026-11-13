@@ -173,7 +173,7 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
     float3 safe=select(ray,select(float3(-1e-6),float3(1e-6),ray>=0),abs(ray)<1e-6);
     bool air=u.params.y>1.5;
     bool thermo=u.params.w>5.5;
-    bool midair=air || thermo;
+    bool midair=air;
     float age=u.params.x*(.78+.44*fract(abs(u.params.z)*.618));
     float expansion=min(1.2,.18+age*2.2), rise=max(0.,age-.55)*.09;
     float volumeBound=expansion*1.28;
@@ -189,8 +189,8 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
     bool sampleVolume=true;
     float angle=u.volumeParams.y,ca=cos(angle),sa=sin(angle);
     if(midair) {
-        float3 vo=float3((ca*origin.x-sa*origin.z)/1.4+.5,(sa*origin.x+ca*origin.z)/1.4+.39,origin.y/.65+.10);
-        float3 vr=float3((ca*ray.x-sa*ray.z)/1.4,(sa*ray.x+ca*ray.z)/1.4,ray.y/.65);
+        float3 vo=float3((ca*origin.x-sa*origin.z)/(1.4*u.volumeParams.z)+.5,(sa*origin.x+ca*origin.z)/(1.4/u.volumeParams.z)+.39,origin.y/(.65*u.volumeParams.w)+.10);
+        float3 vr=float3((ca*ray.x-sa*ray.z)/(1.4*u.volumeParams.z),(sa*ray.x+ca*ray.z)/(1.4/u.volumeParams.z),ray.y/(.65*u.volumeParams.w));
         float3 vs=select(vr,select(float3(-1e-6),float3(1e-6),vr>=0),abs(vr)<1e-6);
         float3 t0=-vo/vs,t1=(1.-vo)/vs;
         float3 vl=min(t0,t1),vh=max(t0,t1);
@@ -203,12 +203,13 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
     float jitter=.25+.5*fract(sin(dot(floor(pixel.xy),float2(12.9898,78.233)))*43758.5453);
     for(uint i=0;i<16 && sampleVolume;i++) {
         float3 p=origin+ray*(near+(float(i)+jitter)*step);
-        // Airborne blasts use the authored midair volume without reflecting it.
+        // Keep the authored surface volume rooted; translating it upward also
+        // lifts its lower boundary away from the impact plane.
         float volumeY=p.y;
-        if(!air && u.params.w>3.5) volumeY-=age*.08;
-        float3 uv=midair ? float3((ca*p.x-sa*p.z)/1.4+.5,(sa*p.x+ca*p.z)/1.4+.39,p.y/.65+.10) : float3((ca*p.x-sa*p.z)/(2.0*u.volumeParams.z)+.5,volumeY/(2.8*u.volumeParams.w),(sa*p.x+ca*p.z)/(2.0/u.volumeParams.z)+.5);
+        float3 uv=midair ? float3((ca*p.x-sa*p.z)/(1.4*u.volumeParams.z)+.5,(sa*p.x+ca*p.z)/(1.4/u.volumeParams.z)+.39,p.y/(.65*u.volumeParams.w)+.10) : float3((ca*p.x-sa*p.z)/(2.0*u.volumeParams.z)+.5,volumeY/(2.8*u.volumeParams.w),(sa*p.x+ca*p.z)/(2.0/u.volumeParams.z)+.5);
         if(any(uv<0.)||any(uv>1.))continue;
         float2 f=mix(volumeA.sample(volumeSampler,uv).rg,volumeB.sample(volumeSampler,uv).rg,u.volumeParams.x)*float2(2.,midair?2.:8.);
+        if(thermo && !air) f.x*=8.;
         f*=1.-smoothstep(u.params.w>3.5?5.8:3.3,u.params.w>3.5?6.5:4.0,u.params.x);
         // The luminous phase cools sooner than the authored soot so a rapid
         // chain keeps its newest flashes legible instead of a continuous slab.
@@ -221,7 +222,9 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
         float density=f.x*(midair?3.:3.2)+f.y*(midair?.8:.35)+flash*1.5;
         float alpha=1-exp(-density*step);
         float3 smoke=mix(float3(.24,.27,.30),float3(.30,.25,.20),min(u.params.y,1.))*(.55+.45*uv.y);
+        if(thermo && !air) smoke=mix(float3(.44,.46,.47),float3(.47,.42,.36),u.params.y)*(.7+.3*uv.y);
         float3 emission=midair ? mix(float3(5.,1.6,.15),float3(9.,5.,1.),saturate(f.y)) : mix(float3(1.7,.18,.015),float3(4.0,2.2,.65),saturate(f.y*.3));
+        emission*=u.params.w==2.?1.:thermo?1.18:u.params.w==4.?1.12:1.16;
         float3 light=smoke*f.x*(midair?3.:3.2)+emission*f.y*(midair?5.:.35)+float3(5.,3.4,1.5)*flash*1.5;
         color+=trans*alpha*light/max(density,1e-4); trans*=1-alpha;
         if(trans<.025)break;
@@ -411,18 +414,19 @@ public:
         if(!std::isfinite(det)||fabsf(det)<1e-12f||!std::isfinite(vdet)||fabsf(vdet)<1e-12f) return false;
         const float variation=std::fmod(std::fabs(seed)*.754877666f,1.f);
         // Visual extent is independent of the gameplay damage calculation.
-        radius*=warhead==2?2.2f*(.80f+.40f*variation):warhead==1?2.8f:warhead==thermobaricWarhead?2.5f:2.0f;
+        const float sizeVariation=warhead==2?.80f+.40f*variation:.90f+.20f*variation;
+        radius*=(warhead==2?2.2f:warhead==1||warhead==3?3.4f:warhead==thermobaricWarhead?4.6f:2.0f)*sizeVariation;
         ClusterImpactUniforms u{}; u.inverseVP=simd_inverse(vp);u.viewProjection=vp;u.eye=simd_inverse(view).columns[3];
         const simd_float3 visualCenter = center + worldOrigin;
         u.centerRadius=simd_make_float4(visualCenter,radius);
         u.params={age,surface==ClusterImpactSurface::Air?2.f:surface==ClusterImpactSurface::Land?1.f:0.f,seed,float(warhead)}; u.viewport=viewport;u.incoming=simd_make_float4(incoming/directionLength,0);
         const bool thermo=warhead==thermobaricWarhead;
-        const bool midair=thermo || surface==ClusterImpactSurface::Air;
+        const bool midair=surface==ClusterImpactSurface::Air;
         const auto &frames=midair?midairFrames:volumeFrames;
         const auto &times=midair?midairTimes:volumeTimes;
         if((midair?midairOwner:volumeOwner)!=device||!frames[0])return false;
         const float volumeAge=age*(.78f+.44f*std::fmod(std::fabs(seed)*.618f,1.f));
-        const float frame=std::min(199.f,midair ? 30.f*(1.f-std::exp(-volumeAge*18.f))+volumeAge*82.f : volumeAge*(warhead==4?20.f:39.f));
+        const float frame=std::min(199.f,midair ? 30.f*(1.f-std::exp(-volumeAge*18.f))+volumeAge*82.f : volumeAge*((warhead==4||thermo)?20.f:39.f));
         size_t next=1;while(next+1<times.size()&&frame>times[next])++next;
         const size_t prev=next-1;
         const float mix=std::clamp((frame-times[prev])/float(times[next]-times[prev]),0.f,1.f);
