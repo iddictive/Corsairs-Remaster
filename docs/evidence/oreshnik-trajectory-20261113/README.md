@@ -26,3 +26,11 @@ probe checks HE for each direct/random type; the control probe checks the
 angular limiter, invalid rays and the fire-release latch. Visual appearance,
 complete native integration, input timing and frame performance require game
 runtime verification.
+
+After enlarging the Oreshnik footprint, the same 12-shot calculation yielded
+0.467–1.942 s to impact, 2451–8282 m/s at impact and 0.636–1.147 s between
+first and last impact. A 20 m grid over a 1000 m circle, using the unjittered
+760 m golden-angle pattern and 330 m radius per impact, gave approximately
+89%, 91% and 95% nominal coverage for 20, 24 and 30 impacts respectively.
+This is a planar geometric estimate: damage falloff, random scale, terrain,
+ship motion and actual frame cost are not represented.

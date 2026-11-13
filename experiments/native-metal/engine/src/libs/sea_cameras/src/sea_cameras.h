@@ -29,6 +29,9 @@ class SEA_CAMERAS : public Entity
     uint32_t missileExpiredSequence = 0;
     std::chrono::steady_clock::time_point missileLastFlight{};
     bool missileManual = false;
+    bool missileFireReleased = false;
+    bool missileFireWasHeld = false;
+    bool missileMouseCaptured = false;
     CVECTOR missileInputAngles;
     float missileInputDistance = 1.f;
     COMMON_CAMERA *missileInputCamera = nullptr;

@@ -315,6 +315,9 @@ void SEA_CAMERAS::RealizeDartView()
 void SEA_CAMERAS::ClearMissileControl()
 {
     missileManual = false;
+    missileFireReleased = false;
+    missileFireWasHeld = false;
+    missileMouseCaptured = false;
     missileViewSequence = 0;
     missileInputCamera = nullptr;
     auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
@@ -323,6 +326,7 @@ void SEA_CAMERAS::ClearMissileControl()
     auto *control = view ? view->GetAttributeClass("Control") : nullptr;
     if (control) {
         control->SetAttributeUseDword("aimHeld", 0);
+        control->SetAttributeUseDword("manual", 0);
         control->SetAttributeUseDword("active", 0);
     }
 }
@@ -366,8 +370,12 @@ bool SEA_CAMERAS::RealizeMissileView()
         ClearMissileControl();
         return false;
     }
+    const bool fireHeld = core.Controls->GetAsyncKeyState(VK_LBUTTON) < 0;
     if (sequence != missileViewSequence) {
         missileManual = false;
+        missileFireReleased = !fireHeld;
+        missileFireWasHeld = fireHeld;
+        missileMouseCaptured = false;
         missileViewSequence = sequence;
         const auto direction = target - projectile;
         missileOrbitOffset = CVECTOR(.48f, std::atan2(direction.x, direction.z), 0.f);
@@ -385,14 +393,26 @@ bool SEA_CAMERAS::RealizeMissileView()
         missileZoom = std::clamp(missileZoom, .25f, 8.f);
     }
     auto *control = view->VerifyAttributeClass("Control");
-    const bool aimHeld = flight && !cluster && !phonk->GetAttributeAsDword("MissileSettings", 0) &&
-        !core.Controls->IsControlLocked("Ship_Fire") && core.Controls->GetAsyncKeyState(VK_LBUTTON) < 0;
+    // The flight integrator rebases age while manually steered. Once acquired,
+    // keep steering available until the tracked shot changes or ends.
+    const bool steeringReady = flight && !cluster && (missileManual || view->GetAttributeAsFloat("flightAge", 0.f) >= .5f);
+    if (!fireHeld) {
+        missileFireReleased = true;
+        missileMouseCaptured = false;
+    }
+    const bool firePressed = fireHeld && !missileFireWasHeld;
+    missileFireWasHeld = fireHeld;
+    const bool mouseAvailable = steeringReady && missileFireReleased &&
+        !phonk->GetAttributeAsDword("MissileSettings", 0) && !core.Controls->IsControlLocked("Ship_Fire");
+    const bool mouseCapture = mouseAvailable && firePressed;
+    missileMouseCaptured = missileMouseCaptured || mouseCapture;
+    const bool aimHeld = mouseAvailable && missileMouseCaptured && fireHeld;
     // W/S pitch, A/D yaw. Any steering latches manual mode for this shot.
     if (flight && !cluster) {
         const auto held = [](int key) { return core.Controls->GetAsyncKeyState(key) < 0; };
-        const int yaw = int(held('D')) - int(held('A'));
-        const int pitch = int(held('S')) - int(held('W'));
-        missileManual = missileManual || aimHeld || yaw != 0 || pitch != 0;
+        const int yaw = steeringReady ? int(held('D')) - int(held('A')) : 0;
+        const int pitch = steeringReady ? int(held('S')) - int(held('W')) : 0;
+        missileManual = missileManual || mouseCapture || yaw != 0 || pitch != 0;
         control->SetAttributeUseDword("sequence", sequence);
         control->SetAttributeUseFloat("yaw", float(yaw));
         control->SetAttributeUseFloat("pitch", float(pitch));
@@ -401,8 +421,9 @@ bool SEA_CAMERAS::RealizeMissileView()
     } else {
         control->SetAttributeUseDword("active", 0);
         missileManual = false;
+        control->SetAttributeUseDword("manual", 0);
     }
-    control->SetAttributeUseDword("aimHeld", aimHeld);
+    control->SetAttributeUseDword("aimHeld", aimHeld || mouseCapture);
     const CVECTOR focus = flight && !cluster ? projectile : target;
     const float azimuth = missileOrbitOffset.y;
     const float elevation = missileOrbitOffset.x;
@@ -412,7 +433,7 @@ bool SEA_CAMERAS::RealizeMissileView()
                                                  -std::cos(azimuth)*std::cos(elevation));
     if (auto *water = static_cast<SEA_BASE *>(sea))
         position.y = std::max(position.y, water->WaveXZ(position.x, position.z) + 2.f);
-    if (aimHeld) {
+    if (aimHeld || mouseCapture) {
         // The actual camera ray includes water-height correction and zoom.
         const CVECTOR aim = !(focus - position);
         control->SetAttributeUseFloat("aimX", aim.x);

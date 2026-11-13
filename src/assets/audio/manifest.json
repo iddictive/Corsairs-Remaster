@@ -17,6 +17,13 @@
       "consumer": "phonk_missile_heavy", "provenance": "U.S. Navy Strategic Systems Programs, Trident II launch from USS Wyoming (2021); public domain in the U.S.; audio excerpt 20.0-22.4s, mono 22050 Hz with fades. Original video SHA-256 fbd5e39814f9e2a12353a42c6f1ac1c042a85e72f569248e01be6188b33c81b5.",
       "url": "https://commons.wikimedia.org/wiki/File:Trident_II_UGM-133A_D5LE_Missile_from_USS_Wyoming,_2021.webm"
     },
+    "RESOURCE/Sounds/Phonk/missile-oreshnik-launch.wav": {
+      "source": "missile-heavy.wav", "source_sha256": "bf419da15f140a693ab8e27309740eecd368819d89c762b891d1920da17a9eac",
+      "prepared": "missile-oreshnik-launch.wav", "sha256": "a6f0546de20e802c8d0100a8bcd46d0760555511795584dbd327d3f3c1795323",
+      "consumer": "phonk_missile_launch_oreshnik",
+      "provenance": "Designed approximation, not an Oreshnik recording. Derived from the retained missile-heavy.wav excerpt of the U.S. Navy Strategic Systems Programs USS Wyoming Trident II launch (2021), public domain in the U.S.; source video SHA-256 fbd5e39814f9e2a12353a42c6f1ac1c042a85e72f569248e01be6188b33c81b5. Mono 22050 Hz PCM. FFmpeg 9.0.2 recipe from repository root: ffmpeg -i src/assets/audio/missile-heavy.wav -af 'asetrate=19845,aresample=22050,highpass=f=35,lowpass=f=7000,volume=1.25,afade=t=in:st=0:d=0.025,afade=t=out:st=2.22:d=0.44' -c:a pcm_s16le -ac 1 src/assets/audio/missile-oreshnik-launch.wav.",
+      "url": "https://commons.wikimedia.org/wiki/File:Trident_II_UGM-133A_D5LE_Missile_from_USS_Wyoming,_2021.webm"
+    },
     "RESOURCE/Sounds/Phonk/missile-cruise.wav": {
       "source": "missile-cruise.wav", "source_sha256": "88040c02c8ef94b4c259b2001f831be3eac4efbdc192f493933dcbed1f2388e1",
       "prepared": "missile-cruise.wav", "sha256": "88040c02c8ef94b4c259b2001f831be3eac4efbdc192f493933dcbed1f2388e1",

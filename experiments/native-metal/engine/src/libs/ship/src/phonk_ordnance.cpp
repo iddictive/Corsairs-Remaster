@@ -542,7 +542,7 @@ template<class Emit> void clusterSubmunitionGeometry(unsigned variant, Emit emit
 }
 float conventionalMissileRadius(missile::Type type, bool cluster, unsigned warhead)
 {
-    const float base = cluster ? 8.f : (type == missile::Type::Oreshnik ? 65.f : type == missile::Type::Shtorm ? 42.f : type == missile::Type::Kinzhal ?
+    const float base = cluster ? (type == missile::Type::Oreshnik ? 330.f : 8.f) : (type == missile::Type::Oreshnik ? 220.f : type == missile::Type::Shtorm ? 42.f : type == missile::Type::Kinzhal ?
         ((warhead == 1 || warhead == 3) ? 42.f : 28.f) : 18.f);
     return warhead == PHONK_WARHEAD_THERMOBARIC ? base * 1.5f : base;
 }
@@ -554,7 +554,7 @@ float conventionalMissileAimRadius(missile::Type type, bool cluster, unsigned wa
 unsigned missileVfxType(missile::Type type) { return type == missile::Type::Oreshnik ? 5u : type == missile::Type::Kalibr ? 1u : type == missile::Type::Shtorm ? 3u : 0u; }
 const char *missileLaunchSound(missile::Type type)
 {
-    return type == missile::Type::Kalibr ? "phonk_missile_launch_kalibr" :
+    return type == missile::Type::Oreshnik ? "phonk_missile_launch_oreshnik" : type == missile::Type::Kalibr ? "phonk_missile_launch_kalibr" :
         type == missile::Type::Shtorm ? "phonk_missile_launch_shtorm" : "phonk_missile_launch_kinzhal";
 }
 bool blastClearOfOwner(SHIP &owner, AIShip *ai, const CVECTOR &point, float seconds, float blastRadius)
@@ -1636,12 +1636,16 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     if (missile.cluster) {
                         // Scatter across an area, rather than making one
                         // evenly spaced row along the flight direction.
-                        const float angle = 6.2831853f * shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x3cf51719u);
-                        const float radius = std::sqrt(shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x12834bc5u));
+                        const bool oreshnik = missile.type == missile::Type::Oreshnik;
+                        const float angle = oreshnik ? 6.2831853f * shotVariation(missile.shotId, uint32_t(missile.owner), 0x3cf51719u) + float(index) * 2.39996323f :
+                            6.2831853f * shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x3cf51719u);
+                        const float radius = oreshnik ? std::sqrt((float(index) + .5f) / float(missile.warheadCount)) :
+                            std::sqrt(shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x12834bc5u));
                         const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
                         const float centerAlong = 18.f * (shotVariation(missile.shotId, uint32_t(missile.owner), 0x57d91f43u) * 2.f - 1.f);
                         const float centerSide = 18.f * (shotVariation(missile.shotId, uint32_t(missile.owner), 0x95bbfa41u) * 2.f - 1.f);
-                        target += heading * (centerAlong + std::cos(angle) * radius * 38.f) + perpendicular * (centerSide + std::sin(angle) * radius * 28.f);
+                        const float spreadAlong = oreshnik ? 760.f : 38.f, spreadSide = oreshnik ? 760.f : 28.f;
+                        target += heading * (centerAlong + std::cos(angle) * radius * spreadAlong) + perpendicular * (centerSide + std::sin(angle) * radius * spreadSide);
                     }
                     if (offset != 0.f && !missile.cluster) target.y = pSea->WaveXZ(target.x, target.z);
                     auto child = missileTo(burstPosition, target, missile.owner, missile.type);
@@ -1861,7 +1865,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     if (missile.intercepted || hit <= 1.f || surface != ImpactSurface::Other) {
                         auto direction = missile.intercepted ? missile.interceptedVelocity : after-before;
                         if ((~direction) < .001f) direction = CVECTOR(0.f,-1.f,0.f);
-                        float visualRadius = radius;
+                        // Limit per-impact raymarch area when many large-radius blocks land together.
+                        float visualRadius = missile.type == missile::Type::Oreshnik ? std::min(radius, 100.f) : radius;
                         if (surface == ImpactSurface::Ship) {
                             // Existing blasts sit outside the hull. The depth-
                             // occluded thermobaric volume starts at actual contact.
@@ -1918,10 +1923,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         [](const auto &missile) { return !missile.active; }), state.missiles.end());
     state.missiles.insert(state.missiles.end(), separated.begin(), separated.end());
     bool cameraFlight = false, cameraCluster = false;
+    float cameraFlightAge = 0.f;
     for (const auto &missile : state.missiles) {
         if (!missile.active || missile.interceptionFragment || missile.shotId != state.cameraShot) continue;
         cameraFlight = true;
         cameraCluster |= isClusterSubmunition(missile);
+        if (!isClusterSubmunition(missile)) cameraFlightAge = missile.age;
         state.cameraPosition = nuclearPosition(missile, missile.age);
         if (!isClusterSubmunition(missile)) {
             const auto direction = nuclearVelocity(missile, missile.age);
@@ -1948,6 +1955,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     cameraView->SetAttributeUseDword("active", state.cameraShot && (cameraFlight || state.cameraAfterImpact > 0.f));
     cameraView->SetAttributeUseDword("flight", cameraFlight);
     cameraView->SetAttributeUseDword("cluster", cameraCluster);
+    cameraView->SetAttributeUseFloat("flightAge", cameraFlightAge);
     cameraView->SetAttributeUseFloat("x", state.cameraPosition.x);
     cameraView->SetAttributeUseFloat("y", state.cameraPosition.y);
     cameraView->SetAttributeUseFloat("z", state.cameraPosition.z);
@@ -1959,7 +1967,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     pRS->GetTransform(storm_render::TransformView, view);
     view.Transposition();
     const bool rawFire = held("Ship_Fire");
-    const bool cameraTracking = ATTRIBUTES::IsLive(cameraControl) && cameraControl->GetAttributeAsDword("active", 0) &&
+    const bool cameraTracking = ATTRIBUTES::IsLive(cameraControl) && cameraControl->GetAttributeAsDword("active", 0) && cameraControl->GetAttributeAsDword("manual", 0) &&
         cameraControl->GetAttributeAsDword("sequence", 0) == state.cameraShot && state.cameraShot != 0;
     if (cameraTracking) state.fireBlockedUntilRelease = true;
     else if (!rawFire) state.fireBlockedUntilRelease = false;
@@ -2357,7 +2365,7 @@ void SHIP::DrawPhonkOrdnance()
         auto trailSide = axis ^ (camera - head);
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
-        const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? .8f : .6f) : 1.f;
+        const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
         const auto emit = [&](const storm::ship::phonk::missile::Vertex &a,
                               const storm::ship::phonk::missile::Vertex &b,
                               const storm::ship::phonk::missile::Vertex &c) {

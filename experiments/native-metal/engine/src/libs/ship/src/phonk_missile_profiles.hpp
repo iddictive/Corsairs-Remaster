@@ -187,10 +187,15 @@ template<class Emit> inline void geometry(Type type, Emit emit)
     constexpr float tau = 6.283185307179586f;
     const bool cruise = type == Type::Kalibr;
     const bool heavy = type == Type::Shtorm;
-    const std::array<float, 6> z = heavy ? std::array<float,6>{-6.f,-5.2f,-.5f,3.f,5.2f,6.f}
+    const bool ballistic = type == Type::Oreshnik;
+    // Stylized ballistic carrier, not a scale reconstruction. Keep the tail
+    // at -5 so the existing motor emitter remains attached to the model.
+    const std::array<float, 6> z = ballistic ? std::array<float,6>{-5.f,-4.5f,5.f,9.f,12.5f,15.f}
+                                  : heavy ? std::array<float,6>{-6.f,-5.2f,-.5f,3.f,5.2f,6.f}
                                   : cruise ? std::array<float,6>{-4.f,-3.4f,-.4f,2.2f,4.f,4.5f}
                                           : std::array<float,6>{-5.f,-4.3f,-.4f,2.4f,4.5f,5.3f};
-    const std::array<float, 6> radius = heavy ? std::array<float,6>{.7f,1.05f,1.05f,1.05f,.62f,0.f}
+    const std::array<float, 6> radius = ballistic ? std::array<float,6>{1.2f,1.55f,1.55f,1.48f,.9f,0.f}
+                                       : heavy ? std::array<float,6>{.7f,1.05f,1.05f,1.05f,.62f,0.f}
                                        : cruise ? std::array<float,6>{.42f,.6f,.6f,.6f,.28f,0.f}
                                                : std::array<float,6>{.46f,.72f,.72f,.72f,.38f,0.f};
     static constexpr auto tail = materialShades(0xff667072u);
@@ -203,6 +208,9 @@ template<class Emit> inline void geometry(Type type, Emit emit)
     static constexpr auto shtormBody = materialShades(0xff485765u);
     static constexpr auto shtormAft = materialShades(0xff354351u);
     static constexpr auto shtormNose = materialShades(0xff253543u);
+    static constexpr auto ballisticBody = materialShades(0xff777d6bu);
+    static constexpr auto ballisticAft = materialShades(0xff5c6455u);
+    static constexpr auto ballisticNose = materialShades(0xff60695du);
     const auto point = [&](unsigned ring, unsigned side) {
         const float a = tau * float(side % sides) / float(sides);
         return Vec3{radius[ring]*std::cos(a), radius[ring]*std::sin(a), z[ring]};
@@ -210,14 +218,14 @@ template<class Emit> inline void geometry(Type type, Emit emit)
     for (unsigned ring=0; ring+1<z.size(); ++ring)
         for (unsigned side=0; side<sides; ++side) {
             const auto &shades = ring == 0 ? tail : ring >= 3 ?
-                (heavy ? shtormNose : cruise ? kalibrNose : kinzhalNose) : ring == 1 ?
-                (heavy ? shtormAft : cruise ? kalibrAft : kinzhalAft) : (heavy ? shtormBody : cruise ? kalibrBody : kinzhalBody);
+                (ballistic ? ballisticNose : heavy ? shtormNose : cruise ? kalibrNose : kinzhalNose) : ring == 1 ?
+                (ballistic ? ballisticAft : heavy ? shtormAft : cruise ? kalibrAft : kinzhalAft) : (ballistic ? ballisticBody : heavy ? shtormBody : cruise ? kalibrBody : kinzhalBody);
             const uint32_t nearColor = shades[side], nextColor = shades[(side+1)%sides];
             const Vertex a{point(ring,side),nearColor}, b{point(ring,side+1),nextColor};
             const Vertex c{point(ring+1,side+1),nextColor}, d{point(ring+1,side),nearColor};
             emit(a,b,c); emit(a,c,d);
         }
-    for (unsigned fin=0; fin<4; ++fin) {
+    for (unsigned fin=0; fin<(ballistic ? 0u : 4u); ++fin) {
         const float a = tau * float(fin) / 4.f;
         const Vec3 radial{std::cos(a),std::sin(a),0.f};
         const float root = heavy ? .96f : cruise ? .54f : .65f;
