@@ -216,17 +216,21 @@ def engine_process_running() -> bool:
                for line in result.stdout.splitlines())
 
 
+def wait_for_retry(deadline: float, message: str) -> None:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RuntimeError(message)
+    time.sleep(min(1, remaining))
+
+
 def require_idle(wait_seconds: int = 0) -> None:
     deadline = time.monotonic() + wait_seconds
     while engine_process_running():
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise RuntimeError("Close the game before changing installed content.")
-        time.sleep(min(1, remaining))
+        wait_for_retry(deadline, "Close the game before changing installed content.")
 
 
 @contextmanager
-def player_guard(app: Path, require_initialized: bool = False):
+def player_guard(app: Path, require_initialized: bool = False, *, wait_seconds: int = 0):
     # Keep state resolution and the lock protocol owned by the played launcher.
     path = safe_path(app, Path("Contents/Resources/public_launcher.py"))
     namespace = {"__file__": str(path), "__name__": "corsairs_delivery_player_owner"}
@@ -236,13 +240,19 @@ def player_guard(app: Path, require_initialized: bool = False):
         if require_initialized:
             raise RuntimeError("Player state is not initialized; open the installed app first.")
         user_dir.mkdir(parents=True, exist_ok=True)
-    with safe_path(user_dir, Path(".launch.lock")).open("a+b") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError("Installed app is running or staging; no files changed.") from error
-        require_idle()
-        yield
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        with safe_path(user_dir, Path(".launch.lock")).open("a+b") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                message = "Installed app is running or staging; no files changed."
+            else:
+                if not engine_process_running():
+                    yield
+                    return
+                message = "Close the game before changing installed content."
+        wait_for_retry(deadline, message)
 
 
 def seal_app(app: Path) -> None:

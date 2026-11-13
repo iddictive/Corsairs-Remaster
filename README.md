@@ -81,6 +81,9 @@ experiments/native-metal/run.sh --launch-installed
 For an already staged engine, `experiments/native-metal/install-engine.sh`
 checks whether the game is closed. Add `--wait 60` to install when it exits
 within the next minute. The installer leaves the running game alone.
+For gameplay-only changes, `python3 tools/sync_metal_gameplay.py apply` waits
+up to a minute for the game to close and verifies delivery. Use `--wait 0` to
+return immediately if the game is open.
 
 Engine sources are directly editable under `experiments/native-metal/engine`;
 ordinary builds compile them without unpacking an archive or applying patches.

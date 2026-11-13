@@ -15,7 +15,7 @@ import prepare_puerto_rico_city
 import prepare_legacy_sea_geometry
 import prepare_roundhouse
 import prepare_unarmed
-from delivery_state import DeliveryState, RECEIPT, player_guard, transact
+from delivery_state import DeliveryState, RECEIPT, player_guard, require_idle, transact
 
 PROJECT = Path(__file__).resolve().parents[1]
 UI_ASSETS = PROJECT / "src/assets/ui"
@@ -230,8 +230,12 @@ def delivery_content(target_root, sources=None):
         name: row[0] for name, row in source_set[0].items()}
 
 
-def apply(changes, paths=None, source_set=None, assets=None):
-    guard = player_guard(INSTALLED_APP) if INSTALLED_APP.is_dir() else nullcontext()
+def apply(changes, paths=None, source_set=None, assets=None, *, wait_seconds=0):
+    guard = nullcontext()
+    if INSTALLED_APP.is_dir():
+        guard = player_guard(INSTALLED_APP, wait_seconds=wait_seconds)
+    elif wait_seconds:
+        require_idle(wait_seconds)
     with guard:
         apply_locked(changes, paths, source_set, assets)
 
@@ -283,7 +287,11 @@ def main():
     parser.add_argument("action", choices=("check", "apply"), default="check", nargs="?")
     parser.add_argument("--path", action="append", help="Deliver only this registered canonical gameplay source (repeatable).")
     parser.add_argument("--asset", action="append", help="Deliver only this manifest-owned asset, optionally with --path (repeatable).")
+    parser.add_argument("--wait", type=int, metavar="SECONDS",
+                        help="With apply, wait for the game to close (default: 60, 0 to fail immediately).")
     args = parser.parse_args()
+    if args.wait is not None and (args.action != "apply" or args.wait < 0):
+        parser.error("--wait requires apply and non-negative seconds")
     try:
         source_set = gameplay_sources.read(source_paths(args.path, args.asset))
         changes = plan(paths=args.path, source_set=source_set, assets=args.asset)
@@ -297,8 +305,8 @@ def main():
             for path in sorted(installed_changes):
                 print(path)
         if args.action == "apply":
-            apply(changes, args.path, source_set, assets=args.asset)
-            print("Applied to native-metal. SAVE and player config unchanged.")
+            apply(changes, args.path, source_set, assets=args.asset, wait_seconds=60 if args.wait is None else args.wait)
+            print("Applied to native-metal. Verified zero pending for all selected delivery targets. SAVE and player config unchanged.")
         return 0
     except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"error: {error}")
