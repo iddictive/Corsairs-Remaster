@@ -59,7 +59,7 @@ inline float travelTime(float seconds, float ramp, float initial)
     return ramp * (initial*u + (1.f-initial)*(u*u*u - .5f*u*u*u*u));
 }
 inline float rampTime(Type type) { return type == Type::Oreshnik ? 10.f : type == Type::Shtorm ? 3.5f : type == Type::Kalibr ? 27.1f : 2.f; }
-inline float initialSpeed(Type type) { return type == Type::Oreshnik ? .002f : type == Type::Shtorm ? .05f : type == Type::Kalibr ? 0.f : .1f; }
+inline float initialSpeed(Type type) { return type == Type::Oreshnik ? .012f : type == Type::Shtorm ? .05f : type == Type::Kalibr ? 0.f : .1f; }
 // A heavy carrier clears the deck before entering its normal acceleration ramp.
 // The time warp joins the powered phase with matching position and speed.
 inline float oreshnikPoweredTime(float seconds)
@@ -80,7 +80,7 @@ inline float variedInitial(Type type, FlightVariation v)
 {
     return initialSpeed(type) * flightScale(v.startScale) / (flightScale(v.speedScale) * settingScale(v.configuredSpeed));
 }
-inline constexpr float kalibrEjectTime = .65f;
+inline constexpr float kalibrEjectTime = .40f;
 inline constexpr float kalibrTurnTime = 1.f;
 inline constexpr float kalibrEjectHeight = 36.f;
 // Fictional game units: near-original acceleration with a finite speed cap.

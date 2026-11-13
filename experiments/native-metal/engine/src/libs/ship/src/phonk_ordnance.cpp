@@ -1006,6 +1006,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const CVECTOR offset(std::cos(angle)*spread, 0.f, std::sin(angle)*spread);
                 const auto hullAim = kalibrHullAim(target, shotLaunch, target->GetPos(), CVECTOR(0.f), pSea, true);
                 auto incoming = missileTo(shotLaunch, hullAim + offset, int32_t(enemyIndex), kind);
+                incoming.launchVelocity = ShipWorldVelocity(testShip->State);
+                if (testShip->phonkDrift.initialized) {
+                    incoming.launchVelocity.x = KNOTS2METERS(testShip->phonkDrift.worldX);
+                    incoming.launchVelocity.z = KNOTS2METERS(testShip->phonkDrift.worldZ);
+                }
+                incoming.launchVelocity.y = 0.f;
                 incoming.shotId = enemyState.testEnemySerial;
                 varyMissile(incoming, enemyIndex);
                 // A steady course must be extrapolated over the full flight;
@@ -1751,8 +1757,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &before.x, &end.x, seconds/float(steps), 4);
             }
             // Drop old substeps after a long stall; never replay a smoke backlog.
+            const bool kalibrEject = missile.type == storm::ship::phonk::missile::Type::Kalibr &&
+                !missile.continueVelocity && missile.age <= missile::kalibrEjectTime;
             if (!missile.intercepted && !missile.interceptionFragment && !isClusterSubmunition(missile) && (steps-n-1)*seconds/float(steps) <= .20f &&
-                (missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.continueVelocity || missile.ignitionPlayed)) {
+                (missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.continueVelocity || missile.ignitionPlayed || kalibrEject)) {
                 const auto end = hit <= 1.f ? before+(after-before)*hit : after;
                 auto axis = end-before;
                 if ((~axis) > .001f) axis = !axis; else axis = CVECTOR(0.f);
@@ -1760,7 +1768,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const float offset = (missile.continueVelocity && missile.cluster ? 2.f :
                     missile.type == storm::ship::phonk::missile::Type::Kalibr ? 4.f : missile.type == missile::Type::Shtorm ? 6.f : 5.f)*modelScale;
                 const auto tailBefore=before-axis*offset, tailAfter=end-axis*offset;
-                StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &tailBefore.x, &tailAfter.x, seconds/float(steps), missileVfxType(missile.type));
+                StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &tailBefore.x, &tailAfter.x, seconds/float(steps), kalibrEject ? 8u : missileVfxType(missile.type));
             }
 #endif
             // Open the cluster carrier before it reaches the target. Find the
@@ -2464,6 +2472,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 (float(launchSlot / 2u) - 1.f) * std::min(10.f, State.vBoxSize.z * .18f);
             const CVECTOR shotLaunch = launch + GetModel()->mtx.Vx() * across + GetModel()->mtx.Vz() * along;
             auto missile = missileTo(shotLaunch, target, int32_t(owner), state.missileType);
+            missile.launchVelocity = ShipWorldVelocity(State);
+            if (phonkDrift.initialized) {
+                missile.launchVelocity.x = KNOTS2METERS(phonkDrift.worldX);
+                missile.launchVelocity.z = KNOTS2METERS(phonkDrift.worldZ);
+            }
+            missile.launchVelocity.y = 0.f;
             if (auto *epoch = core.Event("Ship_SurrenderEpoch", ""))
                 missile.surrenderEpoch = static_cast<uint32_t>(epoch->GetInt());
             if (++state.cameraShot == 0) ++state.cameraShot;
@@ -2600,7 +2614,7 @@ void SHIP::DrawPhonkOrdnance()
         if (missileVfx && missile.interceptionFragment) StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
         if (missileVfx && cruise && !burning && missile.age < missile::kalibrEjectTime && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
             const auto tail = head - axis * (4.f * modelScale);
-            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 4, missile.age);
+            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 8, missile.age);
         }
         if (missileVfx && cruise && !missile.continueVelocity && !missile.intercepted) {
             const bool launchTurn = missile.age >= missile::kalibrEjectTime &&

@@ -93,6 +93,7 @@ struct NuclearMissile
     bool split = false;
     uint32_t warheadCount = 1;
     CVECTOR initialVelocity = CVECTOR(0.f);
+    CVECTOR launchVelocity = CVECTOR(0.f);
     bool continueVelocity = false;
     bool coasting = false;
     missile::Type type = missile::Type::Kinzhal;
@@ -337,6 +338,12 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
         const float terminal = remaining * remaining * (3.f - 2.f * remaining);
         result += missile.evasionOffset * (enter * enter * (3.f - 2.f * enter)) * (exit * exit * (3.f - 2.f * exit)) * terminal;
     }
+    // Carry the launch platform's world velocity during separation.  The
+    // displacement and its derivative both vanish at the planned endpoint,
+    // so guidance and impact prediction use the same continuous path.
+    const float elapsed = t * missile.duration;
+    const float remaining = 1.f - t;
+    result += missile.launchVelocity * (elapsed * std::exp(-elapsed / 1.5f) * remaining * remaining);
     return result;
 }
 inline CVECTOR nuclearVelocity(const NuclearMissile &missile, float age)

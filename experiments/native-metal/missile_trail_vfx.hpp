@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace storm_metal {
-enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry, Patriot = 7 };
+enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry, Patriot = 7, KalibrEject = 8 };
 
 // Matched by the Metal shader; all positions are absolute world coordinates.
 struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color; };
@@ -148,11 +148,11 @@ public:
     void burst(simd_float3 position, MissileVfxType type) {
         if(!finite(position)) return;
         lastEmission=clock; flashes[flashNext]={position,clock,type}; flashNext=(flashNext+1)%flashes.size(); flashCount=std::min(flashes.size(),flashCount+1);
-        const int puffCount = type==MissileVfxType::Interceptor ? 6 : 12;
+        const int puffCount = type==MissileVfxType::Interceptor ? 6 : type==MissileVfxType::Kalibr ? 8 : 12;
         for(int i=0;i<puffCount;i++) { float a=random()*6.2831853f, speed=2.f+random()*5.f; Puff p{};
             p.origin=position+simd_make_float3(std::cos(a),random()*.5f,std::sin(a))*(random()*3.f);
             p.drift={std::cos(a)*speed,1.f+random()*3.f,std::sin(a)*speed}; p.birth=clock;
-            p.life=type==MissileVfxType::Interceptor?1.4f:2.8f; p.size=(type==MissileVfxType::Interceptor?1.1f:type==MissileVfxType::Kinzhal?3.5f:2.2f)*(0.8f+random()*.4f);
+            p.life=type==MissileVfxType::Interceptor?1.4f:2.8f; p.size=(type==MissileVfxType::Interceptor?1.1f:type==MissileVfxType::Kinzhal?3.5f:type==MissileVfxType::Kalibr?1.25f:2.2f)*(0.8f+random()*.4f);
             p.seed=random()*6.2831853f; p.type=type; store(p);
         }
     }
@@ -166,22 +166,23 @@ public:
         // A stalled missile must not manufacture a cloud every frame. At low
         // speed emit by travel-scale cadence, with no debt or deferred work.
         float speed=length/dt; if(!std::isfinite(speed)||speed<2.f) return;
+        const bool eject=type==MissileVfxType::KalibrEject;
         if(speed<60.f) {
-            const float interval=std::clamp(4.f/speed,.1f,2.f);
+            const float interval=eject?std::clamp(1.2f/speed,.04f,.3f):std::clamp(4.f/speed,.1f,2.f);
             if(std::floor(clock/interval)<=std::floor((clock-dt)/interval))return;
         }
         lastEmission=clock;
-        float spacing=type==MissileVfxType::Fragment?18.f:type==MissileVfxType::Patriot?6.f:type==MissileVfxType::Interceptor?7.f:type==MissileVfxType::Kalibr?11.f:10.f;
+        float spacing=eject?1.5f:type==MissileVfxType::Fragment?18.f:type==MissileVfxType::Patriot?6.f:type==MissileVfxType::Interceptor?7.f:type==MissileVfxType::Kalibr?7.f:10.f;
         const int maxSamples=type==MissileVfxType::Fragment?6:24;
         int n=std::min(maxSamples,std::max(1,int(std::ceil(std::min(length,spacing*float(maxSamples))/spacing))));
         float covered=std::min(length,spacing*float(n));
         auto direction=length>1e-5f?(to-from)/length:simd_make_float3(0,0,0);
         for(int i=0;i<n;i++) {
             float t=(float(i)+.35f+.30f*random())/float(n); Puff p{}; p.origin=to-direction*(covered*(1.f-t));
-            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?6.f:8.f)*(.85f+random()*.15f);
+            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(eject?4.5f:type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?6.f:8.f)*(.85f+random()*.15f);
             p.seed=random()*6.28318f;
-            p.size=(type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Patriot?1.8f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?3.0f:4.0f)*(.78f+random()*.44f);
-            float sampleSpacing=std::max(4.f,covered/float(n));
+            p.size=(eject?1.1f:type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Patriot?1.8f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?1.8f:4.0f)*(.78f+random()*.44f);
+            float sampleSpacing=std::max(eject?1.f:4.f,covered/float(n));
             p.axis=direction*std::clamp(sampleSpacing/(p.size*.65f),1.f,2.6f);
             // Spread off the centerline in the emitter's own cross-section;
             // emitted positions remain fixed in world coordinates afterwards.
@@ -189,6 +190,7 @@ public:
             auto cross=simd_cross(direction,reference); float crossLen=simd_length(cross);
             if(crossLen>1e-5f) { cross/=crossLen; auto second=simd_cross(direction,cross); p.origin+=(cross*std::cos(p.seed)+second*std::sin(p.seed))*(p.size*.12f*random()); }
             p.drift={ (random()-.5f)*2.2f, .5f+random()*1.5f, (random()-.5f)*2.2f }; p.type=type;
+            if(eject) p.drift-=direction*(1.f+random()*2.f);
             store(p);
         }
     }
@@ -205,8 +207,8 @@ public:
             heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),simd_make_float4(direction,length*.5f),{0,1,3,phase},{1.f,.24f,.025f,.92f*flicker}};
             return;
         }
-        float length=type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Patriot?13.f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
-        float width=type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Patriot?1.55f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
+        float length=type==MissileVfxType::KalibrEject?4.f:type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Patriot?13.f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
+        float width=type==MissileVfxType::KalibrEject?.65f:type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Patriot?1.55f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
         simd_float4 color=type==MissileVfxType::Kalibr?simd_make_float4(.40f,.68f,1.f,.85f):simd_make_float4(1.f,.30f,.035f,.9f);
         if(type==MissileVfxType::Patriot) color={1.f,.53f,.15f,.96f};
         if(type==MissileVfxType::Fragment) {
@@ -251,7 +253,7 @@ public:
         auto appendPuff=[&](const Puff &p,size_t slot,float retirementFade) { float age=clock-p.birth; if(age<0||age>=p.life||retirementFade<=0) return;
             float turbulence=std::sin(age*1.4f+p.seed)*age*.22f;
             auto pos=p.origin+worldOrigin+p.drift*age+simd_make_float3(turbulence,0,std::cos(age*1.1f+p.seed)*age*.18f);
-            float size=p.size*(1.f+age*.18f); float dist=simd_length(pos-eye); if(dist>=10000.f) return;
+            float size=p.size*(1.f+age*(p.type==MissileVfxType::KalibrEject?.12f:.18f)); float dist=simd_length(pos-eye); if(dist>=10000.f) return;
             // Stable pool-slot selection bounds the far plume to 512 sprites.
             // Mix slot bits to avoid selecting the same emitter in a repeating
             // multi-missile emission order. Fade other slots before dropping them.
@@ -262,8 +264,8 @@ public:
                 float t=std::clamp((dist-3000.f)/1200.f,0.f,1.f);
                 visibility=1.f-t*t*(3.f-2.f*t);
             }
-            float opacity=retirementFade*visibility*(p.type==MissileVfxType::Interceptor?.12f:.17f);
-            const simd_float3 tint=p.type==MissileVfxType::Kalibr?simd_make_float3(.56f,.59f,.60f):
+            float opacity=retirementFade*visibility*(p.type==MissileVfxType::KalibrEject?.30f:p.type==MissileVfxType::Interceptor?.12f:.17f);
+            const simd_float3 tint=p.type==MissileVfxType::KalibrEject?simd_make_float3(.19f,.18f,.17f):p.type==MissileVfxType::Kalibr?simd_make_float3(.56f,.59f,.60f):
                 (p.type==MissileVfxType::Interceptor||p.type==MissileVfxType::Patriot)?simd_make_float3(.93f,.93f,.90f):
                 p.type==MissileVfxType::Shtorm?simd_make_float3(.72f,.74f,.76f):
                 p.type==MissileVfxType::Fragment?simd_make_float3(.16f,.15f,.14f):simd_make_float3(.91f,.88f,.82f);

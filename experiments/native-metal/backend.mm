@@ -2124,7 +2124,7 @@ extern "C" void StormMetalMissileVfxBurst(void*pointer,const float*position,unsi
  d->missileVfx.burst({position[0],position[1],position[2]},static_cast<storm_metal::MissileVfxType>(type));
 }
 extern "C" void StormMetalMissileVfxSegment(void*pointer,const float*from,const float*to,float dt,unsigned type){
- if(!pointer||!from||!to||type>7)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(!pointer||!from||!to||type>8)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  d->missileVfx.emitSegment({from[0],from[1],from[2]},{to[0],to[1],to[2]},dt,static_cast<storm_metal::MissileVfxType>(type));
 }
 extern "C" bool StormMetalMissileVfxCapture(void*pointer){
@@ -2136,7 +2136,7 @@ extern "C" bool StormMetalMissileVfxCapture(void*pointer){
  d->missileVfxOrigin=d->landShadow.worldOrigin;d->missileVfxViewport=d->rasterViewport(MTLViewport{double(d->vp.X),double(d->vp.Y),double(d->vp.Width),double(d->vp.Height),0,1});d->missileVfxCameraValid=true;return true;
 }
 extern "C" void StormMetalMissileVfxMotor(void*pointer,const float*tail,const float*direction,unsigned type,float phase){
- if(!pointer||!tail||!direction||type>7)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ if(!pointer||!tail||!direction||type>8)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  d->missileVfx.motor({tail[0],tail[1],tail[2]},{direction[0],direction[1],direction[2]},static_cast<storm_metal::MissileVfxType>(type),phase);
 }
 extern "C" void StormMetalMissileVfxDivert(void*pointer,const float*position,const float*direction,float intensity,float phase){
