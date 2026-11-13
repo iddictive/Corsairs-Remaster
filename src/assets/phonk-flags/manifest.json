@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/Textures/PhonkFlags/national.tga": {
+      "source": "national.tga",
+      "source_sha256": "6810b4ca3f27d4cb755f9f95ab9b5757fea3aa1fa521264ee60b06e5c1143576",
+      "prepared": "national.tga",
+      "sha256": "6810b4ca3f27d4cb755f9f95ab9b5757fea3aa1fa521264ee60b06e5c1143576"
+    }
+  }
+}

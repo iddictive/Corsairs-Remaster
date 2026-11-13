@@ -80,6 +80,16 @@ def cluster_vfx_paths():
             raise RuntimeError(f"Invalid cluster VFX asset path: {name}")
     return names
 
+def phonk_flag_paths():
+    manifest = Path(__file__).resolve().parents[1] / "src/assets/phonk-flags/manifest.json"
+    record = json.loads(manifest.read_bytes())
+    if not isinstance(record, dict) or record.get("version") != 1 or not isinstance(record.get("files"), dict):
+        raise RuntimeError("Invalid Phonk flag asset manifest")
+    names = tuple(record["files"])
+    if names != ("RESOURCE/Textures/PhonkFlags/national.tga",):
+        raise RuntimeError("Invalid Phonk flag asset path")
+    return names
+
 NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) + tuple(
     "resource/shared/" + name for name in LEGACY_SHARED_HEADERS
 ) + (
@@ -103,7 +113,7 @@ NATIVE_RESOURCES = tuple("RESOURCE/techniques/" + name for name in TECHNIQUES) +
     "RESOURCE/MODELS/locations/decks/hold/great_recipe_items.gm",
     "RESOURCE/MODELS/locations/decks/deck2/great_recipe_items.gm",
     "RESOURCE/MODELS/locations/decks/camp_deck/great_recipe_items.gm",
-) + audio_paths() + cluster_vfx_paths() + movie_paths() + city_paths() + rowboat_paths() + roundhouse_paths() + unarmed_paths() + legacy_sea_paths()
+) + audio_paths() + cluster_vfx_paths() + phonk_flag_paths() + movie_paths() + city_paths() + rowboat_paths() + roundhouse_paths() + unarmed_paths() + legacy_sea_paths()
 
 
 def digest(data: bytes) -> str:

@@ -52,6 +52,7 @@ bool bDefend=false;
 bool bEnableIslandSailTo = false;
 
 int BI_intRetValue;
+int BI_phonkFlagVisual;
 int BI_retComValue;
 int BI_ChargeState[7];
 float BI_g_fRetVal;
@@ -76,6 +77,28 @@ int ShipFlagsQuantity = -1;
 
 #event_handler(SHIP_CREATE,"BI_CreateShip");
 #event_handler("GetRiggingData","procGetRiggingData");
+#event_handler("GetPhonkFlagVisual","procGetPhonkFlagVisual");
+
+ref procGetPhonkFlagVisual()
+{
+	aref character = GetEventData();
+	BI_phonkFlagVisual = 0;
+	if (!CheckAttribute(character, "index")) return &BI_phonkFlagVisual;
+	int index = sti(character.index);
+	if (index == nMainCharacterIndex) BI_phonkFlagVisual = 1;
+	else if (IsEntity(&AISea))
+	{
+		int relation = RELATION_NEUTRAL;
+		SendMessage(&AISea, "laae", AI_MESSAGE_GET_RELATION, &character, &Characters[nMainCharacterIndex], &relation);
+		switch (relation)
+		{
+			case RELATION_FRIEND: BI_phonkFlagVisual = 1; break;
+			case RELATION_ENEMY: BI_phonkFlagVisual = 2; break;
+			case RELATION_NEUTRAL: BI_phonkFlagVisual = 3; break;
+		}
+	}
+	return &BI_phonkFlagVisual;
+}
 
 void InitBattleInterface()
 {

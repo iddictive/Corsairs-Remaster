@@ -50,6 +50,9 @@ class FLAG : public Entity
     VDX9RENDER *RenderService;
     std::string textureName_;
     int32_t texl;
+    int32_t phonkTexture_ = -1;
+    uint32_t phonkRefreshMs_ = 0;
+    bool phonkActive_ = false;
 
     struct WIND
     {
@@ -137,12 +140,13 @@ class FLAG : public Entity
 
     struct GROUPDATA
     {
-        int nation;
+        int nation = 0;
         entid_t model_id;
-        bool bDeleted;
-        bool isShip;
+        bool bDeleted = false;
+        bool isShip = false;
         entid_t ship_id{};
         ATTRIBUTES *char_attributes = nullptr;
+        int phonkFlag = 0; // 0: ordinary, 1: Russia, 2: Ukraine, 3: USA
     };
 
     int groupQuantity;
@@ -160,6 +164,7 @@ class FLAG : public Entity
     void SetAdd(int flagNum);
     void MoveOtherHost(entid_t newm_id, int32_t flagNum, entid_t oldm_id);
     void UpdateTexture(const std::string_view &texturePath);
+    void UpdatePhonkFlags(uint32_t deltaTime);
 
     FLAGLXVERTEX *vertBuf;
     uint16_t *indxBuf;

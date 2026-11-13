@@ -32,6 +32,7 @@ FLAG::FLAG()
 FLAG::~FLAG()
 {
     TEXTURE_RELEASE(RenderService, texl);
+    TEXTURE_RELEASE(RenderService, phonkTexture_);
     STORM_DELETE(gdata);
     VERTEX_BUFFER_RELEASE(RenderService, vBuf);
     INDEX_BUFFER_RELEASE(RenderService, iBuf);
@@ -66,6 +67,7 @@ void FLAG::SetDevice()
     globalWind.base = 1.f;
     LoadIni();
     texl = RenderService->TextureCreate(textureName_.c_str());
+    phonkTexture_ = RenderService->TextureCreate("PhonkFlags\\national.tga");
 }
 
 bool FLAG::CreateState(ENTITY_STATE_GEN *state_gen)
@@ -78,8 +80,47 @@ bool FLAG::LoadState(ENTITY_STATE *state)
     return true;
 }
 
+void FLAG::UpdatePhonkFlags(uint32_t deltaTime)
+{
+    const auto *seaEntity = core.GetEntityPointer(core.GetEntityId("sea"));
+    auto *sea = seaEntity ? seaEntity->AttributesPointer : nullptr;
+    const auto *mode = sea ? sea->FindAClass(sea, "Phonk.Active") : nullptr;
+    const bool active = mode && mode->GetAttributeAsDword() != 0 && phonkTexture_ >= 0;
+    if (active != phonkActive_)
+    {
+        phonkActive_ = active;
+        phonkRefreshMs_ = 0;
+        verticesNeedUpdate_ = true;
+    }
+    if (!active) return;
+    if (phonkRefreshMs_ > deltaTime)
+    {
+        phonkRefreshMs_ -= deltaTime;
+        return;
+    }
+    phonkRefreshMs_ = 250;
+    for (int gn = 0; gn < groupQuantity; ++gn)
+    {
+        auto &group = gdata[gn];
+        if (!group.isShip || group.bDeleted) continue;
+        auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(group.ship_id));
+        auto *character = ship ? ship->GetACharacter() : nullptr;
+        int32_t visual = 0;
+        if (character)
+            if (auto *result = core.Event("GetPhonkFlagVisual", "a", character))
+                result->Get(visual);
+        if (visual < 1 || visual > 3) visual = 0;
+        if (group.phonkFlag != visual)
+        {
+            group.phonkFlag = visual;
+            verticesNeedUpdate_ = true;
+        }
+    }
+}
+
 void FLAG::Execute(uint32_t Delta_Time)
 {
+    UpdatePhonkFlags(Delta_Time);
     if (bFirstRun)
     {
         FirstRun();
@@ -128,7 +169,37 @@ void FLAG::Realize(uint32_t Delta_Time)
 
         // draw nature flag
         if (nVert != 0 && nIndx != 0)
-            RenderService->DrawBuffer(vBuf, sizeof(FLAGLXVERTEX), iBuf, 0, nVert, 0, nIndx, "ShipFlag");
+        {
+            if (!phonkActive_ || phonkTexture_ < 0)
+                RenderService->DrawBuffer(vBuf, sizeof(FLAGLXVERTEX), iBuf, 0, nVert, 0, nIndx, "ShipFlag");
+            else
+            {
+                // Keep contiguous flags on the same texture in one draw. Indices
+                // are absolute within the shared vertex buffer.
+                int texture = -1;
+                uint32_t start = 0, triangles = 0;
+                auto flush = [&]() {
+                    if (!triangles) return;
+                    RenderService->TextureSet(0, texture);
+                    RenderService->DrawBuffer(vBuf, sizeof(FLAGLXVERTEX), iBuf, 0, nVert, start, triangles, "ShipFlag");
+                };
+                for (int fn = 0; fn < flagQuantity; ++fn)
+                {
+                    const auto *flag = flist[fn];
+                    if (!flag || flag->bDisabled || flag->bDeleted || !flag->nt) continue;
+                    const int nextTexture = flag->isShip && flag->HostGroup >= 0 && flag->HostGroup < groupQuantity &&
+                        gdata[flag->HostGroup].phonkFlag ? phonkTexture_ : texl;
+                    if (triangles && (texture != nextTexture || start + triangles * 3 != flag->st))
+                    {
+                        flush();
+                        triangles = 0;
+                    }
+                    if (!triangles) { texture = nextTexture; start = flag->st; }
+                    triangles += flag->nt;
+                }
+                flush();
+            }
+        }
         //_asm rdtsc  _asm sub eax,rtm _asm mov rtm,eax
         // Print info
         // RenderService->Print(0,220,"Flags tics= %d",rtm);
@@ -172,6 +243,7 @@ uint64_t FLAG::ProcessMessage(MESSAGE &message)
         gdata[groupQuantity - 1].nation = nNation;
         gdata[groupQuantity - 1].bDeleted = false;
         gdata[groupQuantity - 1].isShip = true;
+        phonkRefreshMs_ = 0;
 
         if (message.GetFormat().size() >= 4)
         {
@@ -337,10 +409,21 @@ void FLAG::SetTextureCoordinate()
                 addtv = 1.f / (float)FlagTextureQuantityRow;
                 stu = addtu * flist[fn]->texNumC;
                 stv = addtv * flist[fn]->texNumR;
+                const int group = flist[fn]->HostGroup;
+                const int modern = phonkActive_ && phonkTexture_ >= 0 && flist[fn]->isShip &&
+                    group >= 0 && group < groupQuantity ? gdata[group].phonkFlag : 0;
+                if (modern >= 1 && modern <= 3)
+                {
+                    // Half-texel inset avoids bleeding between adjacent flags.
+                    addtu = 255.f / 768.f;
+                    addtv = 127.f / 128.f;
+                    stu = (256.f * (modern - 1) + .5f) / 768.f;
+                    stv = .5f / 128.f;
+                }
                 if (flist[fn]->triangle)
                 {
                     dtu = addtu / static_cast<float>(flist[fn]->vectQuant + 1);
-                    dtv = .5f / static_cast<float>(flist[fn]->vectQuant + 1);
+                    dtv = (modern ? addtv * .5f : .5f) / static_cast<float>(flist[fn]->vectQuant + 1);
                 }
                 else
                 {

@@ -23,6 +23,7 @@ CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
 RECIPE_ASSETS = PROJECT / "src/assets/quests/great-recipe"
 MUSIC_ASSETS = PROJECT / "src/assets/audio"
 CLUSTER_VFX_ASSETS = PROJECT / "src/assets/cluster-vfx"
+PHONK_FLAG_ASSETS = PROJECT / "src/assets/phonk-flags"
 METAL = PROJECT / "experiments/native-metal"
 TARGET = METAL / ".cache/runtime"
 INSTALLED_APP = Path("/Applications/Corsairs Iddictive Remaster.app")
@@ -155,7 +156,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
         if before != after:
             changes[name] = (before, after)
     asset_targets = set()
-    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS, CLUSTER_VFX_ASSETS):
+    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS, CLUSTER_VFX_ASSETS, PHONK_FLAG_ASSETS):
         changes.update(asset_changes(asset_root, state, managed, inputs, asset_targets, assets))
     city = prepare_puerto_rico_city
     kick = prepare_roundhouse
