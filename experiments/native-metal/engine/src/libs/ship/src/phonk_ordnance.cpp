@@ -265,7 +265,7 @@ float interceptorFuseDelay(uint32_t serial, uint32_t owner)
 float interceptorBlastRadius(bool patriot, uint32_t serial, uint32_t owner)
 {
     const float variation = shotVariation(serial, owner, 0x6c3874a5u);
-    return patriot ? 10.f + 10.f * variation : 15.f + 15.f * variation;
+    return patriot ? 10.f + 5.f * variation : 15.f + 15.f * variation;
 }
 void advanceDefenseReaction(std::array<OrdnanceState::DefenseReaction, 64> &reactions, float seconds)
 {
