@@ -1609,7 +1609,8 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                     missile.target = burstPosition + velocity * time;
                     missile.target.y = pSea->WaveXZ(missile.target.x, missile.target.z);
                 }
-                if (missile.cluster && missile.shotId == state.cameraShot) state.cameraTarget = missile.target;
+                if (missile.cluster && missile.shotId == state.cameraShot)
+                    state.cameraTarget = missile.manualCluster && !missile.intercepted ? burstPosition : missile.target;
                 auto heading = missile.target - missile.launch;
                 heading.y = 0.f;
                 if ((~heading) > .001f) heading = !heading;
@@ -1736,6 +1737,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                     child.yield = missile.yield;
                     child.conventional = missile.conventional;
                     child.cluster = missile.cluster;
+                    child.manualCluster = missile.manualCluster && !missile.intercepted;
                     child.warhead = missile.warhead;
                     child.submunitionVariant = uint8_t(index);
                     child.shotId = missile.shotId;
@@ -1784,7 +1786,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             if (hit > 1.f && missile.coasting && !missile.intercepted) { missile.active = false; break; }
             auto impact = hit <= 1.f ? before + (after - before) * hit : missile.target;
             missile.active = false;
-            if (missile.shotId == state.cameraShot && !missile.cluster) state.cameraTarget = impact;
+            if (missile.shotId == state.cameraShot && (!missile.cluster || missile.manualCluster)) state.cameraTarget = impact;
             if (missile.conventional)
             {
                 const float radius = conventionalMissileRadius(missile.type, missile.cluster, missile.warhead) * missile.blastScale;
@@ -1974,18 +1976,25 @@ void SHIP::FinishPhonkMissilesLate()
     if (auto *mode = PhonkActive() ? pSea->AttributesPointer->GetAttributeClass("Phonk") : nullptr) {
         if (auto *view = mode->GetAttributeClass("MissileView")) {
             bool flight = false, cluster = false;
+            CVECTOR manualClusterCenter(0.f);
+            unsigned manualClusterCount = 0;
             float flightAge = 0.f;
             for (const auto &missile : state.missiles) {
                 if (!missile.active || missile.interceptionFragment || missile.shotId != state.cameraShot) continue;
                 flight = true;
                 cluster |= isClusterSubmunition(missile);
                 state.cameraPosition = nuclearPosition(missile, missile.age);
+                if (isClusterSubmunition(missile) && missile.manualCluster) {
+                    manualClusterCenter += state.cameraPosition;
+                    ++manualClusterCount;
+                }
                 if (!isClusterSubmunition(missile)) {
                     flightAge = missile.age;
                     const auto direction = nuclearVelocity(missile, missile.age);
                     if ((~direction) > .001f) state.cameraTarget = state.cameraPosition + direction;
                 }
             }
+            if (manualClusterCount) state.cameraPosition = manualClusterCenter * (1.f / float(manualClusterCount));
             if (flight) state.cameraAfterImpact = 1.5f;
             view->SetAttributeUseDword("active", state.cameraShot && (flight || state.cameraAfterImpact > 0.f));
             view->SetAttributeUseDword("flight", flight);
@@ -2926,6 +2935,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     state.blasts.erase(std::remove_if(state.blasts.begin(), state.blasts.end(),
         [](const auto &blast) { return !blast.active; }), state.blasts.end());
     bool cameraFlight = false, cameraCluster = false;
+    CVECTOR manualClusterCenter(0.f);
+    unsigned manualClusterCount = 0;
     float cameraFlightAge = 0.f;
     for (const auto &missile : state.missiles) {
         if (!missile.active || missile.interceptionFragment || missile.shotId != state.cameraShot) continue;
@@ -2933,11 +2944,16 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         cameraCluster |= isClusterSubmunition(missile);
         if (!isClusterSubmunition(missile)) cameraFlightAge = missile.age;
         state.cameraPosition = nuclearPosition(missile, missile.age);
+        if (isClusterSubmunition(missile) && missile.manualCluster) {
+            manualClusterCenter += state.cameraPosition;
+            ++manualClusterCount;
+        }
         if (!isClusterSubmunition(missile)) {
             const auto direction = nuclearVelocity(missile, missile.age);
             if ((~direction) > .001f) state.cameraTarget = state.cameraPosition + direction;
         }
     }
+    if (manualClusterCount) state.cameraPosition = manualClusterCenter * (1.f / float(manualClusterCount));
     if (cameraFlight) state.cameraAfterImpact = 1.5f;
     else state.cameraAfterImpact = std::max(0.f, state.cameraAfterImpact - seconds);
     if (!active)

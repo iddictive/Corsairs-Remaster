@@ -430,14 +430,14 @@ bool SEA_CAMERAS::RealizeMissileView()
         control->SetAttributeUseDword("active", 1);
     } else {
         control->SetAttributeUseDword("active", 0);
-        missileManual = false;
+        if (!flight) missileManual = false;
         control->SetAttributeUseDword("manual", 0);
     }
     control->SetAttributeUseDword("aimHeld", aimHeld || mouseCapture);
     if (steeringReady && missileManual && releasePressed &&
         !phonk->GetAttributeAsDword("MissileSettings", 0) && !core.Controls->IsControlLocked("Ship_Fire"))
         control->SetAttributeUseDword("release", 1);
-    CVECTOR focus = flight && !cluster ? projectile : target;
+    CVECTOR focus = flight && (!cluster || missileManual) ? projectile : target;
     const float azimuth = missileOrbitOffset.y;
     const float elevation = missileOrbitOffset.x;
     float baseRadius = flight && !cluster ? 220.f : 500.f;
