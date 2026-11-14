@@ -3275,6 +3275,14 @@ void SHIP::DrawPhonkOrdnance()
         const auto head = nuclearPosition(missile, missile.age);
         const auto actualVelocity = nuclearVelocity(missile, missile.age);
         auto axis = actualVelocity;
+        if (missile.type == missile::Type::Kalibr && !missile.continueVelocity &&
+            !missile.intercepted && !missile.interceptionFragment && !missile.manualFlight &&
+            missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime) {
+            const auto direction = missile::kalibrLaunchAxis(
+                {missile.launch.x, missile.launch.y, missile.launch.z},
+                {missile.target.x, missile.target.y, missile.target.z}, missile.age, missile.flightVariation);
+            axis = CVECTOR(direction.x, direction.y, direction.z);
+        }
         if ((~axis) < .001f) axis = missile.target - missile.launch;
         if ((~axis) < .001f) continue;
         axis = !axis;
@@ -3364,9 +3372,9 @@ void SHIP::DrawPhonkOrdnance()
             StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 8, missile.age);
         }
         if (missileVfx && cruise && !missile.continueVelocity && !missile.intercepted) {
-            const bool launchTurn = missile.age >= missile::kalibrEjectTime &&
+            const bool launchTurn = missile.age >= missile::kalibrEjectTime + missile::kalibrCoastTime &&
                                     missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime;
-            const float pulseAge = launchTurn ? missile.age - missile::kalibrEjectTime : missile.age - missile.divertStart;
+            const float pulseAge = launchTurn ? missile.age - missile::kalibrEjectTime - missile::kalibrCoastTime : missile.age - missile.divertStart;
             const bool correction = !launchTurn && missile.divertStart >= 0.f && (~missile.guidanceVelocity) > 1.f;
             if ((launchTurn || correction) && kalibrDivertPulse(pulseAge, missile.shotId, uint32_t(missile.owner), launchTurn)) {
                 auto desired = launchTurn ? missile.target - head : missile.guidanceVelocity;

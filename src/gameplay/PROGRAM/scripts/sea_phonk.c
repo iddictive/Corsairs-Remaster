@@ -162,73 +162,31 @@ bool SeaPhonk_AppearanceActive(ref character)
         CheckAttribute(character, "SeaPhonk.Appearance.Animation");
 }
 
-void SeaPhonk_ApplyAppearance(ref character)
-{
-    if (!SeaPhonk_AppearanceActive(character))
-    {
-        character.SeaPhonk.Appearance.Model = character.model;
-        character.SeaPhonk.Appearance.Animation = character.model.animation;
-    }
-    character.model = "Putin";
-    character.model.animation = "man";
-    if (HasSubStr(character.SeaPhonk.Appearance.Animation, "_swim")) character.model.animation = "man_swim";
-    if (CheckAttribute(character, "IsMushketer"))
-    {
-        character.model = "Putin_mush";
-        character.model.animation = "mushketer";
-    }
-    SetNewModelToChar(character);
-}
-
-void SeaPhonk_TransitionAnimation(ref character, bool underwater)
-{
-    if (!IsMainCharacter(character) || !SeaPhonk_AppearanceActive(character)) return;
-    character.SeaPhonk.Appearance.Animation = character.model.animation;
-    character.model.animation = "man";
-    if (underwater) character.model.animation = "man_swim";
-}
-
 void SeaPhonk_RestoreAppearance(ref character)
 {
     if (!SeaPhonk_AppearanceActive(character)) return;
+    // An incomplete or already corrupted snapshot cannot recover the original.
+    if (character.SeaPhonk.Appearance.Model == "" || character.SeaPhonk.Appearance.Animation == "" ||
+        character.SeaPhonk.Appearance.Model == "Putin" || character.SeaPhonk.Appearance.Model == "Putin_mush") return;
+    if (character.model == "protocusto")
+    {
+        // Keep the diving suit sentinel; repair the model the quest restores on exit.
+        if (!CheckAttribute(character, "questTemp.LSC.immersions.model") ||
+            !CheckAttribute(character, "questTemp.LSC.immersions.animation")) return;
+        if (character.questTemp.LSC.immersions.model != "Putin" &&
+            character.questTemp.LSC.immersions.model != "Putin_mush") return;
+        character.questTemp.LSC.immersions.model = character.SeaPhonk.Appearance.Model;
+        character.questTemp.LSC.immersions.animation = character.SeaPhonk.Appearance.Animation;
+        DeleteAttribute(character, "SeaPhonk.Appearance");
+        return;
+    }
+    // Another system may have already changed the model; retain the snapshot
+    // until the substituted model is actually present and can be restored.
+    if (character.model != "Putin" && character.model != "Putin_mush") return;
     character.model = character.SeaPhonk.Appearance.Model;
     character.model.animation = character.SeaPhonk.Appearance.Animation;
     DeleteAttribute(character, "SeaPhonk.Appearance");
     SetNewModelToChar(character);
-}
-
-// Armour selects a model from HeroModel. Keep that selection as the model to
-// restore, while the active costume continues to use its own two variants.
-void SeaPhonk_ArmorModelChanged(ref character)
-{
-    if (!IsMainCharacter(character) || !SeaPhonk_AppearanceActive(character) || !CheckAttribute(character, "HeroModel")) return;
-    character.SeaPhonk.Appearance.Model = character.model;
-    if (CheckAttribute(character, "IsMushketer") && !HasSubStr(character.model, "_mush"))
-        character.SeaPhonk.Appearance.Model = character.model + "_mush";
-    character.model = "Putin";
-    if (CheckAttribute(character, "IsMushketer")) character.model = "Putin_mush";
-}
-
-// The stock equipment transition owns the original animation semantics.
-void SeaPhonk_MusketModelChanged(ref character, bool musket)
-{
-    if (!IsMainCharacter(character) || !SeaPhonk_AppearanceActive(character)) return;
-    string original = character.SeaPhonk.Appearance.Model;
-    if (musket)
-    {
-        character.SeaPhonk.Appearance.Model = original + "_mush";
-        character.SeaPhonk.Appearance.Animation = "mushketer";
-        if (character.sex == "woman") character.SeaPhonk.Appearance.Animation = "mushketer_whisper";
-        character.model = "Putin_mush";
-        character.model.animation = "mushketer";
-    }
-    else
-    {
-        character.SeaPhonk.Appearance.Model = FindStringBeforeChar(original, "_mush");
-        character.SeaPhonk.Appearance.Animation = MainChAnim;
-        character.model = "Putin";
-        character.model.animation = "man";
-    }
 }
 
 bool SeaPhonk_IsActive()
@@ -273,7 +231,7 @@ void SeaPhonk_SetActive(bool active)
     if (active && !CheckAttribute(&Sea, "Phonk.MissileWarhead")) Sea.Phonk.MissileWarhead = 5;
     if (active && sti(Sea.Phonk.MissileWarhead) == 3) Sea.Phonk.MissileWarhead = 1;
     if (IsEntity(pchar)) pchar.SeaPhonk.Active = active;
-    if (active && !SeaPhonk_AppearanceActive(pchar)) SeaPhonk_ApplyAppearance(pchar);
+    SeaPhonk_RestoreAppearance(pchar);
 }
 
 bool SeaPhonk_IsMusicMuted()
@@ -359,47 +317,21 @@ bool SeaPhonk_Toggle()
 {
     if (IsEntity(&worldMap) || bAbordageStarted) return false;
     bool active = CheckAttribute(pchar, "SeaPhonk.Active") && sti(pchar.SeaPhonk.Active) != 0;
-    // The diving quest uses the suit model as its exit sentinel. Change the
-    // appearance it will restore, leaving that sentinel in place until exit.
+    SeaPhonk_RestoreAppearance(pchar);
+    // The diving quest uses the suit model as its exit sentinel.
     if (pchar.model == "protocusto")
     {
-        if (!CheckAttribute(pchar, "questTemp.LSC.immersions.model") ||
-            !CheckAttribute(pchar, "questTemp.LSC.immersions.animation")) return false;
-        if (active)
-        {
-            if (SeaPhonk_AppearanceActive(pchar))
-            {
-                pchar.questTemp.LSC.immersions.model = pchar.SeaPhonk.Appearance.Model;
-                pchar.questTemp.LSC.immersions.animation = pchar.SeaPhonk.Appearance.Animation;
-                DeleteAttribute(pchar, "SeaPhonk.Appearance");
-            }
-            pchar.SeaPhonk.Active = false;
-        }
-        else
-        {
-            pchar.SeaPhonk.Appearance.Model = pchar.questTemp.LSC.immersions.model;
-            pchar.SeaPhonk.Appearance.Animation = pchar.questTemp.LSC.immersions.animation;
-            pchar.questTemp.LSC.immersions.model = "Putin";
-            pchar.questTemp.LSC.immersions.animation = "man";
-            if (CheckAttribute(pchar, "IsMushketer"))
-            {
-                pchar.questTemp.LSC.immersions.model = "Putin_mush";
-                pchar.questTemp.LSC.immersions.animation = "mushketer";
-            }
-            pchar.SeaPhonk.Active = true;
-        }
+        pchar.SeaPhonk.Active = !active;
         return true;
     }
     if (active)
     {
         if (bSeaActive && IsEntity(&Sea)) SeaPhonk_Reset(true);
         pchar.SeaPhonk.Active = false;
-        SeaPhonk_RestoreAppearance(pchar);
         return true;
     }
     if (bSeaActive && CheckAttribute(pchar, "Ship.HP") && stf(pchar.Ship.HP) <= 0.0) return false;
     pchar.SeaPhonk.Active = true;
-    SeaPhonk_ApplyAppearance(pchar);
     if (!bSeaActive || !IsEntity(&Sea)) return true;
     // Register on entry as well: controls restored from an older save lack 6/7.
     SeaPhonk_InitControls();

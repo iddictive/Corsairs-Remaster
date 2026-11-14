@@ -82,6 +82,7 @@ inline float variedInitial(Type type, FlightVariation v)
 }
 inline constexpr float kalibrEjectTime = .40f;
 inline constexpr float kalibrTurnTime = 1.f;
+inline constexpr float kalibrCoastTime = .65f;
 inline constexpr float kalibrEjectHeight = 36.f;
 // Fictional game units: near-original acceleration with a finite speed cap.
 inline constexpr float kalibrAcceleration = 48.f;
@@ -285,12 +286,24 @@ inline float trajectoryProgress(Type type, float t, float flightDuration, Flight
     return travelTime(flightTime, variedRamp(type, variation), variedInitial(type, variation)) /
            travelTime(totalTime, variedRamp(type, variation), variedInitial(type, variation));
 }
+inline float kalibrLaunchHeight(FlightVariation variation)
+{
+    const float scale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
+    return kalibrEjectHeight * (.8f + .4f * (scale - .3f) / 1.35f);
+}
+inline Vec3 kalibrEjectionVelocity(float fx, float fz, FlightVariation variation)
+{
+    const float scale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
+    const float side = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
+    const float forward = 1.f + (scale - .3f);
+    return {fx*forward - fz*side, .8f * kalibrLaunchHeight(variation) / kalibrEjectTime,
+            fz*forward + fx*side};
+}
 inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDuration = 0.f, FlightVariation variation = {})
 {
     t = std::clamp(t, 0.f, 1.f);
     const auto d = target - start;
     const float distance = std::sqrt(d.x*d.x+d.z*d.z);
-    const float variationScale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
     const float altitude = arcAltitude(type, distance, variation);
     const float total = flightDuration > 0.f ? flightDuration : duration(type, start, target, variation);
     float travel = trajectoryProgress(type, t, total, variation);
@@ -315,11 +328,8 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float horizontal = std::sqrt(d.x*d.x + d.z*d.z);
     const float fx = horizontal > .001f ? d.x / horizontal : 0.f;
     const float fz = horizontal > .001f ? d.z / horizontal : 1.f;
-    const float sideSpeed = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
-    const float forwardSpeed = 1.f + (variationScale - .3f);
-    const float ejectHeight = kalibrEjectHeight * (.8f + .4f * (variationScale - .3f) / 1.35f);
-    const Vec3 ejectVelocity{fx*forwardSpeed - fz*sideSpeed, .8f * ejectHeight / kalibrEjectTime,
-                             fz*forwardSpeed + fx*sideSpeed};
+    const float ejectHeight = kalibrLaunchHeight(variation);
+    const Vec3 ejectVelocity = kalibrEjectionVelocity(fx, fz, variation);
     if (elapsedFlight < kalibrEjectTime) {
         const float u = elapsedFlight / kalibrEjectTime;
         const float elapsed = u * kalibrEjectTime;
@@ -332,23 +342,33 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float smoothDive = dive*dive*(3.f-2.f*dive);
     const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, ejectHeight,
                                      ejectVelocity.z * kalibrEjectTime};
-    // Redirect the ejection momentum through the turn instead of braking it away.
-    constexpr float halfPi = 1.57079632679f;
-    const float turnRadius = ejectVelocity.y * kalibrTurnTime / halfPi;
+    // Coast upward after the launch impulse, then rotate near the apex before
+    // the main motor starts. Carry the launch velocity continuously into the
+    // coast; horizontal ship movement is added separately by the caller.
+    const float coast = std::clamp(elapsedFlight - kalibrEjectTime, 0.f, kalibrCoastTime);
+    const Vec3 raised = ejected + ejectVelocity * (kalibrCoastTime * .5f);
     if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
-        const float elapsed = elapsedFlight - kalibrEjectTime;
-        const float angle = halfPi * elapsed / kalibrTurnTime;
-        const float forward = turnRadius * (1.f - std::cos(angle));
-        return ejected + Vec3{ejectVelocity.x * elapsed + fx * forward, turnRadius * std::sin(angle),
-                              ejectVelocity.z * elapsed + fz * forward};
+        return ejected + ejectVelocity * (coast - coast*coast / (2.f * kalibrCoastTime));
     }
-    const Vec3 raised = ejected + Vec3{ejectVelocity.x * kalibrTurnTime + fx * turnRadius, turnRadius,
-                                      ejectVelocity.z * kalibrTurnTime + fz * turnRadius};
-    const Vec3 turnVelocity{ejectVelocity.x + fx * ejectVelocity.y, 0.f, ejectVelocity.z + fz * ejectVelocity.y};
-    const float elapsed = elapsedFlight - kalibrEjectTime - kalibrTurnTime;
-    const float remaining = 1.f - travel;
-    const float momentum = 3.f * (1.f - std::exp(-elapsed / 3.f)) * remaining * remaining;
-    return raised + (target-raised)*travel + turnVelocity*momentum + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
+    return raised + (target-raised)*travel + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
+}
+
+// The body rotates independently of translation while nearly stationary at
+// the top of the launch. Flight and collision continue to use position().
+inline Vec3 kalibrLaunchAxis(Vec3 start, Vec3 target, float elapsed, FlightVariation variation = {})
+{
+    const Vec3 d = target - start;
+    const float horizontal = std::sqrt(d.x*d.x + d.z*d.z);
+    const float fx = horizontal > .001f ? d.x / horizontal : 0.f;
+    const float fz = horizontal > .001f ? d.z / horizontal : 1.f;
+    const float u = std::clamp((elapsed - kalibrEjectTime - kalibrCoastTime) /
+                               (kalibrTurnTime - kalibrCoastTime), 0.f, 1.f);
+    const float smooth = u*u*(3.f-2.f*u);
+    const float angle = smooth * 1.57079632679f;
+    const Vec3 launch = kalibrEjectionVelocity(fx, fz, variation);
+    const Vec3 initial = launch * (1.f / magnitude(launch));
+    const Vec3 axis = initial * std::cos(angle) + Vec3{fx,0.f,fz} * std::sin(angle);
+    return axis * (1.f / magnitude(axis));
 }
 
 // Length is along +z. Ring radius and fin positions are model-relative;
