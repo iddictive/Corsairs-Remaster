@@ -1617,12 +1617,11 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 const CVECTOR side = missile.cluster ? heading : CVECTOR(-heading.z, 0.f, heading.x);
                 CVECTOR releaseVelocity(0.f);
                 float scatterTravel = 1.f;
-                if (missile.manualCluster && !missile.intercepted) {
+                if (missile.cluster && !missile.intercepted) {
                     releaseVelocity = nuclearVelocity(missile, substepStartAge + (missile.age - substepStartAge) * release);
-                    if ((~heading) <= .001f) {
-                        heading = CVECTOR(releaseVelocity.x, 0.f, releaseVelocity.z);
-                        heading = (~heading) > .001f ? !heading : CVECTOR(1.f, 0.f, 0.f);
-                    }
+                    const CVECTOR flightHeading(releaseVelocity.x, 0.f, releaseVelocity.z);
+                    if ((~flightHeading) > .001f) heading = !flightHeading;
+                    else if ((~heading) <= .001f) heading = CVECTOR(1.f, 0.f, 0.f);
                     const float height = std::max(0.f, burstPosition.y - pSea->WaveXZ(burstPosition.x, burstPosition.z));
                     float lo = 0.f, hi = 30.f;
                     for (unsigned step = 0; step < 16; ++step) {
@@ -1675,30 +1674,6 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                     if (missile.cluster) {
                         const float descentVariation = shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x734ac185u);
                         child.duration *= missile.type == missile::Type::Oreshnik ? .62f + .85f * descentVariation : .85f + .30f * descentVariation;
-                        // Solve the launch impulse against the same drag and
-                        // gravity used during child flight. Interception below
-                        // still uses the carrier's actual velocity instead.
-                        auto velocityForTime = [&](float time) {
-                            const float travel = dragTravelTime(clusterAirDrag, time);
-                            const float gravityDrop = 9.81f * (time - travel) / clusterAirDrag;
-                            return (target - burstPosition + CVECTOR(0.f, gravityDrop, 0.f)) * (1.f / travel);
-                        };
-                        if (!missile.manualCluster || missile.intercepted) {
-                            child.initialVelocity = velocityForTime(child.duration);
-                            const float childSpeed = std::sqrt(~child.initialVelocity);
-                            const float minimumSpeed = std::max(std::isfinite(inheritedSpeed) ? inheritedSpeed : 0.f,
-                                                                std::isfinite(carrierMeanSpeed) ? carrierMeanSpeed : 0.f) *
-                                (missile.type == missile::Type::Oreshnik ? .70f : 1.f);
-                            if (minimumSpeed > 1.f && childSpeed > .001f && childSpeed < minimumSpeed) {
-                                float lo = .001f, hi = child.duration;
-                                for (unsigned step = 0; step < 12; ++step) {
-                                    const float mid = (lo + hi) * .5f;
-                                    if (std::sqrt(~velocityForTime(mid)) >= minimumSpeed) lo = mid; else hi = mid;
-                                }
-                                child.duration = lo;
-                                child.initialVelocity = velocityForTime(lo);
-                            }
-                        }
                         if (missile.intercepted) {
                             const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
                             const float speed = std::sqrt(~missile.interceptedVelocity);
@@ -1718,9 +1693,9 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                             child.duration = std::clamp((vy + std::sqrt(vy*vy + 19.62f*height)) / 9.81f + .25f, .25f, 15.f);
                             child.target = burstPosition + child.initialVelocity * child.duration + CVECTOR(0.f, -4.905f * child.duration * child.duration, 0.f);
                         }
-                        else if (missile.manualCluster) {
-                            // Match the automatic footprint while inheriting the
-                            // carrier's momentum; very late releases have less time to spread.
+                        else {
+                            // Retain carrier momentum for every intact release;
+                            // late releases have less time to spread.
                             const float angle = 6.2831853f * shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x3cf51719u);
                             const float radius = std::sqrt(shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x12834bc5u));
                             const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
