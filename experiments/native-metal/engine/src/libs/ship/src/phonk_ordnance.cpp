@@ -62,6 +62,27 @@ float advanceReentryHeat(float heat, const CVECTOR &velocity, float altitude, fl
     const float timeConstant = target > heat ? 1.8f : 3.f;
     return std::clamp(heat + (target - heat) * -std::expm1(-dt / timeConstant), 0.f, 1.f);
 }
+float heatTone(float heat)
+{
+    const float hot = std::clamp((heat - .12f) / .45f, 0.f, 1.f);
+    return hot * hot * (3.f - 2.f * hot);
+}
+float heatStrength(float heat)
+{
+    const float visible = std::clamp((heat - .08f) / .37f, 0.f, 1.f);
+    return visible * visible * (3.f - 2.f * visible) * .9f;
+}
+uint32_t heatedBodyColor(uint32_t color, float z, float strength, float tone, float start, float span)
+{
+    const float nose = std::clamp((z - start) / span, 0.f, 1.f);
+    const float blend = strength * nose * nose * (3.f - 2.f * nose);
+    const auto channel = [&](unsigned shift, float hot) {
+        const float original = float((color >> shift) & 255u);
+        return uint32_t(std::clamp(original + (hot - original) * blend, 0.f, 255.f)) << shift;
+    };
+    return (color & 0xff000000u) | channel(16, 205.f + 50.f*tone) |
+           channel(8, 48.f + 163.f*tone) | channel(0, 24.f + 121.f*tone);
+}
 CVECTOR turnMissileToward(const CVECTOR &velocity, const CVECTOR &aim, float maxAngle)
 {
     const float speed = std::sqrt(~velocity), aimLength = std::sqrt(~aim);
@@ -3353,10 +3374,8 @@ void SHIP::DrawPhonkOrdnance()
         float bodyHeat = 0.f, bodyGlow = 0.f;
         if (!missile.suppressReentryHeat && !missile.intercepted && !missile.interceptionFragment &&
             std::isfinite(missile.visualHeat)) {
-            const float heat = std::clamp((missile.visualHeat - .08f) / .37f, 0.f, 1.f);
-            bodyHeat = heat * heat * (3.f - 2.f * heat) * .9f;
-            const float hot = std::clamp((missile.visualHeat - .12f) / .45f, 0.f, 1.f);
-            bodyGlow = hot * hot * (3.f - 2.f * hot);
+            bodyHeat = heatStrength(missile.visualHeat);
+            bodyGlow = heatTone(missile.visualHeat);
         }
         const auto emit = [&](const storm::ship::phonk::missile::Vertex &a,
                               const storm::ship::phonk::missile::Vertex &b,
@@ -3364,14 +3383,8 @@ void SHIP::DrawPhonkOrdnance()
             const auto add = [&](const storm::ship::phonk::missile::Vertex &v) {
                 uint32_t color = v.color;
                 if (bodyHeat > 0.f && v.position.z > -.4f) {
-                    const float nose = std::clamp((v.position.z + .4f) / 5.7f, 0.f, 1.f);
-                    const float blend = bodyHeat * nose * nose * (3.f - 2.f * nose);
-                    const auto channel = [&](unsigned shift, float hot) {
-                        const float original = float((v.color >> shift) & 255u);
-                        return uint32_t(std::clamp(original + (hot - original) * blend, 0.f, 255.f)) << shift;
-                    };
-                    color = (v.color & 0xff000000u) | channel(16, 205.f + 50.f*bodyGlow) |
-                            channel(8, 48.f + 163.f*bodyGlow) | channel(0, 24.f + 121.f*bodyGlow);
+                    color = heatedBodyColor(color, v.position.z, bodyHeat, bodyGlow, -.4f,
+                                            isClusterSubmunition(missile) ? 2.1f : 5.7f);
                 }
                 bodies.push_back({head + (side*v.position.x + up*v.position.y + axis*v.position.z)*modelScale,color});
             };
@@ -3486,17 +3499,16 @@ void SHIP::DrawPhonkOrdnance()
         auto trailSide = direction ^ (camera - head);
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
-        const float interceptorHeat = std::clamp((interceptor.visualHeat-.08f)/.37f, 0.f, 1.f);
-        const float interceptorGlow = interceptorHeat*interceptorHeat*(3.f-2.f*interceptorHeat)*.6f;
+        const float interceptorGlow = heatStrength(interceptor.visualHeat);
+        const float interceptorTone = heatTone(interceptor.visualHeat);
         const auto emitInterceptor = [&](const auto &a, const auto &b, const auto &c) {
                 const auto add = [&](const auto &v) {
                     const float scale = interceptor.patriot ? 1.f : .5f;
                     uint32_t color = v.color;
                     if (interceptorGlow > 0.f) {
-                        const float nose = std::clamp((v.position.z+.4f)/5.7f, 0.f, 1.f);
-                        const float blend = interceptorGlow*nose*nose*(3.f-2.f*nose);
-                        const auto channel = [&](unsigned shift, float hot) { const float c = float((v.color>>shift)&255u); return uint32_t(c+(hot-c)*blend)<<shift; };
-                        color = (v.color&0xff000000u)|channel(16,205.f)|channel(8,48.f)|channel(0,24.f);
+                        color = heatedBodyColor(color, v.position.z, interceptorGlow, interceptorTone,
+                                                interceptor.patriot ? -1.35f : -.4f,
+                                                interceptor.patriot ? 1.35f : 5.7f);
                     }
                     bodies.push_back({head + (side*v.position.x + up*v.position.y + direction*v.position.z)*scale, color});
                 };
