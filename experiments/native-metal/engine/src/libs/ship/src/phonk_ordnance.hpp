@@ -102,6 +102,7 @@ struct NuclearMissile
     bool cluster = false;
     uint32_t warhead = 0;
     bool flybyPlayed = false;
+    bool sonicBoomPlayed = false;
     bool ignitionPlayed = false;
     bool intercepted = false;
     bool interceptionFragment = false;
@@ -230,6 +231,7 @@ struct OrdnanceState
     float airDefenseScanCooldown = 0.f;
     float launchSoundCooldown = 0.f, ignitionSoundCooldown = 0.f;
     float flybySoundCooldown = 0.f;
+    float sonicSoundCooldown = 0.f;
     uint32_t airDefenseScanCursor = 0, airDefenseHitCursor = 0, airDefenseSerial = 0;
     float testEnemyCooldown = 0.f;
     uint32_t testEnemySerial = 0;
@@ -251,7 +253,7 @@ struct OrdnanceState
     };
     std::array<DefenseReaction, 64> airDefenseReaction{}, testDefenseReaction{};
     struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0;
-        bool patriot = false, diverting = false, patriotContact = false;
+        bool patriot = false, diverting = false, patriotContact = false, sonicBoomPlayed = false;
         CVECTOR position{}, previousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
         float simulationDebt = 0.f, speedScale = 1.f, accelerationScale = 1.f;
         float lostTargetTime = 0.f, nextTargetSearch = 0.f;
@@ -339,6 +341,23 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
         const float progress = missile::trajectoryProgress(missile.type, t, missile.duration, missile.flightVariation);
         const float envelope = 4.f * progress * (1.f - progress);
         result.y += missile.terrainLift * envelope * envelope;
+    }
+    if (missile.cluster && missile.split && !missile.intercepted) {
+        // Blend into a straight descending approach before release. The
+        // reference line still ends at the same guided aim point.
+        const float horizontal2 = delta.x * delta.x + delta.z * delta.z;
+        if (horizontal2 > 1.f) {
+            const float progress = std::clamp(((result.x - missile.launch.x) * delta.x +
+                                               (result.z - missile.launch.z) * delta.z) / horizontal2, 0.f, 1.f);
+            if (progress > .55f) {
+                const float altitude = missile::arcAltitude(missile.type, std::sqrt(horizontal2), missile.flightVariation);
+                const float arc = missile::arcProgress(missile.type, .6f, missile.flightVariation);
+                const float anchor = missile.launch.y + delta.y * .6f + 4.f * altitude * arc * (1.f - arc);
+                const float line = missile.target.y + (anchor - missile.target.y) * (1.f - progress) / .4f;
+                const float u = std::clamp((progress - .55f) / .2f, 0.f, 1.f);
+                result.y += (line - result.y) * u * u * (3.f - 2.f * u);
+            }
+        }
     }
     if (missile.shotId) {
         const float horizontal = std::hypot(delta.x, delta.z);

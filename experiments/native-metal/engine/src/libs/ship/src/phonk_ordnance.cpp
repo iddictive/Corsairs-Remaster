@@ -578,6 +578,17 @@ void missileSound(const char *name, const CVECTOR &position)
     if (sound) core.Send_Message(sound, "lsllllllfff", MSG_SOUND_PLAY, name, SOUND_WAV_3D,
         VOLUME_FX, false, false, false, 0, position.x, position.y, position.z);
 }
+bool sonicBoom(bool &played, float &cooldown, const CVECTOR &before, const CVECTOR &after,
+               float seconds, const CVECTOR &listener)
+{
+    if (played || cooldown > 0.f || seconds <= .00001f) return false;
+    const auto velocity = (after - before) * (1.f / seconds);
+    if ((~velocity) <= 343.f * 343.f || (~(after - listener)) > 1400.f * 1400.f) return false;
+    played = true;
+    cooldown = .35f;
+    missileSound("phonk_missile_sonic", after);
+    return true;
+}
 enum class ImpactSurface { Other = 0, Land = 1, Water = 2, Ship = 3 };
 float firstSurface(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
                    const CVECTOR &from, const CVECTOR &to, entid_t ignore = 0,
@@ -1465,10 +1476,17 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 const float flightX = missile.target.x - missile.launch.x;
                 const float flightZ = missile.target.z - missile.launch.z;
                 const float flightDistance = std::sqrt(flightX*flightX + flightZ*flightZ);
-                const float releaseRadius = (missile.type == missile::Type::Oreshnik ? flightDistance * .16f :
-                    std::clamp(flightDistance * .006f, 15.f, 30.f)) *
-                    (.75f + .5f * shotVariation(missile.shotId, uint32_t(missile.owner), 0x1a928ce3u));
                 const float x = before.x - missile.target.x, z = before.z - missile.target.z;
+                float releaseRadius = std::min(2000.f, std::max(80.f, flightDistance * .35f));
+                const float reach = releaseRadius + std::hypot(after.x-before.x, after.z-before.z);
+                if (x*x + z*z <= reach * reach) {
+                    const auto velocity = nuclearVelocity(missile, missile.age);
+                    const float height = std::max(0.f, before.y - missile.target.y);
+                    const float fallTime = std::clamp((velocity.y + std::sqrt(velocity.y * velocity.y + 19.62f * height)) / 9.81f, .05f, 12.f);
+                    const float forward = std::hypot(velocity.x, velocity.z) * dragTravelTime(clusterAirDrag, fallTime);
+                    const float variation = .9f + .2f * shotVariation(missile.shotId, uint32_t(missile.owner), 0x1a928ce3u);
+                    releaseRadius = std::min(releaseRadius, std::max(80.f, forward * variation));
+                }
                 const float dx = after.x - before.x, dz = after.z - before.z;
                 const float c = x*x + z*z - releaseRadius*releaseRadius;
                 if (c <= 0.f) release = 0.f;
@@ -1527,6 +1545,11 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             }
             const float visualFraction = std::clamp(std::min({1.f, hit, release, interceptAt}), 0.f, 1.f);
             const auto visualEnd = before + (after-before)*visualFraction;
+            if (visualFraction > 0.f && !missile.intercepted && !missile.interceptionFragment &&
+                !isClusterSubmunition(missile) && sonicBoom(missile.sonicBoomPlayed, state.sonicSoundCooldown,
+                    before, visualEnd, (missile.age - substepStartAge) * visualFraction, listener)) {
+                if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
+            }
             if (!missile.intercepted && !missile.interceptionFragment && !missile.suppressReentryHeat) {
                 const float substepDt = missile.age - substepStartAge;
                 const float visualDt = substepDt * visualFraction;
@@ -2203,6 +2226,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     state.launchSoundCooldown = std::max(0.f, state.launchSoundCooldown - seconds);
     state.ignitionSoundCooldown = std::max(0.f, state.ignitionSoundCooldown - seconds);
     state.flybySoundCooldown = std::max(0.f, state.flybySoundCooldown - seconds);
+    state.sonicSoundCooldown = std::max(0.f, state.sonicSoundCooldown - seconds);
+    CVECTOR sonicListener, sonicAngles; float sonicPerspective = 0.f;
+    if (active) pRS->GetCamera(sonicListener, sonicAngles, sonicPerspective);
 
     // The projectile owner performs hostility, incoming-motion and scan-budget
     // checks. A missing adapter is a disabled system, never guessed ownership.
@@ -2302,6 +2328,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 }
                 if (interceptor.patriot && interceptor.age < interceptor.duration) advancePatriot(interceptor, tracked, seconds);
                 else interceptor.age = std::min(interceptor.duration, interceptor.age + seconds);
+                if (active && sonicBoom(interceptor.sonicBoomPlayed, state.sonicSoundCooldown,
+                        interceptorPosition(interceptor, previousAge / interceptor.duration),
+                        interceptorPosition(interceptor, interceptor.age / interceptor.duration),
+                        interceptor.age - previousAge, sonicListener)) {
+                    if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
+                }
                 if (!interceptor.evasionTriggered && tracked) {
                     const auto position = interceptorPosition(interceptor, interceptor.age / interceptor.duration);
                     if ((~(nuclearPosition(*tracked, tracked->age) - position)) <= 300.f*300.f) {
@@ -2755,6 +2787,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             }
             if (interceptor.patriot && interceptor.age < interceptor.duration) advancePatriot(interceptor, tracked, seconds);
             else interceptor.age = std::min(interceptor.duration, interceptor.age + seconds);
+            if (sonicBoom(interceptor.sonicBoomPlayed, state.sonicSoundCooldown,
+                    interceptorPosition(interceptor, previousAge / interceptor.duration),
+                    interceptorPosition(interceptor, interceptor.age / interceptor.duration),
+                    interceptor.age - previousAge, sonicListener)) {
+                if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
+            }
             if (tracked) {
                     if (tracked && !interceptor.evasionTriggered) {
                     const auto position = interceptorPosition(interceptor, interceptor.age / interceptor.duration);
