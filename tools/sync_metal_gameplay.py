@@ -20,6 +20,7 @@ from delivery_state import DeliveryState, RECEIPT, player_guard, require_idle, t
 PROJECT = Path(__file__).resolve().parents[1]
 UI_ASSETS = PROJECT / "src/assets/ui"
 CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
+PHONK_CHARACTER_ASSETS = PROJECT / "src/assets/characters/putin-phonk-candidate"
 RECIPE_ASSETS = PROJECT / "src/assets/quests/great-recipe"
 MUSIC_ASSETS = PROJECT / "src/assets/audio"
 CLUSTER_VFX_ASSETS = PROJECT / "src/assets/cluster-vfx"
@@ -156,7 +157,7 @@ def plan(target_root=None, paths=None, source_set=None, state=None, managed=None
         if before != after:
             changes[name] = (before, after)
     asset_targets = set()
-    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS, CLUSTER_VFX_ASSETS, PHONK_FLAG_ASSETS):
+    for asset_root in (UI_ASSETS, CHARACTER_ASSETS, PHONK_CHARACTER_ASSETS, RECIPE_ASSETS, MUSIC_ASSETS, CLUSTER_VFX_ASSETS, PHONK_FLAG_ASSETS):
         changes.update(asset_changes(asset_root, state, managed, inputs, asset_targets, assets))
     city = prepare_puerto_rico_city
     kick = prepare_roundhouse

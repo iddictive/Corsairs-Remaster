@@ -10,30 +10,43 @@
 #include <vector>
 
 namespace storm_metal {
-enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry, Patriot = 7, KalibrEject = 8 };
+enum class MissileVfxType { Kinzhal, Kalibr, Interceptor, Shtorm, Fragment, OreshnikCarrier, OreshnikReentry, Patriot = 7, KalibrEject = 8, ShockCone = 9 };
 
 // Matched by the Metal shader; all positions are absolute world coordinates.
-struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color; };
+struct MissileVfxSprite { simd_float4 positionSize, axisLength, params, color, bend{}; };
 struct MissileVfxView { simd_float4x4 vp; simd_float4 eye, right, up, viewport; };
-static_assert(sizeof(MissileVfxSprite)==64);
+static_assert(sizeof(MissileVfxSprite)==80);
 
 static const char *missileVfxMSL=R"MSL(
 #include <metal_stdlib>
 using namespace metal;
-struct S { float4 positionSize, axisLength, params, color; };
+struct S { float4 positionSize, axisLength, params, color, bend; };
 struct V { float4x4 vp; float4 eye, right, up, viewport; };
-struct O { float4 p [[position]]; float2 uv; float4 params, color; };
+struct O { float4 p [[position]]; float2 uv, bend; float4 params, color; };
 float missile_hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
 float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(missile_hash(a),missile_hash(a+float2(1,0)),f.x),mix(missile_hash(a+float2(0,1)),missile_hash(a+1.),f.x),f.y); }
 vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
  constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
- S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz;
+ S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz; float bend=0., expansion=1.;
  if((a.params.z>0.5 && a.params.z<1.5) || a.params.z>2.5) {
   u=normalize(a.axisLength.xyz); r=cross(u,view.eye.xyz-a.positionSize.xyz); if(dot(r,r)<1e-8) r=view.right.xyz; else r=normalize(r);
-  // Only widen motor billboards narrower than 3 pixels, capped at 4x world width.
+  if(a.params.z>.5 && a.params.z<1.5) { bend=clamp(dot(a.bend.xyz,r)*a.axisLength.w/max(a.positionSize.w,.01),-1.5,1.5); expansion=1.+abs(bend); r*=expansion; }
+  // Screen-space readability is specific to the hot reentry sprite; keep its
+  // bright head anchored while scaling the short wake, with a finite cap.
   float4 center=view.vp*float4(a.positionSize.xyz,1.);
   float4 edge=view.vp*float4(a.positionSize.xyz+r*a.positionSize.w,1.);
-  if(center.w>1e-4 && edge.w>1e-4) {
+  if(a.params.z>2.5 && a.params.z<3.5 && center.w>1e-4 && edge.w>1e-4) {
+   float4 tip=view.vp*float4(a.positionSize.xyz+u*a.axisLength.w,1.);
+   if(tip.w>1e-4) {
+    float halfWidth=length((edge.xy/edge.w-center.xy/center.w)*view.viewport.zw*.5);
+    float halfLength=length((tip.xy/tip.w-center.xy/center.w)*view.viewport.zw*.5);
+    float wScale=clamp(4./max(halfWidth,1e-4),1.,96.);
+    float lScale=clamp(6./max(halfLength,1e-4),1.,96.);
+    r*=wScale;
+    a.positionSize.xyz+=u*a.axisLength.w*.6*(1.-lScale);
+    u*=lScale;
+   }
+  } else if(a.params.z<1.5 && center.w>1e-4 && edge.w>1e-4) {
    float halfPixels=length((edge.xy/edge.w-center.xy/center.w)*view.viewport.zw*.5);
    r*=clamp(1.5/max(halfPixels,1e-4),1.,4.);
   }
@@ -46,7 +59,7 @@ vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V
   float amount=length(along); if(amount>1e-4) { along/=amount; r+=along*dot(r,along)*amount; u+=along*dot(u,along)*amount; }
  }
  float3 world=a.positionSize.xyz+r*xy.x*a.positionSize.w+u*xy.y*a.axisLength.w;
- O o; o.p=view.vp*float4(world,1); o.uv=xy*.5+.5; o.params=a.params; o.color=a.color; return o;
+ O o; o.p=view.vp*float4(world,1); o.uv=xy*.5+.5; o.bend=float2(bend,expansion); o.params=a.params; o.color=a.color; return o;
 }
 fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[texture(0)]]) {
  if(i.params.z<.5) {
@@ -66,27 +79,50 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   return float4(i.color.rgb*(.68+.32*detail)*alpha,alpha);
  }
  float2 p=i.uv*2.-1.;
+ if(i.params.z>3.5) {
+  // Stylized, translucent envelope: apex at the head, opening aft.
+  float aft=1.-i.uv.y;
+  float edge=abs(abs(p.x)-aft);
+  float rim=(1.-smoothstep(.025,.13,edge))*smoothstep(.03,.20,aft);
+  float interior=(1.-smoothstep(aft-.08,aft+.08,abs(p.x)))*.16;
+  float fade=smoothstep(0.,.12,aft)*(1.-smoothstep(.72,1.,aft));
+  float alpha=(rim+interior)*fade*i.color.a;
+  return float4(i.color.rgb*alpha,alpha);
+ }
  if(i.params.z>2.5) {
-  // A tapered, asymmetric hot wake, with its brightest material at the head.
+  // One connected luminous head and short wake, with a soft irregular edge.
   float t=i.uv.y;
-  float n=missile_noise(float2(t*8.-i.params.w*3.,i.params.w*.31));
-  float bend=(n-.5)*.24*(1.-t);
-  float width=(.07+.47*pow(t,.8))*(.78+.36*n);
-  float d=abs(p.x+bend)/width;
-  float body=(1.-smoothstep(.32,1.,d))*smoothstep(0.,.16,t)*(1.-smoothstep(.86,1.,t));
-  float core=pow(max(0.,1.-d),3.)*smoothstep(.42,.95,t);
-  float alpha=body*i.color.a;
-  return float4(mix(i.color.rgb,float3(1.,.94,.72),core)*alpha,alpha);
+  float n=missile_noise(float2(t*9.-i.params.w*1.4,p.x*2.+i.params.w*.19));
+  float width=mix(.08,.32,smoothstep(.12,.82,t))*(.78+.42*n);
+  float wake=(1.-smoothstep(width*.35,width*1.35,abs(p.x+(n-.5)*.07)))*smoothstep(.08,.55,t)*(1.-smoothstep(.88,1.,t));
+  float2 h=float2(p.x/(.49+.12*i.params.x),(t-.80)/(.19+.06*i.params.x));
+  float head=1.-smoothstep(.32,1.1,length(h)+(n-.5)*.16);
+  float alpha=clamp(max(wake*.72,head),0.,1.)*i.color.a;
+  float edgeWarm=i.params.y*.14*(1.-head*.8);
+  float3 tint=mix(i.color.rgb,float3(1.,.62,.28),edgeWarm);
+  return float4(tint*alpha,alpha);
  }
  if(i.params.z>1.5) { float r=length(p); float a=(1.-smoothstep(.12,1.,r))*i.color.a; return float4(mix(i.color.rgb,float3(1.,.95,.78),1.-smoothstep(0.,.45,r))*a,a); }
+ // Motor only. The nozzle is at along=1; the luminous gases expand and
+ // cool downstream while the separate smoke particles remain in world space.
  float along=(p.y+1.)*.5;
- float noise=missile_noise(float2(p.x*3.5+i.params.w*1.3,along*7.-i.params.w*5.));
- float pulse=.9+.1*sin(i.params.w*11.+along*9.);
- float width=mix(.07,.36,pow(along,.7))*(.65+.55*noise)*pulse; float d=abs(p.x+(noise-.5)*.20*(1.-along))/width;
- float edge=1.-smoothstep(.18,1.,d); float ends=smoothstep(0.,.2,along);
- float core=pow(max(0.,1.-d),3.);
- float alpha=edge*ends*i.color.a*(.72+.28*noise);
- return float4(mix(i.color.rgb,float3(1.,.96,.80),core)*alpha,alpha);
+ float downstream=1.-along;
+ p.x=p.x*i.bend.y-i.bend.x*downstream*downstream;
+ float noise=missile_noise(float2(p.x*2.5,downstream*8.-i.params.w*3.));
+ float fine=missile_noise(float2(p.x*5.+noise,downstream*15.-i.params.w*4.3));
+ float width=mix(.42,.88,smoothstep(0.,.65,downstream));
+ width*=mix(1.,.76+.38*noise,smoothstep(.05,.8,downstream));
+ float x=abs(p.x+(noise-.5)*.18*downstream);
+ float body=1.-smoothstep(width*.48,width,x);
+ float core=1.-smoothstep(width*.12,width*.52,x);
+ float ends=smoothstep(0.,.23,along);
+ float cells=.5+.5*cos(downstream*24.+x*3.);
+ float diamonds=smoothstep(.65,.97,cells)*core*(1.-smoothstep(.55,.95,downstream));
+ float glow=clamp(core*(.52+.28*along)+diamonds*.33,0.,1.);
+ float variation=mix(1.,.62+.55*fine,smoothstep(.04,.85,downstream));
+ float alpha=body*ends*i.color.a*variation*(.6+.4*core);
+ float3 outer=i.color.rgb*mix(.65,1.,along);
+ return float4(mix(outer,float3(1.,.92,.76),glow)*alpha,alpha);
 }
 )MSL";
 
@@ -105,7 +141,7 @@ class MissileTrailVfx {
     std::array<MissileVfxSprite,maxHeads> heads{}; size_t headCount=0;
     std::array<Flash,128> flashes{}; size_t flashNext=0, flashCount=0;
     double lastEmission=-100.0;
-    double clock=0; uint32_t serial=1;
+    double clock=0, reentryClock=0; uint32_t serial=1;
     id<MTLDevice> owner=nil; id<MTLLibrary> library=nil; id<MTLRenderPipelineState> pipeline=nil;
     id<MTLDepthStencilState> depthStates[2]={nil,nil}; MTLPixelFormat colorFormat=MTLPixelFormatInvalid, depthFormat=MTLPixelFormatInvalid;
     static bool finite(simd_float3 v) { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z); }
@@ -158,7 +194,7 @@ public:
     bool ready(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) { return device && prepare(device,color,depth); }
     // Once per render frame, including after all missiles disappear. dt is game time.
     // Large gaps advance time but never schedule delayed emissions.
-    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; if(clock-lastEmission>=8.f) { cohorts={}; count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=0; }
+    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; reentryClock=std::fmod(reentryClock+dt,1024.0); if(clock-lastEmission>=8.f) { cohorts={}; count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=0; }
     void clear() { cohorts={}; count=retireNext=retireCount=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
     size_t storedCount() const { return count; }
     bool hasVisible() const { return headCount || (count && clock-lastEmission<8.f) || (flashCount && clock-lastEmission<.45f); }
@@ -215,19 +251,60 @@ public:
     }
     // Submit current motor only while burning; type selects color and scale.
     // Direction points forwards; length is in world metres.
-    void motor(simd_float3 tail, simd_float3 direction, MissileVfxType type, float phase) {
+    void motor(simd_float3 tail, simd_float3 direction, MissileVfxType type, float phase, float heat=1.f, unsigned style=1, uint32_t seed=0, simd_float3 bend={0,0,0}) {
         if(headCount>=maxHeads||!finite(tail)||!finite(direction)||!std::isfinite(phase)) return;
         if(type==MissileVfxType::Fragment && phase>=2.5f) return;
         float l=simd_length(direction); if(l<1e-4f||!std::isfinite(l)) return; direction/=l;
-        if(type==MissileVfxType::OreshnikReentry) {
-            // phase is seconds plus a stable per-element offset, supplied by the caller.
-            float flicker=.88f+.12f*std::sin(phase*13.f);
-            constexpr float length=14.f, width=1.15f;
-            heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),simd_make_float4(direction,length*.5f),{0,1,3,phase},{1.f,.24f,.025f,.92f*flicker}};
+        // Bounded visual proxy for dynamic pressure; tail.y is world altitude.
+        // This is art direction, not a thermal or atmospheric simulation.
+        auto airLoad=[&]() {
+            float density=std::exp(-std::max(tail.y,0.f)/8500.f);
+            float speed=std::clamp(phase,0.f,12000.f)/2000.f;
+            float q=density*speed*speed;
+            return q/(1.f+q);
+        };
+        if(type==MissileVfxType::ShockCone) {
+            // phase is physical speed in m/s. Sound speed is a fixed reference;
+            // density changes the visible envelope, not the Mach angle.
+            float onset=std::clamp((phase-330.f)/100.f,0.f,1.f);
+            onset=onset*onset*(3.f-2.f*onset);
+            if(onset<=0.f) return;
+            float load=airLoad();
+            float mach=std::max(std::min(phase,12000.f)/343.f,1.01f);
+            float length=10.f+24.f*load, width=std::clamp(length/std::sqrt(mach*mach-1.f),1.2f,12.f);
+            heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),
+                simd_make_float4(direction,length*.5f),{0,1,4,0},{.72f,.84f,1.f,(.055f+.13f*load)*onset}};
             return;
         }
-        float length=type==MissileVfxType::KalibrEject?4.f:type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::Patriot?13.f:type==MissileVfxType::Kinzhal?20.f:type==MissileVfxType::Kalibr?12.f:10.f;
-        float width=type==MissileVfxType::KalibrEject?.65f:type==MissileVfxType::Fragment?.28f:type==MissileVfxType::Patriot?1.55f:type==MissileVfxType::Kinzhal?2.5f:type==MissileVfxType::Kalibr?1.5f:1.3f;
+        if(type==MissileVfxType::OreshnikReentry) {
+            // Stable seed owns identity; animation never samples world position.
+            if(!std::isfinite(heat)) return;
+            heat=std::clamp(heat,0.f,1.f); if(heat<=0.f) return;
+            float load=airLoad();
+            if(load<=0.f) return;
+            auto sample=[&](uint32_t salt) { uint32_t h=seed+salt; h^=h>>16; h*=0x7feb352du; h^=h>>15; h*=0x846ca68bu; h^=h>>16; return float(h&65535u)/65535.f; };
+            float shape=sample(0x9e3779b9u), proportion=sample(0x85ebca6bu), tone=sample(0xc2b2ae35u), pulse=sample(0x27d4eb2fu);
+            // Integer cycles make the 1024-second wrap continuous; clear()
+            // leaves this clock intact so lifecycle resets do not change phase.
+            float cycles=1200.f+std::floor(pulse*601.f);
+            float anim=float(reentryClock)*(6.2831853f/1024.f)*cycles+shape*6.2831853f;
+            float flicker=.96f+.04f*std::sin(anim);
+            float scale=.3f+.7f*heat;
+            float length=(style==0?2.5f+4.f*load:3.f+8.f*load)*scale*(.84f+.32f*proportion);
+            float width=(.65f+1.25f*load)*scale*(.88f+.24f*shape);
+            float opacity=std::clamp(load*2.f,0.f,1.f)*flicker*heat*(.88f+.12f*pulse);
+            float hot=heat*heat*(3.f-2.f*heat);
+            simd_float3 cold={.65f,.035f,.01f};
+            simd_float3 bright=style==0?simd_make_float3(1.f,.82f,.68f):simd_make_float3(1.f,.96f,.84f);
+            auto tint=cold+(bright-cold)*hot;
+            tint.y*=.94f+.06f*tone; tint.z*=.92f+.08f*tone;
+            heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),simd_make_float4(direction,length*.5f),{shape,hot,3,proportion*6.2831853f},simd_make_float4(tint,.98f*opacity)};
+            return;
+        }
+        float length=type==MissileVfxType::KalibrEject?4.f:type==MissileVfxType::Fragment?1.4f:type==MissileVfxType::OreshnikCarrier?20.f:type==MissileVfxType::Patriot?11.f:type==MissileVfxType::Kinzhal?16.f:9.f;
+        // The shader's nozzle half-width is .42 of this billboard width.
+        // Match the model's tail radius before the plume expands downstream.
+        float width=type==MissileVfxType::KalibrEject?.65f:type==MissileVfxType::Fragment?.28f:type==MissileVfxType::OreshnikCarrier?2.86f:type==MissileVfxType::Patriot?.81f:type==MissileVfxType::Interceptor?.50f:type==MissileVfxType::Kinzhal?1.10f:type==MissileVfxType::Kalibr?1.f:1.67f;
         simd_float4 color=type==MissileVfxType::Kalibr?simd_make_float4(.40f,.68f,1.f,.85f):simd_make_float4(1.f,.30f,.035f,.9f);
         if(type==MissileVfxType::Patriot) color={1.f,.53f,.15f,.96f};
         if(type==MissileVfxType::Fragment) {
@@ -238,7 +315,13 @@ public:
         // Extend the near edge slightly into the nozzle; depth testing clips
         // the overlap against the missile body rather than leaving a seam.
         constexpr float overlap=.25f;
-        heads[headCount++]={simd_make_float4(tail-direction*(length-overlap)*.5f,width),simd_make_float4(direction,(length+overlap)*.5f),{0,1,1,phase},color};
+        if(!finite(bend)) bend={0,0,0};
+        heads[headCount++]={simd_make_float4(tail-direction*(length-overlap)*.5f,width),simd_make_float4(direction,(length+overlap)*.5f),{0,1,1,phase},color,simd_make_float4(bend,0)};
+    }
+    // Heat is accumulated and cooled by the caller, not by this renderer.
+    void reentry(simd_float3 head, simd_float3 direction, float speed, float heat, unsigned style, uint32_t seed) {
+        if(style>1) return;
+        motor(head,direction,MissileVfxType::OreshnikReentry,speed,heat,style,seed);
     }
     // One instantaneous lateral attitude-motor jet. Caller supplies the
     // actual outward exhaust direction and controls the short firing window.

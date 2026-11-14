@@ -864,6 +864,15 @@ void OnLoad()
 	
 	LoadGameOptions();
 	SeaPhonk_InitControls();
+	// Older saves may carry the sea flag without the appearance snapshot.
+	if (pchar.model != "protocusto")
+	{
+		if (CheckAttribute(pchar, "SeaPhonk.Active") && sti(pchar.SeaPhonk.Active) != 0)
+		{
+			if (!SeaPhonk_AppearanceActive(pchar)) SeaPhonk_ApplyAppearance(pchar);
+		}
+		else if (SeaPhonk_AppearanceActive(pchar)) SeaPhonk_RestoreAppearance(pchar);
+	}
 
 	ReloadProgressEnd();
 

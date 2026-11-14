@@ -37,6 +37,9 @@ class SEA_CAMERAS : public Entity
     COMMON_CAMERA *missileInputCamera = nullptr;
     CVECTOR missileOrbitOffset = CVECTOR(0.f);
     float missileZoom = 1.f;
+    CVECTOR missileSmoothFocus = CVECTOR(0.f);
+    float missileSmoothRadius = 220.f;
+    std::chrono::steady_clock::time_point missileSmoothTime{};
     std::chrono::steady_clock::time_point dartStarted{}, dartLastHit{};
 
     void RestoreDartView();

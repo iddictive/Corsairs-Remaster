@@ -103,6 +103,20 @@ class SHIP_CUT_FRAGMENTS final : public Entity
         // One late-frame owner advances the entire fleet together. A per-ship
         // pass cannot resolve reciprocal debris contact from coherent poses.
         if(stage==Stage::execute){
+            const bool airFrame = SHIP::PreparePhonkAirFrame(ships);
+            if (airFrame) {
+                for (const auto id : ships)
+                    if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
+                        ship->ExecutePhonkMissilesLate(delta, true);
+                SHIP::ResolvePhonkAirFrame(ships, delta);
+            }
+            if (airFrame) SHIP::ExecutePhonkAirFrame(ships, delta);
+            else for (const auto id : ships)
+                if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
+                    ship->ExecutePhonkMissilesLate(delta);
+            for (const auto id : ships)
+                if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
+                    ship->FinishPhonkInterceptorsLate();
             for (auto &orphan : orphans) orphan.time += delta * .001;
             AdvanceCutFragments();
             PollDamage();

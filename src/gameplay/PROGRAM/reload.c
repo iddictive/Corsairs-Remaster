@@ -598,6 +598,7 @@ int ReloadToLocation(int location_index, aref reload_data)
 				SetCharacterToMushketer(pchar, "", false);
 			}
 			mc.model.animation = MainChAnim+"_swim";
+			SeaPhonk_TransitionAnimation(mc, true);
 		}
 		else
 		{
@@ -612,6 +613,7 @@ int ReloadToLocation(int location_index, aref reload_data)
 				if (!CheckAttribute(mc,"ismushketer"))
 				{
 					mc.model.animation = MainChAnim;
+					SeaPhonk_TransitionAnimation(mc, false);
 				}
 			}
 		}

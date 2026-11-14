@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace storm::ship::phonk
@@ -132,6 +133,10 @@ struct NuclearMissile
     bool manualFlight = false;
     CVECTOR manualVelocity = CVECTOR(0.f);
     uint8_t submunitionVariant = 0;
+    float visualHeat = 0.f;
+    bool suppressReentryHeat = false;
+    CVECTOR visualExhaustAxis = CVECTOR(0.f);
+    float visualExhaustAge = -1.f;
 };
 inline bool isClusterSubmunition(const NuclearMissile &missile)
 {
@@ -191,6 +196,29 @@ struct OrdnanceState
     CVECTOR target = CVECTOR(0.f);
     // A six-kilometre flight takes over six seconds at the one-second cadence.
     std::vector<NuclearMissile> missiles;
+    struct MissileFrameSegment {
+        float start = 0.f, end = 0.f;
+        CVECTOR before{}, after{};
+    };
+    struct MissileFramePlan {
+        std::size_t index = 0;
+        uint64_t generation = 0;
+        uint32_t shotId = 0;
+        float expires = 0.f;
+        std::vector<MissileFrameSegment> segments;
+        double scheduledTime = -1.;
+        entid_t interceptorOwner = 0;
+        uint64_t interceptorGeneration = 0;
+        uint32_t interceptorSerial = 0;
+        bool testInterceptor = false;
+        bool prevalidated = false;
+        CVECTOR interceptionPoint{};
+        float interceptionRadius = 0.f;
+        uint8_t variant = 0;
+        int32_t missileOwner = -1;
+    };
+    std::vector<MissileFramePlan> missileFramePlans;
+    std::vector<std::size_t> missileFramePlanByIndex;
     std::vector<NuclearBlast> blasts;
     std::vector<HarpoonCable> harpoonCables;
     std::vector<HarpoonProjectile> harpoonProjectiles;
@@ -213,23 +241,62 @@ struct OrdnanceState
     entid_t testDefenseShip = 0;
     float testDefenseCooldown = 0.f;
     float testDefenseScanCooldown = 0.f;
-    float testDefenseCharges = 0.f;
-    uint32_t testDefenseRate = 0;
+    struct DefenseReaction {
+        entid_t missileShip = 0;
+        uint32_t shot = 0, variant = 0;
+        float remaining = 0.f, lifetime = 0.f;
+        bool active = false;
+    };
+    std::array<DefenseReaction, 64> airDefenseReaction{}, testDefenseReaction{};
     struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0;
         bool patriot = false, diverting = false, patriotContact = false;
         CVECTOR position{}, previousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
         float simulationDebt = 0.f, speedScale = 1.f, accelerationScale = 1.f;
         float lostTargetTime = 0.f, nextTargetSearch = 0.f;
+        float fuseAtAge = -1.f, fuseDelay = 0.f;
+        float sensorEnableAge = std::numeric_limits<float>::infinity();
+        float blastRadius = 15.f;
+        float frameStartAge = 0.f, frameSeconds = 0.f;
+        bool frameContact = false;
+        uint32_t frameConfirmedHits = 0;
+        CVECTOR frameContactPosition{};
+        CVECTOR visualExhaustAxis{};
+        float visualExhaustAge = -1.f;
     };
     std::vector<Interceptor> interceptors;
     std::vector<Interceptor> testInterceptors;
+    bool retireTestInterceptors = false;
 };
+// Gameplay tuning, not real-world missile performance. Each launch varies by
+// +/-4%; the nominal motor reaches 600 m/s at .5 s, then 850 m/s.
+inline float pantsirMotorScale(uint32_t serial)
+{
+    uint32_t bits = serial * 0x9e3779b9u;
+    bits ^= bits >> 16; bits *= 0x7feb352du; bits ^= bits >> 15;
+    return .96f + .08f * float(bits & 65535u) / 65535.f;
+}
+inline float pantsirDistance(float age, uint32_t serial)
+{
+    const float t = std::max(0.f, age), scale = pantsirMotorScale(serial);
+    const float boost = std::min(t, .5f);
+    const float sustain = std::min(std::max(0.f, t - .5f), 2.5f);
+    return scale * (600.f*boost*boost + 600.f*sustain + 50.f*sustain*sustain +
+                    850.f*std::max(0.f, t - 3.f));
+}
+inline float pantsirFlightTime(float distance, uint32_t serial)
+{
+    const float d = std::max(0.f, distance) / pantsirMotorScale(serial);
+    if (d <= 150.f) return std::sqrt(d / 600.f);
+    if (d <= 1962.5f) return .5f + 2.f*(d-150.f)/(600.f + std::sqrt(360000.f + 200.f*(d-150.f)));
+    return 3.f + (d-1962.5f)/850.f;
+}
 inline CVECTOR interceptorPosition(const OrdnanceState::Interceptor &interceptor, float t)
 {
     if (interceptor.patriot)
         return t + .000001f < interceptor.age / interceptor.duration ? interceptor.previousPosition : interceptor.position;
-    t = std::clamp(t, 0.f, 1.f);
     const CVECTOR delta = interceptor.target - interceptor.launch;
+    const float distance = std::sqrt(~delta);
+    t = distance > .001f ? std::clamp(pantsirDistance(std::max(0.f, t) * interceptor.duration, interceptor.serial) / distance, 0.f, 1.f) : 1.f;
     CVECTOR lateral(-delta.z, 0.f, delta.x);
     if ((~lateral) > .001f) lateral = !lateral;
     else lateral = CVECTOR(0.f);
@@ -396,6 +463,8 @@ extern "C" void StormMetalMissileVfxBurst(void *device, const float *position, u
 extern "C" void StormMetalMissileVfxSegment(void *device, const float *from, const float *to, float dt, unsigned type);
 extern "C" bool StormMetalMissileVfxCapture(void *device);
 extern "C" void StormMetalMissileVfxMotor(void *device, const float *tail, const float *direction, unsigned type, float phase);
+extern "C" void StormMetalMissileVfxMotorBend(void *device, const float *tail, const float *direction, const float *bend, unsigned type, float phase);
+extern "C" void StormMetalMissileVfxReentry(void *device, const float *head, const float *direction, float speed, float heat, unsigned style, unsigned seed);
 extern "C" void StormMetalMissileVfxDivert(void *device, const float *position, const float *direction, float intensity, float phase);
 extern "C" bool StormMetalClusterImpact(void *device, const float *position, const float *direction, unsigned surface, float radius, unsigned warhead);
 extern "C" void StormMetalClusterImpactCapture(void *device);

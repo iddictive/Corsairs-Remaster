@@ -2252,6 +2252,7 @@ void SetEquipedItemToCharacter(ref chref, string groupID, string itemID)
                 DeleteAttribute(chref, "cirassId");
             }
         }
+        SeaPhonk_ArmorModelChanged(chref);
         SetNewModelToChar(chref);//boal
 	break;
 
@@ -3172,6 +3173,7 @@ bool SetCharacterToMushketer(ref xi_refCharacter, string sMushket, bool _ToMushk
 			xi_refCharacter.model = xi_refCharacter.model + "_mush";
 			if (xi_refCharacter.sex == "woman") xi_refCharacter.model.animation = "mushketer_whisper"; // Сменим анимацию
 			else xi_refCharacter.model.animation = "mushketer"; // Сменим анимацию
+			SeaPhonk_MusketModelChanged(xi_refCharacter, true);
 			Characters_RefreshModel(xi_refCharacter); // Обновим модель. Важно: обновлять модель нужно ДО экипировки мушкетом
 			EquipCharacterByItem(xi_refCharacter, sMushket); // Экипируем мушкет
 			xi_refCharacter.Equip.TempGunID = sLastGun; // Пистоль оставляем экипированным, но в другой группе
@@ -3195,6 +3197,7 @@ bool SetCharacterToMushketer(ref xi_refCharacter, string sMushket, bool _ToMushk
 		xi_refCharacter.model = FindStringBeforeChar(xi_refCharacter.model, "_mush"); // Вернем модель и анимацию
 		if(IsMainCharacter(xi_refCharacter)) xi_refCharacter.model.Animation = MainChAnim;
 		else xi_refCharacter.model.Animation = "man"; // Пока всего один вариант, т.к. оба универсала у нас на стандартной анимации
+		SeaPhonk_MusketModelChanged(xi_refCharacter, false);
 		Characters_RefreshModel(xi_refCharacter);
 		RemoveCharacterEquip(xi_refCharacter, GUN_ITEM_TYPE); // Снимим мушкет
 		if(xi_refCharacter.IsMushketer.LastGunID != "" && GetCharacterItem(xi_refCharacter, xi_refCharacter.IsMushketer.LastGunID) > 0)

@@ -1,0 +1,7 @@
+# Putin phonk candidate
+
+Candidate assets for the Phonk protagonist. `model-source.gm` and `atlas-source.png` are the retained editable inputs; `Putin.gm`, `Putin_mush.gm` and `Putin.tga.tx` are the prepared outputs. `musket-locator-source.json` retains the stock locator payload used to prepare the musket GM. Run `python3 prepare.py` with Pillow available to regenerate the bytes in memory and compare them to all three outputs; `--write` rewrites only this directory. The delivery pipeline installs the prepared assets.
+
+The adapted head derives from [Putin Bust by cgmodelsnet](https://sketchfab.com/3d-models/aa3241a2f12443c483eb1b6eabb1e7fe), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); it was reduced, cut, fitted and textured. Identity reference: [Kremlin.ru portrait, 23 February 2024](https://commons.wikimedia.org/wiki/File:Vladimir_Putin_portrait_(2024-02-23).png), CC BY 4.0. The body and musket locator derive from the user's existing game assets; the face texture includes generated edits. Do not describe the entire composite as CC0.
+
+Every discrete frame of `man.an` and `mushketer.an` was scanned for neck-bridge edge length; the collar still stretches in some poses, and interpolation and blending were not checked. The head remains rounder than intended. Equipment events and appearance switching were checked in an isolated script VM; their visible behavior, animation blending and performance in the game remain unverified. The older `putin-phonk` directory is a rejected prototype and is not this candidate.

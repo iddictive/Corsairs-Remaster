@@ -160,9 +160,10 @@ bool SeaPhonkTest_StartSide(bool allied)
     else
     {
         captain.PhonkTest.DefenseEnabled = 1;
-        captain.PhonkTest.DefenseRange = 1200 + rand(8) * 100;
-        captain.PhonkTest.DefenseInterval = 0.2 + rand(4) * 0.1;
-        captain.PhonkTest.DefenseMax = 2 + rand(3);
+        captain.PhonkTest.DefenseRange = 1200 + rand(24) * 100;
+        captain.PhonkTest.DefenseInterval = 0.3 + rand(9) * 0.1;
+        if (defenseType == 1) captain.PhonkTest.DefenseInterval = stf(captain.PhonkTest.DefenseInterval) * 1.5;
+        captain.PhonkTest.DefenseMax = 2 + rand(6);
         captain.PhonkTest.DefenseSpeed = 450 + rand(6) * 50;
     }
     SeaPhonkTest.enemies.(key).index = index;

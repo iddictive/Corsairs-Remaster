@@ -413,7 +413,7 @@ string DebugMenu_Label(string action, string label)
 		case "B_F10": state = LAi_IsImmortal(pchar); toggle = true; break;
 		case "B_F13": state = !CheckAttribute(pchar,"worldmapencountersoff") || pchar.worldmapencountersoff != "1"; toggle = true; break;
 		case "B_F14": state = globalSGMode; toggle = true; break;
-		case "PHONK": state = SeaPhonk_IsActive(); toggle = true; break;
+		case "PHONK": state = CheckAttribute(pchar,"SeaPhonk.Active") && sti(pchar.SeaPhonk.Active) != 0; toggle = true; break;
 		case "PHONK_MUSIC": state = !SeaPhonk_IsMusicMuted(); toggle = true; break;
 		case "INFINITE_ENERGY": state = LAi_HasInfiniteEnergy(pchar); toggle = true; break;
 		case "ENEMY_ALL": state = CheckAttribute(pchar,"DebugEnemyAll") && sti(pchar.DebugEnemyAll); toggle = true; break;
@@ -450,7 +450,7 @@ bool DebugMenu_Enabled(string action)
 		case "TSUNAMI_RING": return !bAbordageStarted && IsEntity(&worldMap); break;
 		case "WEATHER_STORM": return !bAbordageStarted && bSeaActive && IsEntity(&Weather); break;
 		case "WEATHER_NEXT": return !bAbordageStarted && bSeaActive && IsEntity(&Weather); break;
-		case "PHONK": return seaEffects; break;
+		case "PHONK": return !bAbordageStarted && !IsEntity(&worldMap); break;
 		case "PHONK_MUSIC": return seaEffects; break;
 		case "WHIRLPOOL": return seaEffects && !GreatRecipe_Locked(); break;
 		case "AUTOPILOT_TRADE": return seaEffects || IsEntity(&worldMap); break;
@@ -507,7 +507,7 @@ void DebugMenu_SelectGroup(int group)
 	string hint;
 	switch (group)
 	{
-		case 0: hint = "Фонк доступен в море. Бессмертие включается отдельно. Цунами работает в море и на карте; кольцо — только на карте."; break;
+		case 0: hint = "Фонк доступен на суше и в море. Бессмертие включается отдельно. Цунами работает в море и на карте; кольцо — только на карте."; break;
 		case 1: hint = "Деньги, навыки, репутация и режим бессмертия."; break;
 		case 2: hint = "Наборы заменяют корабль, навыки, снаряжение и запасы героя. Кнопки классов заменяют корабль с экипажем и грузом."; break;
 		case 3: hint = "Погода, время, встречи и отношения наций. Для точного перехода введите: локация, группа, локатор."; break;

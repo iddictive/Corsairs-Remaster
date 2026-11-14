@@ -61,6 +61,8 @@ class DECK_CAMERA : public COMMON_CAMERA
     bool walkerLoadFailed = false;
     float walkerYaw = 0.f;
     std::string walkerAction;
+    std::string walkerModel;
+    std::string walkerAnimation;
     deck_aim::Zoom aimZoom;
     std::chrono::steady_clock::time_point zoomLastUpdate{};
     uint64_t zoomPauseRevision = 0;

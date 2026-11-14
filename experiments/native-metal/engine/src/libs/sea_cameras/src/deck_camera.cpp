@@ -61,13 +61,34 @@ void DECK_CAMERA::ReleaseWalker()
 
 bool DECK_CAMERA::EnsureWalker()
 {
+    auto *modelAttr = pACharacter ? pACharacter->GetAttributeClass("model") : nullptr;
+    const char *name = pACharacter ? pACharacter->GetAttribute("model") : nullptr;
+    const char *animation = modelAttr ? static_cast<const char *>(modelAttr->GetAttribute("animation")) : nullptr;
+    const char *modelKey = name ? name : "";
+    const char *animationKey = animation ? animation : "";
+    std::string previousAction;
+    float previousPhase = 0.f;
+    if (walkerModel != modelKey || walkerAnimation != animationKey)
+    {
+        auto *old = walkerId ? static_cast<MODEL *>(core.GetEntityPointer(walkerId)) : nullptr;
+        if (old && old->GetAnimation())
+        {
+            auto &player = old->GetAnimation()->Player(0);
+            if (player.IsPlaying())
+            {
+                previousAction = walkerAction;
+                previousPhase = player.GetPosition();
+            }
+        }
+        ReleaseWalker();
+        walkerLoadFailed = false;
+        walkerModel = modelKey;
+        walkerAnimation = animationKey;
+    }
     if (walkerId)
         return core.GetEntityPointer(walkerId) != nullptr;
     if (walkerLoadFailed || !pACharacter)
         return false;
-    auto *modelAttr = pACharacter->GetAttributeClass("model");
-    const char *name = pACharacter->GetAttribute("model");
-    const char *animation = modelAttr ? static_cast<const char *>(modelAttr->GetAttribute("animation")) : nullptr;
     if (!name || !*name || !animation || !*animation)
         return false;
     auto *geometry = static_cast<VGEOMETRY *>(core.GetService("geometry"));
@@ -94,6 +115,16 @@ bool DECK_CAMERA::EnsureWalker()
     }
     for (int i = 0; auto *node = model->GetNode(i); ++i)
         node->SetTechnique("Animation");
+    if (!previousAction.empty())
+    {
+        auto &player = model->GetAnimation()->Player(0);
+        if (player.SetAction(previousAction.c_str()))
+        {
+            player.Play();
+            player.SetPosition(previousPhase);
+            walkerAction = previousAction;
+        }
+    }
     return true;
 }
 

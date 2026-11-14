@@ -751,6 +751,8 @@ void QuestCheckEnterLocItem(aref _location, string _locator) /// <<<провер
 			Locations[i].models.always.inside = "FenixPlatform";
 			pchar.model = pchar.questTemp.LSC.immersions.model;
 			pchar.model.animation = pchar.questTemp.LSC.immersions.animation;
+			if (CheckAttribute(pchar, "SeaPhonk.Active") && sti(pchar.SeaPhonk.Active) != 0 && !SeaPhonk_AppearanceActive(pchar))
+				SeaPhonk_ApplyAppearance(pchar);
 			LocatorReloadEnterDisable("LostShipsCity_town", "reload58", false);
 			LocatorReloadEnterDisable("LostShipsCity_town", "reload73", true);
 			DoQuestReloadToLocation("LostShipsCity_town", "reload", "reload72", "");
@@ -762,6 +764,11 @@ void QuestCheckEnterLocItem(aref _location, string _locator) /// <<<провер
 				bDisableFastReload = true;
 				i = FindLocation("FenixPlatform");
 				Locations[i].models.always.inside = "FenixPlatform_wout";
+				if (SeaPhonk_AppearanceActive(pchar))
+				{
+					pchar.questTemp.LSC.immersions.model = pchar.model;
+					pchar.questTemp.LSC.immersions.animation = pchar.model.animation;
+				}
 				pchar.model = "protocusto";
 				pchar.model.animation = "armor";
 				LocatorReloadEnterDisable("LostShipsCity_town", "reload58", true);
