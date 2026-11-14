@@ -121,7 +121,7 @@ inline float kalibrPoweredDistance(float seconds, FlightVariation v)
     const float acceleration = variedKalibrAcceleration(v);
     const float boostTime = 1.6f * settingScale(v.configuredSpeed) / settingScale(v.configuredAcceleration);
     const float fraction = time / (boostTime + time);
-    return kalibrBaseDistance(time, v) + 2.f * acceleration * boostTime * boostTime * fraction * fraction;
+    return kalibrBaseDistance(time, v) + 6.f * acceleration * boostTime * boostTime * fraction * fraction;
 }
 inline float kalibrPoweredAcceleration(float seconds, FlightVariation v)
 {
@@ -130,7 +130,7 @@ inline float kalibrPoweredAcceleration(float seconds, FlightVariation v)
     const float boostTime = 1.6f * settingScale(v.configuredSpeed) / settingScale(v.configuredAcceleration);
     const float u = time / boostTime, denominator = 1.f + u;
     const float denominator2 = denominator * denominator;
-    const float boost = 4.f * acceleration * (1.f - 2.f*u) / (denominator2 * denominator2);
+    const float boost = 12.f * acceleration * (1.f - 2.f*u) / (denominator2 * denominator2);
     return std::max(0.f, (time < cap / acceleration ? acceleration : 0.f) + boost);
 }
 inline float arcAltitude(Type type, float distance, FlightVariation variation)
