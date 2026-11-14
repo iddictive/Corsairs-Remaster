@@ -54,7 +54,7 @@ vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V
    if(dot(r,r)<1e-8) r=view.up.xyz-sight*dot(view.up.xyz,sight);
   }
   r=normalize(r);
-  if(a.params.z<1.5 || a.params.z>3.5) {
+  if(a.params.z<1.5 || a.params.z>2.5) {
    axial=smoothstep(.80,.98,abs(dot(u,sight)));
    faceUp=normalize(cross(sight,r));
    if(dot(faceUp,u)<0.) faceUp=-faceUp;
@@ -126,6 +126,8 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   float2 h=float2(p.x/(.49+.12*i.params.x),(t-.80)/(.19+.06*i.params.x));
   float head=1.-smoothstep(.32,1.1,length(h)+(n-.5)*.16);
   float alpha=clamp(max(wake*.72,head),0.,1.)*i.color.a;
+  float endGlow=(1.-smoothstep(.12,.96,length(p)))*i.color.a;
+  alpha=mix(alpha,endGlow,i.axial);
   float edgeWarm=i.params.y*.14*(1.-head*.8);
   float3 tint=mix(i.color.rgb,float3(1.,.62,.28),edgeWarm);
   return float4(tint*alpha,alpha);
@@ -369,10 +371,17 @@ public:
         const float hot=std::clamp((heat-.12f)/.45f,0.f,1.f);
         const float glow=hot*hot*(3.f-2.f*hot);
         if(glow<=0.f) return;
-        // The halo shares the hot nose and the existing bounded sprite pass.
-        const float radius=(style==1 ? 10.f : 6.f)*(.55f+.45f*glow);
-        heads[headCount++]={simd_make_float4(head,radius),simd_make_float4(0,1,0,radius),
-            {-1,1,2,0},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
+        // A tapered, gently evolving hot envelope is attached to the nose
+        // and aligned with flight at every distance, in the existing pass.
+        const float directionLength=simd_length(direction);
+        if(!std::isfinite(directionLength) || directionLength<1e-4f) return;
+        const auto axis=direction/directionLength;
+        const float length=(style==1 ? 20.f : 12.f)*(.65f+.35f*glow);
+        const float width=(style==1 ? 6.f : 3.6f)*(.65f+.35f*glow);
+        const float phase=float(seed&65535u)*(6.2831853f/65536.f);
+        const float motion=phase+1.1f*std::sin(float(reentryClock)*(6.2831853f/1024.f)*1200.f+phase);
+        heads[headCount++]={simd_make_float4(head-axis*(length*.5f),width),simd_make_float4(axis,length*.5f),
+            {.4f,hot,3,motion},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
     }
     // One instantaneous lateral attitude-motor jet. Caller supplies the
     // actual outward exhaust direction and controls the short firing window.
@@ -439,20 +448,7 @@ public:
             float size=scale*(.35f+age*2.f),alpha=.9f*(1.f-age/.45f);
             sprites.push_back({simd_make_float4(f.position+worldOrigin,size),simd_make_float4(0,1,0,size),{age,.45f,2,0},{1.f,.31f,.045f,alpha}});
         }
-        for(size_t i=0;i<headCount;i++) if(heads[i].params.z<=3.5f) {
-            auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin;
-            if(sprite.params.z==2.f && sprite.params.x<0.f) {
-                // Close cameras see the heated surface and directional wake;
-                // soften the distant halo so it does not read as a round blob.
-                const float distance=simd_length(sprite.positionSize.xyz-eye);
-                const float t=std::clamp((distance-60.f)/740.f,0.f,1.f);
-                const float blend=t*t*(3.f-2.f*t);
-                const float size=.35f+.65f*blend;
-                sprite.positionSize.w*=size; sprite.axisLength.w*=size;
-                sprite.color.w*=.25f+.75f*blend;
-            }
-            sprites.push_back(sprite);
-        }
+        for(size_t i=0;i<headCount;i++) if(heads[i].params.z<=3.5f) { auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin; sprites.push_back(sprite); }
         const size_t coneStart=sprites.size();
         for(size_t i=0;i<headCount;i++) if(heads[i].params.z>3.5f) { auto cone=heads[i]; cone.positionSize.xyz+=worldOrigin; sprites.push_back(cone); }
         if(sprites.empty())return true;
