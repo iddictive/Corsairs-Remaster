@@ -27,7 +27,24 @@ float missile_hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*4375
 float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(missile_hash(a),missile_hash(a+float2(1,0)),f.x),mix(missile_hash(a+float2(0,1)),missile_hash(a+1.),f.x),f.y); }
 vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
  constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
- S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz; float bend=0., expansion=1., axial=0.; float3 faceUp=float3(0.);
+ S a=s[i];
+ if(a.params.z>3.5) {
+  // A closed, camera-independent shell: 16 triangles share an apex and
+  // form one surface around the direction of flight.
+  float3 axis=normalize(a.axisLength.xyz);
+  float3 ref=abs(axis.y)<.9 ? float3(0,1,0) : float3(1,0,0);
+  float3 right=normalize(cross(axis,ref)), up=cross(right,axis);
+  uint sector=v/3, corner=v%3;
+  float angle=6.28318530718*(float(sector)+(corner==2 ? 1. : 0.))/16.;
+  float3 radial=right*cos(angle)+up*sin(angle);
+  float along=corner==0 ? 1. : 0.;
+  float3 world=a.positionSize.xyz+axis*a.axisLength.w*(2.*along-1.)+radial*a.positionSize.w*(1.-along);
+  float3 normal=normalize(radial+axis*(a.positionSize.w/max(2.*a.axisLength.w,.001)));
+  float3 sight=normalize(view.eye.xyz-world);
+  float fresnel=pow(clamp(1.-abs(dot(normal,sight)),0.,1.),1.5);
+  O o; o.p=view.vp*float4(world,1); o.uv=float2(0.,along); o.bend=float2(0.); o.params=a.params; o.color=a.color; o.axial=fresnel; return o;
+ }
+ float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz; float bend=0., expansion=1., axial=0.; float3 faceUp=float3(0.);
  if((a.params.z>0.5 && a.params.z<1.5) || a.params.z>2.5) {
   u=normalize(a.axisLength.xyz); float3 toEye=view.eye.xyz-a.positionSize.xyz;
   float3 sight=dot(toEye,toEye)>1e-8 ? normalize(toEye) : normalize(cross(view.right.xyz,view.up.xyz));
@@ -95,16 +112,9 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
  }
  float2 p=i.uv*2.-1.;
  if(i.params.z>3.5) {
-  // Stylized, translucent envelope: apex at the head, opening aft.
-  float aft=1.-i.uv.y;
-  float edge=abs(abs(p.x)-aft);
-  float rim=(1.-smoothstep(.025,.13,edge))*smoothstep(.03,.20,aft);
-  float interior=(1.-smoothstep(aft-.08,aft+.08,abs(p.x)))*.16;
-  float fade=smoothstep(0.,.12,aft)*(1.-smoothstep(.72,1.,aft));
-  float radius=length(p);
-  float endRim=(1.-smoothstep(.04,.16,abs(radius-.68)));
-  float endInterior=(1.-smoothstep(.55,.82,radius))*.16;
-  float alpha=mix((rim+interior)*fade,endRim+endInterior,i.axial)*i.color.a;
+  // One translucent surface with a soft end and view-dependent rim.
+  float fade=smoothstep(0.,.16,i.uv.y)*(1.-smoothstep(.85,1.,i.uv.y));
+  float alpha=(.25+.75*i.axial)*fade*i.color.a;
   return float4(i.color.rgb*alpha,alpha);
  }
  if(i.params.z>2.5) {
@@ -421,7 +431,9 @@ public:
             float size=scale*(.35f+age*2.f),alpha=.9f*(1.f-age/.45f);
             sprites.push_back({simd_make_float4(f.position+worldOrigin,size),simd_make_float4(0,1,0,size),{age,.45f,2,0},{1.f,.31f,.045f,alpha}});
         }
-        for(size_t i=0;i<headCount;i++) { auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin; sprites.push_back(sprite); }
+        for(size_t i=0;i<headCount;i++) if(heads[i].params.z<=3.5f) { auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin; sprites.push_back(sprite); }
+        const size_t coneStart=sprites.size();
+        for(size_t i=0;i<headCount;i++) if(heads[i].params.z>3.5f) { auto cone=heads[i]; cone.positionSize.xyz+=worldOrigin; sprites.push_back(cone); }
         if(sprites.empty())return true;
         if(!prepare(device,target.pixelFormat,depth.pixelFormat))return false;
         auto buffer=[device newBufferWithBytes:sprites.data() length:sprites.size()*sizeof(MissileVfxSprite) options:MTLResourceStorageModeShared]; if(!buffer)return false;
@@ -430,7 +442,12 @@ public:
         pass.depthAttachment.texture=depth; pass.depthAttachment.loadAction=MTLLoadActionLoad; pass.depthAttachment.storeAction=MTLStoreActionStore;
         auto e=[command renderCommandEncoderWithDescriptor:pass]; if(!e)return false; [e setRenderPipelineState:pipeline]; [e setDepthStencilState:depthStates[reverseZ?1:0]];
         [e setViewport:MTLViewport{viewport.x,viewport.y,viewport.z,viewport.w,0,1}]; [e setVertexBytes:&view length:sizeof(view) atIndex:0]; [e setVertexBuffer:buffer offset:0 atIndex:1]; [e setFragmentTexture:atlas atIndex:0];
-        [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:sprites.size()]; [e endEncoding]; return true;
+        if(coneStart) [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:coneStart];
+        if(coneStart<sprites.size()) {
+            [e setVertexBuffer:buffer offset:coneStart*sizeof(MissileVfxSprite) atIndex:1];
+            [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:48 instanceCount:sprites.size()-coneStart];
+        }
+        [e endEncoding]; return true;
     }
 };
 }
