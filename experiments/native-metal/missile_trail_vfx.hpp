@@ -365,6 +365,14 @@ public:
     void reentry(simd_float3 head, simd_float3 direction, float speed, float heat, unsigned style, uint32_t seed) {
         if(style>1) return;
         motor(head,direction,MissileVfxType::OreshnikReentry,speed,heat,style,seed);
+        if(headCount>=maxHeads || !finite(head) || !std::isfinite(heat)) return;
+        const float hot=std::clamp((heat-.12f)/.45f,0.f,1.f);
+        const float glow=hot*hot*(3.f-2.f*hot);
+        if(glow<=0.f) return;
+        // The halo shares the hot nose and the existing bounded sprite pass.
+        const float radius=(style==1 ? 10.f : 6.f)*(.55f+.45f*glow);
+        heads[headCount++]={simd_make_float4(head,radius),simd_make_float4(0,1,0,radius),
+            {0,1,2,0},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
     }
     // One instantaneous lateral attitude-motor jet. Caller supplies the
     // actual outward exhaust direction and controls the short firing window.

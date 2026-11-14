@@ -453,6 +453,10 @@ constexpr std::array<uint32_t, 12> materialShades(uint32_t color)
     }
     return shades;
 }
+inline float noseTip(Type type)
+{
+    return type == Type::Oreshnik ? 15.f : type == Type::Shtorm ? 6.f : type == Type::Kalibr ? 4.5f : 5.3f;
+}
 template<class Emit> inline void geometry(Type type, Emit emit)
 {
     constexpr unsigned sides = 12;
@@ -462,10 +466,10 @@ template<class Emit> inline void geometry(Type type, Emit emit)
     const bool ballistic = type == Type::Oreshnik;
     // Stylized ballistic carrier, not a scale reconstruction. Keep the tail
     // at -5 so the existing motor emitter remains attached to the model.
-    const std::array<float, 6> z = ballistic ? std::array<float,6>{-5.f,-4.5f,5.f,9.f,12.5f,15.f}
-                                  : heavy ? std::array<float,6>{-6.f,-5.2f,-.5f,3.f,5.2f,6.f}
-                                  : cruise ? std::array<float,6>{-4.f,-3.4f,-.4f,2.2f,4.f,4.5f}
-                                          : std::array<float,6>{-5.f,-4.3f,-.4f,2.4f,4.5f,5.3f};
+    const std::array<float, 6> z = ballistic ? std::array<float,6>{-5.f,-4.5f,5.f,9.f,12.5f,noseTip(type)}
+                                  : heavy ? std::array<float,6>{-6.f,-5.2f,-.5f,3.f,5.2f,noseTip(type)}
+                                  : cruise ? std::array<float,6>{-4.f,-3.4f,-.4f,2.2f,4.f,noseTip(type)}
+                                          : std::array<float,6>{-5.f,-4.3f,-.4f,2.4f,4.5f,noseTip(type)};
     const std::array<float, 6> radius = ballistic ? std::array<float,6>{1.2f,1.55f,1.55f,1.48f,.9f,0.f}
                                        : heavy ? std::array<float,6>{.7f,1.05f,1.05f,1.05f,.62f,0.f}
                                        : cruise ? std::array<float,6>{.42f,.6f,.6f,.6f,.28f,0.f}

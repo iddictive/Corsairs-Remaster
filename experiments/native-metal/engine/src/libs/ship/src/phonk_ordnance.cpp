@@ -765,12 +765,13 @@ void evadeInterceptor(NuclearMissile &shot, const CVECTOR &defender, SEA_BASE *s
     shot.evasionOffset = !sideways * (sign * (shot.type == missile::Type::Kinzhal ? 100.f : 18.f) * (.65f + .7f * variation));
     shot.evasionOffset.y = vertical;
 }
+constexpr float clusterSubmunitionNose = 1.7f;
 template<class Emit> void clusterSubmunitionGeometry(unsigned variant, Emit emit)
 {
     using V = storm::ship::phonk::missile::Vertex;
     constexpr unsigned sides=8;
     constexpr float tau=6.283185307f;
-    const float z[]={-2.f,-1.5f,.85f,1.7f};
+    const float z[]={-2.f,-1.5f,.85f,clusterSubmunitionNose};
     const float radius[]={.35f,.68f,.60f,0.f};
     const uint32_t colors[]={0xff594c3a,0xff7e7357,0xff9d9273,0xffb4a989};
     const auto point=[&](unsigned ring,unsigned side){
@@ -3371,6 +3372,7 @@ void SHIP::DrawPhonkOrdnance()
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
         const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
+        const auto nose = head + axis * ((isClusterSubmunition(missile) ? clusterSubmunitionNose : missile::noseTip(missile.type)) * modelScale);
         float bodyHeat = 0.f, bodyGlow = 0.f;
         if (!missile.suppressReentryHeat && !missile.intercepted && !missile.interceptionFragment &&
             std::isfinite(missile.visualHeat)) {
@@ -3415,14 +3417,14 @@ void SHIP::DrawPhonkOrdnance()
         bool reentryEmitted = false;
         if (!missileVfx && !vfxBootstrapAttempted && reentry) {
             vfxBootstrapAttempted = true;
-            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &head.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
+            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
             reentryEmitted = true;
             missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
         }
         if (!missile.interceptionFragment && !missile.intercepted && supersonic)
-            submitShock(head, axis, speed);
+            submitShock(nose, axis, speed);
         if (missileVfx && reentry && !reentryEmitted)
-            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &head.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
+            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
         if (missileVfx && missile.interceptionFragment) StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
         if (missileVfx && cruise && !burning && visualAge < missile::kalibrEjectionDuration(missile.flightVariation) && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
             const auto tail = head - axis * (4.f * modelScale);
