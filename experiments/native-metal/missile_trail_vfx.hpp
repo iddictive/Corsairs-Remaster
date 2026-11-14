@@ -273,9 +273,9 @@ public:
         auto direction=length>1e-5f?(to-from)/length:simd_make_float3(0,0,0);
         for(int i=0;i<n;i++) {
             float t=(float(i)+.35f+.30f*random())/float(n); Puff p{}; p.origin=to-direction*(covered*(1.f-t));
-            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(eject?4.5f:type==MissileVfxType::Fragment?1.1f:type==MissileVfxType::Interceptor?6.f:8.f)*(.85f+random()*.15f);
+            p.birth=clock-dt*(covered/std::max(length,covered+1e-5f))*(1.f-t); p.life=(eject?4.5f:type==MissileVfxType::Fragment?3.f:type==MissileVfxType::Interceptor?6.f:8.f)*(.85f+random()*.15f);
             p.seed=random()*6.28318f;
-            p.size=(eject?1.1f:type==MissileVfxType::Fragment?.55f:type==MissileVfxType::Patriot?1.8f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?1.8f:4.0f)*(.78f+random()*.44f);
+            p.size=(eject?1.1f:type==MissileVfxType::Fragment?.8f:type==MissileVfxType::Patriot?1.8f:type==MissileVfxType::Interceptor?1.3f:type==MissileVfxType::Kalibr?1.8f:4.0f)*(.78f+random()*.44f);
             float sampleSpacing=std::max(eject?1.f:4.f,covered/float(n));
             p.axis=direction*std::clamp(sampleSpacing/(p.size*.65f),1.f,2.6f);
             // Spread off the centerline in the emitter's own cross-section;

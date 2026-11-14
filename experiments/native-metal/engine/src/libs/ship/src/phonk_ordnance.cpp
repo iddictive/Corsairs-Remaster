@@ -835,6 +835,20 @@ template<class Emit> void clusterSubmunitionGeometry(unsigned variant, Emit emit
         V r{{x*clusterSubmunitionOuterRadius,y*clusterSubmunitionOuterRadius,-2.f},0xff91846b};emit(p,q,r);emit(r,q,p);
     }
 }
+template<class Emit> void interceptionDebrisGeometry(unsigned variant, Emit emit)
+{
+    using V = storm::ship::phonk::missile::Vertex;
+    // A torn, slightly curved piece of casing with a glowing broken edge.
+    const float tilt = .12f + .05f * float(variant % 4u);
+    const float length = 1.3f + .2f * float(variant % 3u);
+    const V a{{-.48f,-.10f,-length},0xff282725};
+    const V b{{ .46f, .08f,-length*.8f},0xff4a4039};
+    const V c{{ .35f, tilt, length*.7f},0xff342e2b};
+    const V d{{-.36f, .04f, length},0xff534039};
+    const V e{{-.10f, tilt+.04f, length*.5f},0xffbc5421};
+    emit(a,b,c); emit(a,c,d); emit(c,e,d);
+    emit(c,b,a); emit(d,c,a); emit(d,e,c);
+}
 float conventionalMissileRadius(missile::Type type, bool cluster, unsigned warhead)
 {
     const float base = cluster ? (type == missile::Type::Oreshnik ? 330.f : 8.f) : (type == missile::Type::Oreshnik ? 220.f : type == missile::Type::Shtorm ? 42.f : type == missile::Type::Kinzhal ?
@@ -1244,7 +1258,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             framePlan->missileOwner = missile.owner;
         }
     intercepted_missile:
-        if (missile.intercepted && missile.conventional && (missile.warhead == 1 || missile.warhead == 3 || missile.warhead == 4) && !missile.cluster) {
+        if (missile.intercepted && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
             // Non-explosive fragments use the ballistic trace and direct-hit
             // damage, never the explosive warhead impact path.
             const auto velocity = missile.interceptedVelocity;
@@ -1256,9 +1270,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 side = !side;
                 const auto up = !(forward ^ side);
                 const uint32_t owner = uint32_t(missile.owner);
-                const float countRoll = shotVariation(missile.shotId, owner, 0x83a15d79u);
-                const unsigned count = countRoll < .12f ? 0u :
-                    2u + std::min(8u, unsigned(shotVariation(missile.shotId, owner, 0x7249e15bu) * 9.f));
+                const unsigned count = 2u + std::min(5u, unsigned(shotVariation(missile.shotId, owner, 0x7249e15bu) * 6.f));
                 const float boundedSpeed = std::min(speed, 2000.f);
                 for (unsigned index = 0; index < count; ++index) {
                     const uint32_t fragmentSeed = owner ^ ((index + 1u) * 0x9e3779b9u);
@@ -1274,10 +1286,13 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                     child.coasting = true;
                     child.continueVelocity = true;
                     child.interceptionFragment = true;
+                    // Keep the parent's damage profile, including the smaller
+                    // cluster-warhead multiplier; this is not a submunition.
+                    child.cluster = missile.cluster;
                     child.shotId = missile.shotId;
                     child.surrenderEpoch = missile.surrenderEpoch;
                     child.warhead = missile.warhead;
-                    child.damageScale = missile.damageScale;
+                    child.damageScale = missile.damageScale * (.3f + .7f * shotVariation(missile.shotId, fragmentSeed, 0x519eb7a1u));
                     child.blastScale = missile.blastScale;
                     child.flightVariation = missile.flightVariation;
                     child.submunitionVariant = uint8_t(index);
@@ -1614,7 +1629,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
             }
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-            if (visualFraction > 0.f && missile.interceptionFragment && missile.age < 2.5f && (steps-n-1)*seconds/float(steps) <= .20f)
+            if (visualFraction > 0.f && missile.interceptionFragment && missile.age < 5.f && (steps-n-1)*seconds/float(steps) <= .20f)
                 StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &before.x, &visualEnd.x, seconds/float(steps)*visualFraction, 4);
             // Drop old substeps after a long stall; never replay a smoke backlog.
             const bool kalibrEject = missile.type == storm::ship::phonk::missile::Type::Kalibr &&
@@ -3493,7 +3508,8 @@ void SHIP::DrawPhonkOrdnance()
         if ((~side) < .001f) continue;
         side = !side;
         auto up = !(axis ^ side);
-        const float phase = float((missile.shotId * 2654435761u) & 65535u) * (6.2831853f / 65536.f);
+        const uint32_t rollSeed = missile.shotId ^ (missile.interceptionFragment ? uint32_t(missile.submunitionVariant + 1u) * 0x9e3779b9u : 0u);
+        const float phase = float((rollSeed * 2654435761u) & 65535u) * (6.2831853f / 65536.f);
         const float rollRate = missile.type == storm::ship::phonk::missile::Type::Kalibr ? .12f : .3f;
         const float roll = phase + missile.age * rollRate * (.8f + .4f * float(missile.shotId % 17u) / 16.f);
         const auto rolledSide = side * std::cos(roll) + up * std::sin(roll);
@@ -3502,7 +3518,7 @@ void SHIP::DrawPhonkOrdnance()
         auto trailSide = axis ^ (camera - head);
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
-        const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
+        const float modelScale = missile.interceptionFragment ? std::clamp(missile::outerRadius(missile.type) * .75f, .5f, 1.7f) : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
         const bool submunition = isClusterSubmunition(missile);
         const float noseOffset = submunition ? clusterSubmunitionNose : missile::noseTip(missile.type);
         const float tailOffset = submunition ? clusterSubmunitionTail : missile::tailTip(missile.type);
@@ -3528,7 +3544,8 @@ void SHIP::DrawPhonkOrdnance()
             };
             add(a); add(b); add(c);
         };
-        if (missile.interceptionFragment || isClusterSubmunition(missile)) clusterSubmunitionGeometry(missile.submunitionVariant,emit);
+        if (missile.interceptionFragment) interceptionDebrisGeometry(missile.submunitionVariant,emit);
+        else if (isClusterSubmunition(missile)) clusterSubmunitionGeometry(missile.submunitionVariant,emit);
         else storm::ship::phonk::missile::geometry(missile.type, emit);
         const bool cruise = missile.type == storm::ship::phonk::missile::Type::Kalibr;
         const float visualAge = cruise && missile.manualFlight && missile.kalibrManualAge >= 0.f ? missile.kalibrManualAge : missile.age;
