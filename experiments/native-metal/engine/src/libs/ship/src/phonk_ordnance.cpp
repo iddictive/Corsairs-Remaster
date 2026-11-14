@@ -1385,7 +1385,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                     const auto *captain = GetACharacter();
                     const bool testShot = captain && captain->GetAttribute("PhonkTestOwner");
                     const bool kalibr = missile.type == missile::Type::Kalibr;
-                    const bool kinzhalHull = missile.type == missile::Type::Kinzhal && !missile.cluster;
+                    const bool kinzhalHull = missile.type == missile::Type::Kinzhal;
                     const float progress = missile::trajectoryProgress(missile.type, missile.age / missile.duration,
                                                                        missile.duration, missile.flightVariation);
                     const unsigned maxUpdates = (kalibr || ballistic) ? 1u : 3u;
@@ -1402,10 +1402,8 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                         const auto lead = ShipTurnLead(targetShip->State, horizon) * leadQuality;
                         auto offset = missile.guidedOffset;
                         missile.guidanceAim = targetShip->GetPos() + offset + lead;
-                        if (!missile.cluster) {
-                            const auto anchor = targetShip->GetPos() + offset - missile.aimError + lead;
-                            missile.guidanceAim = kalibrHullAim(targetShip, before, anchor, lead, pSea, true) + missile.aimError;
-                        }
+                        const auto anchor = targetShip->GetPos() + offset - missile.aimError + lead;
+                        missile.guidanceAim = kalibrHullAim(targetShip, before, anchor, lead, pSea, true) + missile.aimError;
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                         if (kalibr) {
                             auto axis = nuclearVelocity(missile, missile.age);
