@@ -35,5 +35,5 @@ class SEA_BASE : public CANNON_TRACE_BASE
     virtual SeaTsunamiSample GetTsunamiSample(float x, float z) const { return {}; }
     virtual SeaWhirlpoolSample GetWhirlpoolSample(float x, float z) const { return {}; }
     virtual void StartNuclearWave(float x, float z, unsigned slot, bool active, float lengthScale) {}
-    virtual void StartImpactWave(float x, float z) {}
+    virtual void StartImpactWave(float x, float z, float blastRadius) {}
 };

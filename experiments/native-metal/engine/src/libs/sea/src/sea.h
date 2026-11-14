@@ -273,7 +273,7 @@ class SEA : public SEA_BASE
     uint32_t AttributeChanged(ATTRIBUTES *pAttribute) override;
     uint64_t ProcessMessage(MESSAGE &message) override;
     void StartNuclearWave(float x, float z, unsigned slot, bool active, float lengthScale) override;
-    void StartImpactWave(float x, float z) override { impactWaves.Start(x, z); }
+    void StartImpactWave(float x, float z, float blastRadius) override { impactWaves.Start(x, z, blastRadius); }
     SeaTsunamiSample GetTsunamiSample(float x, float z) const override
     {
         return EvaluateSeaTsunami(tsunami.Frame(), x, z);

@@ -1747,9 +1747,9 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             if (missile.shotId == state.cameraShot && !missile.cluster) state.cameraTarget = impact;
             if (missile.conventional)
             {
-                if (!missile.intercepted && surface == ImpactSurface::Water)
-                    simulationSea->StartImpactWave(impact.x, impact.z);
                 const float radius = conventionalMissileRadius(missile.type, missile.cluster, missile.warhead) * missile.blastScale;
+                if (!missile.intercepted && surface == ImpactSurface::Water)
+                    simulationSea->StartImpactWave(impact.x, impact.z, radius);
                 // GOOD_BOMBS is the unscaled ammo value. A close-range 48 lb
                 // cannon bomb uses 12 times that value; keep missile hits at
                 // roughly 4x/6x that reference, before armour and perks.
@@ -3315,12 +3315,12 @@ void SHIP::DrawPhonkOrdnance()
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
     missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
     bool vfxBootstrapAttempted = false;
-    const auto submitShock = [&](const CVECTOR &head, const CVECTOR &direction, float speed) {
+    const auto submitShock = [&](const CVECTOR &head, const CVECTOR &direction, float speed, float heat) {
         if (missileVfx) {
-            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &direction.x, 9, speed);
+            StormMetalMissileVfxShock(pRS->GetNativeDevice(), &head.x, &direction.x, speed, heat);
         } else if (!vfxBootstrapAttempted) {
             vfxBootstrapAttempted = true;
-            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &direction.x, 9, speed);
+            StormMetalMissileVfxShock(pRS->GetNativeDevice(), &head.x, &direction.x, speed, heat);
             missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
         }
     };
@@ -3432,7 +3432,7 @@ void SHIP::DrawPhonkOrdnance()
             missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
         }
         if (!missile.interceptionFragment && !missile.intercepted && supersonic)
-            submitShock(nose, axis, speed);
+            submitShock(nose, axis, speed, reentry ? missile.visualHeat : 0.f);
         if (missileVfx && reentry && !reentryEmitted)
             StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed, bodyLength, bodyRadius);
         if (missileVfx && missile.interceptionFragment) StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
@@ -3540,7 +3540,7 @@ void SHIP::DrawPhonkOrdnance()
             if (std::isfinite(speedSquared) && speedSquared > 343.f * 343.f) {
                 const float speed = std::sqrt(speedSquared);
                 const auto flightAxis = velocity * (1.f / speed);
-                submitShock(head, flightAxis, speed);
+                submitShock(head, flightAxis, speed, interceptor.visualHeat);
             }
             if (missileVfx && std::isfinite(speedSquared) && std::isfinite(interceptor.visualHeat) && interceptor.visualHeat > .0001f) {
                 const float speed = std::sqrt(speedSquared);

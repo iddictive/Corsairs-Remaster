@@ -28,23 +28,6 @@ float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); r
 vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
  constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
  S a=s[i];
- if(a.params.z>4.5) {
-  // A small ellipsoidal shell encloses the hot nose instead of projecting a
-  // flat disk; 12 longitudinal sectors and 6 latitude bands bound its cost.
-  float3 axis=normalize(a.axisLength.xyz);
-  float3 ref=abs(axis.y)<.9 ? float3(0,1,0) : float3(1,0,0);
-  float3 right=normalize(cross(axis,ref)), up=cross(right,axis);
-  constexpr uint2 corner[6]={uint2(0,0),uint2(1,0),uint2(1,1),uint2(0,0),uint2(1,1),uint2(0,1)};
-  uint cell=v/6, azimuth=cell%12, latitude=cell/12; uint2 c=corner[v%6];
-  float theta=6.28318530718*float(azimuth+c.x)/12.;
-  float phi=3.14159265359*float(latitude+c.y)/6.;
-  float3 radial=right*cos(theta)+up*sin(theta);
-  float3 world=a.positionSize.xyz+axis*(cos(phi)*a.axisLength.w)+radial*(sin(phi)*a.positionSize.w);
-  float3 normal=normalize(axis*(cos(phi)/max(a.axisLength.w,.001))+radial*(sin(phi)/max(a.positionSize.w,.001)));
-  float3 sight=normalize(view.eye.xyz-world);
-  float rim=pow(clamp(1.-abs(dot(normal,sight)),0.,1.),1.2);
-  O o; o.p=view.vp*float4(world,1); o.uv=float2(float(azimuth+c.x)/12.,float(latitude+c.y)/6.); o.bend=float2(0.); o.params=a.params; o.color=a.color; o.axial=rim; return o;
- }
  if(a.params.z>3.5) {
   // A closed, camera-independent shell: 16 triangles share an apex and
   // form one surface around the direction of flight.
@@ -59,7 +42,7 @@ vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V
   float3 normal=normalize(radial+axis*(a.positionSize.w/max(2.*a.axisLength.w,.001)));
   float3 sight=normalize(view.eye.xyz-world);
   float fresnel=pow(clamp(1.-abs(dot(normal,sight)),0.,1.),1.5);
-  O o; o.p=view.vp*float4(world,1); o.uv=float2(0.,along); o.bend=float2(0.); o.params=a.params; o.color=a.color; o.axial=fresnel; return o;
+  O o; o.p=view.vp*float4(world,1); o.uv=float2(angle/6.28318530718,along); o.bend=float2(0.); o.params=a.params; o.color=a.color; o.axial=fresnel; return o;
  }
  float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz; float bend=0., expansion=1., axial=0.; float3 faceUp=float3(0.);
  if((a.params.z>0.5 && a.params.z<1.5) || a.params.z>2.5) {
@@ -128,17 +111,12 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   return float4(i.color.rgb*(.68+.32*detail)*alpha,alpha);
  }
  float2 p=i.uv*2.-1.;
- if(i.params.z>4.5) {
-  float angle=i.uv.x*6.28318530718;
-  float n=missile_noise(float2(cos(angle)*2.+i.params.w*.25,sin(angle)*2.+i.uv.y*6.-i.params.w*.2));
-  float alpha=i.color.a*(.18+.82*i.axial)*(.75+.25*n);
-  float3 tint=mix(i.color.rgb,float3(1.,.88,.66),.25+.25*n);
-  return float4(tint*alpha,alpha);
- }
  if(i.params.z>3.5) {
   // One translucent surface with a soft end and view-dependent rim.
   float fade=smoothstep(0.,.16,i.uv.y)*(1.-smoothstep(.85,1.,i.uv.y));
-  float alpha=(.25+.75*i.axial)*fade*i.color.a;
+  float angle=i.uv.x*6.28318530718;
+  float ripple=missile_noise(float2(cos(angle)*2.+i.uv.y*7.-i.params.w, sin(angle)*2.+i.params.w*.35));
+  float alpha=(.25+.75*i.axial)*fade*i.color.a*(.65+.35*ripple);
   return float4(i.color.rgb*alpha,alpha);
  }
  if(i.params.z>2.5) {
@@ -200,8 +178,6 @@ class MissileTrailVfx {
     static constexpr float retirementDuration=.25f;
     std::array<RetiringPuff,retirementCapacity> retiring{}; size_t retireNext=0, retireCount=0;
     std::array<MissileVfxSprite,maxHeads> heads{}; size_t headCount=0;
-    static constexpr size_t maxHotShells=16;
-    std::array<MissileVfxSprite,maxHotShells> hotShells{}; size_t hotShellCount=0;
     std::array<Flash,128> flashes{}; size_t flashNext=0, flashCount=0;
     double lastEmission=-100.0;
     double clock=0, reentryClock=0; uint32_t serial=1;
@@ -257,8 +233,8 @@ public:
     bool ready(id<MTLDevice> device, MTLPixelFormat color, MTLPixelFormat depth) { return device && prepare(device,color,depth); }
     // Once per render frame, including after all missiles disappear. dt is game time.
     // Large gaps advance time but never schedule delayed emissions.
-    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; reentryClock=std::fmod(reentryClock+dt,1024.0); if(clock-lastEmission>=8.f) { cohorts={}; count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=hotShellCount=0; }
-    void clear() { cohorts={}; count=retireNext=retireCount=headCount=hotShellCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
+    void beginFrame(float dt) { if(std::isfinite(dt)&&dt>0) { clock+=dt; reentryClock=std::fmod(reentryClock+dt,1024.0); if(clock-lastEmission>=8.f) { cohorts={}; count=retireNext=retireCount=flashNext=flashCount=0; } } headCount=0; }
+    void clear() { cohorts={}; count=retireNext=retireCount=headCount=flashNext=flashCount=0; clock=0; lastEmission=-100.f; }
     size_t storedCount() const { return count; }
     bool hasVisible() const { return headCount || (count && clock-lastEmission<8.f) || (flashCount && clock-lastEmission<.45f); }
     // One-shot launch/ignition cloud. The cloud stays in world space and is
@@ -334,9 +310,13 @@ public:
             if(onset<=0.f) return;
             float load=airLoad();
             float mach=std::max(std::min(phase,12000.f)/343.f,1.01f);
-            float length=10.f+24.f*load, width=std::clamp(length/std::sqrt(mach*mach-1.f),1.2f,12.f);
+            float phaseTime=float(reentryClock)*(6.2831853f/1024.f)*310.f;
+            float pulse=.95f+.05f*std::sin(phaseTime+direction.x*2.f+direction.z);
+            float length=(10.f+24.f*load)*pulse, width=std::clamp(length/std::sqrt(mach*mach-1.f),1.2f,12.f);
+            const float hot=std::isfinite(heat) ? std::clamp(heat,0.f,1.f) : 0.f;
+            const auto color=simd_make_float3(.72f,.84f,1.f)*(1.f-hot*.55f)+simd_make_float3(1.f,.62f,.34f)*(hot*.55f);
             heads[headCount++]={simd_make_float4(tail-direction*(length*.5f),width),
-                simd_make_float4(direction,length*.5f),{0,1,4,0},{.72f,.84f,1.f,(.055f+.13f*load)*onset}};
+                simd_make_float4(direction,length*.5f),{0,1,4,phaseTime},simd_make_float4(color,(.055f+.13f*load)*onset*(1.f-.60f*hot))};
             return;
         }
         if(type==MissileVfxType::OreshnikReentry) {
@@ -392,6 +372,7 @@ public:
     }
     // Heat is accumulated and cooled by the caller, not by this renderer.
     void reentry(simd_float3 head, simd_float3 direction, float speed, float heat, unsigned style, uint32_t seed, float bodyLength, float bodyRadius) {
+        (void)bodyLength; (void)bodyRadius;
         if(style>1) return;
         motor(head,direction,MissileVfxType::OreshnikReentry,speed,heat,style,seed);
         if(headCount>=maxHeads || !finite(head) || !std::isfinite(heat)) return;
@@ -409,15 +390,6 @@ public:
         const float motion=phase+1.1f*std::sin(float(reentryClock)*(6.2831853f/1024.f)*1200.f+phase);
         heads[headCount++]={simd_make_float4(head-axis*(length*.5f),width),simd_make_float4(axis,length*.5f),
             {.4f,hot,3,motion},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
-        if(hotShellCount<maxHotShells && std::isfinite(bodyLength) && std::isfinite(bodyRadius) && bodyLength>0.f && bodyRadius>0.f) {
-            // Keep both ends of the real model inside the envelope while its
-            // width expands with heat; the nose and tail remain anchored.
-            const float radius=bodyRadius*(1.5f+.75f*glow);
-            const float halfLength=bodyLength*.7f+bodyRadius;
-            const auto center=head-axis*(bodyLength*.5f);
-            hotShells[hotShellCount++]={simd_make_float4(center,radius),simd_make_float4(axis,halfLength),
-                {0,hot,5,motion},{1.f,.38f+.35f*glow,.12f+.28f*glow,.16f*glow}};
-        }
     }
     // One instantaneous lateral attitude-motor jet. Caller supplies the
     // actual outward exhaust direction and controls the short firing window.
@@ -487,8 +459,6 @@ public:
         for(size_t i=0;i<headCount;i++) if(heads[i].params.z<=3.5f) { auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin; sprites.push_back(sprite); }
         const size_t coneStart=sprites.size();
         for(size_t i=0;i<headCount;i++) if(heads[i].params.z>3.5f && heads[i].params.z<4.5f) { auto cone=heads[i]; cone.positionSize.xyz+=worldOrigin; sprites.push_back(cone); }
-        const size_t hotShellStart=sprites.size();
-        for(size_t i=0;i<hotShellCount;i++) { auto shell=hotShells[i]; shell.positionSize.xyz+=worldOrigin; sprites.push_back(shell); }
         if(sprites.empty())return true;
         if(!prepare(device,target.pixelFormat,depth.pixelFormat))return false;
         auto buffer=[device newBufferWithBytes:sprites.data() length:sprites.size()*sizeof(MissileVfxSprite) options:MTLResourceStorageModeShared]; if(!buffer)return false;
@@ -498,13 +468,9 @@ public:
         auto e=[command renderCommandEncoderWithDescriptor:pass]; if(!e)return false; [e setRenderPipelineState:pipeline]; [e setDepthStencilState:depthStates[reverseZ?1:0]];
         [e setViewport:MTLViewport{viewport.x,viewport.y,viewport.z,viewport.w,0,1}]; [e setVertexBytes:&view length:sizeof(view) atIndex:0]; [e setVertexBuffer:buffer offset:0 atIndex:1]; [e setFragmentTexture:atlas atIndex:0];
         if(coneStart) [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:coneStart];
-        if(coneStart<hotShellStart) {
+        if(coneStart<sprites.size()) {
             [e setVertexBuffer:buffer offset:coneStart*sizeof(MissileVfxSprite) atIndex:1];
-            [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:48 instanceCount:hotShellStart-coneStart];
-        }
-        if(hotShellStart<sprites.size()) {
-            [e setVertexBuffer:buffer offset:hotShellStart*sizeof(MissileVfxSprite) atIndex:1];
-            [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:432 instanceCount:sprites.size()-hotShellStart];
+            [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:48 instanceCount:sprites.size()-coneStart];
         }
         [e endEncoding]; return true;
     }

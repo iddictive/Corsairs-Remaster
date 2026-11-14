@@ -465,6 +465,7 @@ extern "C" void StormMetalMissileVfxBurst(void *device, const float *position, u
 extern "C" void StormMetalMissileVfxSegment(void *device, const float *from, const float *to, float dt, unsigned type);
 extern "C" bool StormMetalMissileVfxCapture(void *device);
 extern "C" void StormMetalMissileVfxMotor(void *device, const float *tail, const float *direction, unsigned type, float phase);
+extern "C" void StormMetalMissileVfxShock(void *device, const float *head, const float *direction, float speed, float heat);
 extern "C" void StormMetalMissileVfxMotorThrottle(void *device, const float *tail, const float *direction, float throttle, float phase);
 extern "C" void StormMetalMissileVfxMotorBend(void *device, const float *tail, const float *direction, const float *bend, unsigned type, float phase);
 extern "C" void StormMetalMissileVfxReentry(void *device, const float *head, const float *direction, float speed, float heat, unsigned style, unsigned seed, float bodyLength, float bodyRadius);
