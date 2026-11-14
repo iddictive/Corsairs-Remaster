@@ -429,11 +429,11 @@ void SEA::BuildVolumeTexture()
                     if (bSimpleSea)
                         *(uint32_t *)&(
                             static_cast<char *>(box[0].pBits)[i * box[0].SlicePitch + y * box[0].RowPitch + x * 4]) =
-                            ARGB(0x80, blue, blue, red);
+                            ARGB(pMassive[x + y * XWIDTH], blue, blue, red);
                     else
                         *(uint32_t *)&(
                             static_cast<char *>(box[0].pBits)[i * box[0].SlicePitch + y * box[0].RowPitch + x * 4]) =
-                            ARGB(0x80, blue, green, red);
+                            ARGB(pMassive[x + y * XWIDTH], blue, green, red);
                 }
             }
 
@@ -493,11 +493,13 @@ void SEA::BuildVolumeTexture()
 
         for (i = 0; i < (FRAMES >> j); i++)
         {
+            auto *pHeights = new uint8_t[(XWIDTH >> j) * (YWIDTH >> j)];
             // calculate current pVectors
             for (uint32_t y = 0; y < (YWIDTH >> j); y++)
                 for (uint32_t x = 0; x < (XWIDTH >> j); x++)
                 {
                     int32_t iNumVectors = 0;
+                    uint32_t heightSum = 0;
                     CVECTOR vVec = 0.0f;
                     uint32_t dwW = 1 << j;
                     for (uint32_t k = i * dwW; k < (i + 1) * dwW; k++)
@@ -507,9 +509,11 @@ void SEA::BuildVolumeTexture()
                             {
                                 iNumVectors++;
                                 vVec += aVectors[k][xx + yy * XWIDTH];
+                                heightSum += aBumps[k][xx + yy * XWIDTH];
                             }
                     }
                     pVectors[x + y * (XWIDTH >> j)] = vVec / static_cast<float>(iNumVectors);
+                    pHeights[x + y * (XWIDTH >> j)] = static_cast<uint8_t>((heightSum + iNumVectors / 2) / iNumVectors);
                 }
 
             //
@@ -525,12 +529,13 @@ void SEA::BuildVolumeTexture()
                         if (bSimpleSea)
                             *(uint32_t *)&(static_cast<char *>(
                                 box[j].pBits)[i * box[j].SlicePitch + y * box[j].RowPitch + x * 4]) =
-                                ARGB(0x80, blue, blue, red);
+                                ARGB(pHeights[x + y * (XWIDTH >> j)], blue, blue, red);
                         else
                             *(uint32_t *)&(static_cast<char *>(
                                 box[j].pBits)[i * box[j].SlicePitch + y * box[j].RowPitch + x * 4]) =
-                                ARGB(0x80, blue, green, red);
+                                ARGB(pHeights[x + y * (XWIDTH >> j)], blue, green, red);
                     }
+            delete[] pHeights;
         }
         STORM_DELETE(pVectors);
     }
@@ -868,10 +873,13 @@ void SEA::SSE_WaveXZ(SeaVertex **pArray)
         if (Sqr(vertex.vPos.x - vCamPos.x) + Sqr(vertex.vPos.z - vCamPos.z) > Sqr(fMaxSeaDistance)) {
             vertex.vPos.y = 0.f;
             normals[i] = CVECTOR(0.f, 1.f, 0.f);
+            vertex.ordinaryActive = 0.f;
         } else {
             SampleOrdinaryWaves(vertex.vPos.x, vertex.vPos.z, vertex.vPos.y, &normals[i]);
+            vertex.ordinaryActive = 1.f;
             distancePass = true;
         }
+        vertex.ordinaryHeight = vertex.vPos.y;
     }
     if (distancePass) {
         __m128 x, y, z, nx, ny, nz;
@@ -1189,6 +1197,10 @@ void SEA::WaveXZBlock(SeaBlock &pB)
             }
 
             vTmp.y = WaveXZ(cx, cz, &vNormal);
+            pVSea[dwVIndex].ordinaryActive = Sqr(cx - vCamPos.x) + Sqr(cz - vCamPos.z) <= Sqr(fMaxSeaDistance) ? 1.f : 0.f;
+            pVSea[dwVIndex].ordinaryHeight = 0.f;
+            if (pVSea[dwVIndex].ordinaryActive > 0.f)
+                SampleOrdinaryWaves(cx, cz, pVSea[dwVIndex].ordinaryHeight, nullptr);
 
             vTmp.x = cx - vNormal.x * fPosShift * 3.0f - vWorldOffset.x;
             vTmp.z = cz - vNormal.z * fPosShift * 3.0f - vWorldOffset.z;
@@ -1432,6 +1444,24 @@ void SEA::LimitWaveAmplitudes()
 
 void SEA::PublishWeatherWaveLattices()
 {
+    // Pixel foam samples the same physical height fields as SampleOrdinaryWaves.
+    float heights[2 + MaxWeatherWaveProfiles][4]{};
+    heights[0][0] = vMove1.x; heights[0][1] = vMove1.z;
+    heights[0][2] = vMove2.x; heights[0][3] = vMove2.z;
+    heights[1][0] = static_cast<float>(weatherWaveSampleCount ? weatherWaveSampleCount : 1);
+    heights[1][1] = fPosShift;
+    heights[1][2] = 1.f; // height-alpha layout valid
+    if (weatherWaveSampleCount) {
+        for (size_t i = 0; i < weatherWaveSampleCount; ++i) {
+            const auto &sample = weatherWaveSamples[i];
+            heights[2 + i][0] = sample.scale1; heights[2 + i][1] = sample.scale2;
+            heights[2 + i][2] = sample.amp1; heights[2 + i][3] = sample.amp2;
+        }
+    } else {
+        heights[2][0] = fScale1; heights[2][1] = fScale2;
+        heights[2][2] = fAmp1; heights[2][3] = fAmp2;
+    }
+    rs->SetVertexShaderConstantF(224, &heights[0][0], 2 + MaxWeatherWaveProfiles);
     float constants[1 + MaxWeatherWaveProfiles][4]{};
     size_t count = 0;
     for (size_t i = 0; i < weatherWaveSampleCount; ++i) {

@@ -317,6 +317,7 @@ void SEA_CAMERAS::ClearMissileControl()
     missileManual = false;
     missileFireReleased = false;
     missileFireWasHeld = false;
+    missileReleaseWasHeld = false;
     missileMouseCaptured = false;
     missileViewSequence = 0;
     missileInputCamera = nullptr;
@@ -326,6 +327,7 @@ void SEA_CAMERAS::ClearMissileControl()
     auto *control = view ? view->GetAttributeClass("Control") : nullptr;
     if (control) {
         control->SetAttributeUseDword("aimHeld", 0);
+        control->SetAttributeUseDword("release", 0);
         control->SetAttributeUseDword("manual", 0);
         control->SetAttributeUseDword("active", 0);
     }
@@ -371,10 +373,13 @@ bool SEA_CAMERAS::RealizeMissileView()
         return false;
     }
     const bool fireHeld = core.Controls->GetAsyncKeyState(VK_LBUTTON) < 0;
+    const bool releaseHeld = core.Controls->GetAsyncKeyState(VK_RBUTTON) < 0;
     if (sequence != missileViewSequence) {
+        if (auto *control = view->GetAttributeClass("Control")) control->SetAttributeUseDword("release", 0);
         missileManual = false;
         missileFireReleased = !fireHeld;
         missileFireWasHeld = fireHeld;
+        missileReleaseWasHeld = releaseHeld;
         missileMouseCaptured = false;
         missileViewSequence = sequence;
         const auto direction = target - projectile;
@@ -405,6 +410,8 @@ bool SEA_CAMERAS::RealizeMissileView()
     }
     const bool firePressed = fireHeld && !missileFireWasHeld;
     missileFireWasHeld = fireHeld;
+    const bool releasePressed = releaseHeld && !missileReleaseWasHeld;
+    missileReleaseWasHeld = releaseHeld;
     const bool mouseAvailable = steeringReady && missileFireReleased &&
         !phonk->GetAttributeAsDword("MissileSettings", 0) && !core.Controls->IsControlLocked("Ship_Fire");
     const bool mouseCapture = mouseAvailable && firePressed;
@@ -427,6 +434,9 @@ bool SEA_CAMERAS::RealizeMissileView()
         control->SetAttributeUseDword("manual", 0);
     }
     control->SetAttributeUseDword("aimHeld", aimHeld || mouseCapture);
+    if (steeringReady && missileManual && releasePressed &&
+        !phonk->GetAttributeAsDword("MissileSettings", 0) && !core.Controls->IsControlLocked("Ship_Fire"))
+        control->SetAttributeUseDword("release", 1);
     CVECTOR focus = flight && !cluster ? projectile : target;
     const float azimuth = missileOrbitOffset.y;
     const float elevation = missileOrbitOffset.x;

@@ -1245,6 +1245,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 ATTRIBUTES::IsLive(cameraControl) && cameraControl->GetAttributeAsDword("active", 0) && cameraControl->GetAttributeAsDword("manual", 0) &&
                 cameraControl->GetAttributeAsDword("sequence", 0) == missile.shotId;
             const bool aimHeld = steer && cameraControl->GetAttributeAsDword("aimHeld", 0) != 0;
+            if (steer && missile.cluster && missile.split) missile.manualCluster = true;
             const CVECTOR aim = aimHeld ? CVECTOR(cameraControl->GetAttributeAsFloat("aimX", 0.f), cameraControl->GetAttributeAsFloat("aimY", 0.f),
                 cameraControl->GetAttributeAsFloat("aimZ", 0.f)) : CVECTOR(0.f);
             if (missile.coasting && steer) {
@@ -1455,6 +1456,12 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             // one tick and skip separation.
             float release = 2.f;
             if (missile.split && missile.cluster && missile.intercepted) release = 0.f;
+            else if (missile.split && missile.cluster && missile.manualCluster) {
+                if (steer && cameraControl->GetAttributeAsDword("release", 0)) {
+                    release = 0.f;
+                    if (!planning) cameraControl->SetAttributeUseDword("release", 0);
+                }
+            }
             else if (missile.split && missile.cluster && (missile.manualFlight || missile.coasting || missile.age >= missile.duration * .55f) &&
                 (missile.manualFlight || missile.coasting || missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.ignitionPlayed)) {
                 const float flightX = missile.target.x - missile.launch.x;
@@ -1657,19 +1664,21 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                             const float gravityDrop = 9.81f * (time - travel) / clusterAirDrag;
                             return (target - burstPosition + CVECTOR(0.f, gravityDrop, 0.f)) * (1.f / travel);
                         };
-                        child.initialVelocity = velocityForTime(child.duration);
-                        const float childSpeed = std::sqrt(~child.initialVelocity);
-                        const float minimumSpeed = std::max(std::isfinite(inheritedSpeed) ? inheritedSpeed : 0.f,
-                                                            std::isfinite(carrierMeanSpeed) ? carrierMeanSpeed : 0.f) *
-                            (missile.type == missile::Type::Oreshnik ? .70f : 1.f);
-                        if (minimumSpeed > 1.f && childSpeed > .001f && childSpeed < minimumSpeed) {
-                            float lo = .001f, hi = child.duration;
-                            for (unsigned step = 0; step < 12; ++step) {
-                                const float mid = (lo + hi) * .5f;
-                                if (std::sqrt(~velocityForTime(mid)) >= minimumSpeed) lo = mid; else hi = mid;
+                        if (!missile.manualCluster || missile.intercepted) {
+                            child.initialVelocity = velocityForTime(child.duration);
+                            const float childSpeed = std::sqrt(~child.initialVelocity);
+                            const float minimumSpeed = std::max(std::isfinite(inheritedSpeed) ? inheritedSpeed : 0.f,
+                                                                std::isfinite(carrierMeanSpeed) ? carrierMeanSpeed : 0.f) *
+                                (missile.type == missile::Type::Oreshnik ? .70f : 1.f);
+                            if (minimumSpeed > 1.f && childSpeed > .001f && childSpeed < minimumSpeed) {
+                                float lo = .001f, hi = child.duration;
+                                for (unsigned step = 0; step < 12; ++step) {
+                                    const float mid = (lo + hi) * .5f;
+                                    if (std::sqrt(~velocityForTime(mid)) >= minimumSpeed) lo = mid; else hi = mid;
+                                }
+                                child.duration = lo;
+                                child.initialVelocity = velocityForTime(lo);
                             }
-                            child.duration = lo;
-                            child.initialVelocity = velocityForTime(lo);
                         }
                         if (missile.intercepted) {
                             const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
@@ -1689,6 +1698,18 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                             const float vy = child.initialVelocity.y;
                             child.duration = std::clamp((vy + std::sqrt(vy*vy + 19.62f*height)) / 9.81f + .25f, .25f, 15.f);
                             child.target = burstPosition + child.initialVelocity * child.duration + CVECTOR(0.f, -4.905f * child.duration * child.duration, 0.f);
+                        }
+                        else if (missile.manualCluster) {
+                            // Retain the carrier's full velocity; a small radial
+                            // ejection impulse separates the payload in flight.
+                            const auto carrierVelocity = nuclearVelocity(missile, substepStartAge + (missile.age - substepStartAge) * release);
+                            const float speed = std::sqrt(~carrierVelocity);
+                            const CVECTOR forward = speed > .001f ? carrierVelocity * (1.f / speed) : CVECTOR(0.f, 0.f, 1.f);
+                            CVECTOR lateral(-forward.z, 0.f, forward.x);
+                            lateral = (~lateral) > .0001f ? !lateral : CVECTOR(1.f, 0.f, 0.f);
+                            const CVECTOR vertical(forward.y * lateral.z, forward.z * lateral.x - forward.x * lateral.z, -forward.y * lateral.x);
+                            const float angle = 6.2831853f * float(index) / float(missile.warheadCount);
+                            child.initialVelocity = carrierVelocity + (lateral * std::cos(angle) + vertical * std::sin(angle)) * 12.f;
                         }
                     }
                     child.continueVelocity = true;

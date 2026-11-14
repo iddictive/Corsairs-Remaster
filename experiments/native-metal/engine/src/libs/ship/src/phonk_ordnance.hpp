@@ -131,6 +131,7 @@ struct NuclearMissile
     unsigned evasionAttempts = 0;
     CVECTOR evasionOffset = CVECTOR(0.f);
     bool manualFlight = false;
+    bool manualCluster = false;
     CVECTOR manualVelocity = CVECTOR(0.f);
     uint8_t submunitionVariant = 0;
     float visualHeat = 0.f;

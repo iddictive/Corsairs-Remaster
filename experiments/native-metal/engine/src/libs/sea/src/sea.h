@@ -31,6 +31,7 @@ class SEA : public SEA_BASE
         CVECTOR vNormal;
         float tu, tv;
         float eventMaterial[5]; // tsunami/vortex, nuclear load/foam, nuclear height
+        float ordinaryHeight, ordinaryActive; // pre-event height and distance cutoff
     };
 
     struct SeaBlock

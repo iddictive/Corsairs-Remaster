@@ -76,7 +76,7 @@ struct SeaO {
     float3 fogColor;
     float2 eventMaterial; float2 nuclearMaterial; float2 worldXZ;
 };
-struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;float2 nuclearMaterial;float nuclearHeight;};
+struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;float2 nuclearMaterial;float nuclearHeight;float ordinaryHeight;float ordinaryActive;};
 SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU& u) {
     const device float* p=(const device float*)(bytes+index*stride);
     SeaInput v;v.p=float4(p[0],p[1],p[2],1);v.n=float3(p[3],p[4],p[5]);v.uv=float2(p[6],p[7]);
@@ -86,6 +86,8 @@ SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU
     v.eventMaterial=(u.vc[240].x>.5f&&stride>=40u)?saturate(float2(p[8],p[9])):float2(0);
     v.nuclearMaterial=(u.vc[240].x>.5f&&stride>=48u)?saturate(float2(p[10],p[11])):float2(0);
     v.nuclearHeight=(u.vc[240].x>.5f&&stride>=52u)?p[12]:0.f;
+    v.ordinaryHeight=(u.vc[240].x>.5f&&stride>=60u)?p[13]:0.f;
+    v.ordinaryActive=(u.vc[240].x>.5f&&stride>=60u)?p[14]:0.f;
     return v;
 }
 float3 seaNormalize(float3 v) {return v*rsqrt(max(dot(v,v),1.e-20f));}
@@ -147,8 +149,11 @@ vertex SeaO seasun_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0
 vertex SeaO seafoam_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
     SeaInput v=seaInput(bytes,id,u.stride,u);float logicalClipZ;SeaO o=seaBase(v,u,logicalClipZ);seaBasis(o,v,u);
     o.t0=o.t1;o.t1=o.t2;o.t2=o.t3;
-    o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-v.nuclearHeight-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
-    o.t4=float4(v.uv,u.vc[2].x,0);return o;
+    // Interpolate signed coverage; clipping at each vertex makes the foam
+    // edge follow the large sea triangles when viewed from above.
+    o.t3=float4(v.uv*u.vc[3].z,(v.p.y-v.nuclearHeight-u.vc[3].x)*u.vc[3].y,0);
+    o.t4=float4(o.worldXZ+v.n.xz*(3.f*u.vc[225].y),
+                v.p.y-v.nuclearHeight-v.ordinaryHeight,v.ordinaryActive);return o;
 }
 vertex SeaO sea3_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
     SeaInput v=seaInput(bytes,id,u.stride,u);float logicalClipZ;SeaO o=seaBase(v,u,logicalClipZ);seaColors(o,v,u);
@@ -277,15 +282,64 @@ float4 seaCombinedFoam(float4 authored,SeaO o,constant SeaU& u,texture2d<float> 
     float4 result=ordinaryEvent?seaEventFoam(authored,o,u,texture,state):authored;
     return u.vc[243].z>0.f&&u.stride>=48u?seaNuclearFoam(result,o,u,texture,state):result;
 }
-fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {
+// Apply the weather's height threshold after interpolation. The existing
+// foam texture gently breaks the boundary without a screen-space noise mask.
+float seaOrdinaryFoamAlpha(SeaO o,constant SeaU& u,float pattern,texture3d<float> heights) {
+    if(u.vc[3].y<=0.f)return 0.f;
+    float coverage=o.t3.z;
+    if(u.bumpIsVolume&&u.vc[225].z==1.f&&u.stride>=60u) {
+        constexpr sampler heightSampler(coord::normalized,address::repeat,filter::linear);
+        float2 dimensions=float2(heights.get_width(),heights.get_height());
+        float2 center=.5f/dimensions;
+        float phaseCenter=.5f/float(heights.get_depth());
+        float height=0.f;
+        uint count=uint(clamp(u.vc[225].x,0.f,7.f));
+        for(uint i=0;i<count;++i) {
+            float4 p=u.vc[226+i];
+            float2 uv1=(o.t4.xy+u.vc[224].xy)*p.x/dimensions+center;
+            float2 uv2=(o.t4.xy+u.vc[224].zw)*p.y/dimensions+center;
+            if(p.z!=0.f)height+=p.z*heights.sample(heightSampler,float3(uv1,u.vc[2].y+phaseCenter),level(0.f)).a;
+            if(p.w!=0.f)height+=p.w*heights.sample(heightSampler,float3(uv2,u.vc[2].z+phaseCenter),level(0.f)).a;
+        }
+        coverage=((height*saturate(o.t4.w)+o.t4.z)-u.vc[3].x)*u.vc[3].y;
+    }
+    float width=clamp(fwidth(coverage),.015f,.08f);
+    coverage+=(pattern-.5f)*width;
+    return max(coverage,0.f)*smoothstep(-width,width,coverage);
+}
+// Preserve the original near/grazing texture. At distance, reuse the shared
+// anti-tiling taps and their explicit gradients to break the authored stripes.
+float seaFoamAntitileBlend(SeaO o) {
+    float distance=length(o.viewToEye);
+    float overhead=abs(o.viewToEye.y)/max(distance,.001f);
+    return smoothstep(90.f,220.f,distance)*smoothstep(.25f,.6f,overhead);
+}
+float4 seaOrdinaryFoamTexture(texture2d<float> texture,sampler state,float2 uv,float blend) {
+    float2 dx=dfdx(uv),dy=dfdy(uv);
+    if(blend<=0.f)return texture.sample(state,uv,gradient2d(dx,dy));
+    float2 centered=uv-.5f;
+    int2 cell=int2(floor(centered));
+    float2 w=smoothstep(0.f,1.f,fract(centered));
+    constexpr uint seed=0x464f414du;
+    float4 lower=mix(antiTilingSampleTap(texture,state,uv,dx,dy,antiTilingHash(cell,seed)),
+                     antiTilingSampleTap(texture,state,uv,dx,dy,antiTilingHash(cell+int2(1,0),seed)),w.x);
+    float4 upper=mix(antiTilingSampleTap(texture,state,uv,dx,dy,antiTilingHash(cell+int2(0,1),seed)),
+                     antiTilingSampleTap(texture,state,uv,dx,dy,antiTilingHash(cell+int2(1,1),seed)),w.x);
+    float4 natural=mix(lower,upper,w.y);
+    if(blend>=1.f)return natural;
+    return mix(texture.sample(state,uv,gradient2d(dx,dy)),natural,blend);
+}
+fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]],texture3d<float> heights [[texture(8)]]) {
     // Original ps_1_4 computes a perturbed normal in r5 but never consumes it.
     // Phase two samples the foam texture using unperturbed r3.xy, alpha=r3.z.
     // Uniform admission keeps derivative evaluation coherent across quads.
+    float4 foam=seaOrdinaryFoamTexture(t[0],s[0],o.t3.xy,seaFoamAntitileBlend(o));
+    float alpha=seaOrdinaryFoamAlpha(o,u,foam.r,heights);
     if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f||u.vc[243].z>0.f)&&u.stride>=40u) {
-        float4 authored=seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
+        float4 authored=seaFog(float4(foam.rgb,alpha),o,u);
         return seaCombinedFoam(authored,o,u,t[0],s[0]);
     }
-    return seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
+    return seaFog(float4(foam.rgb,alpha),o,u);
 }
 uint modernSeaProfileCount(constant SeaU& u) {
     return u.vc[247].w==1.f?uint(clamp(u.vc[247].x,0.f,7.f)):0u;
@@ -295,23 +349,24 @@ float2 modernSeaProfileSubstrate(SeaO o,constant SeaU& u) {
     // lattices. Blending their values must never stretch absolute-world UVs.
     return o.worldXZ+o.surfaceNormal.xz*(3.f*u.vc[247].y-5.3f);
 }
-float4 seaFoamModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,array<sampler,8> s) {
+float4 seaFoamModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,array<sampler,8> s,texture3d<float> heights) {
     const uint profiles=modernSeaProfileCount(u);
     float4 foam=float4(0);
+    float antitileBlend=seaFoamAntitileBlend(o);
     if(profiles) {
         float2 substrate=modernSeaProfileSubstrate(o,u);
         for(uint i=0;i<profiles;++i) {
             float4 profile=u.vc[248+i];
-            foam+=t[0].sample(s[0],substrate*(profile.x*profile.z))*profile.y;
+            foam+=seaOrdinaryFoamTexture(t[0],s[0],substrate*(profile.x*profile.z),antitileBlend)*profile.y;
         }
-    } else foam=t[0].sample(s[0],o.t3.xy);
+    } else foam=seaOrdinaryFoamTexture(t[0],s[0],o.t3.xy,antitileBlend);
     float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
     // RGB follows available weather light; authored coverage and blending stay exact.
     if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f||u.vc[243].z>0.f)&&u.stride>=40u)
-        return seaCombinedFoam(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),o,u,t[0],s[0]);
-    return seaFog(float4(foam.rgb*tint,o.t3.z),o,u);
+        return seaCombinedFoam(seaFog(float4(foam.rgb*tint,seaOrdinaryFoamAlpha(o,u,foam.r,heights)),o,u),o,u,t[0],s[0]);
+    return seaFog(float4(foam.rgb*tint,seaOrdinaryFoamAlpha(o,u,foam.r,heights)),o,u);
 }
-fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {return seaFoamModernColor(o,u,t,s);}
+fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]],texture3d<float> heights [[texture(8)]]) {return seaFoamModernColor(o,u,t,s,heights);}
 float2 seaBumpOffset(float2 delta,float4 matrix) {return float2(dot(delta,matrix.xz),dot(delta,matrix.yw));}
 float4 sea3Color(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,texture3d<float> bump,array<sampler,8> s) {
     // texbem uses the sampled channels directly (no _bx2 in the source).
@@ -637,8 +692,8 @@ fragment SeaAimOutput sea3_modern_fs_aim(SeaO o [[stage_in]],constant SeaU& u [[
 }
 
 
-fragment float4 seafoam_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
-    o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return skyLocalComposite(seaFoamModernColor(o,u,t,s),o.position.xyz,fogDraw,localVolume,true);}
+fragment float4 seafoam_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]],texture3d<float> heights [[texture(8)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
+    o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment);return skyLocalComposite(seaFoamModernColor(o,u,t,s,heights),o.position.xyz,fogDraw,localVolume,true);}
 fragment float4 sea2_modern_fs_skyfog(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],texture3d<float> bump [[texture(8)]],texturecube<float> reflection [[texture(9)]],array<sampler,8> s [[sampler(0)]],texture2d<float> scene [[texture(10)]],depth2d<float> sceneDepth [[texture(11)]],texturecube<float> reflectionDepth [[texture(14)]],texturecube<float> reflectionBackground [[texture(15)]],constant SkyFogDraw&fogDraw [[buffer(9)]],texture2d<float>fogEnvironment [[texture(26)]],texture3d<float>localVolume [[texture(27)]]) {
     o.fogColor=skyFogColor(o.position.xy,u.fogColor.rgb,fogDraw,fogEnvironment,true);
     float4 transport=u.depthRefractionEnabled?skyLocalMedium(o.position.xyz,fogDraw,localVolume):float4(0,0,0,1);

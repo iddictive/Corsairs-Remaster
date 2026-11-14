@@ -31,6 +31,7 @@ class SEA_CAMERAS : public Entity
     bool missileManual = false;
     bool missileFireReleased = false;
     bool missileFireWasHeld = false;
+    bool missileReleaseWasHeld = false;
     bool missileMouseCaptured = false;
     CVECTOR missileInputAngles;
     float missileInputDistance = 1.f;
