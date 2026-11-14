@@ -80,14 +80,14 @@ inline float variedInitial(Type type, FlightVariation v)
 {
     return initialSpeed(type) * flightScale(v.startScale) / (flightScale(v.speedScale) * settingScale(v.configuredSpeed));
 }
-inline constexpr float kalibrEjectTime = .40f;
-inline constexpr float kalibrTurnTime = 1.f;
-inline constexpr float kalibrCoastTime = .65f;
+inline constexpr float kalibrEjectTime = .36f;
+inline constexpr float kalibrTurnTime = .76f;
+inline constexpr float kalibrCoastTime = .48f;
 inline constexpr float kalibrEjectHeight = 36.f;
 inline constexpr float kalibrPivotTime = kalibrTurnTime - kalibrCoastTime;
 inline constexpr float kalibrStarterLead = .12f;
 inline constexpr float kalibrGravity = 9.81f;
-inline constexpr float kalibrStarterAcceleration = 12.f;
+inline constexpr float kalibrStarterAcceleration = 90.f;
 inline float kalibrSample(float value, float low, float high)
 {
     return std::isfinite(value) ? std::clamp((value-low)/(high-low), 0.f, 1.f) : .5f;
