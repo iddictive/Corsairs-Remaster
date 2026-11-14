@@ -202,7 +202,7 @@ void advancePatriot(OrdnanceState::Interceptor &i, const NuclearMissile *shot, f
         const auto relativePosition = observed - i.position;
         const float distance = std::sqrt(~relativePosition);
         const float closing = distance > .001f ? -(targetVelocity | relativePosition) / distance : 0.f;
-        float lead = std::clamp(distance / std::max(400.f, speed + closing), 0.f, 2.f);
+        float lead = std::clamp(.95f * distance / std::max(400.f, speed + closing), 0.f, 2.f);
         auto aim = shot ? observed + targetVelocity * lead : i.target;
         if (shot && i.seekerHasObservation) {
             // A rapidly moving target travels farther between measurements,
