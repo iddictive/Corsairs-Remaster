@@ -18,13 +18,13 @@ inline Vec3 operator-(Vec3 a, Vec3 b) { return {a.x-b.x, a.y-b.y, a.z-b.z}; }
 inline Vec3 operator*(Vec3 a, float s) { return {a.x*s, a.y*s, a.z*s}; }
 inline float magnitude(Vec3 v) { return std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z); }
 
-inline void guide(Vec3 desiredPoint, float dt, float speed, Vec3 &target, Vec3 &velocity)
+inline void guide(Vec3 desiredPoint, float dt, float speed, Vec3 &target, Vec3 &velocity, float acceleration = 1800.f)
 {
     if (!std::isfinite(dt) || dt <= 0.f || !std::isfinite(speed) || speed <= 0.f) return;
     const auto correction = desiredPoint - target;
     const float length = magnitude(correction);
     if (!std::isfinite(length)) return;
-    constexpr float acceleration = 1800.f;
+    if (!std::isfinite(acceleration) || acceleration <= 0.f) return;
     // Brake before reaching the aim point; snapping the retained velocity to
     // zero at arrival produces an instantaneous turn in the flight path.
     const float desiredSpeed = std::min({speed, std::sqrt(2.f * acceleration * length) * .8f, length / .2f});
@@ -75,6 +75,7 @@ inline float oreshnikPoweredTime(float seconds)
 struct FlightVariation { float speedScale = 1.f, rampScale = 1.f, startScale = 1.f, configuredSpeed = 1.f, configuredAcceleration = 1.f, arcScale = 1.f; unsigned arcPattern = 0; };
 inline float flightScale(float scale) { return std::isfinite(scale) ? std::clamp(scale, .92f, 1.08f) : 1.f; }
 inline float settingScale(float scale) { return std::isfinite(scale) ? std::clamp(scale, .25f, 4.f) : 1.f; }
+inline float trajectorySpeedLimit(Type type) { return type == Type::Shtorm ? 1120.f : type == Type::Kinzhal ? 5000.f : profile(type).speed; }
 inline float variedCruise(Type type, FlightVariation v) { return profile(type).speed * flightScale(v.speedScale) * settingScale(v.configuredSpeed); }
 inline float variedRamp(Type type, FlightVariation v) { return rampTime(type) * flightScale(v.rampScale) * settingScale(v.configuredSpeed) / settingScale(v.configuredAcceleration); }
 inline float variedInitial(Type type, FlightVariation v)
@@ -284,7 +285,7 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         const float arcSlope = 4.f * altitude * (type == Type::Kinzhal && variation.arcPattern == 1 ? 3.f :
                                                  type == Type::Kinzhal && variation.arcPattern == 2 ? 2.f : 1.f);
         const float slopeBound = std::sqrt(horizontal*horizontal + (std::abs(d.y) + arcSlope)*(std::abs(d.y) + arcSlope));
-        const float speedLimit = (type == Type::Shtorm ? 1120.f : 5000.f) *
+        const float speedLimit = trajectorySpeedLimit(type) *
                                  flightScale(variation.speedScale) * settingScale(variation.configuredSpeed);
         distance = std::max(distance, slopeBound * variedCruise(type, variation) / speedLimit);
     }
