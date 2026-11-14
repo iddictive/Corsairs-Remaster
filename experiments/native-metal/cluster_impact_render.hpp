@@ -200,9 +200,8 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
     }
     constexpr sampler volumeSampler(coord::normalized,address::clamp_to_edge,filter::linear);
     float step=(far-near)/16., trans=1.; float3 color=0;
-    float jitter=.25+.5*fract(sin(dot(floor(pixel.xy),float2(12.9898,78.233)))*43758.5453);
     for(uint i=0;i<16 && sampleVolume;i++) {
-        float3 p=origin+ray*(near+(float(i)+jitter)*step);
+        float3 p=origin+ray*(near+(float(i)+.5)*step);
         // Keep the authored surface volume rooted; translating it upward also
         // lifts its lower boundary away from the impact plane.
         float volumeY=p.y;
