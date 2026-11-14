@@ -1525,8 +1525,10 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 (missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.continueVelocity || missile.ignitionPlayed || kalibrEject)) {
                 const auto velocity = visualEnd-before;
                 const float visualAge = substepStartAge + (missile.age-substepStartAge)*visualFraction;
-                const auto axisBefore = missileVisualAxis(missile, substepStartAge, velocity);
-                const auto axisAfter = missileVisualAxis(missile, visualAge, velocity);
+                const auto movementAxis = (~velocity) > .001f ? !velocity : CVECTOR(0.f);
+                const bool kalibr = missile.type == missile::Type::Kalibr && !missile.continueVelocity;
+                const auto axisBefore = kalibr ? missileVisualAxis(missile, substepStartAge, velocity) : movementAxis;
+                const auto axisAfter = kalibr ? missileVisualAxis(missile, visualAge, velocity) : movementAxis;
                 const float modelScale = missile.continueVelocity ? (missile.cluster ? .8f : .6f) : 1.f;
                 const float offset = (missile.continueVelocity && missile.cluster ? 2.f :
                     missile.type == storm::ship::phonk::missile::Type::Kalibr ? 4.f : missile.type == missile::Type::Shtorm ? 6.f : 5.f)*modelScale;
