@@ -457,6 +457,18 @@ inline float noseTip(Type type)
 {
     return type == Type::Oreshnik ? 15.f : type == Type::Shtorm ? 6.f : type == Type::Kalibr ? 4.5f : 5.3f;
 }
+inline float tailTip(Type type)
+{
+    return type == Type::Shtorm ? -6.f : type == Type::Kalibr ? -4.f : -5.f;
+}
+inline float bodyRadius(Type type)
+{
+    return type == Type::Oreshnik ? 1.55f : type == Type::Shtorm ? 1.05f : type == Type::Kalibr ? .6f : .72f;
+}
+inline float outerRadius(Type type)
+{
+    return type == Type::Oreshnik ? bodyRadius(type) : type == Type::Shtorm ? 1.85f : type == Type::Kalibr ? 1.65f : 1.25f;
+}
 template<class Emit> inline void geometry(Type type, Emit emit)
 {
     constexpr unsigned sides = 12;
@@ -466,14 +478,15 @@ template<class Emit> inline void geometry(Type type, Emit emit)
     const bool ballistic = type == Type::Oreshnik;
     // Stylized ballistic carrier, not a scale reconstruction. Keep the tail
     // at -5 so the existing motor emitter remains attached to the model.
-    const std::array<float, 6> z = ballistic ? std::array<float,6>{-5.f,-4.5f,5.f,9.f,12.5f,noseTip(type)}
-                                  : heavy ? std::array<float,6>{-6.f,-5.2f,-.5f,3.f,5.2f,noseTip(type)}
-                                  : cruise ? std::array<float,6>{-4.f,-3.4f,-.4f,2.2f,4.f,noseTip(type)}
-                                          : std::array<float,6>{-5.f,-4.3f,-.4f,2.4f,4.5f,noseTip(type)};
-    const std::array<float, 6> radius = ballistic ? std::array<float,6>{1.2f,1.55f,1.55f,1.48f,.9f,0.f}
-                                       : heavy ? std::array<float,6>{.7f,1.05f,1.05f,1.05f,.62f,0.f}
-                                       : cruise ? std::array<float,6>{.42f,.6f,.6f,.6f,.28f,0.f}
-                                               : std::array<float,6>{.46f,.72f,.72f,.72f,.38f,0.f};
+    const std::array<float, 6> z = ballistic ? std::array<float,6>{tailTip(type),-4.5f,5.f,9.f,12.5f,noseTip(type)}
+                                  : heavy ? std::array<float,6>{tailTip(type),-5.2f,-.5f,3.f,5.2f,noseTip(type)}
+                                  : cruise ? std::array<float,6>{tailTip(type),-3.4f,-.4f,2.2f,4.f,noseTip(type)}
+                                          : std::array<float,6>{tailTip(type),-4.3f,-.4f,2.4f,4.5f,noseTip(type)};
+    const float body = bodyRadius(type);
+    const std::array<float, 6> radius = ballistic ? std::array<float,6>{1.2f,body,body,1.48f,.9f,0.f}
+                                       : heavy ? std::array<float,6>{.7f,body,body,body,.62f,0.f}
+                                       : cruise ? std::array<float,6>{.42f,body,body,body,.28f,0.f}
+                                               : std::array<float,6>{.46f,body,body,body,.38f,0.f};
     static constexpr auto tail = materialShades(0xff667072u);
     static constexpr auto kinzhalBody = materialShades(0xff737c78u);
     static constexpr auto kinzhalAft = materialShades(0xff59645fu);
@@ -505,7 +518,7 @@ template<class Emit> inline void geometry(Type type, Emit emit)
         const float a = tau * float(fin) / 4.f;
         const Vec3 radial{std::cos(a),std::sin(a),0.f};
         const float root = heavy ? .96f : cruise ? .54f : .65f;
-        const float span = heavy ? 1.85f : cruise ? 1.65f : 1.25f;
+        const float span = outerRadius(type);
         const float forward = heavy ? -3.1f : cruise ? -.2f : -2.7f;
         const Vertex a0{radial*root+Vec3{0.f,0.f,forward},heavy ? 0xff697c89u : 0xff8e9996u};
         const Vertex b0{radial*root+Vec3{0.f,0.f,heavy ? -5.2f : -3.9f},heavy ? 0xff465967u : 0xff6c7674u};

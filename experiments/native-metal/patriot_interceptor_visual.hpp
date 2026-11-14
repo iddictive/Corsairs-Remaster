@@ -9,12 +9,14 @@ struct Vec3 { float x, y, z; };
 struct Vertex { Vec3 position; uint32_t color; };
 constexpr unsigned type = 7;
 constexpr float tailZ = -5.2f;
+constexpr float bodyRadius = .42f;
+constexpr float outerRadius = .91f;
 
 template<class Emit> void geometry(Emit emit) {
     constexpr unsigned sides=12;
     constexpr float pi=3.14159265359f;
     constexpr float z[]={0.f,-.78f,-1.35f,-4.85f,tailZ};
-    constexpr float r[]={0.f,.30f,.42f,.42f,.34f};
+    constexpr float r[]={0.f,.30f,bodyRadius,bodyRadius,.34f};
     constexpr unsigned light[]={222,239,250,242,216,188,164,153,164,184,201,215};
     auto shade=[](uint32_t c,unsigned l) { return 0xff000000u | (((c>>16&255u)*l/255u)<<16) |
         (((c>>8&255u)*l/255u)<<8) | ((c&255u)*l/255u); };
@@ -31,7 +33,7 @@ template<class Emit> void geometry(Emit emit) {
     for(unsigned i=0;i<4;i++) {
         const float a=(float(i)+.5f)*pi*.5f;
         const uint32_t c=shade(0xffa6aaa5u,light[(i*3)%sides]);
-        const Vertex p{point(.39f,a,-3.82f),c},q{point(.91f,a,-4.67f),c};
+        const Vertex p{point(.39f,a,-3.82f),c},q{point(outerRadius,a,-4.67f),c};
         const Vertex s{point(.88f,a,-5.08f),c},t{point(.35f,a,-4.96f),c};
         emit(p,q,s); emit(p,s,t); emit(s,q,p); emit(t,s,p);
     }

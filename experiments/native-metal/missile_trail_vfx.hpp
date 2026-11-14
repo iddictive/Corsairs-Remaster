@@ -390,7 +390,7 @@ public:
         heads[headCount++]={simd_make_float4(tail-direction*(length-overlap)*.5f,width),simd_make_float4(direction,(length+overlap)*.5f),{0,1,1,phase},color,simd_make_float4(bend,0)};
     }
     // Heat is accumulated and cooled by the caller, not by this renderer.
-    void reentry(simd_float3 head, simd_float3 direction, float speed, float heat, unsigned style, uint32_t seed) {
+    void reentry(simd_float3 head, simd_float3 direction, float speed, float heat, unsigned style, uint32_t seed, float bodyLength, float bodyRadius) {
         if(style>1) return;
         motor(head,direction,MissileVfxType::OreshnikReentry,speed,heat,style,seed);
         if(headCount>=maxHeads || !finite(head) || !std::isfinite(heat)) return;
@@ -408,10 +408,12 @@ public:
         const float motion=phase+1.1f*std::sin(float(reentryClock)*(6.2831853f/1024.f)*1200.f+phase);
         heads[headCount++]={simd_make_float4(head-axis*(length*.5f),width),simd_make_float4(axis,length*.5f),
             {.4f,hot,3,motion},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
-        if(hotShellCount<maxHotShells) {
-            const float radius=(style==1 ? 3.4f : 2.1f)*(.7f+.3f*glow);
-            const float halfLength=(style==1 ? 5.5f : 3.4f)*(.7f+.3f*glow);
-            const auto center=head-axis*(halfLength*.65f);
+        if(hotShellCount<maxHotShells && std::isfinite(bodyLength) && std::isfinite(bodyRadius) && bodyLength>0.f && bodyRadius>0.f) {
+            // Keep both ends of the real model inside the envelope while its
+            // width expands with heat; the nose and tail remain anchored.
+            const float radius=bodyRadius*(1.5f+.75f*glow);
+            const float halfLength=bodyLength*.7f+bodyRadius;
+            const auto center=head-axis*(bodyLength*.5f);
             hotShells[hotShellCount++]={simd_make_float4(center,radius),simd_make_float4(axis,halfLength),
                 {0,hot,5,motion},{1.f,.38f+.35f*glow,.12f+.28f*glow,.16f*glow}};
         }

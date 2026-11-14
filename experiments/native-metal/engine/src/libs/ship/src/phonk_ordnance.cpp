@@ -766,13 +766,16 @@ void evadeInterceptor(NuclearMissile &shot, const CVECTOR &defender, SEA_BASE *s
     shot.evasionOffset.y = vertical;
 }
 constexpr float clusterSubmunitionNose = 1.7f;
+constexpr float clusterSubmunitionTail = -2.f;
+constexpr float clusterSubmunitionRadius = .68f;
+constexpr float clusterSubmunitionOuterRadius = .95f;
 template<class Emit> void clusterSubmunitionGeometry(unsigned variant, Emit emit)
 {
     using V = storm::ship::phonk::missile::Vertex;
     constexpr unsigned sides=8;
     constexpr float tau=6.283185307f;
-    const float z[]={-2.f,-1.5f,.85f,clusterSubmunitionNose};
-    const float radius[]={.35f,.68f,.60f,0.f};
+    const float z[]={clusterSubmunitionTail,-1.5f,.85f,clusterSubmunitionNose};
+    const float radius[]={.35f,clusterSubmunitionRadius,.60f,0.f};
     const uint32_t colors[]={0xff594c3a,0xff7e7357,0xff9d9273,0xffb4a989};
     const auto point=[&](unsigned ring,unsigned side){
         const float a=tau*float(side%sides)/float(sides);
@@ -787,7 +790,7 @@ template<class Emit> void clusterSubmunitionGeometry(unsigned variant, Emit emit
     for(unsigned fin=0;fin<4;++fin) {
         const float a=tau*float(fin)/4.f, x=std::cos(a),y=std::sin(a);
         V p{{x*.36f,y*.36f,-1.1f},0xff655b48},q{{x*.36f,y*.36f,-2.f},0xff655b48};
-        V r{{x*.95f,y*.95f,-2.f},0xff91846b};emit(p,q,r);emit(r,q,p);
+        V r{{x*clusterSubmunitionOuterRadius,y*clusterSubmunitionOuterRadius,-2.f},0xff91846b};emit(p,q,r);emit(r,q,p);
     }
 }
 float conventionalMissileRadius(missile::Type type, bool cluster, unsigned warhead)
@@ -3372,7 +3375,12 @@ void SHIP::DrawPhonkOrdnance()
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
         const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
-        const auto nose = head + axis * ((isClusterSubmunition(missile) ? clusterSubmunitionNose : missile::noseTip(missile.type)) * modelScale);
+        const bool submunition = isClusterSubmunition(missile);
+        const float noseOffset = submunition ? clusterSubmunitionNose : missile::noseTip(missile.type);
+        const float tailOffset = submunition ? clusterSubmunitionTail : missile::tailTip(missile.type);
+        const float bodyLength = (noseOffset - tailOffset) * modelScale;
+        const float bodyRadius = (submunition ? clusterSubmunitionOuterRadius : missile::outerRadius(missile.type)) * modelScale;
+        const auto nose = head + axis * (noseOffset * modelScale);
         float bodyHeat = 0.f, bodyGlow = 0.f;
         if (!missile.suppressReentryHeat && !missile.intercepted && !missile.interceptionFragment &&
             std::isfinite(missile.visualHeat)) {
@@ -3417,14 +3425,14 @@ void SHIP::DrawPhonkOrdnance()
         bool reentryEmitted = false;
         if (!missileVfx && !vfxBootstrapAttempted && reentry) {
             vfxBootstrapAttempted = true;
-            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
+            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed, bodyLength, bodyRadius);
             reentryEmitted = true;
             missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
         }
         if (!missile.interceptionFragment && !missile.intercepted && supersonic)
             submitShock(nose, axis, speed);
         if (missileVfx && reentry && !reentryEmitted)
-            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
+            StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &nose.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed, bodyLength, bodyRadius);
         if (missileVfx && missile.interceptionFragment) StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
         if (missileVfx && cruise && !burning && visualAge < missile::kalibrEjectionDuration(missile.flightVariation) && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
             const auto tail = head - axis * (4.f * modelScale);
@@ -3531,8 +3539,13 @@ void SHIP::DrawPhonkOrdnance()
                 const float speed = std::sqrt(speedSquared);
                 const auto flightAxis = velocity * (1.f / speed);
                 submitShock(head, flightAxis, speed);
-                if (missileVfx && interceptor.visualHeat > .0001f)
-                    StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &head.x, &flightAxis.x, speed, interceptor.visualHeat, 0u, interceptor.serial);
+                if (missileVfx && interceptor.visualHeat > .0001f) {
+                    const auto interceptorNose = head + flightAxis * (interceptor.patriot ? 0.f : missile::noseTip(missile::Type::Kalibr)*.5f);
+                    const float length = interceptor.patriot ? -storm_metal::patriot_visual::tailZ :
+                        (missile::noseTip(missile::Type::Kalibr)-missile::tailTip(missile::Type::Kalibr))*.5f;
+                    const float radius = interceptor.patriot ? storm_metal::patriot_visual::outerRadius : missile::outerRadius(missile::Type::Kalibr)*.5f;
+                    StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &interceptorNose.x, &flightAxis.x, speed, interceptor.visualHeat, 0u, interceptor.serial, length, radius);
+                }
             }
         }
         if (interceptor.patriot) storm_metal::patriot_visual::geometry(emitInterceptor);
