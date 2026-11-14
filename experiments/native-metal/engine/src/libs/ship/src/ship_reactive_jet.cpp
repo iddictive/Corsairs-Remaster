@@ -83,7 +83,8 @@ CVECTOR Angles(const CMatrix &m)
 
 bool Held(const char *name)
 {
-    if (std::strncmp(name, "Ship_", 5) == 0) {
+    if (std::strncmp(name, "Ship_", 5) == 0 || std::strcmp(name, "ILeftShift") == 0 ||
+        std::strcmp(name, "IRightShift") == 0) {
         auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
         auto *attributes = sea ? sea->AttributesPointer : nullptr;
         auto *control = attributes ? attributes->FindAClass(attributes, "Phonk.MissileView.Control") : nullptr;

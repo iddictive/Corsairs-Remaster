@@ -1614,16 +1614,35 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 heading.y = 0.f;
                 if ((~heading) > .001f) heading = !heading;
                 const CVECTOR side = missile.cluster ? heading : CVECTOR(-heading.z, 0.f, heading.x);
+                CVECTOR releaseVelocity(0.f);
+                float scatterTravel = 1.f;
+                if (missile.manualCluster && !missile.intercepted) {
+                    releaseVelocity = nuclearVelocity(missile, substepStartAge + (missile.age - substepStartAge) * release);
+                    if ((~heading) <= .001f) {
+                        heading = CVECTOR(releaseVelocity.x, 0.f, releaseVelocity.z);
+                        heading = (~heading) > .001f ? !heading : CVECTOR(1.f, 0.f, 0.f);
+                    }
+                    const float height = std::max(0.f, burstPosition.y - pSea->WaveXZ(burstPosition.x, burstPosition.z));
+                    float lo = 0.f, hi = 30.f;
+                    for (unsigned step = 0; step < 16; ++step) {
+                        const float mid = (lo + hi) * .5f;
+                        const float travel = dragTravelTime(clusterAirDrag, mid);
+                        const float altitude = height + releaseVelocity.y * travel - 9.81f * (mid - travel) / clusterAirDrag;
+                        if (altitude > 0.f) lo = mid; else hi = mid;
+                    }
+                    scatterTravel = std::max(.05f, dragTravelTime(clusterAirDrag, (lo + hi) * .5f));
+                }
                 const size_t separatedBefore = separated.size();
                 unsigned airburstCount = 0;
                 for (unsigned index = 0; index < missile.warheadCount; ++index)
                 {
+                    const bool oreshnik = missile.type == missile::Type::Oreshnik;
+                    const float spreadAlong = oreshnik ? 760.f : 38.f, spreadSide = oreshnik ? 760.f : 28.f;
                     const float offset = 2.f * float(index) / float(missile.warheadCount - 1) - 1.f;
                     auto target = missile.cluster ? missile.target : missile.target + side * (180.f * offset);
                     if (missile.cluster) {
                         // Scatter across an area, rather than making one
                         // evenly spaced row along the flight direction.
-                        const bool oreshnik = missile.type == missile::Type::Oreshnik;
                         const float angle = oreshnik ? 6.2831853f * shotVariation(missile.shotId, uint32_t(missile.owner), 0x3cf51719u) + float(index) * 2.39996323f :
                             6.2831853f * shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x3cf51719u);
                         const float radius = oreshnik ? std::sqrt((float(index) + .5f) / float(missile.warheadCount)) :
@@ -1631,7 +1650,6 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                         const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
                         const float centerAlong = 18.f * (shotVariation(missile.shotId, uint32_t(missile.owner), 0x57d91f43u) * 2.f - 1.f);
                         const float centerSide = 18.f * (shotVariation(missile.shotId, uint32_t(missile.owner), 0x95bbfa41u) * 2.f - 1.f);
-                        const float spreadAlong = oreshnik ? 760.f : 38.f, spreadSide = oreshnik ? 760.f : 28.f;
                         target += heading * (centerAlong + std::cos(angle) * radius * spreadAlong) + perpendicular * (centerSide + std::sin(angle) * radius * spreadSide);
                         // An intact carrier projects its payload forward. Fold
                         // samples behind the release point into the forward
@@ -1700,16 +1718,17 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                             child.target = burstPosition + child.initialVelocity * child.duration + CVECTOR(0.f, -4.905f * child.duration * child.duration, 0.f);
                         }
                         else if (missile.manualCluster) {
-                            // Retain the carrier's full velocity; a small radial
-                            // ejection impulse separates the payload in flight.
-                            const auto carrierVelocity = nuclearVelocity(missile, substepStartAge + (missile.age - substepStartAge) * release);
-                            const float speed = std::sqrt(~carrierVelocity);
-                            const CVECTOR forward = speed > .001f ? carrierVelocity * (1.f / speed) : CVECTOR(0.f, 0.f, 1.f);
-                            CVECTOR lateral(-forward.z, 0.f, forward.x);
-                            lateral = (~lateral) > .0001f ? !lateral : CVECTOR(1.f, 0.f, 0.f);
-                            const CVECTOR vertical(forward.y * lateral.z, forward.z * lateral.x - forward.x * lateral.z, -forward.y * lateral.x);
-                            const float angle = 6.2831853f * float(index) / float(missile.warheadCount);
-                            child.initialVelocity = carrierVelocity + (lateral * std::cos(angle) + vertical * std::sin(angle)) * 12.f;
+                            // Match the automatic footprint while inheriting the
+                            // carrier's momentum; very late releases have less time to spread.
+                            const float angle = 6.2831853f * shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x3cf51719u);
+                            const float radius = std::sqrt(shotVariation(missile.shotId, index ^ uint32_t(missile.owner), 0x12834bc5u));
+                            const CVECTOR perpendicular(-heading.z, 0.f, heading.x);
+                            CVECTOR impulse = heading * (std::cos(angle) * radius * spreadAlong / scatterTravel) +
+                                              perpendicular * (std::sin(angle) * radius * spreadSide / scatterTravel);
+                            const float limit = 30.f + .35f * std::sqrt(~releaseVelocity);
+                            const float outerSpeed = std::max(spreadAlong, spreadSide) / scatterTravel;
+                            if (outerSpeed > limit) impulse *= limit / outerSpeed;
+                            child.initialVelocity = releaseVelocity + impulse;
                         }
                     }
                     child.continueVelocity = true;

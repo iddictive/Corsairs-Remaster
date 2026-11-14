@@ -594,9 +594,10 @@ BOOL SHIP::ApplyStrength(float dtime, BOOL bCollision, bool airborne)
         float acceleration = storm::ship::phonk::motorAcceleration;
         if (wave.serial && wave.height > 3.f && rise > 3.f && !phonkFlight.airborne)
             acceleration *= 1.f + .65f * std::clamp(wave.height / wave.amplitude, 0.f, 1.f);
+        const bool shipInput = !MissileCameraControlsActive();
         phonkDrift.advance(acceleration, Strength[STRENGTH_MAIN].vRotate.y, State.vAng.y, dt,
-                           State.vSpeed.x, State.vSpeed.z, held(gas) || held(gas1),
-                           held(brake) || held(brake1), airborne, held(shift) || held(shift1));
+                           State.vSpeed.x, State.vSpeed.z, shipInput && (held(gas) || held(gas1)),
+                           shipInput && (held(brake) || held(brake1)), airborne, shipInput && (held(shift) || held(shift1)));
         State.vSpeed.x = 0.f;
         State.vSpeed.z = phonkDrift.magnitude();
         vSpeedAccel.z = oldForward - State.vSpeed.z;
