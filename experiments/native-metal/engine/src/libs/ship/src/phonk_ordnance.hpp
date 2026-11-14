@@ -420,6 +420,14 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
                 bend += direction * amplitude * rise * fall * shape;
             } else if (missile.type == missile::Type::Shtorm)
                 bend += std::min(200.f, horizontal * .268f) * early * progress * (1.f-progress) * (1.f-progress);
+            if (missile.type == missile::Type::Oreshnik || missile.type == missile::Type::Shtorm) {
+                // Small, shot-specific drift changes smoothly throughout flight.
+                // The existing envelope also preserves the launch and aim point.
+                const float phase = 6.2831853f * float((seed >> 8) & 65535u) / 65535.f;
+                const float rate = 1.2f + .55f * float((seed >> 24) & 255u) / 255.f;
+                const float amplitude = missile.type == missile::Type::Oreshnik ? 5.f : 3.f;
+                bend += amplitude * envelope * (std::sin(age * rate + phase) + .35f * std::sin(age * rate * 1.71f - phase));
+            }
             result += CVECTOR(-delta.z / horizontal, 0.f, delta.x / horizontal) * bend;
         }
     }
