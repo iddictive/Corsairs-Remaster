@@ -22,14 +22,26 @@ static const char *missileVfxMSL=R"MSL(
 using namespace metal;
 struct S { float4 positionSize, axisLength, params, color, bend; };
 struct V { float4x4 vp; float4 eye, right, up, viewport; };
-struct O { float4 p [[position]]; float2 uv, bend; float4 params, color; };
+struct O { float4 p [[position]]; float2 uv, bend; float4 params, color; float axial; };
 float missile_hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
 float missile_noise(float2 p) { float2 a=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(missile_hash(a),missile_hash(a+float2(1,0)),f.x),mix(missile_hash(a+float2(0,1)),missile_hash(a+1.),f.x),f.y); }
 vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V& view [[buffer(0)]], device const S* s [[buffer(1)]]) {
  constexpr float2 q[6]={float2(-1,-1),float2(1,-1),float2(1,1),float2(-1,-1),float2(1,1),float2(-1,1)};
- S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz; float bend=0., expansion=1.;
+ S a=s[i]; float2 xy=q[v]; float3 r=view.right.xyz, u=view.up.xyz; float bend=0., expansion=1., axial=0.; float3 faceUp=float3(0.);
  if((a.params.z>0.5 && a.params.z<1.5) || a.params.z>2.5) {
-  u=normalize(a.axisLength.xyz); r=cross(u,view.eye.xyz-a.positionSize.xyz); if(dot(r,r)<1e-8) r=view.right.xyz; else r=normalize(r);
+  u=normalize(a.axisLength.xyz); float3 toEye=view.eye.xyz-a.positionSize.xyz;
+  float3 sight=dot(toEye,toEye)>1e-8 ? normalize(toEye) : normalize(cross(view.right.xyz,view.up.xyz));
+  r=cross(u,sight);
+  if(dot(r,r)<1e-8) {
+   r=view.right.xyz-sight*dot(view.right.xyz,sight);
+   if(dot(r,r)<1e-8) r=view.up.xyz-sight*dot(view.up.xyz,sight);
+  }
+  r=normalize(r);
+  if(a.params.z<1.5 || a.params.z>3.5) {
+   axial=smoothstep(.80,.98,abs(dot(u,sight)));
+   faceUp=normalize(cross(sight,r));
+   if(dot(faceUp,u)<0.) faceUp=-faceUp;
+  }
   if(a.params.z>.5 && a.params.z<1.5) { bend=clamp(dot(a.bend.xyz,r)*a.axisLength.w/max(a.positionSize.w,.01),-1.5,1.5); expansion=1.+abs(bend); r*=expansion; }
   // Screen-space readability is specific to the hot reentry sprite; keep its
   // bright head anchored while scaling the short wake, with a finite cap.
@@ -58,8 +70,11 @@ vertex O missile_vfx_vs(uint v [[vertex_id]], uint i [[instance_id]], constant V
   float3 along=view.right.xyz*dot(a.axisLength.xyz,view.right.xyz)+view.up.xyz*dot(a.axisLength.xyz,view.up.xyz);
   float amount=length(along); if(amount>1e-4) { along/=amount; r+=along*dot(r,along)*amount; u+=along*dot(u,along)*amount; }
  }
- float3 world=a.positionSize.xyz+r*xy.x*a.positionSize.w+u*xy.y*a.axisLength.w;
- O o; o.p=view.vp*float4(world,1); o.uv=xy*.5+.5; o.bend=float2(bend,expansion); o.params=a.params; o.color=a.color; return o;
+ // Retain the side silhouette and its world-space center, but give an
+ // end-on view a finite circular cross-section instead of an edge-on quad.
+ float3 span=mix(u*a.axisLength.w,faceUp*a.positionSize.w,axial);
+ float3 world=a.positionSize.xyz+r*xy.x*a.positionSize.w+span*xy.y;
+ O o; o.p=view.vp*float4(world,1); o.uv=xy*.5+.5; o.bend=float2(bend,expansion); o.params=a.params; o.color=a.color; o.axial=axial; return o;
 }
 fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[texture(0)]]) {
  if(i.params.z<.5) {
@@ -86,7 +101,10 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   float rim=(1.-smoothstep(.025,.13,edge))*smoothstep(.03,.20,aft);
   float interior=(1.-smoothstep(aft-.08,aft+.08,abs(p.x)))*.16;
   float fade=smoothstep(0.,.12,aft)*(1.-smoothstep(.72,1.,aft));
-  float alpha=(rim+interior)*fade*i.color.a;
+  float radius=length(p);
+  float endRim=(1.-smoothstep(.04,.16,abs(radius-.68)));
+  float endInterior=(1.-smoothstep(.55,.82,radius))*.16;
+  float alpha=mix((rim+interior)*fade,endRim+endInterior,i.axial)*i.color.a;
   return float4(i.color.rgb*alpha,alpha);
  }
  if(i.params.z>2.5) {
@@ -122,7 +140,14 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
  float variation=mix(1.,.62+.55*fine,smoothstep(.04,.85,downstream));
  float alpha=body*ends*i.color.a*variation*(.6+.4*core);
  float3 outer=i.color.rgb*mix(.65,1.,along);
- return float4(mix(outer,float3(1.,.92,.76),glow)*alpha,alpha);
+ float radius=length(i.uv*2.-1.);
+ float endBody=1.-smoothstep(.48,.9,radius);
+ float endCore=1.-smoothstep(.12,.5,radius);
+ float endAlpha=endBody*i.color.a*variation*(.6+.4*endCore);
+ float3 sideColor=mix(outer,float3(1.,.92,.76),glow);
+ float3 endColor=mix(i.color.rgb*.8,float3(1.,.92,.76),endCore*.8);
+ float3 premul=mix(sideColor*alpha,endColor*endAlpha,i.axial);
+ return float4(premul,mix(alpha,endAlpha,i.axial));
 }
 )MSL";
 

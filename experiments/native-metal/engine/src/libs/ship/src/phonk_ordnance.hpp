@@ -263,6 +263,7 @@ struct OrdnanceState
         CVECTOR frameContactPosition{};
         CVECTOR visualExhaustAxis{};
         float visualExhaustAge = -1.f;
+        float visualHeat = 0.f;
     };
     std::vector<Interceptor> interceptors;
     std::vector<Interceptor> testInterceptors;

@@ -1495,16 +1495,14 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             }
             const float visualFraction = std::clamp(std::min({1.f, hit, release, interceptAt}), 0.f, 1.f);
             const auto visualEnd = before + (after-before)*visualFraction;
-            const bool heatCarrier = missile.type == missile::Type::Kinzhal && !missile.continueVelocity;
-            const bool heatOreshnik = missile.type == missile::Type::Oreshnik && !missile.suppressReentryHeat;
-            if (!missile.intercepted && !missile.interceptionFragment && (heatCarrier || heatOreshnik)) {
+            if (!missile.intercepted && !missile.interceptionFragment && !missile.suppressReentryHeat) {
                 const float substepDt = missile.age - substepStartAge;
                 const float visualDt = substepDt * visualFraction;
                 if (substepDt > 0.f && visualDt > 0.f) {
                     const auto velocity = (after-before) * (1.f / substepDt);
                     const float altitude = before.y + (after.y-before.y) * (.5f * visualFraction);
-                    const auto heatingVelocity = heatOreshnik && velocity.y >= 0.f ? CVECTOR(0.f) : velocity;
-                    missile.visualHeat = advanceReentryHeat(missile.visualHeat, heatingVelocity, altitude, visualDt, heatCarrier);
+                    if ((~velocity) > 900.f*900.f || missile.visualHeat > .0001f)
+                        missile.visualHeat = advanceReentryHeat(missile.visualHeat, velocity, altitude, visualDt, true);
                 }
             }
             if (visualFraction > 0.f && !missile.interceptionFragment && !isClusterSubmunition(missile) &&
@@ -2265,6 +2263,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                 const auto before = interceptorPosition(interceptor, previousAge / interceptor.duration);
                 const auto after = interceptorPosition(interceptor, interceptor.age / interceptor.duration);
+                const float heatDt = interceptor.age - previousAge;
+                if (heatDt > .00001f) {
+                    const auto velocity = (after-before) * (1.f / heatDt);
+                    if ((~velocity) > 900.f*900.f || interceptor.visualHeat > .0001f)
+                        interceptor.visualHeat = advanceReentryHeat(interceptor.visualHeat, velocity, (before.y+after.y)*.5f, heatDt, true);
+                }
                 if (interceptor.patriot && patriotMotor(interceptor.age))
                     StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &before.x, &after.x, interceptor.age-previousAge, 7);
                 if (interceptor.patriot && interceptor.diverting)
@@ -2714,6 +2718,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
             const auto position = [&](float age) { return interceptorPosition(interceptor, age / interceptor.duration); };
             const auto before = position(previousAge), after = position(interceptor.age);
+            const float heatDt = interceptor.age - previousAge;
+            if (heatDt > .00001f) {
+                const auto velocity = (after-before) * (1.f / heatDt);
+                if ((~velocity) > 900.f*900.f || interceptor.visualHeat > .0001f)
+                    interceptor.visualHeat = advanceReentryHeat(interceptor.visualHeat, velocity, (before.y+after.y)*.5f, heatDt, true);
+            }
             auto axis=after-before; if ((~axis)>.001f) axis=!axis; else axis=CVECTOR(0.f);
             const auto tailBefore=before-axis*2.f, tailAfter=after-axis*2.f;
             if (interceptor.patriot && patriotMotor(interceptor.age))
@@ -3341,8 +3351,8 @@ void SHIP::DrawPhonkOrdnance()
         else trailSide = side;
         const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
         float bodyHeat = 0.f;
-        if (missile.type == missile::Type::Kinzhal && !missile.continueVelocity &&
-            !missile.intercepted && !missile.interceptionFragment && std::isfinite(missile.visualHeat)) {
+        if (!missile.suppressReentryHeat && !missile.intercepted && !missile.interceptionFragment &&
+            std::isfinite(missile.visualHeat)) {
             const float heat = std::clamp((missile.visualHeat - .08f) / .37f, 0.f, 1.f);
             bodyHeat = heat * heat * (3.f - 2.f * heat) * .6f;
         }
@@ -3372,10 +3382,9 @@ void SHIP::DrawPhonkOrdnance()
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
         const float speedSquared = ~actualVelocity;
         const bool supersonic = std::isfinite(speedSquared) && speedSquared > 343.f * 343.f;
-        const bool heatCarrier = missile.type == missile::Type::Kinzhal && !missile.continueVelocity;
-        const bool heatOreshnik = missile.type == missile::Type::Oreshnik && !missile.suppressReentryHeat && actualVelocity.y < 0.f;
+        const bool heatOreshnik = missile.type == missile::Type::Oreshnik;
         const bool reentry = !missile.interceptionFragment && !missile.intercepted &&
-            (heatCarrier || heatOreshnik) && std::isfinite(speedSquared) && speedSquared > 0.f &&
+            !missile.suppressReentryHeat && std::isfinite(speedSquared) && speedSquared > 0.f &&
             std::isfinite(missile.visualHeat) && missile.visualHeat > 0.f;
         const float speed = reentry || supersonic ? std::sqrt(speedSquared) : 0.f;
         const unsigned heatStyle = heatOreshnik ? 1u : 0u;
@@ -3474,10 +3483,19 @@ void SHIP::DrawPhonkOrdnance()
         auto trailSide = direction ^ (camera - head);
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
+        const float interceptorHeat = std::clamp((interceptor.visualHeat-.08f)/.37f, 0.f, 1.f);
+        const float interceptorGlow = interceptorHeat*interceptorHeat*(3.f-2.f*interceptorHeat)*.6f;
         const auto emitInterceptor = [&](const auto &a, const auto &b, const auto &c) {
                 const auto add = [&](const auto &v) {
                     const float scale = interceptor.patriot ? 1.f : .5f;
-                    bodies.push_back({head + (side*v.position.x + up*v.position.y + direction*v.position.z)*scale, v.color});
+                    uint32_t color = v.color;
+                    if (interceptorGlow > 0.f) {
+                        const float nose = std::clamp((v.position.z+.4f)/5.7f, 0.f, 1.f);
+                        const float blend = interceptorGlow*nose*nose*(3.f-2.f*nose);
+                        const auto channel = [&](unsigned shift, float hot) { const float c = float((v.color>>shift)&255u); return uint32_t(c+(hot-c)*blend)<<shift; };
+                        color = (v.color&0xff000000u)|channel(16,205.f)|channel(8,48.f)|channel(0,24.f);
+                    }
+                    bodies.push_back({head + (side*v.position.x + up*v.position.y + direction*v.position.z)*scale, color});
                 };
                 add(a); add(b); add(c);
             };
@@ -3496,6 +3514,8 @@ void SHIP::DrawPhonkOrdnance()
                 const float speed = std::sqrt(speedSquared);
                 const auto flightAxis = velocity * (1.f / speed);
                 submitShock(head, flightAxis, speed);
+                if (missileVfx && interceptor.visualHeat > .0001f)
+                    StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &head.x, &flightAxis.x, speed, interceptor.visualHeat, 0u, interceptor.serial);
             }
         }
         if (interceptor.patriot) storm_metal::patriot_visual::geometry(emitInterceptor);
