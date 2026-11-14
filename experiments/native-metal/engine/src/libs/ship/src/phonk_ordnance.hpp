@@ -137,6 +137,7 @@ struct NuclearMissile
     bool suppressReentryHeat = false;
     CVECTOR visualExhaustAxis = CVECTOR(0.f);
     float visualExhaustAge = -1.f;
+    float kalibrManualAge = -1.f, kalibrManualAccelerationScale = 1.f;
 };
 inline bool isClusterSubmunition(const NuclearMissile &missile)
 {

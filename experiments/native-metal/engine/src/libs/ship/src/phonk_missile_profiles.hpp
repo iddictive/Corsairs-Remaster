@@ -88,11 +88,50 @@ inline constexpr float kalibrPivotTime = kalibrTurnTime - kalibrCoastTime;
 inline constexpr float kalibrStarterLead = .12f;
 inline constexpr float kalibrGravity = 9.81f;
 inline constexpr float kalibrStarterAcceleration = 12.f;
+inline float kalibrSample(float value, float low, float high)
+{
+    return std::isfinite(value) ? std::clamp((value-low)/(high-low), 0.f, 1.f) : .5f;
+}
+// The three existing per-shot samples also own the launch timing; every
+// consumer derives its phase boundaries from the same retained variation.
+inline float kalibrEjectionDuration(FlightVariation v) { return kalibrEjectTime * (.90f + .20f * kalibrSample(v.startScale, .96f, 1.04f)); }
+inline float kalibrCoastDuration(FlightVariation v) { return kalibrCoastTime * (.88f + .24f * kalibrSample(v.speedScale, .97f, 1.03f)); }
+inline float kalibrPivotDuration(FlightVariation v) { return kalibrPivotTime * (.80f + .40f * kalibrSample(v.rampScale, .98f, 1.02f)); }
+inline float kalibrPivotStart(FlightVariation v) { return kalibrEjectionDuration(v) + kalibrCoastDuration(v); }
+inline float kalibrLaunchDuration(FlightVariation v) { return kalibrPivotStart(v) + kalibrPivotDuration(v); }
 // Fictional game units: near-original acceleration with a finite speed cap.
 inline constexpr float kalibrAcceleration = 48.f;
 inline float variedKalibrAcceleration(FlightVariation v)
 {
     return kalibrAcceleration * flightScale(v.speedScale) / flightScale(v.rampScale) * settingScale(v.configuredSpeed) * settingScale(v.configuredAcceleration);
+}
+// A short, smoothly decaying boost gets the missile moving promptly after
+// ignition. Its finite extra distance is normalized by trajectoryProgress,
+// preserving the existing flight duration and speed limit at long range.
+inline float kalibrBaseDistance(float seconds, FlightVariation v)
+{
+    const float time = std::max(0.f, seconds);
+    const float acceleration = variedKalibrAcceleration(v), cap = variedCruise(Type::Kalibr, v);
+    const float ramp = cap / acceleration;
+    return time < ramp ? .5f * acceleration * time * time : cap * (time - .5f * ramp);
+}
+inline float kalibrPoweredDistance(float seconds, FlightVariation v)
+{
+    const float time = std::max(0.f, seconds);
+    const float acceleration = variedKalibrAcceleration(v);
+    const float boostTime = 1.6f * settingScale(v.configuredSpeed) / settingScale(v.configuredAcceleration);
+    const float fraction = time / (boostTime + time);
+    return kalibrBaseDistance(time, v) + 2.f * acceleration * boostTime * boostTime * fraction * fraction;
+}
+inline float kalibrPoweredAcceleration(float seconds, FlightVariation v)
+{
+    const float time = std::max(0.f, seconds);
+    const float acceleration = variedKalibrAcceleration(v), cap = variedCruise(Type::Kalibr, v);
+    const float boostTime = 1.6f * settingScale(v.configuredSpeed) / settingScale(v.configuredAcceleration);
+    const float u = time / boostTime, denominator = 1.f + u;
+    const float denominator2 = denominator * denominator;
+    const float boost = 4.f * acceleration * (1.f - 2.f*u) / (denominator2 * denominator2);
+    return std::max(0.f, (time < cap / acceleration ? acceleration : 0.f) + boost);
 }
 inline float arcAltitude(Type type, float distance, FlightVariation variation)
 {
@@ -217,7 +256,7 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         const float capDistance = cap * cap / (2.f * acceleration);
         const float powered = distance <= capDistance ? std::sqrt(2.f * distance / acceleration)
                                                      : cap / acceleration + (distance - capDistance) / cap;
-        return kalibrEjectTime + kalibrTurnTime + std::max(.1f, powered);
+        return kalibrLaunchDuration(variation) + std::max(.1f, powered);
     }
     const auto p = profile(type);
     const float horizontal = std::sqrt(d.x*d.x + d.z*d.z);
@@ -262,9 +301,9 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         flight = flight < 1.2f ? (std::sqrt(1.f + 20.f * flight) - 1.f) * .5f : flight + .8f;
     return std::max(p.minDuration, flight);
 }
-inline float ignitionFraction(float flightDuration)
+inline float ignitionFraction(float flightDuration, FlightVariation variation = {})
 {
-    return std::min((kalibrEjectTime + kalibrTurnTime) / std::max(.1f, flightDuration), .999999f);
+    return std::min(kalibrLaunchDuration(variation) / std::max(.1f, flightDuration), .999999f);
 }
 // Weight of the linear target interpolation. During vertical ejection the
 // missile does not follow target movement. Arc altitude also depends on the
@@ -273,17 +312,12 @@ inline float trajectoryProgress(Type type, float t, float flightDuration, Flight
 {
     t = std::clamp(t, 0.f, 1.f);
     if (flightDuration <= 0.f) return 0.f;
-    const float ejectEnd = type == Type::Kalibr ? ignitionFraction(flightDuration) : 0.f;
+    const float ejectEnd = type == Type::Kalibr ? ignitionFraction(flightDuration, variation) : 0.f;
     if (t <= ejectEnd) return 0.f;
     const float poweredTime = flightDuration * (1.f-ejectEnd);
     const float elapsed = flightDuration * (t-ejectEnd);
     if (type == Type::Kalibr) {
-        const float acceleration = variedKalibrAcceleration(variation), cap = variedCruise(type, variation);
-        const auto distanceAt = [&](float time) {
-            const float ramp = cap / acceleration;
-            return time < ramp ? .5f * acceleration * time * time : cap * (time - .5f * ramp);
-        };
-        return distanceAt(elapsed) / distanceAt(poweredTime);
+        return kalibrPoweredDistance(elapsed, variation) / kalibrPoweredDistance(poweredTime, variation);
     }
     const float flightTime = type == Type::Oreshnik ? oreshnikPoweredTime(elapsed) : elapsed;
     const float totalTime = type == Type::Oreshnik ? oreshnikPoweredTime(poweredTime) : poweredTime;
@@ -300,25 +334,25 @@ inline Vec3 kalibrEjectionVelocity(float fx, float fz, FlightVariation variation
     const float scale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
     const float side = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
     const float forward = 1.f + (scale - .3f);
-    return {fx*forward - fz*side, .8f * kalibrLaunchHeight(variation) / kalibrEjectTime,
+    return {fx*forward - fz*side, .8f * kalibrLaunchHeight(variation) / kalibrEjectionDuration(variation),
             fz*forward + fx*side};
 }
-inline float kalibrStarterThrottle(float age)
+inline float kalibrStarterThrottle(float age, FlightVariation variation = {})
 {
-    const float start = kalibrEjectTime + kalibrCoastTime - kalibrStarterLead;
-    const float u = std::clamp((age - start) / (kalibrStarterLead + kalibrPivotTime), 0.f, 1.f);
+    const float start = kalibrPivotStart(variation) - kalibrStarterLead;
+    const float u = std::clamp((age - start) / (kalibrStarterLead + kalibrPivotDuration(variation)), 0.f, 1.f);
     return u*u*(3.f-2.f*u);
 }
 inline bool kalibrLaunchJetActive(float age, FlightVariation variation)
 {
-    const float u = (age - kalibrEjectTime - kalibrCoastTime) / kalibrPivotTime;
+    const float u = (age - kalibrPivotStart(variation)) / kalibrPivotDuration(variation);
     if (variation.arcPattern % 2u != 0u)
         return (u > .02f && u < .24f) || (u > .38f && u < .62f) || (u > .76f && u < .98f);
     return u > .02f && u < .98f && (u < .40f || u > .60f);
 }
 inline bool kalibrLaunchJetBraking(float age, FlightVariation variation)
 {
-    const float u = (age - kalibrEjectTime - kalibrCoastTime) / kalibrPivotTime;
+    const float u = (age - kalibrPivotStart(variation)) / kalibrPivotDuration(variation);
     return u > (variation.arcPattern % 2u != 0u ? .70f : .50f);
 }
 inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDuration = 0.f, FlightVariation variation = {})
@@ -352,9 +386,14 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float fz = horizontal > .001f ? d.z / horizontal : 1.f;
     const float ejectHeight = kalibrLaunchHeight(variation);
     const Vec3 ejectVelocity = kalibrEjectionVelocity(fx, fz, variation);
-    if (elapsedFlight < kalibrEjectTime) {
-        const float u = elapsedFlight / kalibrEjectTime;
-        const float elapsed = u * kalibrEjectTime;
+    const float ejectTime = kalibrEjectionDuration(variation);
+    const float coastTime = kalibrCoastDuration(variation);
+    const float pivotTime = kalibrPivotDuration(variation);
+    const float pivotStart = kalibrPivotStart(variation);
+    const float launchEnd = kalibrLaunchDuration(variation);
+    if (elapsedFlight < ejectTime) {
+        const float u = elapsedFlight / ejectTime;
+        const float elapsed = u * ejectTime;
         return start + Vec3{ejectVelocity.x * elapsed, ejectHeight * (1.2f*u - .2f*u*u),
                             ejectVelocity.z * elapsed};
     }
@@ -362,30 +401,30 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float dive = std::clamp((1.f-travel) / (.15f + .035f * float(variation.arcPattern % 3u)), 0.f, 1.f);
     const float smoothLift = lift*lift*(3.f-2.f*lift);
     const float smoothDive = dive*dive*(3.f-2.f*dive);
-    const Vec3 ejected = start + Vec3{ejectVelocity.x * kalibrEjectTime, ejectHeight,
-                                     ejectVelocity.z * kalibrEjectTime};
+    const Vec3 ejected = start + Vec3{ejectVelocity.x * ejectTime, ejectHeight,
+                                     ejectVelocity.z * ejectTime};
     // Coast upward after the launch impulse, then rotate near the apex before
     // the main motor starts. Carry the launch velocity continuously into the
     // coast; horizontal ship movement is added separately by the caller.
-    const float coast = std::clamp(elapsedFlight - kalibrEjectTime, 0.f, kalibrCoastTime);
-    const float starterAge = std::max(0.f, elapsedFlight - (kalibrEjectTime + kalibrCoastTime - kalibrStarterLead));
+    const float coast = std::clamp(elapsedFlight - ejectTime, 0.f, coastTime);
+    const float starterAge = std::max(0.f, elapsedFlight - (pivotStart - kalibrStarterLead));
     const float starterCoast = std::min(starterAge, kalibrStarterLead);
     // The weak starter begins before the apex and gently contributes lift.
-    const float liftAcceleration = 4.f / (kalibrStarterLead + kalibrPivotTime);
+    const float liftAcceleration = 4.f / (kalibrStarterLead + pivotTime);
     const float liftDistance = liftAcceleration * starterCoast*starterCoast*starterCoast / 6.f;
     const float liftSpeed = liftAcceleration * starterCoast*starterCoast * .5f;
-    const float pivot = std::clamp(elapsedFlight - kalibrEjectTime - kalibrCoastTime, 0.f, kalibrPivotTime);
-    const float forward = kalibrStarterAcceleration * pivot*pivot*pivot / (6.f * kalibrPivotTime);
+    const float pivot = std::clamp(elapsedFlight - pivotStart, 0.f, pivotTime);
+    const float forward = kalibrStarterAcceleration * pivot*pivot*pivot / (6.f * pivotTime);
     const Vec3 drift{fx*forward, liftDistance + liftSpeed*pivot - .5f*kalibrGravity*pivot*pivot, fz*forward};
-    const Vec3 raised = ejected + ejectVelocity * (kalibrCoastTime * .5f) + drift;
-    if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
-        return ejected + ejectVelocity * (coast - coast*coast / (2.f * kalibrCoastTime)) + drift;
+    const Vec3 raised = ejected + ejectVelocity * (coastTime * .5f) + drift;
+    if (elapsedFlight < launchEnd) {
+        return ejected + ejectVelocity * (coast - coast*coast / (2.f * coastTime)) + drift;
     }
     // Preserve the small sideways and downward velocity through main ignition.
-    const Vec3 exitVelocity{fx*kalibrStarterAcceleration*kalibrPivotTime*.5f,
-                            liftSpeed - kalibrGravity*kalibrPivotTime,
-                            fz*kalibrStarterAcceleration*kalibrPivotTime*.5f};
-    const float poweredAge = elapsedFlight - kalibrEjectTime - kalibrTurnTime;
+    const Vec3 exitVelocity{fx*kalibrStarterAcceleration*pivotTime*.5f,
+                            liftSpeed - kalibrGravity*pivotTime,
+                            fz*kalibrStarterAcceleration*pivotTime*.5f};
+    const float poweredAge = elapsedFlight - launchEnd;
     const float remaining = 1.f - travel;
     const float carry = poweredAge / (1.f + poweredAge / .8f) * remaining * remaining;
     return raised + (target-raised)*travel + exitVelocity*carry + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
@@ -399,8 +438,8 @@ inline Vec3 kalibrLaunchAxis(Vec3 start, Vec3 target, float elapsed, FlightVaria
     const float horizontal = std::sqrt(d.x*d.x + d.z*d.z);
     const float fx = horizontal > .001f ? d.x / horizontal : 0.f;
     const float fz = horizontal > .001f ? d.z / horizontal : 1.f;
-    const float u = std::clamp((elapsed - kalibrEjectTime - kalibrCoastTime) /
-                               (kalibrTurnTime - kalibrCoastTime), 0.f, 1.f);
+    const float u = std::clamp((elapsed - kalibrPivotStart(variation)) /
+                               kalibrPivotDuration(variation), 0.f, 1.f);
     const float smooth = u*u*(3.f-2.f*u);
     const float angle = smooth * 1.57079632679f;
     const Vec3 launch = kalibrEjectionVelocity(fx, fz, variation);

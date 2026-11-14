@@ -1226,9 +1226,24 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                     const float pitchInput = steer ? std::clamp(cameraControl->GetAttributeAsFloat("pitch", 0.f), -1.f, 1.f) : 0.f;
                     const float yaw = std::atan2(velocity.x, velocity.z) + yawInput * 1.3f * dt;
                     const float pitch = std::clamp(std::asin(std::clamp(velocity.y / speed, -1.f, 1.f)) + pitchInput * .9f * dt, -1.4f, 1.4f);
+                    if (!missile.manualFlight && missile.type == missile::Type::Kalibr) {
+                        // Manual steering rebases missile.age every step; keep
+                        // the launch clock and automatic profile scale separately.
+                        missile.kalibrManualAge = missile.age;
+                        const float powered = std::max(.001f, missile.duration - missile::kalibrLaunchDuration(missile.flightVariation));
+                        missile.kalibrManualAccelerationScale = missile::kalibrBaseDistance(powered, missile.flightVariation) /
+                            missile::kalibrPoweredDistance(powered, missile.flightVariation);
+                    }
                     if (missile.manualFlight) {
                         if (missile.type == missile::Type::Kalibr) {
-                            speed += missile::variedKalibrAcceleration(missile.flightVariation) * dt;
+                            const float launchEnd = missile::kalibrLaunchDuration(missile.flightVariation);
+                            const float flightAge = std::max(0.f, missile.kalibrManualAge);
+                            const float acceleration = flightAge < launchEnd ?
+                                missile::kalibrStarterAcceleration * missile::kalibrStarterThrottle(flightAge, missile.flightVariation) :
+                                missile::kalibrPoweredAcceleration(flightAge - launchEnd, missile.flightVariation) * missile.kalibrManualAccelerationScale;
+                            const float cap = missile::variedCruise(missile.type, missile.flightVariation);
+                            // Do not abruptly slow a missile already above the cap.
+                            speed += std::min(std::max(0.f, cap - speed), acceleration * dt);
                         } else {
                             const float cruise = missile::variedCruise(missile.type, missile.flightVariation);
                             const float acceleration = cruise * (1.f - missile::variedInitial(missile.type, missile.flightVariation)) /
@@ -1371,9 +1386,11 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
             }
             const float substepStartAge = missile.age;
             missile.age = missile.intercepted ? missile.duration : std::min(missile.duration, missile.age + seconds / float(steps));
+            if (missile.manualFlight && missile.type == missile::Type::Kalibr && missile.kalibrManualAge >= 0.f)
+                missile.kalibrManualAge += seconds / float(steps);
             const auto after = missile.intercepted ? missile.target : nuclearPosition(missile, missile.age);
             if (!missile.intercepted && !missile.continueVelocity && !missile.ignitionPlayed && missile.type == storm::ship::phonk::missile::Type::Kalibr &&
-                missile.age >= missile.duration * storm::ship::phonk::missile::ignitionFraction(missile.duration))
+                (missile.manualFlight ? missile.kalibrManualAge : missile.age) >= missile::kalibrLaunchDuration(missile.flightVariation))
             {
                 missile.ignitionPlayed = true;
                 if (!planning && state.ignitionSoundCooldown <= 0.f) {
@@ -1484,7 +1501,7 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &before.x, &visualEnd.x, seconds/float(steps)*visualFraction, 4);
             // Drop old substeps after a long stall; never replay a smoke backlog.
             const bool kalibrEject = missile.type == storm::ship::phonk::missile::Type::Kalibr &&
-                !missile.continueVelocity && missile.age <= missile::kalibrEjectTime;
+                !missile.continueVelocity && missile.age <= missile::kalibrEjectionDuration(missile.flightVariation);
             if (visualFraction > 0.f && !missile.intercepted && !missile.interceptionFragment && !isClusterSubmunition(missile) && (steps-n-1)*seconds/float(steps) <= .20f &&
                 (missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.continueVelocity || missile.ignitionPlayed || kalibrEject)) {
                 auto axis = visualEnd-before;
@@ -3277,7 +3294,7 @@ void SHIP::DrawPhonkOrdnance()
         auto axis = actualVelocity;
         if (missile.type == missile::Type::Kalibr && !missile.continueVelocity &&
             !missile.intercepted && !missile.interceptionFragment && !missile.manualFlight &&
-            missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime + .75f) {
+            missile.age < missile::kalibrLaunchDuration(missile.flightVariation) + .75f) {
             const auto direction = missile::kalibrLaunchAxis(
                 {missile.launch.x, missile.launch.y, missile.launch.z},
                 {missile.target.x, missile.target.y, missile.target.z}, missile.age, missile.flightVariation);
@@ -3285,7 +3302,7 @@ void SHIP::DrawPhonkOrdnance()
             // Gravity can make velocity point downward while the body is
             // already turning toward the target. Blend into flight attitude
             // as the main motor gains speed instead of snapping to velocity.
-            const float u = std::clamp((missile.age - missile::kalibrEjectTime - missile::kalibrTurnTime) / .75f, 0.f, 1.f);
+            const float u = std::clamp((missile.age - missile::kalibrLaunchDuration(missile.flightVariation)) / .75f, 0.f, 1.f);
             if (u > 0.f && (~actualVelocity) > .001f) {
                 const float blend = u*u*(3.f-2.f*u);
                 axis = axis * (1.f - blend) + !actualVelocity * blend;
@@ -3344,6 +3361,7 @@ void SHIP::DrawPhonkOrdnance()
         if (missile.interceptionFragment || isClusterSubmunition(missile)) clusterSubmunitionGeometry(missile.submunitionVariant,emit);
         else storm::ship::phonk::missile::geometry(missile.type, emit);
         const bool cruise = missile.type == storm::ship::phonk::missile::Type::Kalibr;
+        const float visualAge = cruise && missile.manualFlight && missile.kalibrManualAge >= 0.f ? missile.kalibrManualAge : missile.age;
         const bool burning = !missile.interceptionFragment && !isClusterSubmunition(missile) && (!cruise || missile.continueVelocity || missile.ignitionPlayed);
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
         const float speedSquared = ~actualVelocity;
@@ -3375,24 +3393,24 @@ void SHIP::DrawPhonkOrdnance()
         if (missileVfx && reentry && !reentryEmitted)
             StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &head.x, &axis.x, speed, missile.visualHeat, heatStyle, heatSeed);
         if (missileVfx && missile.interceptionFragment) StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
-        if (missileVfx && cruise && !burning && missile.age < missile::kalibrEjectTime && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
+        if (missileVfx && cruise && !burning && visualAge < missile::kalibrEjectionDuration(missile.flightVariation) && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
             const auto tail = head - axis * (4.f * modelScale);
-            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 8, missile.age);
+            StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 8, visualAge);
         }
         if (cruise && !burning && !missile.continueVelocity && !missile.intercepted &&
             !missile.interceptionFragment && (missileVfx || !vfxBootstrapAttempted)) {
-            const float throttle = missile::kalibrStarterThrottle(missile.age);
+            const float throttle = missile::kalibrStarterThrottle(visualAge, missile.flightVariation);
             if (throttle > 0.f) {
                 const auto tail = head - axis * (4.f * modelScale);
                 if (!missileVfx) vfxBootstrapAttempted = true;
-                StormMetalMissileVfxMotorThrottle(pRS->GetNativeDevice(), &tail.x, &axis.x, throttle, missile.age);
+                StormMetalMissileVfxMotorThrottle(pRS->GetNativeDevice(), &tail.x, &axis.x, throttle, visualAge);
                 if (!missileVfx) missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
             }
         }
         if (missileVfx && cruise && !missile.continueVelocity && !missile.intercepted) {
-            const bool launchTurn = missile.age >= missile::kalibrEjectTime + missile::kalibrCoastTime &&
-                                    missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime;
-            const float pulseAge = launchTurn ? missile.age - missile::kalibrEjectTime - missile::kalibrCoastTime : missile.age - missile.divertStart;
+            const bool launchTurn = !missile.manualFlight && missile.age >= missile::kalibrPivotStart(missile.flightVariation) &&
+                                    missile.age < missile::kalibrLaunchDuration(missile.flightVariation);
+            const float pulseAge = launchTurn ? missile.age - missile::kalibrPivotStart(missile.flightVariation) : missile.age - missile.divertStart;
             const bool correction = !launchTurn && missile.divertStart >= 0.f && (~missile.guidanceVelocity) > 1.f;
             const bool launchPulse = launchTurn && missile::kalibrLaunchJetActive(missile.age, missile.flightVariation);
             if (launchPulse || (correction && kalibrDivertPulse(pulseAge, missile.shotId, uint32_t(missile.owner), false))) {
@@ -3410,7 +3428,7 @@ void SHIP::DrawPhonkOrdnance()
                 }
             }
         }
-        if (missileVfx && burning) { const auto tail=head-axis*((missile.continueVelocity&&missile.cluster?2.f:(cruise?4.f:missile.type==missile::Type::Shtorm?6.f:5.f))*modelScale); const auto bend=exhaustBend(axis,missile.age,missile.visualExhaustAxis,missile.visualExhaustAge); StormMetalMissileVfxMotorBend(pRS->GetNativeDevice(), &tail.x, &axis.x, &bend.x, missileVfxType(missile.type), missile.age); }
+        if (missileVfx && burning) { const auto tail=head-axis*((missile.continueVelocity&&missile.cluster?2.f:(cruise?4.f:missile.type==missile::Type::Shtorm?6.f:5.f))*modelScale); const auto bend=exhaustBend(axis,visualAge,missile.visualExhaustAxis,missile.visualExhaustAge); StormMetalMissileVfxMotorBend(pRS->GetNativeDevice(), &tail.x, &axis.x, &bend.x, missileVfxType(missile.type), visualAge); }
 #endif
         if (!missileVfx && burning) strip(head - axis * 10.f, head - axis * 4.f, trailSide * (cruise ? .8f : 1.4f), cruise ? 0xffa6d8ffu : 0xffffad37u);
         for (unsigned n = 0; !missileVfx && !missile.interceptionFragment && !isClusterSubmunition(missile) && n < 12; ++n)
