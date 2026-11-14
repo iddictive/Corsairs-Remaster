@@ -7,6 +7,13 @@ int SeaPhonk_PlayerDefenseType(int type)
     return type;
 }
 
+int SeaPhonk_DefensePerTarget(int count)
+{
+    if (count < 1) return 1;
+    if (count > 8) return 8;
+    return count;
+}
+
 string SeaPhonk_MissileName(int type)
 {
     if (type == 0) return "Кинжал";
@@ -183,6 +190,9 @@ void SeaPhonk_SetActive(bool active)
         Sea.Phonk.AirDefenseType = 0;
         if (CheckAttribute(pchar, "SeaPhonk.AirDefenseType"))
             Sea.Phonk.AirDefenseType = SeaPhonk_PlayerDefenseType(sti(pchar.SeaPhonk.AirDefenseType));
+        Sea.Phonk.AirDefensePerTarget = 2;
+        if (CheckAttribute(pchar, "SeaPhonk.AirDefensePerTarget"))
+            Sea.Phonk.AirDefensePerTarget = SeaPhonk_DefensePerTarget(sti(pchar.SeaPhonk.AirDefensePerTarget));
     }
     if (active && !CheckAttribute(&Sea, "Phonk.MissileType")) Sea.Phonk.MissileType = 3;
     if (active && !CheckAttribute(&Sea, "Phonk.MissileWarhead")) Sea.Phonk.MissileWarhead = 5;

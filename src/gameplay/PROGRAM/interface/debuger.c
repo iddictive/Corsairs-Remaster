@@ -81,7 +81,7 @@ void PhonkMissile_Refresh()
 	bool cluster = sti(Sea.Phonk.MissileWarhead) == 2;
 	for (i = 0; i < 13; i++)
 	{
-		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
+		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
 		if (PhonkMissileSection == 1 && !nuclear && sti(Sea.Phonk.MissileWarhead) != 5 && i >= 7 && i <= 10) visible = true;
 		if (PhonkMissileSection == 2 && (i == 3 || i == 5)) visible = false;
 		SetNodeUsing("ACTION" + i, visible);
@@ -191,6 +191,7 @@ void PhonkMissile_Refresh()
 		if (sti(Sea.Phonk.AirDefenseType) == 1) label = "Patriot";
 		if (sti(Sea.Phonk.AirDefenseType) == 2) label = "Панцирь + Patriot";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#Перехватчик: " + label);
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION11",0,"#На одну ракету: " + sti(Sea.Phonk.AirDefensePerTarget));
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE0",3,(stf(Sea.Phonk.AirDefenseRange)-400.0)/7600.0 + 0.000001);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(Sea.Phonk.AirDefenseInterval)-0.05)/4.95 + 0.000001);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",3,(stf(Sea.Phonk.AirDefenseMax)-1.0)/31.0 + 0.000001);
@@ -307,6 +308,7 @@ void PhonkMissile_Command(string node)
 		case "ACTION8": SeaPhonkTest_StartAlly(); break;
 		case "ACTION9": Sea.Phonk.AirDefenseEconomy = !sti(Sea.Phonk.AirDefenseEconomy); break;
 		case "ACTION10": Sea.Phonk.AirDefenseType = (sti(Sea.Phonk.AirDefenseType) + 1) % 3; pchar.SeaPhonk.AirDefenseType = sti(Sea.Phonk.AirDefenseType); break;
+		case "ACTION11": Sea.Phonk.AirDefensePerTarget = sti(Sea.Phonk.AirDefensePerTarget) % 8 + 1; pchar.SeaPhonk.AirDefensePerTarget = sti(Sea.Phonk.AirDefensePerTarget); break;
 		case "ACTION2": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) - 0.1; if (stf(Sea.Phonk.AirDefenseInterval) < 0.1) Sea.Phonk.AirDefenseInterval = 0.1; break;
 		case "ACTION3": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) + 0.1; if (stf(Sea.Phonk.AirDefenseInterval) > 2.0) Sea.Phonk.AirDefenseInterval = 2.0; break;
 		case "ACTION4": if (sti(Sea.Phonk.AirDefenseMax) > 1) Sea.Phonk.AirDefenseMax = sti(Sea.Phonk.AirDefenseMax) - 1; break;
@@ -668,9 +670,8 @@ void InitInterface(string iniName)
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseMax")) Sea.Phonk.AirDefenseMax = 8;
 		if (sti(Sea.Phonk.AirDefenseMax) < 1) Sea.Phonk.AirDefenseMax = 1;
 		if (sti(Sea.Phonk.AirDefenseMax) > 32) Sea.Phonk.AirDefenseMax = 32;
-		if (!CheckAttribute(&Sea,"Phonk.AirDefenseSpeed")) Sea.Phonk.AirDefenseSpeed = 600;
-		if (stf(Sea.Phonk.AirDefenseSpeed) < 150.0) Sea.Phonk.AirDefenseSpeed = 150;
-		if (stf(Sea.Phonk.AirDefenseSpeed) > 3000.0) Sea.Phonk.AirDefenseSpeed = 3000;
+		if (!CheckAttribute(&Sea,"Phonk.AirDefensePerTarget")) Sea.Phonk.AirDefensePerTarget = 2;
+		Sea.Phonk.AirDefensePerTarget = SeaPhonk_DefensePerTarget(sti(Sea.Phonk.AirDefensePerTarget));
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.Custom")) pchar.SeaPhonk.Spawn.Custom = 0;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseCustom")) pchar.SeaPhonk.Spawn.DefenseCustom = sti(pchar.SeaPhonk.Spawn.Custom);
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.ShipClass")) pchar.SeaPhonk.Spawn.ShipClass = 0;

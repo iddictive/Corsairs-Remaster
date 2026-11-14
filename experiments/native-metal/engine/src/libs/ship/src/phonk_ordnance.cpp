@@ -39,6 +39,13 @@ CVECTOR turnMissileToward(const CVECTOR &velocity, const CVECTOR &aim, float max
     tangent = !tangent;
     return (direction * std::cos(maxAngle) + tangent * std::sin(maxAngle)) * speed;
 }
+struct InterceptorProfile { float planningSpeed, initialSpeed, boostAcceleration, sustainAcceleration, maxSpeed; };
+constexpr InterceptorProfile interceptorProfile(bool patriot)
+{
+    // Planning uses an average speed; Patriot's motor has a separate speed cap.
+    return patriot ? InterceptorProfile{1600.f, 80.f, 850.f, 250.f, 1800.f}
+                   : InterceptorProfile{600.f, 0.f, 0.f, 0.f, 600.f};
+}
 bool patriotMotor(float age) { return age < 2.5f || (age >= 4.f && age < 5.f); }
 void initializePatriot(OrdnanceState::Interceptor &i, const CVECTOR &observed)
 {
@@ -62,7 +69,7 @@ void initializePatriot(OrdnanceState::Interceptor &i, const CVECTOR &observed)
     // corrects naturally towards the tracked target.
     const float launchSpread = .02f + .035f * float(bits >> 16) / 65535.f;
     const auto launchDirection = !(direction + side * (launchSpread * std::cos(angle)) + up * (launchSpread * std::sin(angle)));
-    i.velocity = launchDirection * (80.f * i.speedScale);
+    i.velocity = launchDirection * (interceptorProfile(true).initialSpeed * i.speedScale);
     i.seekerBias = side * (radius * std::cos(angle)) + up * (radius * std::sin(angle));
 }
 // Fixed simulated steps, with a bounded catch-up budget. The debt is retained.
@@ -95,8 +102,9 @@ void advancePatriot(OrdnanceState::Interceptor &i, const NuclearMissile *shot, f
             i.velocity = turnMissileToward(i.velocity, aim - i.position, 3.f * step);
         const auto correction = i.velocity - oldVelocity;
         if ((~correction) > .01f) { i.diverting = true; i.divertExhaust = correction * -1.f; }
-        const float acceleration = (i.age < 2.5f ? 850.f : (i.age >= 4.f && i.age < 5.f ? 250.f : 0.f)) * i.accelerationScale;
-        const float nextSpeed = std::min(1800.f * i.speedScale, speed + acceleration * step);
+        constexpr auto profile = interceptorProfile(true);
+        const float acceleration = (i.age < 2.5f ? profile.boostAcceleration : (i.age >= 4.f && i.age < 5.f ? profile.sustainAcceleration : 0.f)) * i.accelerationScale;
+        const float nextSpeed = std::min(profile.maxSpeed * i.speedScale, speed + acceleration * step);
         if ((~i.velocity) > .001f) i.velocity = !i.velocity * nextSpeed;
         const auto from = i.position;
         i.position += i.velocity * step;
@@ -106,8 +114,8 @@ void advancePatriot(OrdnanceState::Interceptor &i, const NuclearMissile *shot, f
         const auto movement = (i.position - from) - (shot ? targetVelocity * step : CVECTOR(0.f));
         const float length = ~movement;
         const float along = length > .001f ? std::clamp(-(relative | movement) / length, 0.f, 1.f) : 0.f;
-        if ((~(relative + movement * along)) <= 15.f * 15.f) {
-            contact = nextSpeed >= 350.f && (shot || !i.missileShip);
+        if ((~(relative + movement * along)) <= 15.f * 15.f && nextSpeed >= 350.f) {
+            contact = shot || !i.missileShip;
             i.target = contact && shot ? nuclearPosition(*shot, shot->age) : i.position;
             i.patriotContact = contact;
             i.duration = i.age;
@@ -191,7 +199,7 @@ CVECTOR interceptorTrackingError(const NuclearMissile &shot, float flight, uint3
 {
     // Timing uncertainty models a finite-quality speed and meeting estimate.
     // The proximity fuse still decides hits geometrically.
-    const float uncertainty = (shot.type == missile::Type::Kinzhal ? .07f :
+    const float uncertainty = (shot.type == missile::Type::Kinzhal ? .04f :
                                shot.type == missile::Type::Shtorm ? .06f : .07f) +
                               std::min(.04f, std::max(0.f, flight) * .001f);
     const float timeError = (2.f * shotVariation(serial, owner, 0x33f9a8d1u) - 1.f) * uncertainty;
@@ -306,11 +314,12 @@ void observeShtorm(const NuclearMissile &shot, const CVECTOR &position, CVECTOR 
     acceleration = (position - previous * 2.f + earlier) * (1.f / (interval * interval));
     const float magnitudeSquared = ~acceleration;
     if (!std::isfinite(magnitudeSquared)) { acceleration = CVECTOR(0.f); return; }
-    const float maxAcceleration = shot.type == missile::Type::Oreshnik ? 900.f : 250.f;
+    const float maxAcceleration = shot.type == missile::Type::Oreshnik ? 900.f : shot.type == missile::Type::Kinzhal ? 1500.f : 250.f;
     if (magnitudeSquared > maxAcceleration * maxAcceleration)
         acceleration = acceleration * (maxAcceleration / std::sqrt(magnitudeSquared));
+    if (shot.type == missile::Type::Kinzhal) velocity += acceleration * (.5f * interval);
 }
-bool observeBallistic(missile::Type type) { return type == missile::Type::Shtorm || type == missile::Type::Oreshnik; }
+bool observeBallistic(missile::Type type) { return type == missile::Type::Shtorm || type == missile::Type::Oreshnik || type == missile::Type::Kinzhal; }
 float patriotLostTimeout(uint32_t serial, entid_t owner)
 {
     return .8f + .4f * shotVariation(serial, uint32_t(owner), 0xb62d7431u);
@@ -915,6 +924,14 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 for (size_t index = 0; index < shots.size() && scanned < 128; ++index, ++scanned) {
                     auto &candidate = shots[index];
                     if (!candidate.active || candidate.intercepted || candidate.continueVelocity || candidate.interceptionFragment) continue;
+                    if (defenderCharacter == character) {
+                        const auto limit = std::clamp(mode->GetAttributeAsDword("AirDefensePerTarget", 2), 1u, 8u);
+                        const auto assigned = std::count_if(state.interceptors.begin(), state.interceptors.end(), [&](const auto &other) {
+                            return &other != &i && !other.finished && other.missileShip == owner->GetId() &&
+                                other.missileShot == candidate.shotId && other.missileVariant == interceptorVariant(candidate);
+                        });
+                        if (assigned >= limit) continue;
+                    }
                     const auto displacement = nuclearPosition(candidate, candidate.age) - i.position;
                     const float distance = ~displacement;
                     if (!std::isfinite(distance) || distance >= bestDistance || (displacement | i.velocity) < 0.f) continue;
@@ -1070,7 +1087,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             const float testInterval = setting("DefenseInterval", .3f, .05f, 5.f);
             const uint32_t defenseChoice = testLoadout ? testLoadout->GetAttributeAsDword("DefenseType", 2) : 2u;
             const bool testPatriot = defenseChoice == 1u || (defenseChoice > 1u && ((uint32_t(testShip->GetId()) * 0x9e3779b9u) >> 31));
-            const float testSpeed = testPatriot ? 1600.f : 600.f;
+            const float testSpeed = interceptorProfile(testPatriot).planningSpeed;
             const unsigned testMax = defenseSettings ? std::clamp(testLoadout->GetAttributeAsDword("DefenseMax", 4), 1u, 32u) : 4u;
             if (enemyState.testDefenseShip != testShip->GetId()) {
                 enemyState.testDefenseShip = testShip->GetId();
@@ -1203,10 +1220,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         if (!testShips.empty()) state.testShipCursor = (state.testShipCursor + shipsThisFrame) % testShips.size();
         const float defenseInterval = std::clamp(mode->GetAttributeAsFloat("AirDefenseInterval", .25f), .05f, 5.f);
         const auto defenseMax = std::clamp(mode->GetAttributeAsDword("AirDefenseMax", 8), 1u, 32u);
+        const auto defensePerTarget = std::clamp(mode->GetAttributeAsDword("AirDefensePerTarget", 2), 1u, 8u);
         const auto playerDefenseType = mode->GetAttributeAsDword("AirDefenseType", 0);
         const bool playerPatriot = playerDefenseType == 1u ||
             (playerDefenseType == 2u && shotVariation(state.airDefenseSerial + 1u, uint32_t(defender), 0x729b483du) < .5f);
-        const float interceptorSpeed = playerPatriot ? 1600.f : 600.f;
+        const float interceptorSpeed = interceptorProfile(playerPatriot).planningSpeed;
         if (enabled && available && defender >= 0 && state.airDefenseCooldown <= 0.f && state.airDefenseScanCooldown <= 0.f && state.interceptors.size() < defenseMax)
         {
             airdefense::Contact contact;
@@ -1242,15 +1260,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const float missX = rel.x + velocity.x*approach, missZ = rel.z + velocity.z*approach;
                 const float threatTime = approach + std::hypot(missX, missZ) / std::max(100.f, std::sqrt(speedSquared));
                 if (!std::isfinite(threatTime) || threatTime >= bestThreatTime) continue;
-                if (economical && std::any_of(state.interceptors.begin(), state.interceptors.end(), [&](const auto &launched) {
-                    if (launched.finished) return false;
-                    if (launched.patriot && launched.missileShip == testShip->GetId() &&
-                        launched.missileShot == incoming.shotId && launched.missileVariant == interceptorVariant(incoming)) return true;
-                    const float remaining = std::max(0.f, launched.duration - launched.age);
-                    if (remaining >= approach) return false;
-                    const auto predicted = position + velocity * remaining;
-                    return (~(predicted - launched.target)) <= 35.f * 35.f;
-                })) continue;
+                const auto assigned = std::count_if(state.interceptors.begin(), state.interceptors.end(), [&](const auto &launched) {
+                    return !launched.finished && launched.missileShip == testShip->GetId() &&
+                        launched.missileShot == incoming.shotId && launched.missileVariant == interceptorVariant(incoming);
+                });
+                if (assigned >= defensePerTarget || (economical && assigned > 0 && threatTime > 2.f)) continue;
                 // Rank only targets that this interceptor can actually reach;
                 // an impossible first choice must not mask the next threat.
                 const float limit = std::min(60.f, incoming.duration - incoming.age);
@@ -1263,6 +1277,16 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     interceptorEstimateAccelerating(defenseStart, position, stale, observedMissileAcceleration(incoming, stale), interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget) :
                     interceptorEstimate(defenseStart, position, stale, interceptorSpeed / defenseSpeedScale, limit, candidateFlight, candidateTarget);
                 if (!reachable && !(playerPatriot && incoming.type == missile::Type::Oreshnik)) continue;
+                if (economical && !playerPatriot && reachable) {
+                    // A fixed-aim interceptor should wait for a better track if
+                    // the target is not yet urgent and the timing corridor is
+                    // much wider than its proximity fuse.
+                    const float observedSpeed = std::sqrt(~velocity);
+                    const float timingError = (incoming.type == missile::Type::Kinzhal ? .04f :
+                        incoming.type == missile::Type::Shtorm ? .06f : .07f) + std::min(.04f, candidateFlight * .001f);
+                    const float corridor = 39.13f + std::min(45.f, std::sqrt(~rel) * .0015f + candidateFlight * .1f) + observedSpeed * timingError;
+                    if (std::isfinite(corridor) && corridor > 105.f && threatTime > candidateFlight + 1.5f) continue;
+                }
                 contact.position = position; contact.velocity = velocity; contact.acceleration = CVECTOR(0.f);
                 missileShip = testShip->GetId(); missileShot = incoming.shotId; missileVariant = interceptorVariant(incoming);
                 missileHint = state.playerMissileCursor - 1; bestThreatTime = threatTime;

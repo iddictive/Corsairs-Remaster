@@ -1778,7 +1778,7 @@ void Sea_FirstInit()
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseRange")) Sea.Phonk.AirDefenseRange = sti(pchar.SeaPhonk.AirDefenseRange);
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseInterval")) Sea.Phonk.AirDefenseInterval = stf(pchar.SeaPhonk.AirDefenseInterval);
 		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseMax")) Sea.Phonk.AirDefenseMax = sti(pchar.SeaPhonk.AirDefenseMax);
-		if (CheckAttribute(pchar, "SeaPhonk.AirDefenseSpeed")) Sea.Phonk.AirDefenseSpeed = stf(pchar.SeaPhonk.AirDefenseSpeed);
+		if (CheckAttribute(pchar, "SeaPhonk.AirDefensePerTarget")) Sea.Phonk.AirDefensePerTarget = SeaPhonk_DefensePerTarget(sti(pchar.SeaPhonk.AirDefensePerTarget));
 		Sea.Phonk.ReturnMusic = musicName;
 		SetEventHandler("frame", "SeaPhonk_Frame", 0);
 		SeaPhonk_Music(SEA_PHONK_TRACK);
@@ -1884,7 +1884,7 @@ void Sea_Save()
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseRange")) pchar.SeaPhonk.AirDefenseRange = sti(Sea.Phonk.AirDefenseRange);
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseInterval")) pchar.SeaPhonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval);
 		if (CheckAttribute(&Sea, "Phonk.AirDefenseMax")) pchar.SeaPhonk.AirDefenseMax = sti(Sea.Phonk.AirDefenseMax);
-		if (CheckAttribute(&Sea, "Phonk.AirDefenseSpeed")) pchar.SeaPhonk.AirDefenseSpeed = stf(Sea.Phonk.AirDefenseSpeed);
+		if (CheckAttribute(&Sea, "Phonk.AirDefensePerTarget")) pchar.SeaPhonk.AirDefensePerTarget = SeaPhonk_DefensePerTarget(sti(Sea.Phonk.AirDefensePerTarget));
 	}
 
 	SendMessage(&AISea, "l", AI_MESSAGE_SEASAVE);
