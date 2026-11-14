@@ -402,35 +402,28 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float smoothDive = dive*dive*(3.f-2.f*dive);
     const Vec3 ejected = start + Vec3{ejectVelocity.x * ejectTime, ejectHeight,
                                      ejectVelocity.z * ejectTime};
-    // Coast upward after the launch impulse, then rotate near the apex before
-    // the main motor starts. Carry the launch velocity continuously into the
-    // coast; horizontal ship movement is added separately by the caller.
-    const float coast = std::clamp(elapsedFlight - ejectTime, 0.f, coastTime);
-    const float starterAge = std::max(0.f, elapsedFlight - (pivotStart - kalibrStarterLead));
-    const float starterCoast = std::min(starterAge, kalibrStarterLead);
-    // Keep the vertical contribution continuous as the turn begins.
-    const float liftAcceleration = 4.f / (kalibrStarterLead + pivotTime);
-    const float liftDistance = liftAcceleration * starterCoast*starterCoast*starterCoast / 6.f;
-    const float liftSpeed = liftAcceleration * starterCoast*starterCoast * .5f;
+    // The ejection velocity carries the body through the turn; gravity acts
+    // throughout, rather than forcing it to stop at the start of rotation.
+    const float coast = std::clamp(elapsedFlight - ejectTime, 0.f, coastTime + pivotTime);
     const float pivot = std::clamp(elapsedFlight - pivotStart, 0.f, pivotTime);
     const float forward = kalibrStarterAcceleration * pivot*pivot*pivot / (6.f * pivotTime);
-    const Vec3 drift{fx*forward, liftDistance + liftSpeed*pivot - .5f*kalibrGravity*pivot*pivot, fz*forward};
-    const Vec3 raised = ejected + ejectVelocity * (coastTime * .5f) + drift;
+    const Vec3 drift{fx*forward, -.5f*kalibrGravity*coast*coast, fz*forward};
+    const Vec3 raised = ejected + ejectVelocity * coast + drift;
     if (elapsedFlight < launchEnd) {
-        return ejected + ejectVelocity * (coast - coast*coast / (2.f * coastTime)) + drift;
+        return raised;
     }
-    // Preserve the small sideways and downward velocity through main ignition.
-    const Vec3 exitVelocity{fx*kalibrStarterAcceleration*pivotTime*.5f,
-                            liftSpeed - kalibrGravity*pivotTime,
-                            fz*kalibrStarterAcceleration*pivotTime*.5f};
+    // Preserve the body's velocity through main ignition.
+    const Vec3 exitVelocity{ejectVelocity.x + fx*kalibrStarterAcceleration*pivotTime*.5f,
+                            ejectVelocity.y - kalibrGravity*(coastTime + pivotTime),
+                            ejectVelocity.z + fz*kalibrStarterAcceleration*pivotTime*.5f};
     const float poweredAge = elapsedFlight - launchEnd;
     const float remaining = 1.f - travel;
     const float carry = poweredAge / (1.f + poweredAge / .8f) * remaining * remaining;
     return raised + (target-raised)*travel + exitVelocity*carry + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
 }
 
-// The body rotates independently of translation while nearly stationary at
-// the top of the launch. Flight and collision continue to use position().
+// The body rotates independently while ejection momentum carries its centre.
+// Flight and collision continue to use position().
 inline Vec3 kalibrLaunchAxis(Vec3 start, Vec3 target, float elapsed, FlightVariation variation = {})
 {
     const Vec3 d = target - start;
