@@ -81,11 +81,11 @@ inline float variedInitial(Type type, FlightVariation v)
     return initialSpeed(type) * flightScale(v.startScale) / (flightScale(v.speedScale) * settingScale(v.configuredSpeed));
 }
 inline constexpr float kalibrEjectTime = .36f;
-inline constexpr float kalibrTurnTime = .76f;
-inline constexpr float kalibrCoastTime = .48f;
+inline constexpr float kalibrTurnTime = .52f;
+inline constexpr float kalibrCoastTime = .24f;
 inline constexpr float kalibrEjectHeight = 36.f;
 inline constexpr float kalibrPivotTime = kalibrTurnTime - kalibrCoastTime;
-inline constexpr float kalibrStarterLead = .12f;
+inline constexpr float kalibrStarterLead = 0.f;
 inline constexpr float kalibrGravity = 9.81f;
 inline constexpr float kalibrStarterAcceleration = 90.f;
 inline float kalibrSample(float value, float low, float high)
@@ -327,13 +327,12 @@ inline float trajectoryProgress(Type type, float t, float flightDuration, Flight
 inline float kalibrLaunchHeight(FlightVariation variation)
 {
     const float scale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
-    return kalibrEjectHeight * (.8f + .4f * (scale - .3f) / 1.35f);
+    return kalibrEjectHeight * (.68f + .64f * (scale - .3f) / 1.35f);
 }
 inline Vec3 kalibrEjectionVelocity(float fx, float fz, FlightVariation variation)
 {
-    const float scale = std::isfinite(variation.arcScale) ? std::clamp(variation.arcScale, .3f, 1.65f) : 1.f;
-    const float side = (float(variation.arcPattern % 3u) - 1.f) * 3.f;
-    const float forward = 1.f + (scale - .3f);
+    const float side = (kalibrSample(variation.rampScale, .98f, 1.02f) - .5f) * 32.f;
+    const float forward = (kalibrSample(variation.speedScale, .97f, 1.03f) - .5f) * 18.f;
     return {fx*forward - fz*side, .8f * kalibrLaunchHeight(variation) / kalibrEjectionDuration(variation),
             fz*forward + fx*side};
 }
@@ -409,7 +408,7 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     const float coast = std::clamp(elapsedFlight - ejectTime, 0.f, coastTime);
     const float starterAge = std::max(0.f, elapsedFlight - (pivotStart - kalibrStarterLead));
     const float starterCoast = std::min(starterAge, kalibrStarterLead);
-    // The weak starter begins before the apex and gently contributes lift.
+    // Keep the vertical contribution continuous as the turn begins.
     const float liftAcceleration = 4.f / (kalibrStarterLead + pivotTime);
     const float liftDistance = liftAcceleration * starterCoast*starterCoast*starterCoast / 6.f;
     const float liftSpeed = liftAcceleration * starterCoast*starterCoast * .5f;
