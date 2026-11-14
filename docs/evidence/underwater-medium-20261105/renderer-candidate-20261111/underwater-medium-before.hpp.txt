@@ -1,0 +1,68 @@
+#pragma once
+#import <Metal/Metal.h>
+#include <simd/simd.h>
+
+namespace storm_metal {
+struct UnderwaterUniforms { simd_float4x4 inverseProjection, inverseView; simd_float4 parameters; };
+inline const char *underwaterMediumMSL = R"MSL(
+#include <metal_stdlib>
+using namespace metal;
+struct U { float4x4 inverseProjection, inverseView; float4 parameters; };
+struct V { float4 position [[position]]; };
+vertex V underwater_vs(uint i [[vertex_id]]) {
+    float2 p = float2((i << 1) & 2, i & 2);
+    return {float4(p * 2.f - 1.f, 0.f, 1.f)};
+}
+fragment float4 underwater_fs(V in [[stage_in]], texture2d<float, access::read> scene [[texture(0)]],
+                              depth2d<float, access::read> depth [[texture(1)]], constant U &u [[buffer(0)]]) {
+    uint2 pixel = uint2(in.position.xy);
+    float2 uv = (float2(pixel) + .5f) / float2(scene.get_width(), scene.get_height());
+    float z = depth.read(pixel);
+    float4 p = u.inverseProjection * float4(uv * float2(2.f,-2.f) + float2(-1.f,1.f), min(z,.99999f), 1.f);
+    float3 view = p.xyz / max(abs(p.w), 1.e-6f);
+    float distance = z >= .99999f ? 180.f : min(length(view),180.f);
+    float3 direction = normalize((u.inverseView * float4(normalize(view),0.f)).xyz);
+    float waterDistance = direction.y > .001f ? min(distance, u.parameters.x / direction.y) : distance;
+    float fade = smoothstep(0.f, .8f, u.parameters.x);
+    float3 transmission = exp(-max(waterDistance,0.f) * float3(.045f,.024f,.015f));
+    float3 scatter = float3(.035f,.19f,.23f);
+    float4 original = scene.read(pixel);
+    return float4(mix(original.rgb, original.rgb * transmission + scatter * (1.f - transmission), fade), original.a);
+}
+)MSL";
+struct UnderwaterMedium {
+    id<MTLRenderPipelineState> pipeline = nil;
+    MTLPixelFormat format = MTLPixelFormatInvalid;
+    bool initialize(id<MTLDevice> device, MTLPixelFormat targetFormat) {
+        if (pipeline && format == targetFormat) return true;
+        NSError *error = nil;
+        id<MTLLibrary> library = [device newLibraryWithSource:[NSString stringWithUTF8String:underwaterMediumMSL] options:nil error:&error];
+        if (!library) { fprintf(stderr,"[StormMetal] underwater shader: %s\n",error.localizedDescription.UTF8String); return false; }
+        auto descriptor = [MTLRenderPipelineDescriptor new];
+        descriptor.vertexFunction = [library newFunctionWithName:@"underwater_vs"];
+        descriptor.fragmentFunction = [library newFunctionWithName:@"underwater_fs"];
+        descriptor.colorAttachments[0].pixelFormat = targetFormat;
+        pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+        if (!pipeline) { fprintf(stderr,"[StormMetal] underwater pipeline: %s\n",error.localizedDescription.UTF8String); return false; }
+        format = targetFormat; return true;
+    }
+    bool encode(id<MTLDevice> device, id<MTLCommandBuffer> command, id<MTLTexture> source,
+                id<MTLTexture> depth, id<MTLTexture> destination, const UnderwaterUniforms &uniforms) {
+        if (!device || !command || !source || !depth || !destination || source == destination ||
+            source.width != depth.width || source.height != depth.height || source.width != destination.width ||
+            source.height != destination.height || depth.pixelFormat != MTLPixelFormatDepth32Float ||
+            !pipeline || format != destination.pixelFormat) return false;
+        auto pass = [MTLRenderPassDescriptor renderPassDescriptor];
+        pass.colorAttachments[0].texture = destination;
+        pass.colorAttachments[0].loadAction = MTLLoadActionDontCare;
+        pass.colorAttachments[0].storeAction = MTLStoreActionStore;
+        id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
+        if (!encoder) return false;
+        [encoder setRenderPipelineState:pipeline];
+        [encoder setFragmentTexture:source atIndex:0]; [encoder setFragmentTexture:depth atIndex:1];
+        [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+        [encoder endEncoding]; return true;
+    }
+};
+}

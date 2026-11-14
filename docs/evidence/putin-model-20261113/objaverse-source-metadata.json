@@ -1,0 +1,379 @@
+{
+  "3fa58828ebcc4bfcacbb775f83d7e8e2": {
+    "uri": "https://api.sketchfab.com/v3/models/3fa58828ebcc4bfcacbb775f83d7e8e2",
+    "uid": "3fa58828ebcc4bfcacbb775f83d7e8e2",
+    "name": "Talking Vladimir Putin Avatar for Narration",
+    "staffpickedAt": null,
+    "viewCount": 3441,
+    "likeCount": 11,
+    "animationCount": 1,
+    "viewerUrl": "https://sketchfab.com/3d-models/3fa58828ebcc4bfcacbb775f83d7e8e2",
+    "embedUrl": "https://sketchfab.com/models/3fa58828ebcc4bfcacbb775f83d7e8e2/embed",
+    "commentCount": 1,
+    "isDownloadable": true,
+    "publishedAt": "2022-02-12T23:58:37.028911",
+    "tags": [
+      {
+        "name": "avatar",
+        "slug": "avatar",
+        "uri": "https://api.sketchfab.com/v3/tags/avatar"
+      },
+      {
+        "name": "russia",
+        "slug": "russia",
+        "uri": "https://api.sketchfab.com/v3/tags/russia"
+      },
+      {
+        "name": "talking",
+        "slug": "talking",
+        "uri": "https://api.sketchfab.com/v3/tags/talking"
+      },
+      {
+        "name": "vladimir",
+        "slug": "vladimir",
+        "uri": "https://api.sketchfab.com/v3/tags/vladimir"
+      },
+      {
+        "name": "putin",
+        "slug": "putin",
+        "uri": "https://api.sketchfab.com/v3/tags/putin"
+      },
+      {
+        "name": "gestures",
+        "slug": "gestures",
+        "uri": "https://api.sketchfab.com/v3/tags/gestures"
+      },
+      {
+        "name": "presenter",
+        "slug": "presenter",
+        "uri": "https://api.sketchfab.com/v3/tags/presenter"
+      },
+      {
+        "name": "narration",
+        "slug": "narration",
+        "uri": "https://api.sketchfab.com/v3/tags/narration"
+      },
+      {
+        "name": "character",
+        "slug": "character",
+        "uri": "https://api.sketchfab.com/v3/tags/character"
+      },
+      {
+        "name": "speaking",
+        "slug": "speaking",
+        "uri": "https://api.sketchfab.com/v3/tags/speaking"
+      }
+    ],
+    "categories": [
+      {
+        "name": "characters-creatures"
+      },
+      {
+        "name": "people"
+      }
+    ],
+    "thumbnails": {
+      "images": [
+        {
+          "uid": "cbd6ca31a94e4583b61ce7eb4ba08db7",
+          "size": 349238,
+          "width": 1920,
+          "url": "https://media.sketchfab.com/models/3fa58828ebcc4bfcacbb775f83d7e8e2/thumbnails/a2118cced03c48baa0c750dccd6f613b/459a6b86fb894e4aa848a095f5faed66.jpeg",
+          "height": 1080
+        },
+        {
+          "uid": "3ff7e32a9bcc4dd98e455b99b1747f6c",
+          "size": 34839,
+          "width": 1024,
+          "url": "https://media.sketchfab.com/models/3fa58828ebcc4bfcacbb775f83d7e8e2/thumbnails/a2118cced03c48baa0c750dccd6f613b/edecf079c60b4980803dbdcfdd16049c.jpeg",
+          "height": 576
+        },
+        {
+          "uid": "076c0d1b2dea4a57866e066a210bc228",
+          "size": 20367,
+          "width": 720,
+          "url": "https://media.sketchfab.com/models/3fa58828ebcc4bfcacbb775f83d7e8e2/thumbnails/a2118cced03c48baa0c750dccd6f613b/34ac155e5eee40e3a19cc257c8072968.jpeg",
+          "height": 405
+        },
+        {
+          "uid": "bc2e61fbdc474c8a87b461a6cdc59cd7",
+          "size": 4765,
+          "width": 256,
+          "url": "https://media.sketchfab.com/models/3fa58828ebcc4bfcacbb775f83d7e8e2/thumbnails/a2118cced03c48baa0c750dccd6f613b/43fda08b4a3a4eeeaa841a565378bcbb.jpeg",
+          "height": 144
+        },
+        {
+          "uid": "2321b47c0ede49a2aa11020d241d74b2",
+          "size": 1213,
+          "width": 64,
+          "url": "https://media.sketchfab.com/models/3fa58828ebcc4bfcacbb775f83d7e8e2/thumbnails/a2118cced03c48baa0c750dccd6f613b/af0c56cfb64f4917ae5e66736aa61642.jpeg",
+          "height": 36
+        }
+      ]
+    },
+    "user": {
+      "uid": "50505affb6284a18ae87fe009adc7e9d",
+      "username": "LasquetiSpice",
+      "displayName": "LasquetiSpice",
+      "profileUrl": "https://sketchfab.com/LasquetiSpice",
+      "account": "basic",
+      "avatar": {
+        "uri": "https://api.sketchfab.com/v3/avatars/421d3ace24e94c15839bbe39a816f9c7",
+        "images": [
+          {
+            "size": 1766,
+            "width": 32,
+            "url": "https://media.sketchfab.com/avatars/421d3ace24e94c15839bbe39a816f9c7/082ce4731d77492abda4eab32063a40c.png",
+            "height": 32
+          },
+          {
+            "size": 3272,
+            "width": 48,
+            "url": "https://media.sketchfab.com/avatars/421d3ace24e94c15839bbe39a816f9c7/f5dfa0490c6048d6b2ef457930606447.png",
+            "height": 48
+          },
+          {
+            "size": 8536,
+            "width": 90,
+            "url": "https://media.sketchfab.com/avatars/421d3ace24e94c15839bbe39a816f9c7/7de4bc7349514137b9a5e018cf083fb5.png",
+            "height": 90
+          },
+          {
+            "size": 10000,
+            "width": 100,
+            "url": "https://media.sketchfab.com/avatars/421d3ace24e94c15839bbe39a816f9c7/ce8116767c854726a13a45b4772a8e34.png",
+            "height": 100
+          }
+        ]
+      },
+      "uri": "https://api.sketchfab.com/v3/users/50505affb6284a18ae87fe009adc7e9d"
+    },
+    "description": "Vladimir Putin, the leader of Russia, makes speaking gestures with his arms and hands in this 21 second animated looped model. 20 frames per second.\n\nSee this 3D model in action, and more models like it, here in this collection of free augmeneted reality apps:\n\nhttps://morpheusar.com/",
+    "faceCount": 13035,
+    "createdAt": "2022-02-12T23:55:59.998942",
+    "vertexCount": 6959,
+    "isAgeRestricted": false,
+    "archives": {
+      "glb": {
+        "textureCount": 2,
+        "size": 3075220,
+        "type": "glb",
+        "textureMaxResolution": 1024,
+        "faceCount": 13035,
+        "vertexCount": 7897
+      },
+      "gltf": {
+        "textureCount": 2,
+        "size": 2442018,
+        "type": "gltf",
+        "textureMaxResolution": 1024,
+        "faceCount": 13035,
+        "vertexCount": 7897
+      },
+      "source": {
+        "textureCount": null,
+        "size": 5674635,
+        "type": "source",
+        "textureMaxResolution": null,
+        "faceCount": null,
+        "vertexCount": null
+      },
+      "usdz": {
+        "textureCount": null,
+        "size": 4261772,
+        "type": "usdz",
+        "textureMaxResolution": null,
+        "faceCount": null,
+        "vertexCount": null
+      }
+    },
+    "license": "by"
+  },
+  "aa3241a2f12443c483eb1b6eabb1e7fe": {
+    "uri": "https://api.sketchfab.com/v3/models/aa3241a2f12443c483eb1b6eabb1e7fe",
+    "uid": "aa3241a2f12443c483eb1b6eabb1e7fe",
+    "name": "Putin Bust",
+    "staffpickedAt": null,
+    "viewCount": 2811,
+    "likeCount": 23,
+    "animationCount": 0,
+    "viewerUrl": "https://sketchfab.com/3d-models/aa3241a2f12443c483eb1b6eabb1e7fe",
+    "embedUrl": "https://sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/embed",
+    "commentCount": 2,
+    "isDownloadable": true,
+    "publishedAt": "2016-11-17T10:56:59.849377",
+    "tags": [
+      {
+        "name": "president",
+        "slug": "president",
+        "uri": "https://api.sketchfab.com/v3/tags/president"
+      },
+      {
+        "name": "russia",
+        "slug": "russia",
+        "uri": "https://api.sketchfab.com/v3/tags/russia"
+      },
+      {
+        "name": "celebrity",
+        "slug": "celebrity",
+        "uri": "https://api.sketchfab.com/v3/tags/celebrity"
+      },
+      {
+        "name": "vladimir",
+        "slug": "vladimir",
+        "uri": "https://api.sketchfab.com/v3/tags/vladimir"
+      },
+      {
+        "name": "putin",
+        "slug": "putin",
+        "uri": "https://api.sketchfab.com/v3/tags/putin"
+      },
+      {
+        "name": "famous",
+        "slug": "famous",
+        "uri": "https://api.sketchfab.com/v3/tags/famous"
+      },
+      {
+        "name": "bust",
+        "slug": "bust",
+        "uri": "https://api.sketchfab.com/v3/tags/bust"
+      },
+      {
+        "name": "person",
+        "slug": "person",
+        "uri": "https://api.sketchfab.com/v3/tags/person"
+      }
+    ],
+    "categories": [],
+    "thumbnails": {
+      "images": [
+        {
+          "uid": "664f2a19483245f6a62b43ad17d57cce",
+          "size": 28651,
+          "width": 1024,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/1024x576.jpeg",
+          "height": 576
+        },
+        {
+          "uid": "e36a59a1eb804759842db0611245f716",
+          "size": 22753,
+          "width": 864,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/864x486.jpeg",
+          "height": 486
+        },
+        {
+          "uid": "dd308b8d57f2490bad6731027a855649",
+          "size": 1245,
+          "width": 50,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/50x50.jpeg",
+          "height": 50
+        },
+        {
+          "uid": "8255d07bf11d446b8357f83e45bacd7d",
+          "size": 2600,
+          "width": 100,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/100x100.jpeg",
+          "height": 100
+        },
+        {
+          "uid": "3901ff941f044dd6bb8b21920da577d7",
+          "size": 5964,
+          "width": 200,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/200x200.jpeg",
+          "height": 200
+        },
+        {
+          "uid": "ef8246823a3949c4b1602171bc275f2c",
+          "size": 9461,
+          "width": 448,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/448x252.jpeg",
+          "height": 252
+        },
+        {
+          "uid": "2b56c6c9ac5f4291a78a468091770541",
+          "size": 15258,
+          "width": 640,
+          "url": "https://media.sketchfab.com/models/aa3241a2f12443c483eb1b6eabb1e7fe/thumbnails/c645a8372e024c9c849f816b894e7429/640x360.jpeg",
+          "height": 360
+        }
+      ]
+    },
+    "user": {
+      "uid": "e240644ad84b4c1e8f0b9ca006110077",
+      "username": "cgmodelsnet",
+      "displayName": "cgmodelsnet",
+      "profileUrl": "https://sketchfab.com/cgmodelsnet",
+      "account": "basic",
+      "avatar": {
+        "uri": "https://api.sketchfab.com/v3/avatars/3ef1bd11d3eb4b57a0b353e8f2e5fc3e",
+        "images": [
+          {
+            "size": 680,
+            "width": 32,
+            "url": "https://media.sketchfab.com/avatars/3ef1bd11d3eb4b57a0b353e8f2e5fc3e/116042a0854e40538adab302b593683d.jpeg",
+            "height": 32
+          },
+          {
+            "size": 1253,
+            "width": 48,
+            "url": "https://media.sketchfab.com/avatars/3ef1bd11d3eb4b57a0b353e8f2e5fc3e/efea16be51d04eb7a00cb9ea0b43b87f.jpeg",
+            "height": 48
+          },
+          {
+            "size": 2797,
+            "width": 90,
+            "url": "https://media.sketchfab.com/avatars/3ef1bd11d3eb4b57a0b353e8f2e5fc3e/ac9b469ccec74caf923a81fb2f0be3ed.jpeg",
+            "height": 90
+          },
+          {
+            "size": 3215,
+            "width": 100,
+            "url": "https://media.sketchfab.com/avatars/3ef1bd11d3eb4b57a0b353e8f2e5fc3e/a075e1d43d2f446c949b5967b470c757.jpeg",
+            "height": 100
+          }
+        ]
+      },
+      "uri": "https://api.sketchfab.com/v3/users/e240644ad84b4c1e8f0b9ca006110077"
+    },
+    "description": "Vladimir Putin bust model",
+    "faceCount": 136928,
+    "createdAt": "2016-11-17T10:39:21.847012",
+    "vertexCount": 136930,
+    "isAgeRestricted": false,
+    "archives": {
+      "glb": {
+        "textureCount": 2,
+        "size": 16745316,
+        "type": "glb",
+        "textureMaxResolution": 4096,
+        "faceCount": 273856,
+        "vertexCount": 147657
+      },
+      "gltf": {
+        "textureCount": 2,
+        "size": 12843713,
+        "type": "gltf",
+        "textureMaxResolution": 4096,
+        "faceCount": 273856,
+        "vertexCount": 147657
+      },
+      "source": {
+        "textureCount": null,
+        "size": 16438778,
+        "type": "source",
+        "textureMaxResolution": null,
+        "faceCount": null,
+        "vertexCount": null
+      },
+      "usdz": {
+        "textureCount": null,
+        "size": 7101124,
+        "type": "usdz",
+        "textureMaxResolution": null,
+        "faceCount": null,
+        "vertexCount": null
+      }
+    },
+    "license": "by"
+  }
+}

@@ -1,0 +1,6 @@
+scale=1 age=1 min=-5.10321 max=7.81429 slope_error=0.00465935 foam_max=0.976786 crest_on=2888 crest_off=5911 neg=17220 positive=9140
+scale=1 age=5 min=-4.61808 max=7.07143 slope_error=0.00141239 foam_max=0.883929 crest_on=2909 crest_off=5726 neg=14733 positive=9064
+scale=1 age=20 min=-2.79883 max=4.28571 slope_error=0.000721189 foam_max=0.535714 crest_on=2878 crest_off=5481 neg=14674 positive=9049
+scale=10 age=1 min=-16.4 max=25.1125 slope_error=0.00105558 foam_max=0.992659 crest_on=9876 crest_off=9184 neg=7288 positive=19121
+scale=10 age=5 min=-15.9149 max=24.3696 slope_error=0.000454508 foam_max=0.963295 crest_on=2796 crest_off=6098 neg=17385 positive=9021
+scale=10 age=20 min=-14.0956 max=21.5839 slope_error=0.000620246 foam_max=0.85318 crest_on=2922 crest_off=6007 neg=14817 positive=9068

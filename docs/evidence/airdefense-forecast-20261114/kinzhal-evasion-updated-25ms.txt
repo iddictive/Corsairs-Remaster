@@ -1,0 +1,50 @@
+# source SHA256
+# experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp 4fa84174d344de131c739a2d931b087a179b89d77ecd083ef2214e90407307e9
+# experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp f9fdd9474acb2f99a04df7ca95a251d476d2cc2a8c77a50e3e5fc1293ad48b83
+# experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp 978c3be6b7b6d2842887b9a6742c9f3b24025702badfd26017264d72676feb1b
+# experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp 20bd149b4e016a7214b6eb09b2d1049478081249046e76e292cbc912ece378b2
+# experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp ef746131496ac9d979c3f7e75fca5bc212d28e3d8ac354d826e7504b2d7615ee
+# experiments/native-metal/engine/src/libs/math/include/c_vector.h bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a
+# docs/evidence/airdefense-forecast-20261114/matrix.py 74a424960847f0a2044f68f88a7a002238eef3280596f278ad1d3b0ff3e03a55
+# docs/evidence/airdefense-forecast-20261114/player-simulation.cpp 903b997d7a74cd0877f054fdca2e6c1d39b158ce0f457c7368126b6c2625ffab
+# docs/evidence/airdefense-forecast-20261114/current-runtime-replay.py 0b54de76978bee9ccf40d9aa425b0dffbc367c08893984531c557e7239124ae3
+DISTANCE 1000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,50,10.000,50,10.000,1296,1296,0,2,2,0
+single,Kinzhal,Patriot,500,500,215,43.000,215,43.000,1005,0,1005,2,2,0
+single,Kalibr,Pantsir,500,500,417,83.400,417,83.400,3446,3446,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1003,0,1003,2,2,0
+single,Shtorm,Pantsir,500,500,194,38.800,194,38.800,1666,1666,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,144,28.800,144,28.800,1342,1342,0,2,2,0
+single,Oreshnik,Patriot,500,500,453,90.600,453,90.600,1011,0,1011,2,2,0
+DISTANCE 2000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,51,10.200,51,10.200,1333,1333,0,2,2,0
+single,Kinzhal,Patriot,500,500,182,36.400,182,36.400,1009,0,1009,2,2,0
+single,Kalibr,Pantsir,500,500,359,71.800,359,71.800,3972,3972,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1007,0,1007,2,2,0
+single,Shtorm,Pantsir,500,500,380,76.000,380,76.000,1913,1913,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,98,19.600,98,19.600,1005,1005,0,2,2,0
+single,Oreshnik,Patriot,500,500,292,58.400,292,58.400,1034,0,1034,2,2,0
+DISTANCE 4000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,35,7.000,35,7.000,1304,1304,0,2,2,0
+single,Kinzhal,Patriot,500,500,128,25.600,128,25.600,1037,0,1037,2,2,0
+single,Kalibr,Pantsir,500,500,159,31.800,159,31.800,4410,4410,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,412,82.400,412,82.400,2651,2651,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,115,23.000,115,23.000,447,447,0,2,2,0
+single,Oreshnik,Patriot,500,500,162,32.400,162,32.400,1047,0,1047,2,2,0
+DISTANCE 8000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,35,7.000,35,7.000,1379,1379,0,2,2,0
+single,Kinzhal,Patriot,500,500,134,26.800,134,26.800,1048,0,1048,2,2,0
+single,Kalibr,Pantsir,500,500,124,24.800,124,24.800,4194,4194,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1009,0,1009,2,2,0
+single,Shtorm,Pantsir,500,500,422,84.400,422,84.400,3277,3277,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,87,17.400,87,17.400,428,428,0,2,2,0
+single,Oreshnik,Patriot,500,500,208,41.600,208,41.600,1088,0,1088,2,2,0

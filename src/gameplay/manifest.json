@@ -1,6 +1,11 @@
 {
   "version": 2,
   "files": {
+    "RESOURCE/Particles/hero_stream.xps": {
+      "encoding": "binary",
+      "legacy": [],
+      "sha256": "0fcab7cb5e58a359b87871bd2d9acd30e832ae512ad28c5f5f1d9ce1c7cc1201"
+    },
     "PROGRAM/interface/save_load.c": {
       "encoding": "cp1251",
       "legacy": [

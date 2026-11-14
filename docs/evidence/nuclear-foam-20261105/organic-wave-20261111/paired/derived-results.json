@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "label": "baseline-rate1-tier10",
+      "frames": 2400,
+      "warmup": 1800,
+      "p50_ms": 8.54904,
+      "p95_ms": 9.39196,
+      "max_sampled_waves": 37
+    },
+    {
+      "label": "baseline-rate60-tier10",
+      "frames": 1500,
+      "warmup": 900,
+      "p50_ms": 11.4054,
+      "p95_ms": 12.4069,
+      "max_sampled_waves": 160
+    },
+    {
+      "label": "candidate-rate1-tier10",
+      "frames": 2400,
+      "warmup": 1800,
+      "p50_ms": 10.248149999999999,
+      "p95_ms": 11.7481,
+      "max_sampled_waves": 37
+    },
+    {
+      "label": "candidate-rate60-tier10",
+      "frames": 1500,
+      "warmup": 900,
+      "p50_ms": 13.200199999999999,
+      "p95_ms": 13.8535,
+      "max_sampled_waves": 160
+    }
+  ],
+  "limitation": "All cases completed. Harness reported backend source change during run; both executables linked the same single scratch-compiled backend, and lib/*.a hashes stayed unchanged."
+}

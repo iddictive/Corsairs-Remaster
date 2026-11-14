@@ -1,0 +1,11 @@
+#include "missile_trail_vfx.hpp"
+#include <cassert>
+#include <cstdio>
+using namespace storm_metal;
+int main() {
+ MissileTrailVfx v; assert(!v.hasVisible()); v.beginFrame(.016f); v.burst({100,0,0},MissileVfxType::Kalibr); assert(v.hasVisible()&&v.storedCount()==16);
+ v.beginFrame(.5f); assert(v.hasVisible()); v.beginFrame(4.5f); assert(!v.hasVisible()&&v.storedCount()==0);
+ v.emitSegment({0,0,0},{100000,0,0},8,MissileVfxType::Interceptor); assert(v.storedCount()==24);
+ v.beginFrame(5); assert(!v.hasVisible()&&v.storedCount()==0); v.clear();assert(!v.hasVisible());
+ puts("PASS launch persistence, expiry, dropped backlog, reset");
+}

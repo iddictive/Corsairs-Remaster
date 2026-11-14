@@ -1,0 +1,12 @@
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include "phonk_missile_profiles.hpp"
+#include "shared/sea_ai/script_defines.h"
+namespace missile = storm::ship::phonk::missile;
+float conventionalMissileRadius(missile::Type type, bool cluster, unsigned warhead)
+{
+    const float base = cluster ? 8.f : (type == missile::Type::Shtorm ? 42.f : type == missile::Type::Kinzhal ? 28.f : 18.f);
+    return warhead == PHONK_WARHEAD_THERMOBARIC ? base * 1.5f : base;
+}
+int main(){using missile::Type;float he=conventionalMissileRadius(Type::Kinzhal,false,1),thermo=conventionalMissileRadius(Type::Kinzhal,false,PHONK_WARHEAD_THERMOBARIC),cluster=conventionalMissileRadius(Type::Kinzhal,true,2);assert(he==28.f&&thermo==42.f&&cluster==8.f);assert(missile::blastPower(thermo*.5f,thermo)>0.f);assert(missile::blastPower(thermo,thermo)==0.f);puts("HE=28 thermo=42 cluster=8; blast falls to zero at radius");}

@@ -1,0 +1,5 @@
+#include "phonk_missile_profiles.hpp"
+#include <cassert>
+#include <cstdio>
+using namespace storm::ship::phonk::missile;
+int main(){Vec3 a{0,20,0},b{8000,0,0}; FlightVariation low,high;low.arcScale=.55f;high.arcScale=1.65f;float dur=duration(Type::Kinzhal,a,b);auto x=position(Type::Kinzhal,a,b,.5f,dur,low),y=position(Type::Kinzhal,a,b,.5f,dur,high),end=position(Type::Kinzhal,a,b,1.f,dur,high);assert(y.y-x.y>500.f);assert(magnitude(end-b)<.01f);printf("Kinzhal arc midpoint difference %.1fm; endpoint retained\n",y.y-x.y);}

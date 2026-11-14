@@ -1,0 +1,12 @@
+#include "missile_trail_vfx.hpp"
+#include <cassert>
+#include <cstdio>
+using namespace storm_metal;
+int main() {
+ MissileTrailVfx v; v.beginFrame(.016f); v.emitSegment({0,0,0},{100000,0,0},.016f,MissileVfxType::Kinzhal); assert(v.storedCount()==24);
+ for(int i=0;i<500;i++) v.emitSegment({0,0,0},{10000,0,0},.016f,MissileVfxType::Kalibr);
+ assert(v.storedCount()==2048); v.beginFrame(5.f); assert(v.storedCount()==0);
+ v.emitSegment({NAN,0,0},{0,0,0},.016f,MissileVfxType::Interceptor); assert(v.storedCount()==0);
+ v.burst({0,0,0},MissileVfxType::Interceptor); assert(v.storedCount()==16); v.clear(); assert(v.storedCount()==0);
+ puts("PASS capped segment=24 pool=2048 reset-after-gap invalid-position burst=16 clear");
+}

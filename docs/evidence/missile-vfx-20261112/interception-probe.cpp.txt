@@ -1,0 +1,46 @@
+
+#include <cstdint>
+using entid_t=uint64_t;
+#include "phonk_ordnance.hpp"
+#include <map>
+#include <cassert>
+#include <cstdio>
+using namespace storm::ship::phonk;
+struct ATTRIBUTES { int side; static bool IsLive(ATTRIBUTES *a){return a!=nullptr;} };
+struct SHIP; struct Core {std::map<entid_t,SHIP*> ships; void *GetEntityPointer(entid_t id){return ships.count(id)?ships[id]:nullptr;}} core;
+struct {bool isEnemy(ATTRIBUTES *a,ATTRIBUTES *b){return a&&b&&a->side!=b->side;}} Helper;
+struct MissileIntercepts { unsigned count=0; CVECTOR position=CVECTOR(0.f), direction=CVECTOR(0.f,1.f,0.f); };
+struct SHIP { ATTRIBUTES captain; OrdnanceState phonkOrdnance; ATTRIBUTES *GetACharacter(){return &captain;} MissileIntercepts run(SHIP &defender,const std::vector<entid_t> &receivers,const CVECTOR &center,NuclearMissile *preferred); };
+MissileIntercepts SHIP::run(SHIP &defender,const std::vector<entid_t> &receivers,const CVECTOR &center,NuclearMissile *preferred) {
+const auto interceptNearbyMissiles = [&](SHIP &defender, const CVECTOR &center, NuclearMissile *preferred) {
+        MissileIntercepts result;
+        const auto hit = [&](NuclearMissile &shot) {
+            if (result.count >= 4 || !shot.active || shot.intercepted || shot.continueVelocity || shot.interceptionFragment) return;
+            const auto position = nuclearPosition(shot, shot.age);
+            if ((~(position-center)) > 35.f*35.f) return;
+            shot.interceptedVelocity = nuclearVelocity(shot, shot.age);
+            shot.target = position; shot.intercepted = true; shot.guidedShip = 0;
+            if (!shot.cluster) shot.split = false;
+            if (!result.count) { result.position = position; result.direction = shot.interceptedVelocity; }
+            ++result.count;
+        };
+        if (preferred) hit(*preferred);
+        unsigned scanned = 0;
+        for (size_t i = 0; i <= receivers.size() && scanned < 128 && result.count < 4; ++i) {
+            auto *source = i == 0 ? this : static_cast<SHIP *>(core.GetEntityPointer(receivers[i-1]));
+            auto *captain = source ? source->GetACharacter() : nullptr;
+            if (!source || source == &defender || !ATTRIBUTES::IsLive(captain) ||
+                !Helper.isEnemy(defender.GetACharacter(), captain)) continue;
+            for (auto &shot : source->phonkOrdnance.missiles) {
+                if (++scanned > 128) break;
+                hit(shot);
+                if (result.count >= 4) break;
+            }
+        }
+        if ((~result.direction) < .001f) result.direction = CVECTOR(0.f, 1.f, 0.f);
+        return result;
+    };
+
+return interceptNearbyMissiles(defender,center,preferred); }
+static NuclearMissile shot(float x){ NuclearMissile m; m.active=true; m.launch=CVECTOR(x,0.f,0.f);m.target=m.launch;m.duration=10.f;return m;}
+int main(){SHIP me{{1}}, hostile{{2}}, ally{{1}}; core.ships[2]=&hostile;core.ships[3]=&ally; for(float x:{0.f,10.f,20.f,30.f,36.f})hostile.phonkOrdnance.missiles.push_back(shot(x));ally.phonkOrdnance.missiles.push_back(shot(0.f));auto r=me.run(me,{2,3},CVECTOR(0.f),&hostile.phonkOrdnance.missiles[0]);assert(r.count==4);assert(!hostile.phonkOrdnance.missiles[4].intercepted);assert(!ally.phonkOrdnance.missiles[0].intercepted);auto none=me.run(me,{2,3},CVECTOR(100.f),nullptr);assert(none.count==0);puts("interception: four hostile rounds, friendly and distant preserved");}

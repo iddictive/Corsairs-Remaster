@@ -1,0 +1,19 @@
+# isolated model, seed=19 trials=300 unlimited_charges=False
+# 44d515a9440ef5d77a7dbe10172b30e3e06899795de09a168d275d28e2478dce experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp
+# 0e8fe26b5fa1c5dece1241cc0a75e7dd78ff0156462bfdd06225fed8e3f8e3c2 experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp
+# b826f219bcb6fe6b624d95c5738cd2f13457a02ec4431d86cf91433659fc9533 experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp
+# 33455185634373ac438c3cf0d90bd026b46910f08c8e028147234cfd9c887d8e experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp
+# 6cc05ccfc575fc0a22cb2c42ceb33d1fe4125809e68e6757fa11b1109b0bc2a6 experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp
+# bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a experiments/native-metal/engine/src/libs/math/include/c_vector.h
+# b6752230f800f1f059520c1266784e9e27277b34b037732330517d1797e1965b src/gameplay/PROGRAM/sea_ai/sea_traffic.c
+# 3b4d238625175abceefe2903aa16bfb595507b70d08fec97ede2a06cd5a0f6c6 docs/evidence/pantsir-proximity-20261113/matrix.py
+# 9a4b88bd8be3dce1e3cfe18573db276adfe47f8c2da656781995e7606b21cd6f docs/evidence/pantsir-proximity-20261113/random-salvo.cpp
+# ef00652256d29efd8ab1a3624802b2190c1a8109e55c17323d031fc1a0566505 docs/evidence/pantsir-proximity-20261113/random-salvo.py
+Pantsir,Kinzhal,118,216,16,7.41,3380,313566,4
+Pantsir,Kalibr,1068,2586,468,18.10,3380,313566,4
+Pantsir,Shtorm,1067,2566,633,24.67,3380,313566,4
+Pantsir,Oreshnik,123,282,4,1.42,3380,313566,4
+Patriot,Kinzhal,118,216,52,24.07,3393,326341,6
+Patriot,Kalibr,1068,2586,1143,44.20,3393,326341,6
+Patriot,Shtorm,1067,2566,1139,44.39,3393,326341,6
+Patriot,Oreshnik,123,282,25,8.87,3393,326341,6

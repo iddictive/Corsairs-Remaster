@@ -1,0 +1,56 @@
+--- deck-owner.cpp.txt ---
+PASS sea_fixture
+PASS ship_model
+PASS ship_entity
+PASS deck_entity
+PASS ordinary_no_fall
+ordinary_local_shift=(-0.1862,0.0000)
+PASS ordinary_gravity_shift
+PASS critical_starts_world_fall
+PASS fall_world_motion
+PASS restore_fall_continues
+PASS no_death_above_water
+PASS fall_reaches_water
+PASS one_water_event
+PASS landing_path
+PASS landing_surface
+PASS landing_recovers_on_deck
+PASS landing_no_death
+PASS character_change_clears_fall
+PASS character_change_no_death
+DECK_OWNER_PASS
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+--- npc-owner.cpp.txt ---
+npc_start=(-2.434,29.616,-0.000) end=(-0.538,26.856,1.349)
+npc_40_frame_ms=0.0002
+NPC_OWNER_PASS
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+--- npc-performance.cpp.txt ---
+count=40 mode=0 candidate=0 p95_ms=0.0012 p99_ms=0.0013
+count=40 mode=0 candidate=1 p95_ms=0.0014 p99_ms=0.0015
+count=40 mode=1 candidate=0 p95_ms=0.0012 p99_ms=0.0012
+count=40 mode=1 candidate=1 p95_ms=0.0097 p99_ms=0.0103
+count=40 mode=2 candidate=0 p95_ms=0.0013 p99_ms=0.0013
+count=40 mode=2 candidate=1 p95_ms=0.0219 p99_ms=0.0241
+count=200 mode=0 candidate=0 p95_ms=0.0262 p99_ms=0.0325
+count=200 mode=0 candidate=1 p95_ms=0.0272 p99_ms=0.0332
+count=200 mode=1 candidate=0 p95_ms=0.0258 p99_ms=0.0294
+count=200 mode=1 candidate=1 p95_ms=0.0661 p99_ms=0.0701
+count=200 mode=2 candidate=0 p95_ms=0.0250 p99_ms=0.0253
+count=200 mode=2 candidate=1 p95_ms=0.1209 p99_ms=0.1375
+NPC_OWNER_PASS
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+Run=0
+script_errors=0
+Run=0
+script_errors=0
+ISOLATED_REPLAY_PASS

@@ -1,0 +1,66 @@
+#include <cstdint>
+using entid_t=uint64_t;
+#include "phonk_ordnance.hpp"
+#include <cstdio>
+using namespace storm::ship::phonk;
+float shotVariation(uint32_t serial, uint32_t owner, uint32_t salt)
+{
+    uint32_t bits = serial * 0x9e3779b9u ^ owner ^ salt;
+    bits ^= bits >> 16; bits *= 0x7feb352du; bits ^= bits >> 15;
+    return float(bits & 65535u) / 65535.f;
+}
+void varyMissile(NuclearMissile &shot, uint32_t owner, float configuredSpeed = 1.f, float configuredAcceleration = 1.f)
+{
+    shot.damageScale = .9f + .2f * shotVariation(shot.shotId, owner, 0x4cf5ad43u);
+    shot.blastScale = .96f + .08f * shotVariation(shot.shotId, owner, 0xd7125ab3u);
+    shot.flightVariation = {
+        .97f + .06f * shotVariation(shot.shotId, owner, 0x178be123u),
+        .98f + .04f * shotVariation(shot.shotId, owner, 0x57d312a5u),
+        .96f + .08f * shotVariation(shot.shotId, owner, 0xac882f41u), configuredSpeed, configuredAcceleration,
+        .3f + 1.35f * shotVariation(shot.shotId, owner, 0xc14d9b73u)};
+    shot.flightVariation.arcPattern = std::min(2u, uint32_t(shotVariation(shot.shotId, owner, 0x3f10cd25u) * 3.f));
+    shot.duration = missile::duration(shot.type,
+        {shot.launch.x, shot.launch.y, shot.launch.z},
+        {shot.target.x, shot.target.y, shot.target.z}, shot.flightVariation);
+    shot.nominalMeanSpeed = std::sqrt(~(shot.target - shot.launch)) / std::max(.001f, shot.duration);
+}
+void initializeKinzhalTiming(NuclearMissile &shot)
+{
+    if (shot.type != missile::Type::Kinzhal || shot.kinzhalTiming) return;
+    constexpr int count = KinzhalTiming::samples;
+    auto timing = std::make_shared<KinzhalTiming>();
+    timing->referenceDuration = shot.duration;
+    std::array<CVECTOR, count + 1> position;
+    std::array<float, count + 1> speed{}, cap{}, distance{};
+    const float dt = shot.duration / float(count);
+    for (int i = 0; i <= count; ++i) {
+        const float time = dt * i;
+        position[i] = nuclearPosition(shot, time);
+        const auto velocity = nuclearVelocity(shot, time);
+        const float speed2 = ~velocity;
+        speed[i] = std::sqrt(speed2);
+        cap[i] = speed[i];
+        if (i > 0 && i < count && speed2 > 1.f) {
+            auto acceleration = (nuclearPosition(shot, time + dt) + nuclearPosition(shot, time - dt) -
+                                 position[i] * 2.f) * (1.f / (dt * dt));
+            acceleration -= velocity * ((acceleration | velocity) / speed2);
+            const float curvature = std::sqrt(~acceleration) / speed2;
+            if (curvature > 1.e-8f) cap[i] = std::min(cap[i], std::sqrt(50.f * 9.81f / curvature));
+        }
+        if (i > 0) distance[i] = std::sqrt(~(position[i] - position[i-1]));
+    }
+    constexpr float tangentialAcceleration = 1000.f;
+    for (int i = count-1; i >= 0; --i)
+        cap[i] = std::min(cap[i], std::sqrt(cap[i+1]*cap[i+1] + 2.f*tangentialAcceleration*distance[i+1]));
+    for (int i = 1; i <= count; ++i)
+        cap[i] = std::min(cap[i], std::sqrt(cap[i-1]*cap[i-1] + 2.f*tangentialAcceleration*distance[i]));
+    for (int i = 1; i <= count; ++i)
+        timing->time[i] = timing->time[i-1] + 2.f*distance[i]/std::max(.01f, cap[i]+cap[i-1]);
+    for (int i = 0; i <= count; ++i)
+        timing->rate[i] = speed[i] > .01f ? cap[i]/speed[i] : 1.f;
+    if (!std::isfinite(timing->time[count]) || timing->time[count] <= 0.f) return;
+    shot.duration = timing->time[count];
+    shot.nominalMeanSpeed = std::sqrt(~(shot.target - shot.launch)) / shot.duration;
+    shot.kinzhalTiming = std::move(timing);
+}
+int main(){for(float dist:{1000.f,2000.f,4000.f,8000.f}){float sum=0, peak=0;int over=0;for(int n=0;n<100;n++){uint32_t attacker=2+(19+n)*2;NuclearMissile m;m.active=true;m.type=missile::Type::Kinzhal;m.owner=attacker;m.shotId=1;m.launch=CVECTOR(0,10,dist);m.target=CVECTOR((shotVariation(1,attacker,102)*2-1)*80,5.5f,(shotVariation(1,attacker,103)*2-1)*80);varyMissile(m,attacker);m.seeker=true;initializeKinzhalTiming(m);float gmax=0;for(float t=.035f;t<m.duration-.035f;t+=.01f){auto v=nuclearVelocity(m,t);float v2=~v;if(v2<1)continue;auto a=(nuclearVelocity(m,t+.015f)-nuclearVelocity(m,t-.015f))*(1.f/.03f);a-=v*((a|v)/v2);gmax=std::max(gmax,std::sqrt(~a)/9.81f);}sum+=gmax;peak=std::max(peak,gmax);over+=gmax>80;}printf("%.0f avg_max_g=%.1f peak=%.1f above80=%d/100\n",dist,sum/100,peak,over);} }

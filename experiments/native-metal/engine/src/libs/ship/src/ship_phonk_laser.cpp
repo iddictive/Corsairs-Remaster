@@ -100,6 +100,13 @@ class SHIP_CUT_FRAGMENTS final : public Entity
         if ((stage != Stage::execute && stage != Stage::realize) || (!delta && stage == Stage::execute)) return;
         const auto ships = core.GetEntityIds("ship");
         if (delta && ships.empty() && orphans.empty() && !future.valid()) { core.EraseEntity(GetId()); return; }
+        std::vector<std::pair<entid_t, uint64_t>> forts;
+        if (AIFort::pAIFort)
+            for (unsigned n = 0; n < AIFort::pAIFort->GetNumForts(); ++n) {
+                auto *fort = AIFort::pAIFort->GetFort(n);
+                if (fort && fort->GetPhonkOrdnance())
+                    forts.emplace_back(fort->GetModelEID(), fort->GetPhonkOrdnanceGeneration());
+            }
         // One late-frame owner advances the entire fleet together. A per-ship
         // pass cannot resolve reciprocal debris contact from coherent poses.
         if(stage==Stage::execute){
@@ -108,15 +115,27 @@ class SHIP_CUT_FRAGMENTS final : public Entity
                 for (const auto id : ships)
                     if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
                         ship->ExecutePhonkMissilesLate(delta, true);
+                for (const auto &[id, generation] : forts)
+                    SHIP::ExecutePhonkMissilesForOwner(nullptr, id, generation, delta, true);
                 SHIP::ResolvePhonkAirFrame(ships, delta);
             }
             if (airFrame) SHIP::ExecutePhonkAirFrame(ships, delta);
             else for (const auto id : ships)
                 if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
                     ship->ExecutePhonkMissilesLate(delta);
+            if (!airFrame)
+                for (const auto &[id, generation] : forts)
+                    SHIP::ExecutePhonkMissilesForOwner(nullptr, id, generation, delta);
             for (const auto id : ships)
                 if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
                     ship->FinishPhonkInterceptorsLate();
+            for (const auto &[id, generation] : forts)
+                for (std::size_t i = 0;; ++i) {
+                    const auto owner = storm::ship::phonk::fortOrdnanceOwner(id, generation);
+                    auto *state = owner.fort ? owner.fort->GetPhonkOrdnance() : nullptr;
+                    if (!state || i >= state->interceptors.size()) break;
+                    if (!SHIP::FinishPhonkInterceptorForOwner(nullptr, id, generation, false, i)) break;
+                }
             for (auto &orphan : orphans) orphan.time += delta * .001;
             AdvanceCutFragments();
             PollDamage();
@@ -138,6 +157,8 @@ class SHIP_CUT_FRAGMENTS final : public Entity
                 // is far outside the visible layer.
                 ship->DrawPhonkOrdnance();
             }
+        for (const auto &[id, generation] : forts)
+            SHIP::DrawPhonkOrdnanceForOwner(nullptr, id, generation);
         if (delta) DrawOrphans();
     }
 };

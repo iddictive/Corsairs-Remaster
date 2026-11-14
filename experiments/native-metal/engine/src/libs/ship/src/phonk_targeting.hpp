@@ -129,6 +129,34 @@ struct AutoTarget
     float distanceSquared = 0.f;
 };
 
+// A fort is an inner AI object rather than a ship entity. Its model entity and
+// state generation identify it without borrowing a ship's character or state.
+struct FortOrdnanceOwner
+{
+    AIFort::AI_FORT *fort = nullptr;
+    entid_t model = 0;
+    uint64_t generation = 0;
+};
+
+inline FortOrdnanceOwner fortOrdnanceOwner(entid_t model, uint64_t generation)
+{
+    if (!model || !AIFort::pAIFort) return {};
+    for (unsigned n = 0; n < AIFort::pAIFort->GetNumForts(); ++n)
+    {
+        auto *fort = AIFort::pAIFort->GetFort(n);
+        if (!fort || fort->GetModelEID() != model || fort->GetPhonkOrdnanceGeneration() != generation)
+            continue;
+        if (!ATTRIBUTES::IsLive(fort->GetACharacter()) || !fort->GetModel()) return {};
+        return {fort, model, generation};
+    }
+    return {};
+}
+
+inline bool fortCanLaunch(const FortOrdnanceOwner &owner)
+{
+    return owner.fort && !owner.fort->isDead() && owner.fort->isNormalMode();
+}
+
 inline CVECTOR predictedTarget(const AutoTarget &target, float seconds)
 {
     if (!target.ship) return target.point;

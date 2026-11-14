@@ -13,3 +13,7 @@ dist/
 
 *.log
 /native-storm/
+
+# Regenerable frame dumps from the cluster-impact and underwater render probes.
+/docs/evidence/cluster-impact-offscreen-20261111/**/*.png
+/docs/evidence/**/*.ppm

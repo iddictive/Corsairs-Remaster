@@ -1,0 +1,86 @@
+# source SHA256
+# experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp c4026a7ed25c62bcae34317751eead6b15c0ed642cb807fd7c393497887dfdb1
+# experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp 87f7d5621c927e9a700081123716ed31cfeee30d50d444405b6e14d5a706ffb9
+# experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp 978c3be6b7b6d2842887b9a6742c9f3b24025702badfd26017264d72676feb1b
+# experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp 33455185634373ac438c3cf0d90bd026b46910f08c8e028147234cfd9c887d8e
+# experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp 6cc05ccfc575fc0a22cb2c42ceb33d1fe4125809e68e6757fa11b1109b0bc2a6
+# experiments/native-metal/engine/src/libs/math/include/c_vector.h bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a
+# docs/evidence/airdefense-forecast-20261114/matrix.py 74a424960847f0a2044f68f88a7a002238eef3280596f278ad1d3b0ff3e03a55
+# docs/evidence/airdefense-forecast-20261114/player-simulation.cpp 903b997d7a74cd0877f054fdca2e6c1d39b158ce0f457c7368126b6c2625ffab
+# docs/evidence/airdefense-forecast-20261114/current-runtime-replay.py 558daddbe4a33a11f04a318f61c1ae23700e189982826d1639ce0014670b635f
+EVASION Kinzhal Pantsir detected=497 reacted=496 maneuvered=431 over80=0 maxG=67.7
+EVASION Kinzhal Patriot detected=500 reacted=500 maneuvered=500 over80=0 maxG=75.1
+EVASION Kalibr Pantsir detected=0 reacted=500 maneuvered=44 over80=0 maxG=41.9
+EVASION Kalibr Patriot detected=0 reacted=500 maneuvered=45 over80=0 maxG=41.9
+EVASION Shtorm Pantsir detected=0 reacted=500 maneuvered=0 over80=0 maxG=57.2
+EVASION Shtorm Patriot detected=0 reacted=500 maneuvered=0 over80=0 maxG=15.2
+EVASION Oreshnik Pantsir detected=0 reacted=500 maneuvered=0 over80=500 maxG=133.7
+EVASION Oreshnik Patriot detected=0 reacted=500 maneuvered=0 over80=500 maxG=133.7
+
+DISTANCE 1000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,110,22.000,110,22.000,1398,1398,0,2,2,0
+single,Kinzhal,Patriot,500,500,148,29.600,148,29.600,1008,0,1008,2,2,0
+single,Kalibr,Pantsir,500,500,500,100.000,500,100.000,2340,2340,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,107,21.400,107,21.400,1993,1993,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,143,28.600,143,28.600,1341,1341,0,2,2,0
+single,Oreshnik,Patriot,500,500,350,70.000,350,70.000,1019,0,1019,2,2,0
+EVASION Kinzhal Pantsir detected=486 reacted=485 maneuvered=391 over80=0 maxG=66.5
+EVASION Kinzhal Patriot detected=500 reacted=500 maneuvered=500 over80=0 maxG=69.1
+EVASION Kalibr Pantsir detected=0 reacted=500 maneuvered=121 over80=0 maxG=52.6
+EVASION Kalibr Patriot detected=0 reacted=500 maneuvered=113 over80=0 maxG=48.2
+EVASION Shtorm Pantsir detected=0 reacted=500 maneuvered=0 over80=0 maxG=35.8
+EVASION Shtorm Patriot detected=0 reacted=500 maneuvered=0 over80=0 maxG=15.7
+EVASION Oreshnik Pantsir detected=0 reacted=372 maneuvered=0 over80=500 maxG=183.7
+EVASION Oreshnik Patriot detected=0 reacted=500 maneuvered=0 over80=500 maxG=183.7
+
+DISTANCE 2000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,153,30.600,153,30.600,1471,1471,0,2,2,0
+single,Kinzhal,Patriot,500,500,159,31.800,159,31.800,1011,0,1011,2,2,0
+single,Kalibr,Pantsir,500,500,493,98.600,493,98.600,2839,2839,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,344,68.800,344,68.800,2289,2289,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,96,19.200,96,19.200,965,965,0,2,2,0
+single,Oreshnik,Patriot,500,500,155,31.000,155,31.000,1021,0,1021,2,2,0
+EVASION Kinzhal Pantsir detected=458 reacted=445 maneuvered=356 over80=0 maxG=66.2
+EVASION Kinzhal Patriot detected=500 reacted=500 maneuvered=500 over80=0 maxG=71.9
+EVASION Kalibr Pantsir detected=0 reacted=500 maneuvered=161 over80=0 maxG=53.0
+EVASION Kalibr Patriot detected=0 reacted=500 maneuvered=123 over80=0 maxG=53.0
+EVASION Shtorm Pantsir detected=0 reacted=500 maneuvered=0 over80=0 maxG=17.7
+EVASION Shtorm Patriot detected=0 reacted=500 maneuvered=0 over80=0 maxG=14.2
+EVASION Oreshnik Pantsir detected=0 reacted=271 maneuvered=0 over80=500 maxG=247.8
+EVASION Oreshnik Patriot detected=0 reacted=500 maneuvered=0 over80=500 maxG=247.8
+
+DISTANCE 4000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,131,26.200,131,26.200,1457,1457,0,2,2,0
+single,Kinzhal,Patriot,500,500,183,36.600,183,36.600,1034,0,1034,2,2,0
+single,Kalibr,Pantsir,500,500,446,89.200,446,89.200,3502,3502,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,431,86.200,431,86.200,2490,2490,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,107,21.400,107,21.400,400,400,0,2,2,0
+single,Oreshnik,Patriot,500,500,0,0.000,0,0.000,1000,0,1000,2,2,0
+EVASION Kinzhal Pantsir detected=488 reacted=468 maneuvered=349 over80=0 maxG=65.5
+EVASION Kinzhal Patriot detected=500 reacted=500 maneuvered=500 over80=0 maxG=65.2
+EVASION Kalibr Pantsir detected=0 reacted=500 maneuvered=174 over80=0 maxG=56.3
+EVASION Kalibr Patriot detected=0 reacted=500 maneuvered=123 over80=0 maxG=56.3
+EVASION Shtorm Pantsir detected=0 reacted=500 maneuvered=0 over80=0 maxG=5.8
+EVASION Shtorm Patriot detected=0 reacted=500 maneuvered=0 over80=0 maxG=5.4
+EVASION Oreshnik Pantsir detected=0 reacted=231 maneuvered=0 over80=500 maxG=297.8
+EVASION Oreshnik Patriot detected=0 reacted=500 maneuvered=0 over80=500 maxG=297.8
+
+DISTANCE 8000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,55,11.000,55,11.000,1491,1491,0,2,2,0
+single,Kinzhal,Patriot,500,500,479,95.800,479,95.800,1024,0,1024,2,2,0
+single,Kalibr,Pantsir,500,500,333,66.600,333,66.600,3918,3918,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,427,85.400,427,85.400,3320,3320,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,81,16.200,81,16.200,349,349,0,2,2,0
+single,Oreshnik,Patriot,500,500,239,47.800,239,47.800,1075,0,1075,2,2,0

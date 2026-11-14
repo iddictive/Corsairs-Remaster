@@ -391,3 +391,59 @@ The initial 2 MiB allocator was rejected: the configured solver requested a
 treated body-aligned hover thrust as world-vertical during contact-induced tilt.
 `collision-jolt-reference*` isolates body recreation, and the corrected gravity-only
 case measures a closed horizontal momentum system without modifying the solver.
+
+## Solver-owned flight replay, 2026-11-11
+
+The next integrator can run the accepted 16 ms Brig1/Nevis replay from the
+repository root:
+
+```sh
+/usr/bin/python3 docs/evidence/phonk-reactive-flight-20261029/solver-owner-replay.py
+```
+
+`solver-owner-replay.cpp.txt` is the exact probe; `solver-owner-build.py.txt`
+uses the cached `sea-fleet-benchmark` Ninja compile/link commands. The runner
+uses `isolated-reactive-build.py.txt` to copy the cached ship/Jolt archives into
+task scratch, rebuilds the two reactive owners, applies only
+`solver-owner-instrumentation.patch` to the scratch ship source, and runs the
+probe. No generated binary or asset is retained here. The runner checks the
+input digests in its `expected` table and refuses changed inputs; on success it
+removes its scratch through `codex-delete-temp`, and on failure it prints and
+preserves the scratch path.
+
+Source baseline: HEAD `8db8ed848b754d8b02840e5cf13d5926c3542e2b` plus the
+complete pre-existing and task-owned dirty delta in
+`solver-owner-source-baseline.patch`; the resulting jet source SHA-256 is
+`a7a3a44f85237f84eb7b0fc46917dbccf8079261f736e7124eb207a8d13e1a89`.
+The patch is evidence, not an instruction to apply inherited hunks to the
+integrator's checkout. The matching dirty delta for `roundhouse_ragdoll.cpp`
+is `solver-owner-jolt-baseline.patch`. Both reconstructed sources, cached
+libraries, probe and Brig1/Nevis model digests are pinned by the runner. Models are read from the
+existing `.cache/runtime/RESOURCE/MODELS/{Ships/Brig1/Brig1.gm,Islands/Nevis/Nevis.gm}`;
+they are not copied into the evidence. The accepted host used Apple clang
+21.0.0, macOS 27.2, SDK `MacOSX.sdk`, deployment target 15.0, Ninja 1.13.2,
+and CMake 4.4.3.
+
+Accepted measurements, repeated from this retained runner:
+
+* Flight: solved Z `0 -> 0.271830291 m`; published Z `0.271830291 m`.
+  Solved Y `99.902381897 m` and published Y `100.002380371 m` differ by
+  the fixture's `0.1 m` draft, not a second integration. Earlier reported
+  pre-repair measurements were `+0.545 m` solved and `+0.272 m` extra;
+  their full coordinates and exact prior fixture are not retained here.
+* Nearest non-reactive case: flat sea, 12 knots, mode off, one 16 ms
+  `Move` step: `(0,0,0) -> (0,0,0.098827) m`; speed `(0,0,12)` and
+  reactive-active flag `0`. The fixture explicitly initializes force slots.
+* Contact: 82,897 native Nevis triangles and authored Brig1 hull. At frame
+  40, no-terrain vs terrain velocity Y was `-23.972702` vs `-16.665089 m/s`;
+  at frame 120, Y was `498.255676` vs `528.993408 m`. This is a differential
+  hull/mesh contact, not a center-ray or wet-flag assertion.
+
+The replay depends on the exact local cached archives, installed runtime assets,
+and the other cached Ninja link inputs: their reconstruction from a clean
+checkout or after cache eviction is not established. It does not prove player
+handling, all shore geometry, packaged/install state, or performance under
+representative gameplay. No game UI was operated.
+
+The later complete mixed-source scratch builds, mode-off fix and candidate-linked
+projectile/flight/harpoon results are in [forward-candidate-20261111.md](forward-candidate-20261111.md).

@@ -125,6 +125,22 @@ took 34.9 seconds with 1.52GB peak resident memory; 14 delivery files total abou
 before and 247ms after projection. These single-run times are not a benchmark
 or a whole-game performance claim.
 
+## Camera-dependent depth collision
+
+An isolated PuertoRico component replay found that the same depth-map point
+can change from clear to blocked when only the island immersion flag changes.
+This is a conditional defect, not an established cause of the reported port
+obstruction: the installed `islands_init.c` sets immersion depth to zero, and
+the ordinary sea loader passes that value to each island. The replay injected
+nonzero immersion and initially omitted those game attributes. Saved or other
+runtime overrides have not been inspected.
+Removing the two coarse-map shortcuts also made three points beneath real
+above-water terrain clear, so that candidate was rejected. The mesh has open
+boundaries; an upward hit alone cannot distinguish solid terrain from an
+overhang. The exact collision, normal and retreat behavior in the full scene
+remains unresolved. The local private evidence and its input limitations are
+recorded in `.local-archives/island-diagnostics-20261111/coarse-immersion-trial/README.md`.
+
 ## Retained reproduction
 
 The private application diagnostic bundle `island-visibility-20261029` owns the

@@ -1,0 +1,9 @@
+rss_scene_before_ship_bytes=284753920
+authored_hull_parts=42898 native_weight_cwt=8000 capacity_cwt=1800
+IMPACT_CUT changed_sources=2 retained_mass=0.999980465
+IMPACT width=16.541 hit=1 max_relative_x=-16.4782 first_vx=10 second_vx=10 first_angular_y=-5.3258e-07 second_angular_y=4.89578e-07
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

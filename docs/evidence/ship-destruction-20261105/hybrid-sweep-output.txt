@@ -1,0 +1,75 @@
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+CAPTURE ok=1 material=1 input_fingerprint=11230681268548776834 ms=0.020
+PRIOR_DAMAGE cells=417 bonds=861
+TRIAL index=0
+SEED ms=0.296
+HYBRID ms=0.262 cell=0.000000000 bond=0.000000000 physical_cell=0.000000000 physical_bond=0.000000000 alive_diff=0
+REBASE ms=0.136
+ENCODE ms=9.825 bytes=4688616
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=1
+SEED ms=65.247
+HYBRID ms=33.509 cell=0.000000060 bond=0.002014220 physical_cell=0.000000060 physical_bond=0.002014220 alive_diff=0
+REBASE ms=0.199
+ENCODE ms=24.296 bytes=14278152
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=2
+SEED ms=87.210
+HYBRID ms=23.346 cell=0.000000000 bond=0.000000775 physical_cell=0.000000000 physical_bond=0.000000775 alive_diff=0
+REBASE ms=0.149
+ENCODE ms=28.237 bytes=17806272
+TRIAL_RESULT ok=1 changed=1 fragments=1
+TRIAL index=3
+SEED ms=48.509
+HYBRID ms=23.399 cell=0.000000060 bond=0.000978172 physical_cell=0.000000060 physical_bond=0.000978172 alive_diff=0
+REBASE ms=0.184
+ENCODE ms=20.485 bytes=11646504
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=4
+SEED ms=62.651
+HYBRID ms=17.813 cell=0.003394306 bond=0.007392406 physical_cell=0.003394306 physical_bond=0.007392406 alive_diff=0
+REBASE ms=0.187
+ENCODE ms=23.257 bytes=14091840
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=5
+SEED ms=101.042
+HYBRID ms=29.786 cell=0.000000000 bond=0.000001431 physical_cell=0.000000179 physical_bond=0.000001431 alive_diff=0
+REBASE ms=0.178
+ENCODE ms=30.888 bytes=19980432
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=6
+SEED ms=0.291
+HYBRID ms=0.257 cell=0.000000000 bond=0.000000000 physical_cell=0.000000000 physical_bond=0.000000000 alive_diff=0
+REBASE ms=0.099
+ENCODE ms=9.545 bytes=4689672
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=7
+SEED ms=86.298
+HYBRID ms=35.213 cell=0.000324190 bond=0.000816047 physical_cell=0.000324190 physical_bond=0.000816047 alive_diff=0
+REBASE ms=0.228
+ENCODE ms=33.381 bytes=20789400
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=8
+SEED ms=105.683
+HYBRID ms=23.815 cell=0.001036227 bond=0.001239538 physical_cell=0.001036227 physical_bond=0.001239538 alive_diff=0
+REBASE ms=0.257
+ENCODE ms=39.313 bytes=23824416
+TRIAL_RESULT ok=1 changed=1 fragments=1
+TRIAL index=9
+SEED ms=70.084
+HYBRID ms=20.204 cell=0.000248671 bond=0.493881941 physical_cell=0.000248671 physical_bond=0.493881941 alive_diff=0
+REBASE ms=0.158
+ENCODE ms=27.361 bytes=17274096
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=10
+SEED ms=86.631
+HYBRID ms=22.377 cell=0.001325667 bond=0.003642917 physical_cell=0.001325667 physical_bond=0.003642917 alive_diff=0
+REBASE ms=0.218
+ENCODE ms=33.214 bytes=20863488
+TRIAL_RESULT ok=1 changed=1 fragments=2
+TRIAL index=11
+SEED ms=120.607
+HYBRID ms=30.770 cell=0.000000238 bond=0.000000358 physical_cell=0.000000238 physical_bond=0.037517190 alive_diff=0
+REBASE ms=0.322
+ENCODE ms=38.622 bytes=25971792
+TRIAL_RESULT ok=1 changed=1 fragments=2

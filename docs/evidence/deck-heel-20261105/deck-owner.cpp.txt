@@ -1,0 +1,101 @@
+// Diagnostic scene driver. It never runs seadogs.c, loads SAVE, shows or focuses
+// a window. The isolated fixture owns scene setup; CORE owns the real frame.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "weather_engine.hpp"
+#include "script_libriary.h"
+#include "s_import_func.h"
+#include "v_s_stack.h"
+#include "ship_base.h"
+#include <SDL2/SDL.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <spdlog/spdlog.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+extern "C" uint64_t StormMetalRawSkinnedDraws(void *);
+extern "C" bool StormMetalFlushFrameTrace(void *);
+extern uint64_t dwRdtsc; // Existing TOUCH::Execute timer, in SDL performance ticks.
+
+#include "service/particle_service.h"
+#include "manager/particle_manager.h"
+#include "system/particle_system/particle_system.h"
+#include "i_common/i_emitter.h"
+#include "i_common/names.h"
+#include "system/data_source/data_graph.h"
+
+
+#include "sea_cameras.h"
+#include "deck_camera.h"
+#include "save_load.h"
+#include "sea_base.h"
+#include "shared/sea_ai/script_defines.h"
+#include "compiler.h"
+class FakeSea final:public SEA_BASE {
+public: bool Init()override{return true;} void ProcessStage(Stage,uint32_t)override{}
+float WaveXZ(float,float,CVECTOR*n=nullptr)override{if(n)*n=CVECTOR(0.f,1.f,0.f);return 0;}
+float Cannon_Trace(int32_t,const CVECTOR&,const CVECTOR&)override{return 2;}
+float Trace(const CVECTOR&,const CVECTOR&)override{return 2;}
+bool Clip(const PLANE*,int32_t,const CVECTOR&,float,ADD_POLYGON_FUNC)override{return false;}
+const char *GetCollideMaterialName()override{return "";}bool GetCollideTriangle(TRIANGLE&)override{return false;}
+};
+class FakeSeaRegistry final:public VMA { public:FakeSeaRegistry(){SetHash(MakeHashValue("sea"));}const char *GetName()override{return "sea";}void *CreateClass()override{return new FakeSea;} };
+
+#include "shared/sea_ai/sea_character_collision.hpp"
+#include "shared/sea_ai/deck_collision.hpp"
+#include "shared/messages.h"
+#include <unordered_set>
+class FakeKeys final:public CONTROLS {public:std::unordered_set<std::string> held;bool GetControlState(const char*n,CONTROL_STATE&s)override{s={};s.state=held.count(n)?CST_ACTIVE:CST_INACTIVE;return true;}};
+MODEL *fixtureModel=nullptr;ATTRIBUTES *fixtureCharacter=nullptr;entid_t fixtureModelId=0;
+class FakeShip final:public VAI_OBJBASE {
+public:bool Init()override{SetACharacter(fixtureCharacter);return true;}void ProcessStage(Stage,uint32_t)override{}
+bool Mount(ATTRIBUTES*)override{return true;}void SetPos(const CVECTOR &p)override{mtx.Pos()=p;}CVECTOR GetPos()const override{return mtx.Pos();}CVECTOR GetAng()const override{return CVECTOR(0.f);}CMatrix *GetMatrix()override{return &mtx;}CVECTOR GetBoxsize()const override{return CVECTOR(20.f,20.f,50.f);}MODEL *GetModel()const override{return fixtureModel;}entid_t GetModelEID()const override{return fixtureModelId;}void Save(CSaveLoad*)override{}void Load(CSaveLoad*)override{}void Fire(const CVECTOR&)override{}
+float Cannon_Trace(int32_t,const CVECTOR&a,const CVECTOR&b)override{return fixtureModel->Trace(a,b);}float Trace(const CVECTOR&a,const CVECTOR&b)override{return fixtureModel->Trace(a,b);}bool Clip(const PLANE*p,int32_t n,const CVECTOR&c,float r,ADD_POLYGON_FUNC f)override{return fixtureModel->Clip(p,n,c,r,f);}const char *GetCollideMaterialName()override{return "";}bool GetCollideTriangle(TRIANGLE&t)override{return fixtureModel->GetCollideTriangle(t);}
+};
+class FakeShipRegistry final:public VMA {public:FakeShipRegistry(){SetHash(MakeHashValue("ship"));}const char *GetName()override{return "ship";}void *CreateClass()override{return new FakeShip;}};
+void check(bool v,const char*n){if(!v){printf("FAIL %s\n",n);std::exit(75);}printf("PASS %s\n",n);}
+
+int main(int argc,char **argv) {
+ if(argc!=2) return 64;
+ const auto cwd=std::filesystem::canonical(argv[1]); std::filesystem::current_path(cwd);
+ std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1); setenv("STORM_QUIET_CLIENT","1",1);
+ spdlog::set_level(spdlog::level::off);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO)!=0) return 65;
+ steamapi::SteamApi::getInstance(true);
+ auto window=storm::OSWindow::Create(640,480,0,false,false);
+ core_internal.Init(); core_internal.SetWindow(window); core_internal.InitBase(); core_internal.SetDeltaTime(16);
+ if(!core_internal.Run())return 68;
+ auto *rs=static_cast<VDX9RENDER*>(core.GetService("dx9render"));
+ rs->SetCamera(CVECTOR(0.f,0.f,-20.f),CVECTOR(0.f,0.f,100.f),CVECTOR(0.f,1.f,0.f));rs->SetPerspective(1.05f);
+ auto *device=static_cast<storm_render::Device*>(rs->GetNativeDevice());
+ storm_render::Surface *target=nullptr,*readback=nullptr;
+ device->GetRenderTarget(&target);device->CreateOffscreenPlainSurface(640,480,storm_render::AssetFormat::A8R8G8B8,&readback);
+
+
+
+ setbuf(stdout,nullptr);FakeSeaRegistry reg;auto it=std::find(__STORM_CLASSES_REGISTRY.begin(),__STORM_CLASSES_REGISTRY.end(),&reg);__STORM_CLASSES_REGISTRY.erase(it);__STORM_CLASSES_REGISTRY.insert(__STORM_CLASSES_REGISTRY.begin(),&reg);check(core.CreateEntity("sea")!=0,"sea_fixture");
+ auto *character=static_cast<VDATA*>(core.GetScriptVariable("Character"))->GetAClass();character->SetAttributeUseDword("MainCharacter",1);character->SetAttributeUseDword("index",0);fixtureCharacter=character;
+ fixtureModelId=core.CreateEntity("MODELR");check(core.Send_Message(fixtureModelId,"ls",MSG_MODEL_LOAD_GEO,"ships\\Brig1\\Brig1"),"ship_model");fixtureModel=static_cast<MODEL*>(core.GetEntityPointer(fixtureModelId));fixtureModel->mtx=CMatrix(CVECTOR(0.f),CVECTOR(0.f,30.f,0.f));fixtureModel->Update();
+ FakeShipRegistry sreg;it=std::find(__STORM_CLASSES_REGISTRY.begin(),__STORM_CLASSES_REGISTRY.end(),&sreg);__STORM_CLASSES_REGISTRY.erase(it);__STORM_CLASSES_REGISTRY.insert(__STORM_CLASSES_REGISTRY.begin(),&sreg);check(core.CreateEntity("ship")!=0,"ship_entity");
+ ATTRIBUTES attrs(core_internal.Compiler->GetVSC());auto id=core.CreateEntity("DECK_CAMERA",&attrs);auto *deck=static_cast<DECK_CAMERA*>(core.GetEntityPointer(id));check(deck!=nullptr,"deck_entity");
+ for(auto [name,value]:std::initializer_list<std::pair<const char*,float>>{{"Perspective",1.285f},{"StepUp",.5f},{"StepMin",.01f},{"h_def",1.6f},{"h_min",.5f},{"h_max",2.f},{"MaxAngleX",.7f},{"MinAngleX",-1.3f},{"SensivityDistance",.01f},{"SensivityHeightAngle",.0015f},{"SensivityAzimuthAngle",.0015f},{"RockingX",.5f},{"RockingZ",.5f}}){attrs.SetAttributeUseFloat(name,value);deck->AttributeChanged(attrs.GetAttributeClass(name));}
+ attrs.SetAttributeUseDword("WalkMode",1);attrs.SetAttributeUseDword("ThirdPerson",1);deck->SetCharacter(character);deck->SetOn(true);deck->SetActive(true);FakeKeys keys;auto *old=core.Controls;core.Controls=&keys;
+ deck->Execute(16);CVECTOR cameraPos,cameraAng;float perspective;rs->GetCamera(cameraPos,cameraAng,perspective);
+ fixtureModel->mtx=CMatrix(CVECTOR(0.f,0.f,.30f),CVECTOR(0.f,30.f,0.f));fixtureModel->Update();deck->Execute(16);rs->GetCamera(cameraPos,cameraAng,perspective);CVECTOR before;fixtureModel->mtx.MulToInv(cameraPos,before);
+ for(int i=0;i<120;i++)deck->Execute(16);rs->GetCamera(cameraPos,cameraAng,perspective);CVECTOR after;fixtureModel->mtx.MulToInv(cameraPos,after);auto *state=attrs.FindAClass(&attrs,"DeckFall");check(!state||!state->GetAttributeAsDword("active"),"ordinary_no_fall");printf("ordinary_local_shift=(%.4f,%.4f)\n",after.x-before.x,after.z-before.z);check(std::abs(after.x-before.x)+std::abs(after.z-before.z)>.01f,"ordinary_gravity_shift");
+ fixtureModel->mtx=CMatrix(CVECTOR(0.f,0.f,1.22f),CVECTOR(0.f,30.f,0.f));fixtureModel->Update();deck->Execute(16);state=attrs.FindAClass(&attrs,"DeckFall");check(state&&state->GetAttributeAsDword("active"),"critical_starts_world_fall");float beforeY=state->GetAttributeAsFloat("y");deck->Execute(16);check(state->GetAttributeAsFloat("y")<beforeY,"fall_world_motion");
+ {CSaveLoad writer;writer.CreateWrite();deck->Save(&writer);}auto id2=core.CreateEntity("DECK_CAMERA",&attrs);auto *restored=static_cast<DECK_CAMERA*>(core.GetEntityPointer(id2));{CSaveLoad reader;reader.CreateLoad();restored->Load(&reader);}beforeY=state->GetAttributeAsFloat("y");float beforeX=state->GetAttributeAsFloat("x");restored->Execute(16);check(state->GetAttributeAsDword("active")&&(std::abs(state->GetAttributeAsFloat("y")-beforeY)+std::abs(state->GetAttributeAsFloat("x")-beforeX)>.0001f),"restore_fall_continues");
+ auto *events=static_cast<VDATA*>(core.GetScriptVariable("DeckWaterEvents"));int32_t count=0;events->Get(count);check(count==0,"no_death_above_water");for(int i=0;i<2000&&state->GetAttributeAsDword("active");i++)restored->Execute(16);check(!state->GetAttributeAsDword("active"),"fall_reaches_water");core_internal.Compiler->ProcessFrame(16);core_internal.Compiler->ProcessFrame(16);events->Get(count);check(count==1,"one_water_event");state->SetAttributeUseDword("waterPending",0);
+ fixtureModel->mtx=CMatrix(CVECTOR(0.f),CVECTOR(0.f,30.f,0.f));fixtureModel->Update();auto *path=fixtureModel->FindNode("path");check(path!=nullptr,"landing_path");CVECTOR origin=path->glob_mtx*CVECTOR(0.f,2.f,0.f),support;int flags=path->flags;path->flags&=~NODE::CLIP_ENABLE;bool hasSupport=deck_collision::findSupport(*fixtureModel,origin,CVECTOR(0.f,1.f,0.f),1.5f,support,.5f);path->flags=flags;check(hasSupport,"landing_surface");
+ state->SetAttributeUseDword("active",1);state->SetAttributeUseFloat("x",support.x);state->SetAttributeUseFloat("y",support.y+.03f);state->SetAttributeUseFloat("z",support.z);state->SetAttributeUseFloat("vx",0.f);state->SetAttributeUseFloat("vy",0.f);state->SetAttributeUseFloat("vz",0.f);state->SetAttributeUseFloat("yaw",0.f);auto id3=core.CreateEntity("DECK_CAMERA",&attrs);auto *landing=static_cast<DECK_CAMERA*>(core.GetEntityPointer(id3));{CSaveLoad reader;reader.CreateLoad();landing->Load(&reader);}landing->Execute(16);check(!state->GetAttributeAsDword("active"),"landing_recovers_on_deck");core_internal.Compiler->ProcessFrame(16);core_internal.Compiler->ProcessFrame(16);events->Get(count);check(count==1,"landing_no_death");
+ state->SetAttributeUseDword("active",1);state->SetAttributeUseDword("waterPending",0);state->SetAttributeUseFloat("x",support.x);state->SetAttributeUseFloat("y",support.y+5.f);state->SetAttributeUseFloat("z",support.z);state->SetAttributeUseFloat("vx",0.f);state->SetAttributeUseFloat("vy",0.f);state->SetAttributeUseFloat("vz",0.f);auto id4=core.CreateEntity("DECK_CAMERA",&attrs);auto *changed=static_cast<DECK_CAMERA*>(core.GetEntityPointer(id4));{CSaveLoad reader;reader.CreateLoad();changed->Load(&reader);}changed->SetCharacter(nullptr);check(!state->GetAttributeAsDword("active"),"character_change_clears_fall");core_internal.Compiler->ProcessFrame(16);core_internal.Compiler->ProcessFrame(16);events->Get(count);check(count==1,"character_change_no_death");
+ core.Controls=old;puts("DECK_OWNER_PASS");readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}

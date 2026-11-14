@@ -1,0 +1,23 @@
+# Interceptor matrix: isolated simulation
+
+Reproduce from the repository root:
+
+```sh
+python3 docs/evidence/pantsir-proximity-20261113/matrix.py --seed 1 --trials 500
+```
+
+`matrix-results.csv` is the earlier 15–40 ms run; `matrix-delay-1-3ms.csv` is the later 1–3 ms run. Each header records hashes of every engine input, driver and runner; the run aborts if those inputs change during execution. Python 3.9.6 and Apple clang 21.0.0 on arm64 were used. This standalone compilation does not build, install or start the game. `results.txt` is an older Pantsir-only experiment, not this matrix. The command above uses the current source; redirect it to a new file to preserve earlier results.
+
+`matrix-delay-1-10ms.csv` models a uniformly varied 1–10 ms delay using `--fuse-max-ms 10`; this is a simulation-only override and does not change the game setting. All other scenario conditions match the 1–3 ms run.
+
+`matrix-delay-1-5ms.csv` uses `--fuse-max-ms 5` with the same scenario and seed. This override is also simulation-only.
+
+`matrix-fuse-2-7-reaction-50-250ms.csv` uses `--fuse-min-ms 2 --fuse-max-ms 7 --reaction-min-ms 50 --reaction-max-ms 250`. Both independent uniform ranges are simulation-only overrides, with detection checked at the existing 100 ms scan cadence.
+
+There are 40 cells: detector radii 800, 1600, 2400, 4000 and 8000 m; Kinzhal, Kalibr, Shtorm and Oreshnik; Patriot and Pantsir. Each cell uses attack serials 1–500, defense serial `attack_serial * 0x9e3779b9` modulo 2^32, attacker owner 2 and defender owner 1. The same deterministic cases are paired across defenders and distances; these are deterministic variations, not statistically independent random gameplay samples. Incoming rockets start at z=10000 m, y=10 m, x within ±1000 m; they target x/z within ±80 m of the stationary defender and y=5.5 m. Detection range is a spherical radius, not the missile's initial distance. Source `varyMissile` supplies flight variation.
+
+The driver checks at 25 ms increments; scans are at 100 ms intervals starting at missile age 0.25 s. Source reaction logic supplies a 120–280 ms delay, rounded up to a later scan, with launch eligibility re-evaluated on every scan. It uses a 60 s intercept-planning limit bounded by remaining flight; this approximates the custom-defense path, not the ordinary 2 s limit. Source estimators include Pantsir motor-distance prediction, ballistic curvature and Kalibr acceleration; Patriot uses the source planning speed and guided motion. Radius is 15–30 m; fuse delay is 1–3 ms in the current source and 15–40 ms in the older run. Source `sensorEnableAge` gates Patriot proximity detection until 350 m/s, and the source batch resolver handles trigger, pending `fuseAtAge`, detonation and geometric splash on both systems. The final partial interval is clipped at target/interceptor expiry. A predicted aim point receives source aiming and tracking error; the forward sector faces +z. No real-world performance is asserted.
+
+`attacks` counts every initialized incoming missile; `acquired` counts detector and sector eligibility; `launches` counts modeled launches; `hits` counts missiles in splash at detonation; `hit_per_attack_percent` is 100 × hits / attacks, including attacks with no launch. `armed` is the number of missiles that trigger the delayed fuse, including those with no eventual hit; `evaded` counts nonzero evasion after launch. Each scenario permits at most one interceptor per attack.
+
+This is a source-derived isolated model, not the actual engine update. The scan phase, fixed timestep, launch/target geometry, source IDs and serial distribution are chosen scenario inputs. It omits reload, ammunition, multiple salvos and targets, competition, ship motion, terrain and sea surface, split/submunitions, proximity to other ships, and real game frame timing. `evadeInterceptor` receives no sea object and the driver approximates its ordering relative to frame interpolation. Movement is reduced to one straight segment per 25 ms frame rather than reproducing all engine missile-frame plans, substeps, lifecycle and post-detonation identity revalidation. Patriot's source guidance runs on that step with its own fixed substeps. The driver independently reconstructs launch selection and copies the fuse/radius initialization expressions; a future change in surrounding engine control flow can make this diverge even if compilation succeeds. Thus a cell is a reproducible outcome of this scenario, not an in-game acceptance result or a general kill probability. The two serial sequences and chosen geometry may materially affect the figures.

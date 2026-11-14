@@ -4,6 +4,9 @@
 #include "ai_ship.h"
 
 #include "ship_lights.h"
+#include <memory>
+
+namespace storm::ship::phonk { struct OrdnanceState; }
 
 // ============================================================================
 // Master class AIFort
@@ -109,6 +112,8 @@ class AIFort : public VAI_OBJBASE
 
         entid_t eidModel;
         entid_t eidBlot;
+        std::unique_ptr<storm::ship::phonk::OrdnanceState> phonkOrdnance;
+        uint64_t phonkOrdnanceGeneration = 0;
 
       public:
         CMatrix mOldMatrix;
@@ -195,18 +200,13 @@ class AIFort : public VAI_OBJBASE
             return &aMortars[dwCannonIndex - (aCannons.size() + aCulverins.size())];
         }
 
-        AI_FORT(ATTRIBUTES *_pFortLabelAP)
-        {
-            SetObjType(AIOBJ_FORT);
+        explicit AI_FORT(ATTRIBUTES *_pFortLabelAP);
+        ~AI_FORT() override;
 
-            tmpObject.pFort = this;
-
-            pFortLabelAP = _pFortLabelAP;
-
-            vPos.x = pFortLabelAP->GetAttributeAsFloat("x");
-            vPos.y = 0.0f; // pFortLabelAP->GetAttributeAsFloat("y");
-            vPos.z = pFortLabelAP->GetAttributeAsFloat("z");
-        }
+        storm::ship::phonk::OrdnanceState &EnsurePhonkOrdnance();
+        storm::ship::phonk::OrdnanceState *GetPhonkOrdnance() const { return phonkOrdnance.get(); }
+        uint64_t GetPhonkOrdnanceGeneration() const { return phonkOrdnanceGeneration; }
+        void ResetPhonkOrdnance();
 
         CVECTOR GetPos() const override
         {
@@ -291,7 +291,8 @@ class AIFort : public VAI_OBJBASE
 
     // Area weapons reuse cannon eligibility, script settlement and persistence.
     void AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius = 0.0f,
-                    CANNON_TRACE_BASE *island = nullptr, bool nuclear = false);
+                    CANNON_TRACE_BASE *island = nullptr, bool nuclear = false,
+                    ATTRIBUTES *hostileTo = nullptr);
 
     AIFort();
     ~AIFort() override;

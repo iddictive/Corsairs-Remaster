@@ -16,6 +16,8 @@ Warmed32-dispatch batches measure0.012285→0.041363ms median per field dispatch
 this is not a complete scene timing. [Retained measurements and probe sources](evidence/sea-dawn-contact-20261021/manifest.json)
 do not close the reported foreground horizon cut or the duplicated solar source.
 
+An offscreen fleet scene reproduced a separate bright horizon band; its local-atmosphere isolation and unresolved repair are recorded in [horizon-band evidence](evidence/horizon-band-20261114/README.md).
+
 ## Authored solar direction and late glare
 
 Native visual sunlight uses one coherent daylight source cached from the loaded

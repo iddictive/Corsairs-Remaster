@@ -1,0 +1,78 @@
+$ wave-distributed
+direct_ms=43.337 filtered_ms=7.724 mean_candidates=28.45/480 max_height_difference=0.00000000 checksum=654295.7846/654295.7846
+8sec_active=1 8sec_front_height=1.1269 slope_numeric=-0.034180 analytic=-0.034154
+$ wave-coincident
+direct_ms=39.215 filtered_ms=4.934 mean_candidates=33.60/480 max_height_difference=0.00000000 checksum=792669.6898/792669.6898
+8sec_active=1 8sec_front_height=1.1269 slope_numeric=-0.034180 analytic=-0.034154
+$ wave-sustained
+direct_ms=274.124 filtered_ms=13.753 mean_candidates=49.77/480 max_height_difference=0.00000000 checksum=841482.9214/841482.9214
+8sec_active=1 8sec_front_height=1.1269 slope_numeric=-0.034180 analytic=-0.034154
+$ wave-quality
+single=1.8911 three=5.4808 four=7.1363 480=60.2308 uncompressed480=907.7288
+lifetime_to_2cm=53.66s distance=3756m
+$ wave-block-path
+active=3160 vertices=115600 full_scan_ms=479.526 filtered_with_double_morph_copy_compression_ms=114.902 mean_candidates=419.32
+max_delta height=0 slopeX=0 slopeZ=0 foam=0 load=0
+scalar_3600_ship_samples_ms=12.848 checksum=65684.79688 boundary_false_negatives=0/3240
+$ wave-grid-prototype (original damping 1000)
+cell=128 build_ms=19.28 mesh_ms=70.40 ship_ms=3.54 entries=794970 cells=5299 avg=263.2 checksum=860485.560
+cell=256 build_ms=5.25 mesh_ms=94.07 ship_ms=3.58 entries=293055 cells=1364 avg=387.9 checksum=860485.560
+cell=512 build_ms=1.59 mesh_ms=130.46 ship_ms=5.54 entries=120225 cells=364 avg=628.6 checksum=860485.560
+$ wave-grid-prototype (experimental damping 200)
+cell=128 build_ms=0.59 mesh_ms=8.34 ship_ms=0.82 entries=43818 cells=1086 avg=21.8 checksum=76736.542
+cell=256 build_ms=0.22 mesh_ms=10.03 ship_ms=0.99 entries=16065 cells=290 avg=32.0 checksum=76736.542
+cell=512 build_ms=0.08 mesh_ms=12.16 ship_ms=1.32 entries=6640 cells=79 avg=53.1 checksum=76736.542
+$ wave-grid-prototype (experimental damping 350)
+cell=128 build_ms=1.96 mesh_ms=20.37 ship_ms=2.26 entries=121033 cells=1661 avg=60.1 checksum=200376.676
+cell=256 build_ms=0.58 mesh_ms=25.07 ship_ms=2.73 entries=44500 cells=437 avg=88.6 checksum=200376.676
+cell=512 build_ms=0.20 mesh_ms=31.64 ship_ms=3.78 entries=18285 cells=116 avg=144.9 checksum=200376.676
+$ wave-field-prototype (48 bins, 32 m spacing)
+active=3160 cells=2304 nodes=37249 index_ms=5.72 field_ms=12.20 height_rmse=0.1531 height_max=1.0258 signal_rms=8.2027 slope_rmse=0.01100 slope_max=0.06677 foam_max=0.2968 samples=3000
+$ wave-field-prototype (48 bins, 64 m spacing)
+active=3160 cells=2304 nodes=9409 index_ms=5.96 field_ms=3.12 height_rmse=0.4389 height_max=3.4647 signal_rms=8.2027 slope_rmse=0.02834 slope_max=0.17649 foam_max=0.4150 samples=3000
+$ wave-field-prototype (25 bins, 32 m spacing)
+active=3160 cells=625 nodes=10201 index_ms=2.19 field_ms=4.41 height_rmse=0.2497 height_max=1.0947 signal_rms=14.1616 slope_rmse=0.01701 slope_max=0.06005 foam_max=0.2518 samples=3000
+$ wave-moving-prototype (32 m)
+blasts=1 samples=4320 height_rmse=0.04611 signal_rms=0.28036 height_max_error=0.28695 signal_peak=1.45838 slope_max_error=0.01638 foam_max_error=0.08052 missed_10cm=12 false_10cm=6
+blasts=4 samples=4320 height_rmse=0.13804 signal_rms=0.86000 height_max_error=0.73052 signal_peak=4.06583 slope_max_error=0.04780 foam_max_error=0.17751 missed_10cm=19 false_10cm=20
+$ wave-moving-48
+blasts=1 samples=4320 height_rmse=0.09977 signal_rms=0.28036 height_max_error=0.60698 signal_peak=1.45838 slope_max_error=0.03371 foam_max_error=0.16617 missed_10cm=0 false_10cm=6
+blasts=4 samples=4320 height_rmse=0.27377 signal_rms=0.86000 height_max_error=1.28261 signal_peak=4.06583 slope_max_error=0.07881 foam_max_error=0.34799 missed_10cm=11 false_10cm=10
+$ wave-edge-prototype (32 m)
+edge_separation=0.02m height_max_delta=0.00129008 slope_max_delta=0.00004346 foam_max_delta=0.00028914
+$ wave-field-prototype (32 bins of 192 m, 48 m spacing)
+active=3160 cells=1024 nodes=16641 index_ms=2.66 field_ms=7.13 height_rmse=0.2873 height_max=2.0769 signal_rms=8.2027 slope_rmse=0.02045 slope_max=0.14082 foam_max=0.3526 samples=3000
+$ wave-edge-48
+edge_separation=0.02m height_max_delta=0.00050056 slope_max_delta=0.00006092 foam_max_delta=0.00014323
+$ wave-field-48 (capacity uses int indices; production uses size_t)
+candidate_entries=319445 candidate_capacity_bytes=1886720 snapshot_field_bytes=332820 wave_bytes=88480
+active=3160 cells=1024 nodes=16641 index_ms=3.00 field_ms=7.28 height_rmse=0.2873 height_max=2.0769 signal_rms=8.2027 slope_rmse=0.02045 slope_max=0.14082 foam_max=0.3526 samples=3000
+$ wave-publication-probe
+publications=10000 readers=4 resets=100 mismatches=0
+$ wave-field-48-tier10
+candidate_entries=166211 candidate_capacity_bytes=994816 snapshot_field_bytes=332820 wave_bytes=100800
+active=3600 cells=1024 nodes=16641 index_ms=2.66 field_ms=2.83 height_rmse=0.0036 height_max=0.0161 signal_rms=43.9814 slope_rmse=0.00004 slope_max=0.00018 foam_max=0.0149 samples=3000
+$ wave-field-48-single
+candidate_entries=7 candidate_capacity_bytes=28 snapshot_field_bytes=332820 wave_bytes=28
+active=1 cells=1024 nodes=16641 index_ms=0.03 field_ms=0.03 height_rmse=0.0155 height_max=0.6666 signal_rms=0.0577 slope_rmse=0.00076 slope_max=0.02313 foam_max=0.1830 samples=3000
+$ wave-radius-index (final pre-volume-change indexing algorithm)
+missing_individual_contributions=0
+waves=3537 bins=16 samples=3600 direct_ms=15.878 indexed_ms=6.910 candidates_mean=202.44 height_max_delta=1.7166138e-05 slope_max_delta=1.7701256e-08 foam_max_delta=0 missing_nonzero=0
+$ wave-cluster-probe
+radius=128 age=0.5 exact=3300 clusters=3300 height_rmse=0.000 signal_rms=14.224 height_max=0.000 slope_rmse=0.0000 slope_max=0.0000 foam_max=0.000 missed_10cm=0/3000
+radius=200 age=2.0 exact=3300 clusters=1684 height_rmse=4.264 signal_rms=14.224 height_max=15.222 slope_rmse=0.1622 slope_max=0.5064 foam_max=0.689 missed_10cm=0/3000
+radius=400 age=4.0 exact=3300 clusters=231 height_rmse=8.040 signal_rms=14.224 height_max=26.665 slope_rmse=0.3273 slope_max=1.3346 foam_max=0.829 missed_10cm=1/3000
+$ wave-moving-temporal (100 ms; old 48 m model)
+blasts=1 samples=4320 height_rmse=0.10014 signal_rms=0.28036 height_max_error=0.60946 signal_peak=1.45838 slope_max_error=0.03371 foam_max_error=0.16638 missed_10cm=0 false_10cm=6
+blasts=4 samples=4320 height_rmse=0.27564 signal_rms=0.86000 height_max_error=1.29498 signal_peak=4.06583 slope_max_error=0.07891 foam_max_error=0.34868 missed_10cm=12 false_10cm=11
+$ wave-volume-probe old positive integral, response scale 12
+ tier=1 waves=3300 mean=21.241 rms=21.506 min=8.210 max=27.882 above_40=0/3000
+ tier=10 waves=3300 mean=56.162 rms=56.167 min=54.119 max=57.506 above_40=3000/3000
+$ wave-volume-probe zero-integral, response scale 8, adaptive width
+ tier=1 waves=3300 mean=-0.331 rms=2.458 min=-8.208 max=6.584 above_40=0/3000
+ tier=10 waves=3300 mean=30.900 rms=31.049 min=20.202 max=35.921 above_40=0/3000
+$ wave-field-96-wide-large (zero-integral, 360 m width, response scale 8)
+active=3160 cells=1024 nodes=16641 index_ms=3.05 field_ms=6.39 height_rmse=0.1122 height_max=1.1780 signal_rms=1.1259 slope_rmse=0.00255 slope_max=0.03405 foam_max=0.0918 samples=3000
+$ wave-moving-96-wide (zero-integral, 360 m width, response scale 8)
+blasts=1 samples=4320 height_rmse=0.14925 signal_rms=0.65092 height_max_error=0.37601 signal_peak=1.47920 slope_max_error=0.00881 foam_max_error=0.11282 missed_10cm=0 false_10cm=56
+blasts=4 samples=4320 height_rmse=0.25762 signal_rms=1.02893 height_max_error=0.81755 signal_peak=3.35538 slope_max_error=0.00956 foam_max_error=0.16170 missed_10cm=7 false_10cm=6

@@ -1,0 +1,22 @@
+# source SHA256
+# experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp 5da8d66690789f79248fa99f7b072c62d3a2e28178522a51f340aedbc7cf3b54
+# experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp 236a65af23c098ffd7db5fbea2b779faed6fc08acaab81fbd770070810e32ec6
+# experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp 978c3be6b7b6d2842887b9a6742c9f3b24025702badfd26017264d72676feb1b
+# experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp 20bd149b4e016a7214b6eb09b2d1049478081249046e76e292cbc912ece378b2
+# experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp ef746131496ac9d979c3f7e75fca5bc212d28e3d8ac354d826e7504b2d7615ee
+# experiments/native-metal/engine/src/libs/math/include/c_vector.h bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a
+# docs/evidence/airdefense-forecast-20261114/matrix.py 74a424960847f0a2044f68f88a7a002238eef3280596f278ad1d3b0ff3e03a55
+# docs/evidence/airdefense-forecast-20261114/player-simulation.cpp 903b997d7a74cd0877f054fdca2e6c1d39b158ce0f457c7368126b6c2625ffab
+# docs/evidence/airdefense-forecast-20261114/current-runtime-replay.py 0b54de76978bee9ccf40d9aa425b0dffbc367c08893984531c557e7239124ae3
+DISTANCE 1000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Patriot,500,500,115,23.000,115,23.000,500,0,500,1,1,0
+DISTANCE 2000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Patriot,500,500,118,23.600,118,23.600,500,0,500,1,1,0
+DISTANCE 4000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Patriot,500,500,86,17.200,86,17.200,500,0,500,1,1,0
+DISTANCE 8000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Patriot,500,500,104,20.800,104,20.800,500,0,500,1,1,0

@@ -2107,7 +2107,7 @@ extern "C" bool StormMetalClusterImpact(void*pointer,const float*position,const 
  auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  simd_float3 incoming={direction[0],direction[1],direction[2]};float length=simd_length(incoming);
  // Do not evict current impacts: overflow takes the legacy surface-specific path.
- if(!std::isfinite(length)||length<1.e-5f||d->clusterImpacts.size()+d->clusterImpactFallbacks.size()>=64||!d->prepareClusterImpacts())return false;
+ if(!std::isfinite(length)||length<1.e-5f||d->clusterImpacts.size()+d->clusterImpactFallbacks.size()>=96||!d->prepareClusterImpacts())return false;
  d->clusterImpacts.push_back({{position[0],position[1],position[2]},incoming/length,0.f,float(++d->clusterImpactSerial%4096u),radius,surface,warhead});
  return true;
 }

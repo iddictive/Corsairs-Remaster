@@ -1,0 +1,17 @@
+--- a/experiments/native-metal/phonk_ordnance_shaders.hpp
++++ b/experiments/native-metal/phonk_ordnance_shaders.hpp
+@@ -60,6 +60,14 @@
+     density*=smoothstep(0.f,.16f,age)*(1.f-smoothstep(6.f,9.f,age));
+     float core=1.f-smoothstep(-.32f,.025f,cloud+churn*.45f);
+     float heat=exp(-age*(.45f+variant.w*.16f))*core*(.52f+coarse*.48f);
++    if (age < 1.4f) {
++        float ignitionRadius=.08f+growth*.95f;
++        float ignitionDistance=length(q-float3(0,.20f*growth,0))-ignitionRadius;
++        float ignition=(1.f-smoothstep(-.16f,.12f,ignitionDistance+churn*.7f))
++            * (1.f-smoothstep(.25f,1.4f,age))*smoothstep(-.25f,.05f,q.y);
++        density=max(density,ignition*(.45f+.55f*medium));
++        heat=max(heat,ignition*(.7f+.3f*fine));
++    }
+     return float2(density,heat);
+ }
+ // The pressure front is a finite annular bank of condensation, not a decal.

@@ -1,0 +1,2263 @@
+{
+  "man": {
+    "ani_sha256": "d9ab06daaaf10908d36edd0c8d72646e723a8b4c6c86b2093d4bc58c7f1c8256",
+    "bank_sha256": "9c44c4cb84914ed098883e5ee1a46b15592261b5dfff09fb1d017b35cb6095c7",
+    "model_sha256": "99e823418f9ab542725dc349fdc54ffcabb4fc7644e45d2beccb25d82616bd37",
+    "actions": [
+      {
+        "name": "death_citizen_2",
+        "start": 372,
+        "end": 423,
+        "worst_frame": 402,
+        "max_edge": 0.06254190754407848
+      },
+      {
+        "name": "Carrier_death",
+        "start": 379,
+        "end": 423,
+        "worst_frame": 402,
+        "max_edge": 0.06254190754407848
+      },
+      {
+        "name": "death_2",
+        "start": 6147,
+        "end": 6222,
+        "worst_frame": 6206,
+        "max_edge": 0.057036347703320826
+      },
+      {
+        "name": "attack_fast_2",
+        "start": 5308,
+        "end": 5331,
+        "worst_frame": 5320,
+        "max_edge": 0.053783207343851835
+      },
+      {
+        "name": "speed_attack_fast_2",
+        "start": 5308,
+        "end": 5331,
+        "worst_frame": 5320,
+        "max_edge": 0.053783207343851835
+      },
+      {
+        "name": "superspeed_attack_fast_2",
+        "start": 5308,
+        "end": 5331,
+        "worst_frame": 5320,
+        "max_edge": 0.053783207343851835
+      },
+      {
+        "name": "attack_force_2",
+        "start": 5217,
+        "end": 5248,
+        "worst_frame": 5229,
+        "max_edge": 0.053715555093765154
+      },
+      {
+        "name": "speed_attack_force_2",
+        "start": 5217,
+        "end": 5248,
+        "worst_frame": 5229,
+        "max_edge": 0.053715555093765154
+      },
+      {
+        "name": "superspeed_attack_force_2",
+        "start": 5217,
+        "end": 5248,
+        "worst_frame": 5229,
+        "max_edge": 0.053715555093765154
+      },
+      {
+        "name": "Sit_Idle05",
+        "start": 2962,
+        "end": 3007,
+        "worst_frame": 2981,
+        "max_edge": 0.051496407289656744
+      },
+      {
+        "name": "attack_round_1",
+        "start": 8415,
+        "end": 8443,
+        "worst_frame": 8422,
+        "max_edge": 0.051307863479586685
+      },
+      {
+        "name": "speed_attack_round_1",
+        "start": 8415,
+        "end": 8443,
+        "worst_frame": 8422,
+        "max_edge": 0.051307863479586685
+      },
+      {
+        "name": "superspeed_attack_round_1",
+        "start": 8415,
+        "end": 8443,
+        "worst_frame": 8422,
+        "max_edge": 0.051307863479586685
+      },
+      {
+        "name": "attack_fast_1",
+        "start": 5282,
+        "end": 5308,
+        "worst_frame": 5289,
+        "max_edge": 0.04745740240447802
+      },
+      {
+        "name": "speed_attack_fast_1",
+        "start": 5282,
+        "end": 5308,
+        "worst_frame": 5289,
+        "max_edge": 0.04745740240447802
+      },
+      {
+        "name": "superspeed_attack_fast_1",
+        "start": 5282,
+        "end": 5308,
+        "worst_frame": 5289,
+        "max_edge": 0.04745740240447802
+      },
+      {
+        "name": "death_0",
+        "start": 6016,
+        "end": 6071,
+        "worst_frame": 6061,
+        "max_edge": 0.04489999767210552
+      },
+      {
+        "name": "death_citizen_1",
+        "start": 311,
+        "end": 371,
+        "worst_frame": 320,
+        "max_edge": 0.04426793190291317
+      },
+      {
+        "name": "attack_break_1",
+        "start": 8315,
+        "end": 8341,
+        "worst_frame": 8324,
+        "max_edge": 0.044256909550596225
+      },
+      {
+        "name": "speed_attack_break_1",
+        "start": 8315,
+        "end": 8341,
+        "worst_frame": 8324,
+        "max_edge": 0.044256909550596225
+      },
+      {
+        "name": "superspeed_attack_break_1",
+        "start": 8315,
+        "end": 8341,
+        "worst_frame": 8324,
+        "max_edge": 0.044256909550596225
+      },
+      {
+        "name": "attack_force_4",
+        "start": 5356,
+        "end": 5382,
+        "worst_frame": 5368,
+        "max_edge": 0.043101038223927045
+      },
+      {
+        "name": "speed_attack_force_4",
+        "start": 5356,
+        "end": 5382,
+        "worst_frame": 5368,
+        "max_edge": 0.043101038223927045
+      },
+      {
+        "name": "superspeed_attack_force_4",
+        "start": 5356,
+        "end": 5382,
+        "worst_frame": 5368,
+        "max_edge": 0.043101038223927045
+      },
+      {
+        "name": "idle_2",
+        "start": 1970,
+        "end": 2040,
+        "worst_frame": 1983,
+        "max_edge": 0.04292066977670664
+      },
+      {
+        "name": "Gov_ObserveHands",
+        "start": 4629,
+        "end": 4740,
+        "worst_frame": 4682,
+        "max_edge": 0.042707417791373034
+      },
+      {
+        "name": "Sit2_Idle01",
+        "start": 7750,
+        "end": 7926,
+        "worst_frame": 7798,
+        "max_edge": 0.042694041492329575
+      },
+      {
+        "name": "attack_force_3",
+        "start": 5248,
+        "end": 5282,
+        "worst_frame": 5262,
+        "max_edge": 0.042095642547212396
+      },
+      {
+        "name": "ambush_punch",
+        "start": 5248,
+        "end": 5282,
+        "worst_frame": 5262,
+        "max_edge": 0.042095642547212396
+      },
+      {
+        "name": "speed_attack_force_3",
+        "start": 5248,
+        "end": 5282,
+        "worst_frame": 5262,
+        "max_edge": 0.042095642547212396
+      },
+      {
+        "name": "superspeed_attack_force_3",
+        "start": 5248,
+        "end": 5282,
+        "worst_frame": 5262,
+        "max_edge": 0.042095642547212396
+      },
+      {
+        "name": "hit_attack_2",
+        "start": 5506,
+        "end": 5530,
+        "worst_frame": 5509,
+        "max_edge": 0.04059499361251256
+      },
+      {
+        "name": "hit_feint",
+        "start": 5506,
+        "end": 5530,
+        "worst_frame": 5509,
+        "max_edge": 0.04059499361251256
+      },
+      {
+        "name": "Ground_Death1",
+        "start": 1085,
+        "end": 1125,
+        "worst_frame": 1103,
+        "max_edge": 0.04050547478467847
+      },
+      {
+        "name": "fight stand_5",
+        "start": 5704,
+        "end": 5742,
+        "worst_frame": 5716,
+        "max_edge": 0.04034664548742793
+      },
+      {
+        "name": "idle_3",
+        "start": 2040,
+        "end": 2101,
+        "worst_frame": 2068,
+        "max_edge": 0.04022580593593494
+      },
+      {
+        "name": "death_1",
+        "start": 6072,
+        "end": 6146,
+        "worst_frame": 6075,
+        "max_edge": 0.039977248684669
+      },
+      {
+        "name": "attack_feintc_1",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "attack_feintc_2",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "attack_feintc_3",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "attack_feintc_4",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "speed_attack_feintc_1",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "speed_attack_feintc_2",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "speed_attack_feintc_3",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "speed_attack_feintc_4",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "superspeed_attack_feintc_1",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "superspeed_attack_feintc_2",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "superspeed_attack_feintc_3",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "superspeed_attack_feintc_4",
+        "start": 8452,
+        "end": 8473,
+        "worst_frame": 8457,
+        "max_edge": 0.039774980684575606
+      },
+      {
+        "name": "death_3",
+        "start": 6223,
+        "end": 6281,
+        "worst_frame": 6252,
+        "max_edge": 0.03882133847647165
+      },
+      {
+        "name": "Sit_Dialog1",
+        "start": 3145,
+        "end": 3888,
+        "worst_frame": 3781,
+        "max_edge": 0.03874198582520257
+      },
+      {
+        "name": "hit_attack_1",
+        "start": 5485,
+        "end": 5506,
+        "worst_frame": 5488,
+        "max_edge": 0.03850109200010648
+      },
+      {
+        "name": "hit_round",
+        "start": 5485,
+        "end": 5506,
+        "worst_frame": 5488,
+        "max_edge": 0.03850109200010648
+      },
+      {
+        "name": "Gov_think_1",
+        "start": 5013,
+        "end": 5066,
+        "worst_frame": 5053,
+        "max_edge": 0.038449860433247406
+      },
+      {
+        "name": "Sit2_Idle04",
+        "start": 8099,
+        "end": 8183,
+        "worst_frame": 8169,
+        "max_edge": 0.03844636551613122
+      },
+      {
+        "name": "Sit2_Idle06",
+        "start": 8123,
+        "end": 8245,
+        "worst_frame": 8169,
+        "max_edge": 0.03844636551613122
+      },
+      {
+        "name": "Gov_think_3",
+        "start": 4494,
+        "end": 4629,
+        "worst_frame": 4520,
+        "max_edge": 0.03767131349665303
+      },
+      {
+        "name": "death_afraid_1",
+        "start": 500,
+        "end": 568,
+        "worst_frame": 545,
+        "max_edge": 0.035777304311658466
+      },
+      {
+        "name": "death_afraid_2",
+        "start": 500,
+        "end": 568,
+        "worst_frame": 545,
+        "max_edge": 0.035777304311658466
+      },
+      {
+        "name": "parry_4",
+        "start": 8395,
+        "end": 8410,
+        "worst_frame": 8401,
+        "max_edge": 0.035308029101334626
+      },
+      {
+        "name": "attack_feint_1",
+        "start": 8395,
+        "end": 8410,
+        "worst_frame": 8401,
+        "max_edge": 0.035308029101334626
+      },
+      {
+        "name": "attack_feint_2",
+        "start": 8395,
+        "end": 8410,
+        "worst_frame": 8401,
+        "max_edge": 0.035308029101334626
+      },
+      {
+        "name": "attack_feint_3",
+        "start": 8395,
+        "end": 8410,
+        "worst_frame": 8401,
+        "max_edge": 0.035308029101334626
+      },
+      {
+        "name": "attack_feint_4",
+        "start": 8395,
+        "end": 8410,
+        "worst_frame": 8401,
+        "max_edge": 0.035308029101334626
+      },
+      {
+        "name": "parry_2",
+        "start": 5437,
+        "end": 5461,
+        "worst_frame": 5448,
+        "max_edge": 0.035082744121483246
+      },
+      {
+        "name": "attack_force_1",
+        "start": 5184,
+        "end": 5217,
+        "worst_frame": 5196,
+        "max_edge": 0.03471834603556934
+      },
+      {
+        "name": "speed_attack_force_1",
+        "start": 5184,
+        "end": 5217,
+        "worst_frame": 5196,
+        "max_edge": 0.03471834603556934
+      },
+      {
+        "name": "superspeed_attack_force_1",
+        "start": 5184,
+        "end": 5217,
+        "worst_frame": 5196,
+        "max_edge": 0.03471834603556934
+      },
+      {
+        "name": "Sit_Idle06",
+        "start": 3008,
+        "end": 3099,
+        "worst_frame": 3072,
+        "max_edge": 0.03465380171371005
+      },
+      {
+        "name": "Sit2_Idle02",
+        "start": 7927,
+        "end": 8002,
+        "worst_frame": 7982,
+        "max_edge": 0.03459882978430739
+      },
+      {
+        "name": "Gov_Look_Around",
+        "start": 4809,
+        "end": 4883,
+        "worst_frame": 4865,
+        "max_edge": 0.03459417621042402
+      },
+      {
+        "name": "hit_attack_3",
+        "start": 5530,
+        "end": 5552,
+        "worst_frame": 5534,
+        "max_edge": 0.034540831648845256
+      },
+      {
+        "name": "hit_fire",
+        "start": 5530,
+        "end": 5552,
+        "worst_frame": 5534,
+        "max_edge": 0.034540831648845256
+      },
+      {
+        "name": "idle_7",
+        "start": 1642,
+        "end": 1692,
+        "worst_frame": 1653,
+        "max_edge": 0.03447934890377958
+      },
+      {
+        "name": "fight stand_4",
+        "start": 5660,
+        "end": 5704,
+        "worst_frame": 5669,
+        "max_edge": 0.03443357557919292
+      },
+      {
+        "name": "Gov_Dialog_1",
+        "start": 4883,
+        "end": 5013,
+        "worst_frame": 4994,
+        "max_edge": 0.03438853314651309
+      },
+      {
+        "name": "Gov_Dialog_2",
+        "start": 5105,
+        "end": 5129,
+        "worst_frame": 5118,
+        "max_edge": 0.03403002256031446
+      },
+      {
+        "name": "Sit2_Idle05",
+        "start": 8184,
+        "end": 8222,
+        "worst_frame": 8208,
+        "max_edge": 0.03213225267362115
+      },
+      {
+        "name": "Gov_think_2",
+        "start": 5066,
+        "end": 5105,
+        "worst_frame": 5092,
+        "max_edge": 0.03212596704907901
+      },
+      {
+        "name": "Sit_Dialog2",
+        "start": 3888,
+        "end": 4493,
+        "worst_frame": 4463,
+        "max_edge": 0.03210479254973695
+      },
+      {
+        "name": "idle_5",
+        "start": 1537,
+        "end": 1602,
+        "worst_frame": 1581,
+        "max_edge": 0.03096725599488698
+      },
+      {
+        "name": "idle_4",
+        "start": 1477,
+        "end": 1537,
+        "worst_frame": 1496,
+        "max_edge": 0.030425597347470433
+      },
+      {
+        "name": "Normal to fight",
+        "start": 5158,
+        "end": 5184,
+        "worst_frame": 5175,
+        "max_edge": 0.030041808387274008
+      },
+      {
+        "name": "Sit_Lower_head",
+        "start": 2671,
+        "end": 2766,
+        "worst_frame": 2719,
+        "max_edge": 0.029870843778241896
+      },
+      {
+        "name": "Sit_Dialog0",
+        "start": 2671,
+        "end": 2834,
+        "worst_frame": 2719,
+        "max_edge": 0.029870843778241896
+      },
+      {
+        "name": "hit_parry",
+        "start": 8475,
+        "end": 8500,
+        "worst_frame": 8491,
+        "max_edge": 0.029519968092645503
+      },
+      {
+        "name": "parry_1",
+        "start": 5385,
+        "end": 5410,
+        "worst_frame": 5400,
+        "max_edge": 0.029453165181194875
+      },
+      {
+        "name": "dialog_stay4",
+        "start": 2360,
+        "end": 2393,
+        "worst_frame": 2367,
+        "max_edge": 0.028548302689650057
+      },
+      {
+        "name": "dialog_stay9",
+        "start": 2541,
+        "end": 2577,
+        "worst_frame": 2552,
+        "max_edge": 0.028155895195190316
+      },
+      {
+        "name": "Ground_Scratch",
+        "start": 905,
+        "end": 972,
+        "worst_frame": 949,
+        "max_edge": 0.027813121121629692
+      },
+      {
+        "name": "idle_6",
+        "start": 1602,
+        "end": 1642,
+        "worst_frame": 1625,
+        "max_edge": 0.026693231776602436
+      },
+      {
+        "name": "attack_fast_3",
+        "start": 5331,
+        "end": 5356,
+        "worst_frame": 5346,
+        "max_edge": 0.026035200265300384
+      },
+      {
+        "name": "speed_attack_fast_3",
+        "start": 5331,
+        "end": 5356,
+        "worst_frame": 5346,
+        "max_edge": 0.026035200265300384
+      },
+      {
+        "name": "superspeed_attack_fast_3",
+        "start": 5331,
+        "end": 5356,
+        "worst_frame": 5346,
+        "max_edge": 0.026035200265300384
+      },
+      {
+        "name": "Fight to normal",
+        "start": 6282,
+        "end": 6317,
+        "worst_frame": 6294,
+        "max_edge": 0.025690266264117273
+      },
+      {
+        "name": "idle_8",
+        "start": 1692,
+        "end": 1735,
+        "worst_frame": 1708,
+        "max_edge": 0.02564060093958571
+      },
+      {
+        "name": "dialog_stay10",
+        "start": 2577,
+        "end": 2619,
+        "worst_frame": 2603,
+        "max_edge": 0.025527767177875155
+      },
+      {
+        "name": "parry_3",
+        "start": 5462,
+        "end": 5485,
+        "worst_frame": 5469,
+        "max_edge": 0.02552256000378332
+      },
+      {
+        "name": "dialog_stay3",
+        "start": 2321,
+        "end": 2360,
+        "worst_frame": 2340,
+        "max_edge": 0.02522434092004122
+      },
+      {
+        "name": "jump",
+        "start": 183,
+        "end": 219,
+        "worst_frame": 201,
+        "max_edge": 0.025055040814286392
+      },
+      {
+        "name": "fall",
+        "start": 183,
+        "end": 203,
+        "worst_frame": 201,
+        "max_edge": 0.025055040814286392
+      },
+      {
+        "name": "Bead",
+        "start": 6899,
+        "end": 7000,
+        "worst_frame": 6935,
+        "max_edge": 0.024957631420188604
+      },
+      {
+        "name": "fight walk",
+        "start": 6318,
+        "end": 6333,
+        "worst_frame": 6327,
+        "max_edge": 0.02471736612900624
+      },
+      {
+        "name": "Sit2_Idle03",
+        "start": 8003,
+        "end": 8098,
+        "worst_frame": 8060,
+        "max_edge": 0.02469110303085509
+      },
+      {
+        "name": "fall_land",
+        "start": 203,
+        "end": 219,
+        "worst_frame": 203,
+        "max_edge": 0.024673145456152474
+      },
+      {
+        "name": "Sit_Look_Around",
+        "start": 2620,
+        "end": 2671,
+        "worst_frame": 2653,
+        "max_edge": 0.024504650878436618
+      },
+      {
+        "name": "Gov_Dialog_3",
+        "start": 5129,
+        "end": 5157,
+        "worst_frame": 5139,
+        "max_edge": 0.024179970336964972
+      },
+      {
+        "name": "Sit2_Idle07",
+        "start": 8246,
+        "end": 8274,
+        "worst_frame": 8255,
+        "max_edge": 0.024174766818917136
+      },
+      {
+        "name": "fall_water",
+        "start": 8641,
+        "end": 8676,
+        "worst_frame": 8641,
+        "max_edge": 0.024045994314912836
+      },
+      {
+        "name": "block_hit",
+        "start": 8606,
+        "end": 8617,
+        "worst_frame": 8606,
+        "max_edge": 0.02378305269246775
+      },
+      {
+        "name": "block",
+        "start": 8680,
+        "end": 8690,
+        "worst_frame": 8680,
+        "max_edge": 0.02378304981256449
+      },
+      {
+        "name": "block_break",
+        "start": 8680,
+        "end": 8690,
+        "worst_frame": 8680,
+        "max_edge": 0.02378304981256449
+      },
+      {
+        "name": "dialog_stay1",
+        "start": 2255,
+        "end": 2291,
+        "worst_frame": 2278,
+        "max_edge": 0.023774700576690722
+      },
+      {
+        "name": "fight stand_6",
+        "start": 5742,
+        "end": 5776,
+        "worst_frame": 5757,
+        "max_edge": 0.023566121011049126
+      },
+      {
+        "name": "Ground_Afraid",
+        "start": 6510,
+        "end": 6512,
+        "worst_frame": 6510,
+        "max_edge": 0.023442527727544547
+      },
+      {
+        "name": "Ground_Afraid_Death",
+        "start": 6510,
+        "end": 6559,
+        "worst_frame": 6510,
+        "max_edge": 0.023442527727544547
+      },
+      {
+        "name": "afraid",
+        "start": 424,
+        "end": 499,
+        "worst_frame": 428,
+        "max_edge": 0.023137324716090805
+      },
+      {
+        "name": "idle_10",
+        "start": 1806,
+        "end": 1871,
+        "worst_frame": 1837,
+        "max_edge": 0.02290944274023768
+      },
+      {
+        "name": "Merchant_invite",
+        "start": 6560,
+        "end": 6600,
+        "worst_frame": 6569,
+        "max_edge": 0.02287133329966507
+      },
+      {
+        "name": "Sit_Idle03",
+        "start": 2880,
+        "end": 2943,
+        "worst_frame": 2915,
+        "max_edge": 0.022348129124140484
+      },
+      {
+        "name": "Barman_look_around",
+        "start": 6707,
+        "end": 6822,
+        "worst_frame": 6772,
+        "max_edge": 0.02233996374690792
+      },
+      {
+        "name": "Ground_look_around",
+        "start": 805,
+        "end": 905,
+        "worst_frame": 850,
+        "max_edge": 0.022245296139879
+      },
+      {
+        "name": "lay_1",
+        "start": 6400,
+        "end": 6400,
+        "worst_frame": 6400,
+        "max_edge": 0.02218899291517535
+      },
+      {
+        "name": "fight stand_8",
+        "start": 6860,
+        "end": 6898,
+        "worst_frame": 6881,
+        "max_edge": 0.02215241629931336
+      },
+      {
+        "name": "Gov_LegOnLeg",
+        "start": 4740,
+        "end": 4809,
+        "worst_frame": 4777,
+        "max_edge": 0.022046018238141486
+      },
+      {
+        "name": "Barman_idle",
+        "start": 6601,
+        "end": 6706,
+        "worst_frame": 6694,
+        "max_edge": 0.022025690118743668
+      },
+      {
+        "name": "dialog_stay5",
+        "start": 2393,
+        "end": 2462,
+        "worst_frame": 2422,
+        "max_edge": 0.021997249555272616
+      },
+      {
+        "name": "Ground_Beg",
+        "start": 6420,
+        "end": 6470,
+        "worst_frame": 6447,
+        "max_edge": 0.02131495948502292
+      },
+      {
+        "name": "open_door",
+        "start": 270,
+        "end": 310,
+        "worst_frame": 285,
+        "max_edge": 0.02130944982145383
+      },
+      {
+        "name": "Sit_Idle04",
+        "start": 2943,
+        "end": 2961,
+        "worst_frame": 2950,
+        "max_edge": 0.020924154823000914
+      },
+      {
+        "name": "dialog_stay14",
+        "start": 2194,
+        "end": 2233,
+        "worst_frame": 2206,
+        "max_edge": 0.020780986125688957
+      },
+      {
+        "name": "Sit_Death",
+        "start": 3100,
+        "end": 3144,
+        "worst_frame": 3132,
+        "max_edge": 0.020761753474384463
+      },
+      {
+        "name": "CarrierGo_1",
+        "start": 76,
+        "end": 97,
+        "worst_frame": 90,
+        "max_edge": 0.020446897156160895
+      },
+      {
+        "name": "CarrierStay_1",
+        "start": 85,
+        "end": 85,
+        "worst_frame": 85,
+        "max_edge": 0.020150087909704135
+      },
+      {
+        "name": "fight stand_7",
+        "start": 5776,
+        "end": 5902,
+        "worst_frame": 5872,
+        "max_edge": 0.01995808240299122
+      },
+      {
+        "name": "dialog_stay2",
+        "start": 2291,
+        "end": 2321,
+        "worst_frame": 2307,
+        "max_edge": 0.019920939247715208
+      },
+      {
+        "name": "Ground_HitNoFight",
+        "start": 6515,
+        "end": 6517,
+        "worst_frame": 6517,
+        "max_edge": 0.019845958857350868
+      },
+      {
+        "name": "Ground_StandUp",
+        "start": 972,
+        "end": 1032,
+        "worst_frame": 987,
+        "max_edge": 0.019698992504782874
+      },
+      {
+        "name": "Ground_StandUp_Fast",
+        "start": 988,
+        "end": 1032,
+        "worst_frame": 988,
+        "max_edge": 0.01969899041706665
+      },
+      {
+        "name": "fight stand_2",
+        "start": 8545,
+        "end": 8603,
+        "worst_frame": 8597,
+        "max_edge": 0.019667847937854938
+      },
+      {
+        "name": "idle_11",
+        "start": 1871,
+        "end": 1970,
+        "worst_frame": 1879,
+        "max_edge": 0.019648847999348552
+      },
+      {
+        "name": "Ground_Death",
+        "start": 1033,
+        "end": 1084,
+        "worst_frame": 1040,
+        "max_edge": 0.019582891551114874
+      },
+      {
+        "name": "walk",
+        "start": 2,
+        "end": 18,
+        "worst_frame": 17,
+        "max_edge": 0.019467103067994485
+      },
+      {
+        "name": "back walk",
+        "start": 2,
+        "end": 18,
+        "worst_frame": 17,
+        "max_edge": 0.019467103067994485
+      },
+      {
+        "name": "back run",
+        "start": 2,
+        "end": 18,
+        "worst_frame": 17,
+        "max_edge": 0.019467103067994485
+      },
+      {
+        "name": "straif_weapon_left",
+        "start": 7190,
+        "end": 7204,
+        "worst_frame": 7195,
+        "max_edge": 0.019348056457641618
+      },
+      {
+        "name": "straif_weapon_right",
+        "start": 7175,
+        "end": 7189,
+        "worst_frame": 7180,
+        "max_edge": 0.019348056457641618
+      },
+      {
+        "name": "HitNoFightSit",
+        "start": 3100,
+        "end": 3105,
+        "worst_frame": 3105,
+        "max_edge": 0.019212346020688137
+      },
+      {
+        "name": "fight stand_3",
+        "start": 5632,
+        "end": 5660,
+        "worst_frame": 5648,
+        "max_edge": 0.019173956550396443
+      },
+      {
+        "name": "fight stand_1",
+        "start": 8520,
+        "end": 8544,
+        "worst_frame": 8520,
+        "max_edge": 0.018995670075914895
+      },
+      {
+        "name": "fight back walk",
+        "start": 6849,
+        "end": 6858,
+        "worst_frame": 6849,
+        "max_edge": 0.018995670075914895
+      },
+      {
+        "name": "Recoil",
+        "start": 6849,
+        "end": 6859,
+        "worst_frame": 6849,
+        "max_edge": 0.018995670075914895
+      },
+      {
+        "name": "Barman_lean",
+        "start": 6707,
+        "end": 6732,
+        "worst_frame": 6729,
+        "max_edge": 0.018640439673350797
+      },
+      {
+        "name": "Barman_stand_back",
+        "start": 6797,
+        "end": 6822,
+        "worst_frame": 6797,
+        "max_edge": 0.018640439673350797
+      },
+      {
+        "name": "swim",
+        "start": 241,
+        "end": 269,
+        "worst_frame": 249,
+        "max_edge": 0.01845272383005668
+      },
+      {
+        "name": "back stairs down",
+        "start": 117,
+        "end": 136,
+        "worst_frame": 119,
+        "max_edge": 0.01840154605726458
+      },
+      {
+        "name": "stairs up",
+        "start": 117,
+        "end": 136,
+        "worst_frame": 119,
+        "max_edge": 0.01840154605726458
+      },
+      {
+        "name": "bow",
+        "start": 7300,
+        "end": 7335,
+        "worst_frame": 7322,
+        "max_edge": 0.01837625182679646
+      },
+      {
+        "name": "Poklon",
+        "start": 7300,
+        "end": 7335,
+        "worst_frame": 7322,
+        "max_edge": 0.01837625182679646
+      },
+      {
+        "name": "dialog_stay15",
+        "start": 2233,
+        "end": 2255,
+        "worst_frame": 2241,
+        "max_edge": 0.018238283485585382
+      },
+      {
+        "name": "CarrierGo_2",
+        "start": 98,
+        "end": 116,
+        "worst_frame": 111,
+        "max_edge": 0.018053330810203435
+      },
+      {
+        "name": "dialog_stay12",
+        "start": 2131,
+        "end": 2172,
+        "worst_frame": 2151,
+        "max_edge": 0.018020095655071573
+      },
+      {
+        "name": "Shot",
+        "start": 6334,
+        "end": 6396,
+        "worst_frame": 6344,
+        "max_edge": 0.017522989381511762
+      },
+      {
+        "name": "dialog_stay7",
+        "start": 2493,
+        "end": 2515,
+        "worst_frame": 2505,
+        "max_edge": 0.017470174431682115
+      },
+      {
+        "name": "dialog_stay11",
+        "start": 2101,
+        "end": 2131,
+        "worst_frame": 2118,
+        "max_edge": 0.017460322823649413
+      },
+      {
+        "name": "dialog_stay8",
+        "start": 2515,
+        "end": 2541,
+        "worst_frame": 2528,
+        "max_edge": 0.017167914519444518
+      },
+      {
+        "name": "dialog_stay13",
+        "start": 2172,
+        "end": 2194,
+        "worst_frame": 2189,
+        "max_edge": 0.017033912743442042
+      },
+      {
+        "name": "CarrierStay_2",
+        "start": 98,
+        "end": 98,
+        "worst_frame": 98,
+        "max_edge": 0.01683838006936276
+      },
+      {
+        "name": "lay_2",
+        "start": 6397,
+        "end": 6397,
+        "worst_frame": 6397,
+        "max_edge": 0.016158165911832997
+      },
+      {
+        "name": "idle_9",
+        "start": 1764,
+        "end": 1806,
+        "worst_frame": 1785,
+        "max_edge": 0.016101987529028874
+      },
+      {
+        "name": "Ground_sitting",
+        "start": 685,
+        "end": 805,
+        "worst_frame": 703,
+        "max_edge": 0.015880346419016148
+      },
+      {
+        "name": "fight run",
+        "start": 157,
+        "end": 169,
+        "worst_frame": 166,
+        "max_edge": 0.015450896086087991
+      },
+      {
+        "name": "fight back run",
+        "start": 157,
+        "end": 169,
+        "worst_frame": 166,
+        "max_edge": 0.015450896086087991
+      },
+      {
+        "name": "run",
+        "start": 157,
+        "end": 169,
+        "worst_frame": 166,
+        "max_edge": 0.015450896086087991
+      },
+      {
+        "name": "run stairs up",
+        "start": 157,
+        "end": 169,
+        "worst_frame": 166,
+        "max_edge": 0.015450896086087991
+      },
+      {
+        "name": "run stairs down",
+        "start": 157,
+        "end": 169,
+        "worst_frame": 166,
+        "max_edge": 0.015450896086087991
+      },
+      {
+        "name": "Sit_Idle02",
+        "start": 2834,
+        "end": 2880,
+        "worst_frame": 2846,
+        "max_edge": 0.015440310667260064
+      },
+      {
+        "name": "stairs down",
+        "start": 137,
+        "end": 156,
+        "worst_frame": 141,
+        "max_edge": 0.015091583751708201
+      },
+      {
+        "name": "back stairs up",
+        "start": 137,
+        "end": 156,
+        "worst_frame": 141,
+        "max_edge": 0.015091583751708201
+      },
+      {
+        "name": "back run stairs up",
+        "start": 137,
+        "end": 156,
+        "worst_frame": 141,
+        "max_edge": 0.015091583751708201
+      },
+      {
+        "name": "back run stairs down",
+        "start": 137,
+        "end": 156,
+        "worst_frame": 141,
+        "max_edge": 0.015091583751708201
+      },
+      {
+        "name": "block_axe_hit",
+        "start": 8300,
+        "end": 8311,
+        "worst_frame": 8301,
+        "max_edge": 0.015088962695213013
+      },
+      {
+        "name": "block_axe",
+        "start": 8275,
+        "end": 8299,
+        "worst_frame": 8284,
+        "max_edge": 0.01508896037250101
+      },
+      {
+        "name": "Sit_Idle01",
+        "start": 2766,
+        "end": 2834,
+        "worst_frame": 2821,
+        "max_edge": 0.015054005285267796
+      },
+      {
+        "name": "Ground_SitDown",
+        "start": 625,
+        "end": 685,
+        "worst_frame": 685,
+        "max_edge": 0.014873443735842715
+      },
+      {
+        "name": "turn left",
+        "start": 220,
+        "end": 240,
+        "worst_frame": 236,
+        "max_edge": 0.014229277551577433
+      },
+      {
+        "name": "turn right",
+        "start": 220,
+        "end": 240,
+        "worst_frame": 236,
+        "max_edge": 0.014229277551577433
+      },
+      {
+        "name": "dialog_stay6",
+        "start": 2462,
+        "end": 2493,
+        "worst_frame": 2471,
+        "max_edge": 0.013935682928430886
+      },
+      {
+        "name": "idle_1",
+        "start": 1225,
+        "end": 1285,
+        "worst_frame": 1240,
+        "max_edge": 0.013514644267853227
+      },
+      {
+        "name": "HitNoFight",
+        "start": 8620,
+        "end": 8635,
+        "worst_frame": 8633,
+        "max_edge": 0.012945384286349499
+      }
+    ]
+  },
+  "mushketer": {
+    "ani_sha256": "1d8cebc900260f9458eedd919f7a4951ee745571c9022811117460e33bae0623",
+    "bank_sha256": "9651c14e7b3acb7e8e5f541c5696534a6782295b00dd2994b88c02240ab65788",
+    "model_sha256": "99e823418f9ab542725dc349fdc54ffcabb4fc7644e45d2beccb25d82616bd37",
+    "actions": [
+      {
+        "name": "death_2",
+        "start": 920,
+        "end": 992,
+        "worst_frame": 976,
+        "max_edge": 0.05323743831657209
+      },
+      {
+        "name": "death_3",
+        "start": 920,
+        "end": 992,
+        "worst_frame": 976,
+        "max_edge": 0.05323743831657209
+      },
+      {
+        "name": "fight stand_2",
+        "start": 467,
+        "end": 513,
+        "worst_frame": 481,
+        "max_edge": 0.04000553655711211
+      },
+      {
+        "name": "fight stand_5",
+        "start": 467,
+        "end": 513,
+        "worst_frame": 481,
+        "max_edge": 0.04000553655711211
+      },
+      {
+        "name": "fight stand_7",
+        "start": 467,
+        "end": 513,
+        "worst_frame": 481,
+        "max_edge": 0.04000553655711211
+      },
+      {
+        "name": "attack_force_1",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_force_2",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_force_3",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "ambush_punch",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_force_4",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_round_1",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_feintc_1",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_feintc_2",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_feintc_3",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_feintc_4",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_force_1",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_force_2",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_force_3",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_force_4",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_round_1",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_feintc_1",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_feintc_2",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_feintc_3",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "speed_attack_feintc_4",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_force_1",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_force_2",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_force_3",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_force_4",
+        "start": 164,
+        "end": 185,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_round_1",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_feintc_1",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_feintc_2",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_feintc_3",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "superspeed_attack_feintc_4",
+        "start": 164,
+        "end": 188,
+        "worst_frame": 174,
+        "max_edge": 0.03646535642005627
+      },
+      {
+        "name": "attack_feint_1",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "attack_feint_2",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "attack_feint_3",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "attack_feint_4",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "parry_1",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "parry_2",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "parry_3",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "parry_4",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "idle_3",
+        "start": 570,
+        "end": 650,
+        "worst_frame": 592,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "idle_5",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "idle_7",
+        "start": 570,
+        "end": 650,
+        "worst_frame": 592,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "idle_9",
+        "start": 810,
+        "end": 912,
+        "worst_frame": 854,
+        "max_edge": 0.032714183648918455
+      },
+      {
+        "name": "attack_fast_1",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "attack_fast_2",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "attack_fast_3",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "attack_break_1",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "speed_attack_fast_1",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "speed_attack_fast_2",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "speed_attack_fast_3",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "speed_attack_break_1",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "superspeed_attack_fast_1",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "superspeed_attack_fast_2",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "superspeed_attack_fast_3",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "superspeed_attack_break_1",
+        "start": 139,
+        "end": 160,
+        "worst_frame": 145,
+        "max_edge": 0.031225553436726693
+      },
+      {
+        "name": "Shot",
+        "start": 190,
+        "end": 224,
+        "worst_frame": 222,
+        "max_edge": 0.0308412246807814
+      },
+      {
+        "name": "fight stand_3",
+        "start": 521,
+        "end": 557,
+        "worst_frame": 556,
+        "max_edge": 0.029821186047896294
+      },
+      {
+        "name": "fight stand_6",
+        "start": 521,
+        "end": 557,
+        "worst_frame": 556,
+        "max_edge": 0.029821186047896294
+      },
+      {
+        "name": "death_0",
+        "start": 399,
+        "end": 420,
+        "worst_frame": 404,
+        "max_edge": 0.029815355698533545
+      },
+      {
+        "name": "death_1",
+        "start": 425,
+        "end": 449,
+        "worst_frame": 433,
+        "max_edge": 0.029815353331765194
+      },
+      {
+        "name": "death_citizen_1",
+        "start": 425,
+        "end": 449,
+        "worst_frame": 433,
+        "max_edge": 0.029815353331765194
+      },
+      {
+        "name": "death_citizen_2",
+        "start": 425,
+        "end": 449,
+        "worst_frame": 433,
+        "max_edge": 0.029815353331765194
+      },
+      {
+        "name": "HitNoFight",
+        "start": 400,
+        "end": 403,
+        "worst_frame": 403,
+        "max_edge": 0.029815351642229038
+      },
+      {
+        "name": "fight stand_1",
+        "start": 95,
+        "end": 139,
+        "worst_frame": 95,
+        "max_edge": 0.029815342236889048
+      },
+      {
+        "name": "fight stand_4",
+        "start": 95,
+        "end": 139,
+        "worst_frame": 95,
+        "max_edge": 0.029815342236889048
+      },
+      {
+        "name": "fight stand_8",
+        "start": 95,
+        "end": 139,
+        "worst_frame": 95,
+        "max_edge": 0.029815342236889048
+      },
+      {
+        "name": "Recoil",
+        "start": 375,
+        "end": 397,
+        "worst_frame": 375,
+        "max_edge": 0.029815342236889048
+      },
+      {
+        "name": "Normal to fight",
+        "start": 450,
+        "end": 460,
+        "worst_frame": 450,
+        "max_edge": 0.029815342236889048
+      },
+      {
+        "name": "Fight to normal",
+        "start": 450,
+        "end": 460,
+        "worst_frame": 450,
+        "max_edge": 0.029815342236889048
+      },
+      {
+        "name": "block",
+        "start": 1,
+        "end": 33,
+        "worst_frame": 1,
+        "max_edge": 0.029815342236889045
+      },
+      {
+        "name": "block_hit",
+        "start": 36,
+        "end": 48,
+        "worst_frame": 48,
+        "max_edge": 0.029815342236889045
+      },
+      {
+        "name": "block_break",
+        "start": 36,
+        "end": 48,
+        "worst_frame": 48,
+        "max_edge": 0.029815342236889045
+      },
+      {
+        "name": "Sit_Lower_head",
+        "start": 1046,
+        "end": 1141,
+        "worst_frame": 1095,
+        "max_edge": 0.029719938159758083
+      },
+      {
+        "name": "hit_attack_1",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "hit_attack_2",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "hit_attack_3",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "hit_feint",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "hit_round",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "hit_parry",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "hit_fire",
+        "start": 99,
+        "end": 110,
+        "worst_frame": 99,
+        "max_edge": 0.029182365808035276
+      },
+      {
+        "name": "Sit_Look_Around",
+        "start": 995,
+        "end": 1046,
+        "worst_frame": 1029,
+        "max_edge": 0.026866938522833894
+      },
+      {
+        "name": "idle_4",
+        "start": 660,
+        "end": 796,
+        "worst_frame": 678,
+        "max_edge": 0.0209384661341191
+      },
+      {
+        "name": "idle_8",
+        "start": 660,
+        "end": 796,
+        "worst_frame": 678,
+        "max_edge": 0.0209384661341191
+      },
+      {
+        "name": "stairs up",
+        "start": 280,
+        "end": 300,
+        "worst_frame": 282,
+        "max_edge": 0.01930851095260653
+      },
+      {
+        "name": "back stairs up",
+        "start": 280,
+        "end": 300,
+        "worst_frame": 282,
+        "max_edge": 0.01930851095260653
+      },
+      {
+        "name": "run stairs up",
+        "start": 280,
+        "end": 300,
+        "worst_frame": 282,
+        "max_edge": 0.01930851095260653
+      },
+      {
+        "name": "back run stairs up",
+        "start": 280,
+        "end": 300,
+        "worst_frame": 282,
+        "max_edge": 0.01930851095260653
+      },
+      {
+        "name": "fight run",
+        "start": 305,
+        "end": 324,
+        "worst_frame": 311,
+        "max_edge": 0.017961958377401735
+      },
+      {
+        "name": "fight back run",
+        "start": 305,
+        "end": 324,
+        "worst_frame": 311,
+        "max_edge": 0.017961958377401735
+      },
+      {
+        "name": "run",
+        "start": 305,
+        "end": 324,
+        "worst_frame": 311,
+        "max_edge": 0.017961958377401735
+      },
+      {
+        "name": "back run",
+        "start": 305,
+        "end": 324,
+        "worst_frame": 311,
+        "max_edge": 0.017961958377401735
+      },
+      {
+        "name": "swim",
+        "start": 325,
+        "end": 370,
+        "worst_frame": 338,
+        "max_edge": 0.01710616060584728
+      },
+      {
+        "name": "stairs down",
+        "start": 255,
+        "end": 275,
+        "worst_frame": 273,
+        "max_edge": 0.017008151110918596
+      },
+      {
+        "name": "back stairs down",
+        "start": 255,
+        "end": 275,
+        "worst_frame": 273,
+        "max_edge": 0.017008151110918596
+      },
+      {
+        "name": "run stairs down",
+        "start": 255,
+        "end": 275,
+        "worst_frame": 273,
+        "max_edge": 0.017008151110918596
+      },
+      {
+        "name": "back run stairs down",
+        "start": 255,
+        "end": 275,
+        "worst_frame": 273,
+        "max_edge": 0.017008151110918596
+      },
+      {
+        "name": "Sit_Idle01",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "Sit_Idle02",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "Sit_Idle03",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "Sit_Idle04",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "Sit_Idle05",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "Sit_Idle06",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "Sit_Death",
+        "start": 1142,
+        "end": 1193,
+        "worst_frame": 1175,
+        "max_edge": 0.013936793250175343
+      },
+      {
+        "name": "fight walk",
+        "start": 225,
+        "end": 251,
+        "worst_frame": 245,
+        "max_edge": 0.013930081712789321
+      },
+      {
+        "name": "fight back walk",
+        "start": 225,
+        "end": 251,
+        "worst_frame": 245,
+        "max_edge": 0.013930081712789321
+      },
+      {
+        "name": "walk",
+        "start": 225,
+        "end": 251,
+        "worst_frame": 245,
+        "max_edge": 0.013930081712789321
+      },
+      {
+        "name": "back walk",
+        "start": 225,
+        "end": 251,
+        "worst_frame": 245,
+        "max_edge": 0.013930081712789321
+      },
+      {
+        "name": "turn left",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "turn right",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "idle_1",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "idle_2",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "idle_6",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "idle_10",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "idle_11",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay1",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay2",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay3",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay4",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay5",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay6",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay7",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay8",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay9",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay10",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay11",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay12",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay13",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay14",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      },
+      {
+        "name": "dialog_stay15",
+        "start": 50,
+        "end": 94,
+        "worst_frame": 59,
+        "max_edge": 0.012945384402434135
+      }
+    ]
+  }
+}

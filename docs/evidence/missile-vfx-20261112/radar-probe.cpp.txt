@@ -1,0 +1,99 @@
+
+#include <algorithm>
+#include <vector>
+#include <map>
+#include <cmath>
+#include <cstdint>
+#include <cassert>
+#include <cstdio>
+#define PI 3.14159265f
+#define BI_COLORONLY_VERTEX_FORMAT 0
+#define VERTEX_BUFFER_RELEASE(rs,id) (rs)->release(id)
+namespace storm_render { namespace usage { constexpr int writeOnly=0; } }
+struct Vec{float x=0,y=0,z=0;}; struct BI_COLORONLY_VERTEX{Vec pos;float w;uint32_t col;};
+struct Ship{Vec GetPos(){return {};} Vec GetAng(){return {};}};
+constexpr int BI_RELATION_ENEMY=1,BI_RELATION_FRIEND=2,BI_RELATION_NEUTRAL=3;
+struct Desc{Desc*next=nullptr;Ship*pShip=nullptr;int dwShipColor=0;bool isDead=false;int GetDisplayRelation(){return 1;}};
+struct List{Desc*root=nullptr;Desc* GetShipRoot(){return root;} Desc* GetMainCharacterShip(){return root;}}g_ShipList;
+struct Render{std::map<int,std::vector<BI_COLORONLY_VERTEX>> buf;int next=1;bool fail=false;int CreateVertexBuffer(int,size_t bytes,int){if(fail)return -1;int id=next++;buf[id].resize(bytes/sizeof(BI_COLORONLY_VERTEX));return id;} void release(int id){buf.erase(id);} void*LockVertexBuffer(int id){return buf[id].data();} void UnLockVertexBuffer(int){} };
+struct BATTLE_NAVIGATOR{Render*rs;int32_t m_idShipsVBuf=0,m_shipBufferCapacity=20,m_nvShips=0;float m_fMapRadius=100,m_fXPos=0,m_fYPos=0,m_fWorldRad=100,m_fCurScale=1,m_fAngle=0,m_YNavigator=0,m_XNavigator=0,m_fAspectRatio=1,m_fShipShowRad=1;uint32_t m_dwEnemyShipColor=1,m_dwFrendShipColor=2,m_dwNeutralShipColor=3,m_dwDeadShipColor=4;void SetAnotherShip();};
+void BATTLE_NAVIGATOR::SetAnotherShip()
+{
+    int32_t shipCount = 0;
+    for (auto *ship = g_ShipList.GetShipRoot(); ship; ship = ship->next) ++shipCount;
+    if (shipCount > m_shipBufferCapacity)
+    {
+        const int32_t capacity = std::max(shipCount, m_shipBufferCapacity * 2);
+        const int32_t replacement = rs->CreateVertexBuffer(BI_COLORONLY_VERTEX_FORMAT,
+            size_t(capacity) * 3 * sizeof(BI_COLORONLY_VERTEX), storm_render::usage::writeOnly);
+        if (replacement >= 0) {
+            VERTEX_BUFFER_RELEASE(rs, m_idShipsVBuf);
+            m_idShipsVBuf = replacement;
+            m_shipBufferCapacity = capacity;
+        }
+    }
+    auto *pv = static_cast<BI_COLORONLY_VERTEX *>(rs->LockVertexBuffer(m_idShipsVBuf));
+    if (pv == nullptr)
+        return;
+    auto *const pMainCharacter = g_ShipList.GetMainCharacterShip();
+    auto idx = 0;
+    const auto fSqrMapRad = m_fMapRadius * m_fMapRadius;
+
+    m_nvShips = 0L;
+    // Fill ships buffer
+    for (auto *psd = g_ShipList.GetShipRoot(); psd != nullptr; psd = psd->next)
+    {
+        // do not draw the main character's ship
+        if (psd == pMainCharacter || !psd->pShip)
+            continue;
+        // determine the coordinates of the ship and if they are outside the map, then do not draw the ship
+        auto fX = (psd->pShip->GetPos().x - m_fXPos) * m_fMapRadius / (m_fWorldRad * m_fCurScale);
+        auto fY = (psd->pShip->GetPos().z - m_fYPos) * m_fMapRadius / (m_fWorldRad * m_fCurScale);
+        if (fX * fX + fY * fY > fSqrMapRad)
+            continue;
+        if (idx >= m_shipBufferCapacity * 3) break;
+        const auto tmp = fX * cosf(m_fAngle) - fY * sinf(m_fAngle);
+        fY = m_YNavigator - (fY * cosf(m_fAngle) + fX * sinf(m_fAngle)) * m_fAspectRatio;
+        fX = tmp + m_XNavigator;
+        // determine the color of the displayed ship
+        auto dwColor = 0xFFFFFFFF;
+        if (psd->dwShipColor == 0)
+        {
+            switch (psd->GetDisplayRelation())
+            {
+            case BI_RELATION_ENEMY:
+                dwColor = m_dwEnemyShipColor;
+                break;
+            case BI_RELATION_FRIEND:
+                dwColor = m_dwFrendShipColor;
+                break;
+            case BI_RELATION_NEUTRAL:
+                dwColor = m_dwNeutralShipColor;
+                break;
+            }
+        }
+        else
+            dwColor = psd->dwShipColor;
+        if (psd->isDead)
+            dwColor = m_dwDeadShipColor;
+        // determine the angle of the ship
+        const auto fAngle = psd->pShip->GetAng().y - m_fAngle;
+        // fill buffer
+        pv[idx].w = pv[idx + 1].w = pv[idx + 2].w = .5f;
+        pv[idx].pos.z = pv[idx + 1].pos.z = pv[idx + 2].pos.z = 1.f;
+        pv[idx].col = pv[idx + 1].col = pv[idx + 2].col = dwColor;
+        pv[idx + 0].pos.x = fX + m_fShipShowRad * sinf(fAngle);
+        pv[idx + 0].pos.y = fY - m_fShipShowRad * cosf(fAngle) * m_fAspectRatio;
+        pv[idx + 1].pos.x = fX + m_fShipShowRad * sinf(fAngle - PI * .9f);
+        pv[idx + 1].pos.y = fY - m_fShipShowRad * cosf(fAngle - PI * .8f) * m_fAspectRatio;
+        pv[idx + 2].pos.x = fX + m_fShipShowRad * sinf(fAngle + PI * .9f);
+        pv[idx + 2].pos.y = fY - m_fShipShowRad * cosf(fAngle + PI * .8f) * m_fAspectRatio;
+        idx += 3;
+        m_nvShips += 3;
+    }
+
+    rs->UnLockVertexBuffer(m_idShipsVBuf);
+}
+
+
+int main(){Ship ship;std::vector<Desc>d(80);for(int i=0;i<80;i++){d[i].pShip=&ship;if(i+1<80)d[i].next=&d[i+1];}g_ShipList.root=d.data();Render r;r.buf[0].resize(60);BATTLE_NAVIGATOR n{&r};n.SetAnotherShip();assert(n.m_nvShips==79*3&&n.m_shipBufferCapacity>=80);Render fail;fail.buf[0].resize(60);fail.fail=true;BATTLE_NAVIGATOR n2{&fail};n2.SetAnotherShip();assert(n2.m_nvShips==60);puts("radar: 79 markers fit; allocation failure capped safely");}

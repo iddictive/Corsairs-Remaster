@@ -1,0 +1,72 @@
+import os,sys,shutil,subprocess,hashlib,json,importlib.util,time,re
+from pathlib import Path
+orig=Path("/Users/md/05_Repo/Corsairs"); work=Path(os.environ["CODEX_SCRATCH_DIR"]); snap=work/"candidate"; snap.mkdir()
+suffix=os.environ.get("FORWARD_EVIDENCE_SUFFIX", "")
+if suffix and not re.fullmatch(r"-[a-z0-9-]+",suffix): raise SystemExit("invalid evidence suffix")
+output_dir=orig/"docs/evidence/phonk-reactive-flight-20261029"
+log_path=output_dir/("forward-candidate-fixed-build-20261111"+suffix+".log")
+out=output_dir/("forward-candidate-fixed-manifest-20261111"+suffix+".json")
+if log_path.exists() or out.exists(): raise SystemExit("evidence target already occupied; set FORWARD_EVIDENCE_SUFFIX")
+def run(cmd,**kw):
+ print("+",cmd[0],flush=True); return subprocess.run(cmd,check=True,**kw)
+for rel in ("tools","src/assets","experiments/native-storm/audio"):
+ src=orig/rel; dst=snap/rel;dst.parent.mkdir(parents=True,exist_ok=True);shutil.copytree(src,dst,symlinks=False,ignore=shutil.ignore_patterns("__pycache__"))
+dst=snap/"experiments/native-metal";dst.mkdir(parents=True)
+run(["/usr/bin/rsync","-a","--exclude=.cache","--exclude=inputs",str(orig/"experiments/native-metal")+"/",str(dst)+"/"])
+run(["/bin/cp","-cR",str(orig/"experiments/native-metal/inputs"),str(dst/"inputs")])
+evidence=snap/"docs/evidence"
+for name in ("cannon-darts-20261021","phonk-reactive-flight-20261029","particle-tracer-capacity-20261029"):
+ (evidence/name).parent.mkdir(parents=True,exist_ok=True)
+ shutil.copytree(orig/"docs/evidence"/name,evidence/name,symlinks=False,ignore=shutil.ignore_patterns("__pycache__"))
+extra=orig/"docs/evidence/naval-ordnance-perf-20261104"
+extra_out=evidence/"naval-ordnance-perf-20261104"
+extra_out.mkdir(parents=True,exist_ok=True)
+for name in ("nuclear-probe.cpp.txt","nuclear-fixture.c"):shutil.copy2(extra/name,extra_out/name)
+shutil.copy2(orig/"docs/evidence/phonk-reactive-flight-20261029/forward-candidate-replay-20261111.py", evidence/"cannon-darts-20261021/island-route-replay.py")
+jolt=work/"jolt-src"
+run(["/bin/cp","-cR",str(orig/"experiments/native-metal/.cache/build/_deps/roundhouse_jolt-src"),str(jolt)])
+toolchain=work/"toolchain.cmake";toolchain.write_text('set(FETCHCONTENT_SOURCE_DIR_ROUNDHOUSE_JOLT "'+str(jolt)+'" CACHE PATH "" FORCE)\n')
+spec=importlib.util.spec_from_file_location("identity",snap/"tools/metal_engine_source.py");mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
+origspec=importlib.util.spec_from_file_location("orig_identity",orig/"tools/metal_engine_source.py");origmod=importlib.util.module_from_spec(origspec);origspec.loader.exec_module(origmod)
+a=origmod.fingerprint();b=mod.fingerprint()
+print("source_identity_original="+a+" snapshot="+b,flush=True)
+if a!=b: raise SystemExit("snapshot inputs differ from saved checkout")
+tracked=subprocess.check_output(["git","-C",str(orig),"ls-files","-s","-z"]).decode().split("\0");index={}
+for row in tracked:
+ if not row:continue
+ head,path=row.split("\t",1);index[path]=head.split()[1]
+items=[]
+for p in mod.source_files():
+ rel=p.relative_to(snap).as_posix();data=p.read_bytes();sha=hashlib.sha256(data).hexdigest();blob=hashlib.sha1(b"blob "+str(len(data)).encode()+b"\0"+data).hexdigest();gitblob=index.get(rel)
+ items.append({"path":rel,"sha256":sha,"git_index_blob":gitblob,"changed":blob!=gitblob})
+manifest={"base_head":subprocess.check_output(["git","-C",str(orig),"rev-parse","HEAD"],text=True).strip(),"source_fingerprint":b,"files":items,"inputs_manifest_sha256":hashlib.sha256((dst/"inputs/manifest.json").read_bytes()).hexdigest(),"jolt_files":{p.relative_to(jolt).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(jolt.rglob("*")) if p.is_file() and not p.is_symlink()}}
+(work/"source-manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
+print("snapshot_files="+str(len(items))+" changed_or_untracked="+str(sum(x["changed"] for x in items)),flush=True)
+env=dict(os.environ);env["CORSAIRS_METAL_BUILD_JOBS"]="2";env["CMAKE_TOOLCHAIN_FILE"]=str(toolchain);env["CMAKE_BUILD_PARALLEL_LEVEL"]="2"
+start=time.monotonic()
+result=subprocess.run([str(dst/"build.sh")],cwd=snap,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+print("BUILD_EXIT="+str(result.returncode)+" elapsed="+str(round(time.monotonic()-start,1)),flush=True)
+print(result.stdout[-5000:],flush=True)
+if result.returncode:
+ for name in ("configure.log","build.log"):
+  p=dst/".cache"/name
+  if p.exists(): print(name+" tail:\n"+p.read_text(errors="replace")[-6000:],flush=True)
+ sys.exit(result.returncode)
+cmake=dst/"inputs/toolchain/bin/cmake"
+r=subprocess.run([str(cmake),"--build",str(dst/".cache/build"),"--target","sea-fleet-benchmark","-j","2"],cwd=snap,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+print("BENCH_BUILD_EXIT="+str(r.returncode)+"\n"+r.stdout[-3000:],flush=True)
+if r.returncode:sys.exit(r.returncode)
+built=dst/".cache/build/bin/engine-1";bench=dst/".cache/build/bin/sea-fleet-benchmark"
+print("engine_sha256="+hashlib.sha256(built.read_bytes()).hexdigest(),flush=True)
+print("benchmark_sha256="+hashlib.sha256(bench.read_bytes()).hexdigest(),flush=True)
+if mod.fingerprint()!=b or origmod.fingerprint()!=a:raise SystemExit("source changed during build")
+(dst/".cache/runtime").mkdir(parents=True,exist_ok=True)
+(dst/".cache/runtime/RESOURCE").symlink_to(orig/"experiments/native-metal/.cache/runtime/RESOURCE",target_is_directory=True)
+shutil.copyfile(dst/".cache/build.log",log_path)
+print("RUNNING_PROJECTILE_REPLAY",flush=True)
+r=subprocess.run(["/usr/bin/python3",str(evidence/"cannon-darts-20261021/island-route-replay.py")],cwd=snap,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=240)
+print(r.stdout[-5000:],flush=True);print("PROJECTILE_EXIT="+str(r.returncode),flush=True)
+manifest["engine_sha256"]=hashlib.sha256(built.read_bytes()).hexdigest();manifest["benchmark_sha256"]=hashlib.sha256(bench.read_bytes()).hexdigest();manifest["projectile_exit"]=r.returncode;manifest["projectile_output"]=r.stdout;out.write_text(json.dumps(manifest,indent=2)+"\n")
+print("MANIFEST_RETAINED="+str(out.relative_to(orig)),flush=True)
+sys.exit(r.returncode)
+

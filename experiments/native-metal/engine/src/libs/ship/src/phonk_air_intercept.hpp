@@ -39,12 +39,14 @@ struct Body
     double radius; // contact sphere; for targets also expands splash radius
     double expires; // exclusive, may be +infinity
     std::vector<Segment> segments;
+    double physicalRadius = 0.; // separate from proximity and blast radius
 };
 struct Interceptor {
     Body body; double splashRadius; bool detonateOnExpiry = false;
     double fuseDelay = 0.;
     double pendingDetonation = std::numeric_limits<double>::infinity();
     double sensorStart = 0.;
+    double physicalRadius = 0.;
 };
 struct Contact
 {

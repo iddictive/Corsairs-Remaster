@@ -1,0 +1,449 @@
+-------------------------------------
+Translated Report (Full Report Below)
+-------------------------------------
+Process:             metal-engine [48752]
+Path:                /Applications/Corsairs Iddictive Remaster.app/Contents/MacOS/metal-engine
+Identifier:          metal-engine
+Version:             ???
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd [1]
+Coalition:           us.iddictive.corsairs [79517]
+User ID:             501
+
+Date/Time:           2026-11-12 14:55:19.2219 -0500
+Launch Time:         2026-11-12 14:54:52.0170 -0500
+Hardware Model:      Mac17,6
+OS Version:          macOS 27.2 (26B123)
+Release Type:        User
+
+Crash Reporter Key:  4CA4E582-E241-312F-C47D-5E41D75DDE71
+Incident Identifier: 26511F66-DD0A-40EB-9A89-CAACEFD37F87
+
+Sleep/Wake UUID:       1FF5854E-1AA6-4BFF-B971-D612AC50B8AF
+
+Time Awake Since Boot: 870000 seconds
+Time Since Wake:       113398 seconds
+
+System Integrity Protection: enabled
+
+Triggered by Thread: 0, Dispatch Queue: com.apple.main-thread
+
+Exception Type:    EXC_BAD_ACCESS (SIGSEGV)
+Exception Subtype: KERN_INVALID_ADDRESS at 0x000001436d9c1d60
+Exception Codes:   0x0000000000000001, 0x000001436d9c1d60
+
+Termination Reason:  Namespace SIGNAL, Code 11, Segmentation fault: 11
+Terminating Process: exc handler [48752]
+
+
+VM Region Info: 0x1436d9c1d60 is not in any region.  Bytes after previous region: 843283438945  Bytes before following region: 4218402628256
+      REGION TYPE                    START - END         [ VSIZE] PRT/MAX SHRMOD  REGION DETAIL
+      commpage (reserved)        7c18400000-7f16000000   [ 12.0G] ---/--- SM=NUL  reserved VM address space (unallocated)
+--->  GAP OF 0x49a84000000 BYTES
+      IOAccelerator             5199a000000-5199c000000  [ 32.0M] rw-/rwx SM=PRV  
+
+Thread 0 Crashed::  Dispatch queue: com.apple.main-thread
+0   metal-engine                  	       0x1026ef364 SAIL::ProcessMessage(MESSAGE&) + 3864
+1   metal-engine                  	       0x1026ee878 SAIL::ProcessMessage(MESSAGE&) + 1068
+
+Thread 1:
+
+Thread 2:: com.apple.NSEventThread
+0   libsystem_kernel.dylib        	       0x190e2bc20 mach_msg2_trap + 8
+1   libsystem_kernel.dylib        	       0x190e3e8e0 mach_msg2_internal + 76
+2   libsystem_kernel.dylib        	       0x190e34a28 mach_msg_overwrite + 480
+3   libsystem_kernel.dylib        	       0x190e2bfac mach_msg + 24
+4   CoreFoundation                	       0x195035ac8 __CFRunLoopServiceMachPort + 160
+5   CoreFoundation                	       0x195034310 __CFRunLoopRun + 1172
+6   CoreFoundation                	       0x19510ec10 _CFRunLoopRunSpecificWithOptions + 536
+7   AppKit                        	       0x19ae03554 _NSEventThread + 152
+8   libsystem_pthread.dylib       	       0x190e70ce4 _pthread_start + 136
+9   libsystem_pthread.dylib       	       0x190e6bcd0 thread_start + 8
+
+Thread 3:
+
+Thread 4:
+
+Thread 5:
+
+Thread 6:
+
+Thread 7:
+
+Thread 8:
+0   libsystem_kernel.dylib        	       0x190e2f50c __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x190e711b4 _pthread_cond_wait + 980
+2   libc++.1.dylib                	       0x195e497bc std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 32
+3   metal-engine                  	       0x1029f4e94 storm::diag::LoggingService::loggingThread() + 104
+4   metal-engine                  	       0x1029f4de8 void* std::__1::__thread_proxy[abi:nqe220106]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, storm::diag::LoggingService::initialize()::'lambda0'()>>(void*) + 52
+5   libsystem_pthread.dylib       	       0x190e70ce4 _pthread_start + 136
+6   libsystem_pthread.dylib       	       0x190e6bcd0 thread_start + 8
+
+Thread 9:
+0   libsystem_kernel.dylib        	       0x190e2f50c __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x190e711b4 _pthread_cond_wait + 980
+2   metal-engine                  	       0x102844c10 ma_job_queue_next + 68
+3   metal-engine                  	       0x102882c80 ma_resource_manager_job_thread(void*) + 88
+4   libsystem_pthread.dylib       	       0x190e70ce4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x190e6bcd0 thread_start + 8
+
+Thread 10:: com.apple.audio.IOThread.client
+0   libsystem_kernel.dylib        	       0x190e2bba8 semaphore_wait_signal_trap + 8
+1   caulk                         	       0x1b0464fc0 caulk::mach::semaphore::wait_signal_or_error(caulk::mach::semaphore&) + 36
+2   CoreAudio                     	       0x1b51694e0 HALC_ProxyIOContext::IOWorkLoop() + 4932
+3   CoreAudio                     	       0x1b4d3bdf0 invocation function for block in HALC_ProxyIOContext::HALC_ProxyIOContext(unsigned int, unsigned int) + 172
+4   CoreAudio                     	       0x1b4f09328 HALC_IOThread::Entry(void*) + 92
+5   libsystem_pthread.dylib       	       0x190e70ce4 _pthread_start + 136
+6   libsystem_pthread.dylib       	       0x190e6bcd0 thread_start + 8
+
+Thread 11:
+0   metal-engine                  	       0x1025000e0 <deduplicated_symbol> + 204
+1   metal-engine                  	       0x1024fefec storm::ship::material::convex::clip(storm::ship::material::convex::Piece const&, storm_ship_hull::Plane, storm::ship::material::convex::Piece&, storm::ship::material::convex::Budget&, bool) + 2344
+2   metal-engine                  	       0x102508dd4 storm::ship::material::convex::touching(storm::ship::material::convex::Piece const&, storm::ship::material::convex::Piece const&, storm::ship::material::convex::Budget&) + 2484
+3   metal-engine                  	       0x1024fa0cc storm::ship::material::convex::reconnect(storm::ship::material::convex::State&, std::__1::set<unsigned int, std::__1::less<unsigned int>, std::__1::allocator<unsigned int>> const&, storm::ship::material::convex::Budget&) + 3324
+4   metal-engine                  	       0x1024f704c storm::ship::material::convex::prepare(storm_ship_laser::MaterialCells const&, std::__1::shared_ptr<storm_ship_structure::Layout const>) + 1116
+5   metal-engine                  	       0x102536bb4 storm::ship::material::convex::ready(std::__1::shared_ptr<storm_ship_laser::MaterialCells const>, std::__1::shared_ptr<storm_ship_structure::Layout const>) + 100
+6   metal-engine                  	       0x10252d8d4 storm::ship::material::preparePhysicalCache(storm_ship_laser::Surface&) + 112
+7   metal-engine                  	       0x1024cb090 storm_geom_hull::prepare(storm_geom_hull::Input const&, std::__1::atomic<bool> const&) + 20480
+8   metal-engine                  	       0x1025b34f4 std::__1::__async_func<GEOM::PollHullRebuild()::$_2>::operator()[abi:nqe220106]() + 148
+9   metal-engine                  	       0x1025b33cc std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::__execute() + 36
+10  metal-engine                  	       0x1025b3624 void* std::__1::__thread_proxy[abi:nqe220106]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, void (std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::*)(), std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>*>>(void*) + 72
+11  libsystem_pthread.dylib       	       0x190e70ce4 _pthread_start + 136
+12  libsystem_pthread.dylib       	       0x190e6bcd0 thread_start + 8
+
+Thread 12:
+0   metal-engine                  	       0x1024ffb5c storm::ship::material::convex::measure(storm::ship::material::convex::Piece&) + 260
+1   metal-engine                  	       0x1024ff5c4 storm::ship::material::convex::clip(storm::ship::material::convex::Piece const&, storm_ship_hull::Plane, storm::ship::material::convex::Piece&, storm::ship::material::convex::Budget&, bool) + 3840
+2   metal-engine                  	       0x1024fbb84 storm::ship::material::convex::buildSource(std::__1::shared_ptr<storm_ship_laser::MaterialCellSource const>, std::__1::shared_ptr<storm_ship_structure::Layout const>) + 1176
+3   metal-engine                  	       0x1024f6cd4 storm::ship::material::convex::prepare(storm_ship_laser::MaterialCells const&, std::__1::shared_ptr<storm_ship_structure::Layout const>) + 228
+4   metal-engine                  	       0x102536bb4 storm::ship::material::convex::ready(std::__1::shared_ptr<storm_ship_laser::MaterialCells const>, std::__1::shared_ptr<storm_ship_structure::Layout const>) + 100
+5   metal-engine                  	       0x10252d8d4 storm::ship::material::preparePhysicalCache(storm_ship_laser::Surface&) + 112
+6   metal-engine                  	       0x1024cb090 storm_geom_hull::prepare(storm_geom_hull::Input const&, std::__1::atomic<bool> const&) + 20480
+7   metal-engine                  	       0x1025b34f4 std::__1::__async_func<GEOM::PollHullRebuild()::$_2>::operator()[abi:nqe220106]() + 148
+8   metal-engine                  	       0x1025b33cc std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::__execute() + 36
+9   metal-engine                  	       0x1025b3624 void* std::__1::__thread_proxy[abi:nqe220106]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, void (std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::*)(), std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>*>>(void*) + 72
+10  libsystem_pthread.dylib       	       0x190e70ce4 _pthread_start + 136
+11  libsystem_pthread.dylib       	       0x190e6bcd0 thread_start + 8
+
+
+Thread 0 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000000000000   x1: 0x0000000102bf3b00   x2: 0x0000000000000004   x3: 0x0000000195e36a89
+    x4: 0x0000000000000003   x5: 0x0000000000000005   x6: 0x0000000000000000   x7: 0x0000000000000007
+    x8: 0x3df990e167f70062   x9: 0x3df990e167f70062  x10: 0x00000001fe119300  x11: 0x0000000000000000
+   x12: 0x00000001029b0004  x13: 0x0000000000000780  x14: 0x00000519b8d288d3  x15: 0x0000000000000000
+   x16: 0x0000000195e36b40  x17: 0x0000000104feb960  x18: 0x0000000000000000  x19: 0x0000051900000144
+   x20: 0x0000000100000139  x21: 0x0000013800000136  x22: 0x0000000000000006  x23: 0x000000016d9c1e90
+   x24: 0x0000000000003290  x25: 0x000000016d9c1e90  x26: 0x000000000014d2ea  x27: 0x00000519b8d90000
+   x28: 0x00000000000011d0   fp: 0x000001436d9c1e00   lr: 0x00000001026ee878
+    sp: 0x000000016d9c1c70   pc: 0x00000001026ef364 cpsr: 0x20000000
+   far: 0x000001436d9c1d60  esr: 0x92000005 (Data Abort) byte read Translation fault
+
+Binary Images:
+       0x10243c000 -        0x1035cbfff metal-engine (*) <1881721b-cfab-3b63-9054-9892497a6051> /Applications/Corsairs Iddictive Remaster.app/Contents/MacOS/metal-engine
+       0x104744000 -        0x10487bfff libSDL2-2.0.0.dylib (*) <7fbc93b7-aa6e-3fc3-a7dd-3cce666f653d> /Applications/Corsairs Iddictive Remaster.app/Contents/Frameworks/libSDL2-2.0.0.dylib
+       0x104730000 -        0x10473bfff libobjc-trampolines.dylib (*) <c7d2186b-cec3-36af-b45b-666f3843b773> /usr/lib/libobjc-trampolines.dylib
+       0x11b254000 -        0x11b26ffff libMetalMetricsInterpose.dylib (*) <e47d8ba0-a113-3d7c-8437-266c2f5986d3> /Volumes/VOLUME/*/libMetalMetricsInterpose.dylib
+       0x11b720000 -        0x11b867fff com.apple.audio.units.Components (1.14) <600be4d3-2a6b-3658-a696-c69b67d9cee0> /System/Library/Components/CoreAudio.component/Contents/MacOS/CoreAudio
+               0x0 - 0xffffffffffffffff ??? (*) <00000000-0000-0000-0000-000000000000> ???
+       0x195e36000 -        0x195e3f4f3 libsystem_platform.dylib (*) <fdf30fd1-5e97-3348-bee7-ba386574a75f> /usr/lib/system/libsystem_platform.dylib
+       0x190e2b000 -        0x190e69a5b libsystem_kernel.dylib (*) <f2bceb9a-0fec-3c92-b6ea-8e37157050a8> /usr/lib/system/libsystem_kernel.dylib
+       0x194fb4000 -        0x19544732f com.apple.CoreFoundation (6.9) <0e72be04-5c19-3f5d-9809-94553e6a31f0> /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation
+       0x19aca6000 -        0x19c36a6ef com.apple.AppKit (6.9) <77e3adb8-e4e8-3912-8599-d43182877c10> /System/Library/Frameworks/AppKit.framework/Versions/C/AppKit
+       0x190e6a000 -        0x190e768ab libsystem_pthread.dylib (*) <d5e656b3-84b5-368d-a6e7-ccc1a736fb75> /usr/lib/system/libsystem_pthread.dylib
+       0x195e43000 -        0x195ed8033 libc++.1.dylib (*) <29ff7149-ab23-3dec-8da3-39e2cb145f89> /usr/lib/libc++.1.dylib
+       0x1b0445000 -        0x1b046f053 com.apple.audio.caulk (1.0) <7c6cd256-f380-30cc-8c27-3c967b0a6592> /System/Library/PrivateFrameworks/caulk.framework/Versions/A/caulk
+       0x1b4b55000 -        0x1b52f7833 com.apple.audio.CoreAudio (5.0) <4bcfc5e5-8a5d-3dc5-b980-cbb672593ba6> /System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio
+
+External Modification Summary:
+  Calls made by other processes targeting this process:
+    task_for_pid: 0
+    thread_create: 0
+    thread_set_state: 0
+  Calls made by this process:
+    task_for_pid: 0
+    thread_create: 0
+    thread_set_state: 0
+  Calls made by all processes on this machine:
+    task_for_pid: 11
+    thread_create: 0
+    thread_set_state: 154
+
+VM Region Summary:
+ReadOnly portion of Libraries: Total=3.0G resident=0K(0%) swapped_out_or_unallocated=3.0G(100%)
+Writable regions: Total=7.3G written=6025K(0%) resident=6025K(0%) swapped_out=0K(0%) unallocated=7.3G(100%)
+
+                                VIRTUAL   REGION 
+REGION TYPE                        SIZE    COUNT (non-coalesced) 
+===========                     =======  ======= 
+Accelerate Framework               128K        1 
+Activity Tracing                   256K        1 
+AttributeGraph Data               1024K        1 
+CG Image                            16K        1 
+ColorSync                           16K        1 
+CoreAnimation                      448K       24 
+CoreGraphics                        32K        2 
+CoreUI Image Data                 1008K        6 
+Deferred Reclaim                  64.0M        1 
+Foundation                          16K        1 
+Guard                            385.0G        1 
+IOAccelerator                      6.7G       65 
+IOAccelerator (reserved)         384.0M        1         reserved VM address space (unallocated)
+Image IO                          16.1M        8 
+Malloc                           128.4M       36 
+Malloc Guard Page                 3888K        4 
+OS Alloc Once                       32K        1 
+Stack                             14.4M       13 
+Stack Guard                       56.2M       13 
+Untagged                           480K       15 
+Untagged (reserved)                 32K        1         reserved VM address space (unallocated)
+__AUTH                            5691K      542 
+__AUTH_CONST                     100.5M     1066 
+__CTF                               824        1 
+__DATA                            51.5M     1029 
+__DATA_CONST                      38.4M     1074 
+__DATA_DIRTY                      16.5M     1010 
+__FONT_DATA                        2352        1 
+__LINKEDIT                         1.6G        6 
+__OBJC_RO                        118.5M        1 
+__OBJC_RW                         2740K        1 
+__TEXT                             1.4G     1162 
+__TPRO_CONST                       132K        4 
+mapped file                      278.3M       30 
+page table in kernel              6025K        1 
+shared memory                     1424K       16 
+===========                     =======  ======= 
+TOTAL                            395.9G     6141 
+TOTAL, minus reserved VM space   395.5G     6141 
+
+
+-----------
+Full Report
+-----------
+
+{"app_name":"metal-engine","timestamp":"2026-11-12 14:55:19.00 -0500","app_version":"","slice_uuid":"1881721b-cfab-3b63-9054-9892497a6051","build_version":"","platform":1,"share_with_app_devs":0,"is_first_party":1,"bug_type":"309","os_version":"macOS 27.2 (26B123)","roots_installed":0,"incident_id":"26511F66-DD0A-40EB-9A89-CAACEFD37F87","name":"metal-engine"}
+{
+  "uptime" : 870000,
+  "procRole" : "Foreground",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "Mac17,6",
+  "coalitionID" : 79517,
+  "osVersion" : {
+    "train" : "macOS 27.2",
+    "build" : "26B123",
+    "releaseType" : "User"
+  },
+  "captureTime" : "2026-11-12 14:55:19.2219 -0500",
+  "codeSigningMonitor" : 2,
+  "incident" : "26511F66-DD0A-40EB-9A89-CAACEFD37F87",
+  "pid" : 48752,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "procLaunch" : "2026-11-12 14:54:52.0170 -0500",
+  "procStartAbsTime" : 20901738246827,
+  "procExitAbsTime" : 20902389744725,
+  "procName" : "metal-engine",
+  "procPath" : "\/Applications\/Corsairs Iddictive Remaster.app\/Contents\/MacOS\/metal-engine",
+  "parentProc" : "launchd",
+  "parentPid" : 1,
+  "coalitionName" : "us.iddictive.corsairs",
+  "crashReporterKey" : "4CA4E582-E241-312F-C47D-5E41D75DDE71",
+  "chargingStatus" : {"externalSourceConnected":true},
+  "developerMode" : 1,
+  "codeSigningID" : "metal-engine",
+  "codeSigningTeamID" : "",
+  "codeSigningFlags" : 570425857,
+  "codeSigningValidationCategory" : 10,
+  "codeSigningTrustLevel" : 4294967295,
+  "codeSigningAuxiliaryInfo" : 0,
+  "instructionByteStream" : {"beforePC":"SDOTUijTp3IBASceACEhHk0AAFRgSkG9AACA0oACAL0CAAAUAACA0g==","atPC":"qANW+Ol3ALApZUf5KQFA+T8BCOuhCwBU\/XtZqfRPWKn2V1ep+F9WqQ=="},
+  "bootSessionUUID" : "25BEBFE2-2E69-40E9-BD6A-B8A2201384D0",
+  "wakeTime" : 113398,
+  "sleepWakeUUID" : "1FF5854E-1AA6-4BFF-B971-D612AC50B8AF",
+  "sip" : "enabled",
+  "vmRegionInfo" : "0x1436d9c1d60 is not in any region.  Bytes after previous region: 843283438945  Bytes before following region: 4218402628256\n      REGION TYPE                    START - END         [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      commpage (reserved)        7c18400000-7f16000000   [ 12.0G] ---\/--- SM=NUL  reserved VM address space (unallocated)\n--->  GAP OF 0x49a84000000 BYTES\n      IOAccelerator             5199a000000-5199c000000  [ 32.0M] rw-\/rwx SM=PRV  ",
+  "exception" : {"codes":"0x0000000000000001, 0x000001436d9c1d60","rawCodes":[1,1389113384288],"type":"EXC_BAD_ACCESS","signal":"SIGSEGV","subtype":"KERN_INVALID_ADDRESS at 0x000001436d9c1d60"},
+  "termination" : {"flags":0,"code":11,"namespace":"SIGNAL","indicator":"Segmentation fault: 11","byProc":"exc handler","byPid":48752},
+  "vmregioninfo" : "0x1436d9c1d60 is not in any region.  Bytes after previous region: 843283438945  Bytes before following region: 4218402628256\n      REGION TYPE                    START - END         [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      commpage (reserved)        7c18400000-7f16000000   [ 12.0G] ---\/--- SM=NUL  reserved VM address space (unallocated)\n--->  GAP OF 0x49a84000000 BYTES\n      IOAccelerator             5199a000000-5199c000000  [ 32.0M] rw-\/rwx SM=PRV  ",
+  "extMods" : {"caller":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"system":{"thread_create":0,"thread_set_state":154,"task_for_pid":11},"targeted":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"warnings":0},
+  "faultingThread" : 0,
+  "threads" : [{"triggered":true,"id":29050451,"threadState":{"x":[{"value":0},{"value":4341054208},{"value":4},{"value":6809676425},{"value":3},{"value":5},{"value":0},{"value":7},{"value":4465759803300839522},{"value":4465759803300839522},{"value":8557531904,"symbolLocation":0,"symbol":"_main_thread"},{"value":0},{"value":4338679812,"symbolLocation":8068,"symbol":"COMPILER::BC_Execute(unsigned int, DATA*&, char const*)"},{"value":1920},{"value":5608033126611},{"value":0},{"value":6809676608,"symbolLocation":0,"symbol":"_platform_strlen"},{"value":4378769760},{"value":0},{"value":5604932321604},{"value":4294967609},{"value":1340029796662},{"value":6},{"value":6133915280},{"value":12944},{"value":6133915280},{"value":1364714},{"value":5608033550336},{"value":4560}],"flavor":"ARM_THREAD_STATE64","lr":{"value":4335790200},"cpsr":{"value":536870912},"fp":{"value":1389113384448},"sp":{"value":6133914736},"esr":{"value":2449473541,"description":"(Data Abort) byte read Translation fault"},"pc":{"value":4335792996,"matchesCrashFrame":1},"far":{"value":1389113384288}},"queue":"com.apple.main-thread","frames":[{"imageOffset":2831204,"symbol":"SAIL::ProcessMessage(MESSAGE&)","symbolLocation":3864,"imageIndex":0},{"imageOffset":2828408,"symbol":"SAIL::ProcessMessage(MESSAGE&)","symbolLocation":1068,"imageIndex":0}]},{"id":29050455,"frames":[],"threadState":{"x":[{"value":6135050240},{"value":10499},{"value":6134513664},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6135050240},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6726007996},"far":{"value":0}}},{"id":29050464,"name":"com.apple.NSEventThread","threadState":{"x":[{"value":268451845},{"value":21592279046},{"value":8589934592},{"value":100068443029504},{"value":0},{"value":100068443029504},{"value":2},{"value":4294967295},{"value":0},{"value":17179869184},{"value":0},{"value":2},{"value":0},{"value":0},{"value":23299},{"value":0},{"value":18446744073709551569},{"value":8365455928},{"value":0},{"value":4294967295},{"value":2},{"value":100068443029504},{"value":0},{"value":100068443029504},{"value":21592279046},{"value":6136193176},{"value":8589934592},{"value":18446744073709550527},{"value":4412409862}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6725822688},"cpsr":{"value":0},"fp":{"value":6136193024},"sp":{"value":6136192944},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6725745696},"far":{"value":0}},"frames":[{"imageOffset":3104,"symbol":"mach_msg2_trap","symbolLocation":8,"imageIndex":7},{"imageOffset":80096,"symbol":"mach_msg2_internal","symbolLocation":76,"imageIndex":7},{"imageOffset":39464,"symbol":"mach_msg_overwrite","symbolLocation":480,"imageIndex":7},{"imageOffset":4012,"symbol":"mach_msg","symbolLocation":24,"imageIndex":7},{"imageOffset":531144,"symbol":"__CFRunLoopServiceMachPort","symbolLocation":160,"imageIndex":8},{"imageOffset":525072,"symbol":"__CFRunLoopRun","symbolLocation":1172,"imageIndex":8},{"imageOffset":1420304,"symbol":"_CFRunLoopRunSpecificWithOptions","symbolLocation":536,"imageIndex":8},{"imageOffset":1430868,"symbol":"_NSEventThread","symbolLocation":152,"imageIndex":9},{"imageOffset":27876,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":10},{"imageOffset":7376,"symbol":"thread_start","symbolLocation":8,"imageIndex":10}]},{"id":29050469,"frames":[],"threadState":{"x":[{"value":6137344000},{"value":63755},{"value":6136807424},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6137344000},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6726007996},"far":{"value":0}}},{"id":29050472,"frames":[],"threadState":{"x":[{"value":6139064320},{"value":45571},{"value":6138527744},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6139064320},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6726007996},"far":{"value":0}}},{"id":29050475,"frames":[],"threadState":{"x":[{"value":6140784640},{"value":62723},{"value":6140248064},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6140784640},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6726007996},"far":{"value":0}}},{"id":29050478,"frames":[],"threadState":{"x":[{"value":6142504960},{"value":46851},{"value":6141968384},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6142504960},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6726007996},"far":{"value":0}}},{"id":29050480,"frames":[],"threadState":{"x":[{"value":6143651840},{"value":103723},{"value":6143115264},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6143651840},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6726007996},"far":{"value":0}}},{"id":29050482,"frames":[{"imageOffset":17676,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":7},{"imageOffset":29108,"symbol":"_pthread_cond_wait","symbolLocation":980,"imageIndex":10},{"imageOffset":26556,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":32,"imageIndex":11},{"imageOffset":6000276,"symbol":"storm::diag::LoggingService::loggingThread()","symbolLocation":104,"imageIndex":0},{"imageOffset":6000104,"symbol":"void* std::__1::__thread_proxy[abi:nqe220106]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, storm::diag::LoggingService::initialize()::'lambda0'()>>(void*)","symbolLocation":52,"imageIndex":0},{"imageOffset":27876,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":10},{"imageOffset":7376,"symbol":"thread_start","symbolLocation":8,"imageIndex":10}],"threadState":{"x":[{"value":260},{"value":0},{"value":1024},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6144224984},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8365454136},{"value":0},{"value":5607516340480},{"value":5607516340544},{"value":6144225504},{"value":0},{"value":0},{"value":1024},{"value":1280},{"value":1025},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6726029748},"cpsr":{"value":1610612736},"fp":{"value":6144225104},"sp":{"value":6144224960},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6725760268},"far":{"value":0}}},{"id":29050620,"frames":[{"imageOffset":17676,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":7},{"imageOffset":29108,"symbol":"_pthread_cond_wait","symbolLocation":980,"imageIndex":10},{"imageOffset":4230160,"symbol":"ma_job_queue_next","symbolLocation":68,"imageIndex":0},{"imageOffset":4484224,"symbol":"ma_resource_manager_job_thread(void*)","symbolLocation":88,"imageIndex":0},{"imageOffset":27876,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":10},{"imageOffset":7376,"symbol":"thread_start","symbolLocation":8,"imageIndex":10}],"threadState":{"x":[{"value":260},{"value":0},{"value":17408},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6144798360},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8365454136},{"value":0},{"value":532964390144},{"value":532964390208},{"value":6144798944},{"value":0},{"value":0},{"value":17408},{"value":17664},{"value":17409},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6726029748},"cpsr":{"value":1610612736},"fp":{"value":6144798480},"sp":{"value":6144798336},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6725760268},"far":{"value":0}}},{"id":29050621,"name":"com.apple.audio.IOThread.client","threadState":{"x":[{"value":14},{"value":102147},{"value":0},{"value":0},{"value":0},{"value":32},{"value":4827021376},{"value":0},{"value":1},{"value":1099511628034},{"value":1099511628032},{"value":1099511628034},{"value":8388608},{"value":8388608},{"value":3161017128},{"value":1},{"value":18446744073709551579},{"value":8365458344},{"value":0},{"value":5608052102456},{"value":5608052102448},{"value":1},{"value":480},{"value":532941623784},{"value":1},{"value":0},{"value":5608052102576},{"value":1},{"value":6145371712}],"flavor":"ARM_THREAD_STATE64","lr":{"value":7252365248},"cpsr":{"value":1610612736},"fp":{"value":6145371408},"sp":{"value":6145371392},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6725745576},"far":{"value":0}},"frames":[{"imageOffset":2984,"symbol":"semaphore_wait_signal_trap","symbolLocation":8,"imageIndex":7},{"imageOffset":131008,"symbol":"caulk::mach::semaphore::wait_signal_or_error(caulk::mach::semaphore&)","symbolLocation":36,"imageIndex":12},{"imageOffset":6374624,"symbol":"HALC_ProxyIOContext::IOWorkLoop()","symbolLocation":4932,"imageIndex":13},{"imageOffset":1994224,"symbol":"invocation function for block in HALC_ProxyIOContext::HALC_ProxyIOContext(unsigned int, unsigned int)","symbolLocation":172,"imageIndex":13},{"imageOffset":3883816,"symbol":"HALC_IOThread::Entry(void*)","symbolLocation":92,"imageIndex":13},{"imageOffset":27876,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":10},{"imageOffset":7376,"symbol":"thread_start","symbolLocation":8,"imageIndex":10}]},{"id":29051381,"frames":[{"imageOffset":803040,"symbol":"<deduplicated_symbol>","symbolLocation":204,"imageIndex":0},{"imageOffset":798700,"symbol":"storm::ship::material::convex::clip(storm::ship::material::convex::Piece const&, storm_ship_hull::Plane, storm::ship::material::convex::Piece&, storm::ship::material::convex::Budget&, bool)","symbolLocation":2344,"imageIndex":0},{"imageOffset":839124,"symbol":"storm::ship::material::convex::touching(storm::ship::material::convex::Piece const&, storm::ship::material::convex::Piece const&, storm::ship::material::convex::Budget&)","symbolLocation":2484,"imageIndex":0},{"imageOffset":778444,"symbol":"storm::ship::material::convex::reconnect(storm::ship::material::convex::State&, std::__1::set<unsigned int, std::__1::less<unsigned int>, std::__1::allocator<unsigned int>> const&, storm::ship::material::convex::Budget&)","symbolLocation":3324,"imageIndex":0},{"imageOffset":766028,"symbol":"storm::ship::material::convex::prepare(storm_ship_laser::MaterialCells const&, std::__1::shared_ptr<storm_ship_structure::Layout const>)","symbolLocation":1116,"imageIndex":0},{"imageOffset":1026996,"symbol":"storm::ship::material::convex::ready(std::__1::shared_ptr<storm_ship_laser::MaterialCells const>, std::__1::shared_ptr<storm_ship_structure::Layout const>)","symbolLocation":100,"imageIndex":0},{"imageOffset":989396,"symbol":"storm::ship::material::preparePhysicalCache(storm_ship_laser::Surface&)","symbolLocation":112,"imageIndex":0},{"imageOffset":585872,"symbol":"storm_geom_hull::prepare(storm_geom_hull::Input const&, std::__1::atomic<bool> const&)","symbolLocation":20480,"imageIndex":0},{"imageOffset":1537268,"symbol":"std::__1::__async_func<GEOM::PollHullRebuild()::$_2>::operator()[abi:nqe220106]()","symbolLocation":148,"imageIndex":0},{"imageOffset":1536972,"symbol":"std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::__execute()","symbolLocation":36,"imageIndex":0},{"imageOffset":1537572,"symbol":"void* std::__1::__thread_proxy[abi:nqe220106]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, void (std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::*)(), std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>*>>(void*)","symbolLocation":72,"imageIndex":0},{"imageOffset":27876,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":10},{"imageOffset":7376,"symbol":"thread_start","symbolLocation":8,"imageIndex":10}],"threadState":{"x":[{"value":5614903147520},{"value":5614902653144},{"value":18446744073709551608},{"value":5614903147576},{"value":18446744073709057152},{"value":32},{"value":0},{"value":482893729224},{"value":5614903147640},{"value":190},{"value":2},{"value":153722867280912930},{"value":60},{"value":482893728792},{"value":127},{"value":1},{"value":6809689440,"symbolLocation":0,"symbol":"_platform_memmove"},{"value":532960532160},{"value":0},{"value":482893729200},{"value":5614902653056},{"value":120},{"value":5614903147700},{"value":5614903147520},{"value":482893729080},{"value":5614903152188},{"value":5614903147760},{"value":482893729200},{"value":482893729192}],"flavor":"ARM_THREAD_STATE64","lr":{"value":4333764828},"cpsr":{"value":2147483648},"fp":{"value":482893728960},"sp":{"value":482893728896},"esr":{"value":2449473607,"description":"(Data Abort) byte write Translation fault"},"pc":{"value":4333764832},"far":{"value":0}}},{"id":29051440,"frames":[{"imageOffset":801628,"symbol":"storm::ship::material::convex::measure(storm::ship::material::convex::Piece&)","symbolLocation":260,"imageIndex":0},{"imageOffset":800196,"symbol":"storm::ship::material::convex::clip(storm::ship::material::convex::Piece const&, storm_ship_hull::Plane, storm::ship::material::convex::Piece&, storm::ship::material::convex::Budget&, bool)","symbolLocation":3840,"imageIndex":0},{"imageOffset":785284,"symbol":"storm::ship::material::convex::buildSource(std::__1::shared_ptr<storm_ship_laser::MaterialCellSource const>, std::__1::shared_ptr<storm_ship_structure::Layout const>)","symbolLocation":1176,"imageIndex":0},{"imageOffset":765140,"symbol":"storm::ship::material::convex::prepare(storm_ship_laser::MaterialCells const&, std::__1::shared_ptr<storm_ship_structure::Layout const>)","symbolLocation":228,"imageIndex":0},{"imageOffset":1026996,"symbol":"storm::ship::material::convex::ready(std::__1::shared_ptr<storm_ship_laser::MaterialCells const>, std::__1::shared_ptr<storm_ship_structure::Layout const>)","symbolLocation":100,"imageIndex":0},{"imageOffset":989396,"symbol":"storm::ship::material::preparePhysicalCache(storm_ship_laser::Surface&)","symbolLocation":112,"imageIndex":0},{"imageOffset":585872,"symbol":"storm_geom_hull::prepare(storm_geom_hull::Input const&, std::__1::atomic<bool> const&)","symbolLocation":20480,"imageIndex":0},{"imageOffset":1537268,"symbol":"std::__1::__async_func<GEOM::PollHullRebuild()::$_2>::operator()[abi:nqe220106]()","symbolLocation":148,"imageIndex":0},{"imageOffset":1536972,"symbol":"std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::__execute()","symbolLocation":36,"imageIndex":0},{"imageOffset":1537572,"symbol":"void* std::__1::__thread_proxy[abi:nqe220106]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, void (std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>::*)(), std::__1::__async_assoc_state<storm_geom_hull::Output, std::__1::__async_func<GEOM::PollHullRebuild()::$_2>>*>>(void*)","symbolLocation":72,"imageIndex":0},{"imageOffset":27876,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":10},{"imageOffset":7376,"symbol":"thread_start","symbolLocation":8,"imageIndex":10}],"threadState":{"x":[{"value":483344354864},{"value":5614931542016},{"value":5614940615040},{"value":4333765220,"symbolLocation":332,"symbol":"storm::ship::material::convex::Face* std::__1::vector<storm::ship::material::convex::Face, std::__1::allocator<storm::ship::material::convex::Face>>::__emplace_back_slow_path<storm::ship::material::convex::Face>(storm::ship::material::convex::Face&&)"},{"value":483344354960},{"value":32},{"value":0},{"value":4185945690},{"value":5614940231856},{"value":5614940232048},{"value":17216961135462248175},{"value":60},{"value":0},{"value":5614940662784},{"value":5614940662964},{"value":2},{"value":1},{"value":532960538432},{"value":0},{"value":483344355312},{"value":0},{"value":5614940611008},{"value":5614940611008},{"value":18446744073709551537},{"value":5614940693232},{"value":730643660},{"value":483344354840},{"value":483344354960},{"value":483344354952}],"flavor":"ARM_THREAD_STATE64","lr":{"value":4333761988},"cpsr":{"value":1073741824},"fp":{"value":483344355184},"sp":{"value":483344354544},"esr":{"value":2449473607,"description":"(Data Abort) byte write Translation fault"},"pc":{"value":4333763420},"far":{"value":0}}}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4332961792,
+    "size" : 18415616,
+    "uuid" : "1881721b-cfab-3b63-9054-9892497a6051",
+    "path" : "\/Applications\/Corsairs Iddictive Remaster.app\/Contents\/MacOS\/metal-engine",
+    "name" : "metal-engine"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4369694720,
+    "size" : 1277952,
+    "uuid" : "7fbc93b7-aa6e-3fc3-a7dd-3cce666f653d",
+    "path" : "\/Applications\/Corsairs Iddictive Remaster.app\/Contents\/Frameworks\/libSDL2-2.0.0.dylib",
+    "name" : "libSDL2-2.0.0.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4369612800,
+    "size" : 49152,
+    "uuid" : "c7d2186b-cec3-36af-b45b-666f3843b773",
+    "path" : "\/usr\/lib\/libobjc-trampolines.dylib",
+    "name" : "libobjc-trampolines.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4750393344,
+    "size" : 114688,
+    "uuid" : "e47d8ba0-a113-3d7c-8437-266c2f5986d3",
+    "path" : "\/Volumes\/VOLUME\/*\/libMetalMetricsInterpose.dylib",
+    "name" : "libMetalMetricsInterpose.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4755423232,
+    "CFBundleShortVersionString" : "1.14",
+    "CFBundleIdentifier" : "com.apple.audio.units.Components",
+    "size" : 1343488,
+    "uuid" : "600be4d3-2a6b-3658-a696-c69b67d9cee0",
+    "path" : "\/System\/Library\/Components\/CoreAudio.component\/Contents\/MacOS\/CoreAudio",
+    "name" : "CoreAudio",
+    "CFBundleVersion" : "1.14"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6809673728,
+    "size" : 38132,
+    "uuid" : "fdf30fd1-5e97-3348-bee7-ba386574a75f",
+    "path" : "\/usr\/lib\/system\/libsystem_platform.dylib",
+    "name" : "libsystem_platform.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6725742592,
+    "size" : 256604,
+    "uuid" : "f2bceb9a-0fec-3c92-b6ea-8e37157050a8",
+    "path" : "\/usr\/lib\/system\/libsystem_kernel.dylib",
+    "name" : "libsystem_kernel.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6794461184,
+    "CFBundleShortVersionString" : "6.9",
+    "CFBundleIdentifier" : "com.apple.CoreFoundation",
+    "size" : 4797232,
+    "uuid" : "0e72be04-5c19-3f5d-9809-94553e6a31f0",
+    "path" : "\/System\/Library\/Frameworks\/CoreFoundation.framework\/Versions\/A\/CoreFoundation",
+    "name" : "CoreFoundation",
+    "CFBundleVersion" : "5027.1.8"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6891921408,
+    "CFBundleShortVersionString" : "6.9",
+    "CFBundleIdentifier" : "com.apple.AppKit",
+    "size" : 23873264,
+    "uuid" : "77e3adb8-e4e8-3912-8599-d43182877c10",
+    "path" : "\/System\/Library\/Frameworks\/AppKit.framework\/Versions\/C\/AppKit",
+    "name" : "AppKit",
+    "CFBundleVersion" : "2775.20.133"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6726000640,
+    "size" : 51372,
+    "uuid" : "d5e656b3-84b5-368d-a6e7-ccc1a736fb75",
+    "path" : "\/usr\/lib\/system\/libsystem_pthread.dylib",
+    "name" : "libsystem_pthread.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6809726976,
+    "size" : 610356,
+    "uuid" : "29ff7149-ab23-3dec-8da3-39e2cb145f89",
+    "path" : "\/usr\/lib\/libc++.1.dylib",
+    "name" : "libc++.1.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7252234240,
+    "CFBundleShortVersionString" : "1.0",
+    "CFBundleIdentifier" : "com.apple.audio.caulk",
+    "size" : 172116,
+    "uuid" : "7c6cd256-f380-30cc-8c27-3c967b0a6592",
+    "path" : "\/System\/Library\/PrivateFrameworks\/caulk.framework\/Versions\/A\/caulk",
+    "name" : "caulk"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7326748672,
+    "CFBundleShortVersionString" : "5.0",
+    "CFBundleIdentifier" : "com.apple.audio.CoreAudio",
+    "size" : 8005684,
+    "uuid" : "4bcfc5e5-8a5d-3dc5-b980-cbb672593ba6",
+    "path" : "\/System\/Library\/Frameworks\/CoreAudio.framework\/Versions\/A\/CoreAudio",
+    "name" : "CoreAudio",
+    "CFBundleVersion" : "5.0"
+  }
+],
+  "sharedCache" : {
+  "base" : 6720208896,
+  "size" : 7712440320,
+  "uuid" : "b411828b-4450-38e3-973a-afe7b7b5bef5"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=3.0G resident=0K(0%) swapped_out_or_unallocated=3.0G(100%)\nWritable regions: Total=7.3G written=6025K(0%) resident=6025K(0%) swapped_out=0K(0%) unallocated=7.3G(100%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nAccelerate Framework               128K        1 \nActivity Tracing                   256K        1 \nAttributeGraph Data               1024K        1 \nCG Image                            16K        1 \nColorSync                           16K        1 \nCoreAnimation                      448K       24 \nCoreGraphics                        32K        2 \nCoreUI Image Data                 1008K        6 \nDeferred Reclaim                  64.0M        1 \nFoundation                          16K        1 \nGuard                            385.0G        1 \nIOAccelerator                      6.7G       65 \nIOAccelerator (reserved)         384.0M        1         reserved VM address space (unallocated)\nImage IO                          16.1M        8 \nMalloc                           128.4M       36 \nMalloc Guard Page                 3888K        4 \nOS Alloc Once                       32K        1 \nStack                             14.4M       13 \nStack Guard                       56.2M       13 \nUntagged                           480K       15 \nUntagged (reserved)                 32K        1         reserved VM address space (unallocated)\n__AUTH                            5691K      542 \n__AUTH_CONST                     100.5M     1066 \n__CTF                               824        1 \n__DATA                            51.5M     1029 \n__DATA_CONST                      38.4M     1074 \n__DATA_DIRTY                      16.5M     1010 \n__FONT_DATA                        2352        1 \n__LINKEDIT                         1.6G        6 \n__OBJC_RO                        118.5M        1 \n__OBJC_RW                         2740K        1 \n__TEXT                             1.4G     1162 \n__TPRO_CONST                       132K        4 \nmapped file                      278.3M       30 \npage table in kernel              6025K        1 \nshared memory                     1424K       16 \n===========                     =======  ======= \nTOTAL                            395.9G     6141 \nTOTAL, minus reserved VM space   395.5G     6141 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+    "queue" : "com.apple.main-thread"
+  }
+},
+  "logWritingSignature" : "ee229ca2e47d63e5aad30e1a9bf09d53339a016d",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "trmStatus" : 1,
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "63508950b3714d3622fc77f7",
+      "factorPackIds" : [
+        "6526e111d0c9ce2f459b54a8"
+      ],
+      "deploymentId" : 240000015
+    },
+    {
+      "rolloutId" : "60f8ddccefea4203d95cbeef",
+      "factorPackIds" : [
+
+      ],
+      "deploymentId" : 240000025
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}
+

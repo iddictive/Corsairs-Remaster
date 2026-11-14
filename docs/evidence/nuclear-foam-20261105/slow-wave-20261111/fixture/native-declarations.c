@@ -1,0 +1,11 @@
+native float Bring2RangeNoCheck(float fMin1, float fMax1, float fMin2, float fMax2, float fValue);
+native float Bring2Range(float fMin1, float fMax1, float fMin2, float fMax2, float fValue);
+native float Clampf(float fValue);
+native float Degree2Radian(float fDegree);
+native int RDTSC_B();
+native int RDTSC_E(int iRDTSC);
+native int SetTexturePath(int iLevel, string sPath);
+native int SetGlowParams(float fBlurBrushSize, int Intensivity, int BlurPasses);
+native int RPrint(int x, int y, string sPrint);
+native int GetTexture(string fileName);
+native void ReleaseTexture(int texId);

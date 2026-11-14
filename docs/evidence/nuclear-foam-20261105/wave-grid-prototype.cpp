@@ -1,0 +1,12 @@
+#include "shared/sea_nuclear_wave.hpp"
+#include "sea_geomorph.h"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <unordered_map>
+#include <vector>
+using namespace std; using Clock=chrono::steady_clock;
+static uint64_t key(int x,int z){return (uint64_t(uint32_t(x))<<32)|uint32_t(z);}static double ms(Clock::time_point a,Clock::time_point b){return chrono::duration<double,milli>(b-a).count();}
+static SeaNuclearWaveSample sample(const vector<SeaNuclearWave>&w,const vector<unsigned>&ids,float x,float z){SeaNuclearWaveSample r;for(unsigned i:ids){auto q=EvaluateSeaNuclearWave(w[i],x,z);r.height+=q.height;r.slopeX+=q.slopeX;r.slopeZ+=q.slopeZ;r.foam=max(r.foam,q.foam);r.load=max(r.load,q.load);}CompressSeaNuclearWaveSample(r);return r;}
+int main(){ vector<SeaNuclearWave>w;for(int i=0;i<3600;i++){SeaNuclearWave a{float((i%24)*125-1500),float(((i/24)%20)*125-1250),0,0,true,1};a.Advance(1.f+float(i)/60);if(a.active)w.push_back(a);}for(int cell: {128,256,512}){auto t0=Clock::now();unordered_map<uint64_t,vector<unsigned>> grid;size_t entries=0;for(unsigned i=0;i<w.size();i++){auto&a=w[i];float outer=a.Front()+a.width*a.lengthScale;int x0=floor((a.x-outer)/cell),x1=floor((a.x+outer)/cell),z0=floor((a.z-outer)/cell),z1=floor((a.z+outer)/cell);for(int z=z0;z<=z1;z++)for(int x=x0;x<=x1;x++)if(SeaNuclearWaveIntersectsBox(a,float(x*cell),float(z*cell),float((x+1)*cell),float((z+1)*cell))){grid[key(x,z)].push_back(i);entries++;}}auto t1=Clock::now();volatile double sink=0;size_t count=0;constexpr int n=20,m=16,lod=8;constexpr float step=.07f*(1<<lod),side=step*m;for(int bz=0;bz<n;bz++)for(int bx=0;bx<n;bx++){float z=-n*side/2+bz*side;for(int iz=0;iz<=m;iz++,z+=step){float x=-n*side/2+bx*side;for(int ix=0;ix<=m;ix++,x+=step){float px=x,pz=z;SeaMorphGrid(px,pz,0,0,lod,.07f,.5f);auto it=grid.find(key(floor(px/cell),floor(pz/cell)));if(it!=grid.end()){auto s=sample(w,it->second,px,pz);sink=sink+s.height;count+=it->second.size();}}}}auto t2=Clock::now();for(int i=0;i<3600;i++){float x=(i%60)*8-240,z=(i/60)*8-240;auto it=grid.find(key(floor(x/cell),floor(z/cell)));if(it!=grid.end()){auto s=sample(w,it->second,x,z);sink=sink+s.height;}}auto t3=Clock::now();printf("cell=%d build_ms=%.2f mesh_ms=%.2f ship_ms=%.2f entries=%zu cells=%zu avg=%.1f checksum=%.3f\n",cell,ms(t0,t1),ms(t1,t2),ms(t2,t3),entries,grid.size(),double(count)/115600,double(sink));}}

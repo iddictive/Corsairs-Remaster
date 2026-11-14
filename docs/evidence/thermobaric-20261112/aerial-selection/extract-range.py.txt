@@ -1,0 +1,23 @@
+import io,urllib.request,zipfile,sys,pathlib
+u='https://www.mediafire.com/file/toxcf3jmeuu4ub1/AerialExplosionVDB.zip/file'; r=urllib.request.urlopen(urllib.request.Request(u,method='HEAD'),timeout=30);url=r.geturl();n=int(r.headers['Content-Length'])
+class Remote(io.RawIOBase):
+ def __init__(self):self.pos=0;self.base=0;self.cache=b''
+ def seekable(self):return True
+ def tell(self):return self.pos
+ def seek(self,p,w=0):self.pos=p if w==0 else self.pos+p if w==1 else n+p;return self.pos
+ def read(self,size=-1):
+  if size<0:size=n-self.pos
+  size=min(size,n-self.pos)
+  if size<=0:return b''
+  if self.pos<self.base or self.pos+size>self.base+len(self.cache):
+   self.base=self.pos;end=min(n,self.pos+max(size,4*1024*1024))-1
+   with urllib.request.urlopen(urllib.request.Request(url,headers={'Range':f'bytes={self.pos}-{end}'}),timeout=90) as x:
+    if x.status!=206:raise ValueError('server ignored range')
+    self.cache=x.read()
+  start=self.pos-self.base;data=self.cache[start:start+size];self.pos+=len(data);return data
+z=zipfile.ZipFile(Remote());out=pathlib.Path(sys.argv[1]);
+for name in sys.argv[2:]:
+ info=z.getinfo(name); print('extract',name,'compressed bytes',info.compress_size,'raw',info.file_size,flush=True)
+ with z.open(info) as src,(out/pathlib.Path(name).name).open('wb') as dst:
+  while data:=src.read(1024*1024):dst.write(data)
+ print('verified CRC',info.CRC,flush=True)

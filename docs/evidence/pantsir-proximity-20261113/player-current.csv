@@ -1,0 +1,35 @@
+# trials=300 seed=19 dt=0.025 custom_delays=False disabled=False
+# bb87b8f4c2c6155c7e1cdd25c438021f8bf2692d456091caa60e3f2fec0f1e9f experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp
+# a17ebb6347e68552376f17270fee47a3c837695223d771d035fde716dc4d9f4d experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp
+# b826f219bcb6fe6b624d95c5738cd2f13457a02ec4431d86cf91433659fc9533 experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp
+# 33455185634373ac438c3cf0d90bd026b46910f08c8e028147234cfd9c887d8e experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp
+# 6cc05ccfc575fc0a22cb2c42ceb33d1fe4125809e68e6757fa11b1109b0bc2a6 experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp
+# bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a experiments/native-metal/engine/src/libs/math/include/c_vector.h
+# 3b4d238625175abceefe2903aa16bfb595507b70d08fec97ede2a06cd5a0f6c6 docs/evidence/pantsir-proximity-20261113/matrix.py
+# 903b997d7a74cd0877f054fdca2e6c1d39b158ce0f457c7368126b6c2625ffab docs/evidence/pantsir-proximity-20261113/player-simulation.cpp
+# 429650a8a11fa093aefc09de82e2fd2461577e2fcb0c4b10dc6aa0d3da7f4f47 docs/evidence/pantsir-proximity-20261113/player-simulation.py
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,300,300,89,29.667,89,29.667,2818,2818,0,8,8,0
+single,Kinzhal,Patriot,300,300,300,100.000,300,100.000,2400,0,2400,8,8,0
+single,Kinzhal,Mixed,300,300,299,99.667,299,99.667,2402,1198,1204,8,8,0
+single,Kalibr,Pantsir,300,300,298,99.333,298,99.333,3302,3302,0,8,8,0
+single,Kalibr,Patriot,300,300,300,100.000,300,100.000,2400,0,2400,8,8,0
+single,Kalibr,Mixed,300,300,300,100.000,300,100.000,2400,1197,1203,8,8,0
+single,Shtorm,Pantsir,300,300,300,100.000,300,100.000,3065,3065,0,8,8,0
+single,Shtorm,Patriot,300,300,300,100.000,300,100.000,2400,0,2400,8,8,0
+single,Shtorm,Mixed,300,300,300,100.000,300,100.000,2400,1197,1203,8,8,0
+single,Oreshnik,Pantsir,300,300,162,54.000,162,54.000,1632,1632,0,6,6,0
+single,Oreshnik,Patriot,300,300,300,100.000,300,100.000,1800,0,1800,6,6,0
+single,Oreshnik,Mixed,300,300,299,99.667,299,99.667,1686,815,871,6,6,0
+three_x_four,Kinzhal,Pantsir,300,3600,593,16.472,0,0.000,13518,13518,0,13,8,0
+three_x_four,Kinzhal,Patriot,300,3600,2076,57.667,0,0.000,11660,0,11660,32,8,0
+three_x_four,Kinzhal,Mixed,300,3600,1962,54.500,0,0.000,14041,6741,7300,29,8,0
+three_x_four,Kalibr,Pantsir,300,3600,2515,69.861,0,0.000,15955,15955,0,18,8,0
+three_x_four,Kalibr,Patriot,300,3600,3485,96.806,222,74.000,12910,0,12910,32,8,0
+three_x_four,Kalibr,Mixed,300,3600,3369,93.583,142,47.333,16217,8025,8192,31,8,0
+three_x_four,Shtorm,Pantsir,300,3600,3016,83.778,16,5.333,19502,19502,0,21,8,0
+three_x_four,Shtorm,Patriot,300,3600,3540,98.333,249,83.000,14966,0,14966,32,8,0
+three_x_four,Shtorm,Mixed,300,3600,3492,97.000,211,70.333,19646,9706,9940,32,8,0
+three_x_four,Oreshnik,Pantsir,300,3600,969,26.917,0,0.000,6750,6750,0,7,6,0
+three_x_four,Oreshnik,Patriot,300,3600,1629,45.250,0,0.000,7775,0,7775,27,7,0
+three_x_four,Oreshnik,Mixed,300,3600,1668,46.333,0,0.000,7833,3380,4453,18,6,0

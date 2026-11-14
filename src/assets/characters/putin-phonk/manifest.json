@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/MODELS/Characters/Putin.gm": {
+      "source": "original.gm",
+      "source_sha256": "74b36c17871a497d7eaf25a7c5ab372bc9e1abb9addd806611b3ad1a407eccd1",
+      "prepared": "Putin.gm",
+      "sha256": "498bd99b08a006a12cfb5e9edc3773f39a62e50c19613c34a1cffd25aeac0519",
+      "consumer": "proposed phonk player; not yet wired"
+    },
+    "RESOURCE/Textures/Characters/Putin.tga.tx": {
+      "source": "generated.png",
+      "source_sha256": "079c1021fc4a6a55e9944b3fc7587c105c41ccf62915cc57c316f7681c7dd903",
+      "prepared": "Putin.tga.tx",
+      "sha256": "c158b85200427af96f9f263d71d21d97833a1f528d406880c6df0244ba63f184",
+      "consumer": "Putin.gm"
+    }
+  }
+}

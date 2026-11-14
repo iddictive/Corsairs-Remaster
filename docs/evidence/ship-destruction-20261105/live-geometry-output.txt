@@ -1,0 +1,17 @@
+Candidate:
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+LIVE_CUT n=0 ok=1 changed=1 fragments=2 ms=88.399 rev_before=1 rev_after=2 payload=5646736
+LIVE_CUT n=1 ok=1 changed=1 fragments=1 ms=70.954 rev_before=2 rev_after=3 payload=6206440
+
+Baseline: original cell clipping with the same plane-cut correctness repair
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+LIVE_CUT n=0 ok=1 changed=1 fragments=2 ms=98.338 rev_before=1 rev_after=2 payload=13836720
+LIVE_CUT n=1 ok=1 changed=1 fragments=1 ms=80.815 rev_before=2 rev_after=3 payload=12518472
+
+Candidate retained-replay check:
+libgeometry.a 638d9de72e4656bb327f9ea6ad06ea93de2bb254812481e352e132b0730603d7
+libship.a 36f8875aa6874dfc8c2401a1772e46fae7754ba1e2f1c7730812e4c2b0ba1ce0
+ship_hull_material.hpp 53f613bc9ddc9990c9ba9f883832e04f2913e96dc258c75db7fff2a8e2c8861e
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+LIVE_CUT n=0 ok=1 changed=1 fragments=2 ms=93.264 rev_before=1 rev_after=2 payload=5646736
+LIVE_CUT n=1 ok=1 changed=1 fragments=1 ms=78.242 rev_before=2 rev_after=3 payload=6206440

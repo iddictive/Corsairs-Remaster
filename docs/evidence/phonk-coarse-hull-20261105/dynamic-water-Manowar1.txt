@@ -1,0 +1,16 @@
+rss_scene_before_ship_bytes=284704768
+authored_hull_parts=42898 native_weight_cwt=8000 capacity_cwt=1800
+WATER mass=1.00 roll=0.000 scale=1.00 ref=0.231298 y=[-0.0431852,-1.19209e-05] final=-0.00871372 speedmax=0.0531861 max_bottom=-5.34678 up=0.999471 wet=1
+WATER mass=1.00 roll=0.000 scale=0.10 ref=0.231298 y=[-23.9693,-0.00245261] final=-23.9693 speedmax=13.1464 max_bottom=-5.35796 up=0.999925 wet=1
+WATER mass=1.00 roll=0.500 scale=1.00 ref=0.231298 y=[0.000139475,0.539827] final=0.539827 speedmax=0.408167 max_bottom=-6.41673 up=0.731069 wet=1
+WATER mass=1.00 roll=0.500 scale=0.10 ref=0.231298 y=[-22.7228,-0.00243878] final=-22.7228 speedmax=12.6598 max_bottom=-6.57937 up=0.892145 wet=1
+WATER mass=1.00 roll=1.571 scale=1.00 ref=0.231298 y=[-0.574102,4.21406] final=0.391871 speedmax=3.54844 max_bottom=-3.55779 up=0.670906 wet=1
+WATER mass=1.00 roll=1.571 scale=0.10 ref=0.231298 y=[-18.6884,-0.00220365] final=-18.6884 speedmax=9.91908 max_bottom=-8.366 up=0.109487 wet=1
+WATER mass=1.00 roll=3.142 scale=1.00 ref=0.231298 y=[0.00637746,12.0933] final=9.31948 speedmax=4.40593 max_bottom=-1.81685 up=-0.999794 wet=1
+WATER mass=1.00 roll=3.142 scale=0.10 ref=0.231298 y=[-16.4203,-0.00181484] final=-16.4203 speedmax=7.01432 max_bottom=-13.7413 up=-0.999793 wet=1
+WATER_PASS
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+
+EXIT 0

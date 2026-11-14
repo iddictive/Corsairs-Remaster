@@ -1,0 +1,8 @@
+distance=4000 trial=27 duration=12.606 apex=8.905 height=4901.5
+t=8.625 h=4833 speed=1615 vy=504 lateral=2105 m/s2 214.6g
+t=8.905 h=4901 speed=1665 vy=-2 lateral=1617 m/s2 164.9g
+t=11.425 h=2136 speed=1885 vy=-1685 lateral=475 m/s2 48.5g
+distance=8000 trial=128 duration=15.441 apex=10.305 height=9773.9
+t=12.750 h=6562 speed=2641 vy=-2073 lateral=576 m/s2 58.7g
+t=10.305 h=9774 speed=2568 vy=4 lateral=1933 m/s2 197.1g
+t=14.775 h=1764 speed=2713 vy=-2592 lateral=417 m/s2 42.6g

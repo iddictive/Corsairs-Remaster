@@ -1,0 +1,21 @@
+[StormMetal] backend-opt-20260918: on
+[StormMetal] direct Metal device Apple M5 Max; backbuffer 640x480; SDL drawable 640x480; samples 1
+[StormMetal] water mode: original shader fidelity
+rss_scene_before_ship_bytes=284655616
+RECONNECT_DIFF cells=7797 baseline=3931.841 candidate=3957.069 mismatch=0 expected=1 actual=1
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+RECONNECT_DIFF cells=11 baseline=214.060 candidate=20.417 mismatch=0 expected=1 actual=1
+BEAM_PASS 0 accepted=1 changed=1
+RECONNECT_DIFF cells=9 baseline=207.519 candidate=17.860 mismatch=0 expected=1 actual=1
+BEAM_PASS 1 accepted=1 changed=1
+BEAM_PASS 2 accepted=1 changed=0
+RECONNECT_DIFF cells=8 baseline=205.764 candidate=17.524 mismatch=0 expected=1 actual=1
+BEAM_PASS 3 accepted=1 changed=1
+BEAM_PASS 4 accepted=1 changed=0
+RECONNECT_DIFF cells=10 baseline=276.003 candidate=21.480 mismatch=0 expected=1 actual=1
+BEAM_PASS 5 accepted=1 changed=1
+PRIOR_BEAM ray=0.39088 ok=1 changed=1 ms=1073.697
+CAPTURE ok=1 material=1 input_fingerprint=11230681268548776834 ms=0.001
+RECONNECT_DIFF cells=7797 baseline=3898.120 candidate=3920.145 mismatch=0 expected=1 actual=1
+RECONNECT_DIFF cells=13 baseline=504.447 candidate=258.686 mismatch=0 expected=1 actual=1
+SAVE_RESTORE cells_diff=0 graph_diff=140 components=6/6

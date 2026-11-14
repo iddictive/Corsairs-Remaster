@@ -146,7 +146,7 @@ bool SeaPhonkTest_StartSide(bool allied)
     captain.PhonkTest.DefenseSettings = 1;
     captain.PhonkTest.DefenseCustom = defenseCustom;
     int defenseType = 2;
-    if (CheckAttribute(pchar, "SeaPhonk.Spawn.AirDefenseType")) defenseType = sti(pchar.SeaPhonk.Spawn.AirDefenseType);
+    if (CheckAttribute(pchar, "SeaPhonk.Spawn.AirDefenseType")) defenseType = SeaPhonk_SpawnDefenseType(sti(pchar.SeaPhonk.Spawn.AirDefenseType));
     if (defenseType == 2 || defenseType < 0 || defenseType > 4) defenseType = rand(1);
     captain.PhonkTest.AirDefenseType = defenseType;
     if (defenseCustom)

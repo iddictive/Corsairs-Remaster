@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "files": {
+    "RESOURCE/MODELS/Characters/Putin.gm": {
+      "source": "model-source.gm",
+      "source_sha256": "4cc955a1e9b91ed811aac69192f14fabad50a9ad7f42ac1fd2e05dba656f4359",
+      "prepared": "Putin.gm",
+      "sha256": "91ebfa4ede221009948c492c70f26786ea346cc167f856033ae36ceb07547f47",
+      "consumer": "Unregistered recut trial phonk candidate; man animation"
+    },
+    "RESOURCE/MODELS/Characters/Putin_mush.gm": {
+      "source": "model-source.gm",
+      "source_sha256": "4cc955a1e9b91ed811aac69192f14fabad50a9ad7f42ac1fd2e05dba656f4359",
+      "prepared": "Putin_mush.gm",
+      "sha256": "0fa26be494fa0d62054c61e93b122ddef5d9828f3eb25c344dea958ade2a4f12",
+      "consumer": "Unregistered recut trial musket candidate; also depends on musket-locator-source.json"
+    },
+    "RESOURCE/Textures/Characters/Putin.tga.tx": {
+      "source": "atlas-source.png",
+      "source_sha256": "890846414f7c0b83c5e3cfeb25b569e902bac6e9634dac7bf7fb832d137366f5",
+      "prepared": "Putin.tga.tx",
+      "sha256": "8bb3d9115c95011b3cef188e584c8e61cb88190a74c4cc2b1dd2315ff977a728",
+      "consumer": "Putin.gm and Putin_mush.gm"
+    }
+  }
+}

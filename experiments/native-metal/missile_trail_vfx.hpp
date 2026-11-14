@@ -171,7 +171,7 @@ class MissileTrailVfx {
     struct Flash { simd_float3 position; double birth; MissileVfxType type; };
     // Nine one-second cohorts cover the maximum eight-second lifetime,
     // including both partially occupied end seconds.
-    static constexpr size_t cohortCount=9, cohortCapacity=227, capacity=cohortCount*cohortCapacity, maxHeads=128;
+    static constexpr size_t cohortCount=9, cohortCapacity=320, capacity=cohortCount*cohortCapacity, maxHeads=192;
     struct Cohort { int64_t second=INT64_MIN; uint64_t seen=0; size_t count=0; };
     std::array<Puff,capacity> puffs{}; std::array<Cohort,cohortCount> cohorts{}; size_t count=0;
     static constexpr size_t retirementCapacity=256;
@@ -424,7 +424,7 @@ public:
             float turbulence=std::sin(age*1.4f+p.seed)*age*.22f;
             auto pos=p.origin+worldOrigin+p.drift*age+simd_make_float3(turbulence,0,std::cos(age*1.1f+p.seed)*age*.18f);
             float size=p.size*(1.f+age*(p.type==MissileVfxType::KalibrEject?.12f:.18f)); float dist=simd_length(pos-eye); if(dist>=10000.f) return;
-            // Stable pool-slot selection bounds the far plume to 512 sprites.
+            // Stable pool-slot selection keeps one quarter of the far plume.
             // Mix slot bits to avoid selecting the same emitter in a repeating
             // multi-missile emission order. Fade other slots before dropping them.
             const bool farSample=((slot^(slot>>5)^(slot>>2))&3u)==0;

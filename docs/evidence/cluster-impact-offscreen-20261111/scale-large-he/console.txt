@@ -1,0 +1,21 @@
+volume_load_cpu_ms 2.242
+sea 0.06 0 median 0.031 ms p90 0.048 ms
+sea 0.06 1 median 0.053 ms p90 0.056 ms
+sea 0.40 0 median 0.246 ms p90 0.265 ms
+sea 0.40 1 median 0.154 ms p90 0.244 ms
+sea 0.80 0 median 0.028 ms p90 0.042 ms
+sea 0.80 1 median 0.047 ms p90 0.048 ms
+sea 1.40 0 median 0.041 ms p90 0.068 ms
+sea 1.40 1 median 0.208 ms p90 0.369 ms
+sea 2.40 0 median 0.161 ms p90 0.309 ms
+sea 2.40 1 median 0.595 ms p90 0.691 ms
+land 0.06 0 median 0.207 ms p90 0.350 ms
+land 0.06 1 median 0.257 ms p90 0.266 ms
+land 0.40 0 median 0.346 ms p90 0.680 ms
+land 0.40 1 median 0.222 ms p90 0.223 ms
+land 0.80 0 median 0.041 ms p90 0.069 ms
+land 0.80 1 median 0.304 ms p90 0.387 ms
+land 1.40 0 median 0.324 ms p90 0.369 ms
+land 1.40 1 median 0.264 ms p90 0.305 ms
+land 2.40 0 median 0.061 ms p90 0.080 ms
+land 2.40 1 median 0.272 ms p90 0.326 ms

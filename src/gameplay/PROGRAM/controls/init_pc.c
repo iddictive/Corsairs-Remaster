@@ -145,6 +145,7 @@
 	CI_CreateAndSetControls( "PrimaryLand", "OfficersFollow", CI_GetKeyCode("KEY_G"), 0, true );
 	MapControlToGroup("OfficersFollow","FightModeControls");
 	MapControlToGroup("OfficersFollow","BattleInterfaceControls");
+	CI_CreateAndSetControls("PrimaryLand", "ChrPee", CI_GetKeyCode("KEY_P"), 0, true);
 	// <-- JA
 	
 	CI_CreateAndSetControls( "PrimaryLand", "Say", CI_GetKeyCode("KEY_Y"), 0, true );

@@ -1,0 +1,8 @@
+example dist 1000 peak 1363.4g at 1.44s/1.52s remaining 178m speed 1668m/s arcPattern 1 arcScale 0.99
+dist 1000 phase 0.95 remaining 121m speed 1516 early 0 middle 0 late 100
+example dist 2000 peak 1027.3g at 2.06s/2.14s remaining 238m speed 2419m/s arcPattern 1 arcScale 0.99
+dist 2000 phase 0.94 remaining 283m speed 1859 early 0 middle 0 late 100
+example dist 4000 peak 521.7g at 3.18s/3.34s remaining 479m speed 2388m/s arcPattern 1 arcScale 0.99
+dist 4000 phase 0.68 remaining 1852m speed 1775 early 0 middle 65 late 35
+example dist 8000 peak 214.0g at 5.40s/5.47s remaining 160m speed 2315m/s arcPattern 1 arcScale 0.99
+dist 8000 phase 0.63 remaining 3561m speed 1902 early 34 middle 31 late 35

@@ -17,7 +17,7 @@ struct BatchEvent { Contact contact; std::vector<uint64_t> splash; bool armed = 
 namespace batch_detail
 {
 struct Ref { size_t body; bool interceptor; detail::Box box; };
-struct Candidate { Contact contact; size_t interceptor, missile; bool detonation = false; };
+struct Candidate { Contact contact; size_t interceptor, missile; bool detonation = false, physical = false; };
 
 inline bool bodyBounds(const Body &body, detail::Box &out)
 {
@@ -69,11 +69,21 @@ std::vector<BatchEvent> resolve(const std::vector<Interceptor> &interceptors,
             if (!detail::overlaps(r.box,other.box)) continue;
             const auto &ir=r.interceptor?r:other, &mr=r.interceptor?other:r;
             const Body &ib=interceptors[ir.body].body, &mb=missiles[mr.body];
-            if (std::isfinite(interceptors[ir.body].pendingDetonation)) continue;
             if (!hostile(ib.owner,mb.owner)) continue;
             double best=std::numeric_limits<double>::infinity();
+            double physicalBest=std::numeric_limits<double>::infinity();
             Vec3 position{};
+            Vec3 physicalPosition{};
             for (const auto &a:ib.segments) for (const auto &b:mb.segments) {
+                if (interceptors[ir.body].physicalRadius > 0. && mb.physicalRadius > 0.) {
+                    const Body physicalInterceptor{ib.id,ib.owner,ib.order,interceptors[ir.body].physicalRadius,ib.expires,{}};
+                    const Body physicalMissile{mb.id,mb.owner,mb.order,mb.physicalRadius,mb.expires,{}};
+                    double time;
+                    if (detail::contact(physicalInterceptor,a,physicalMissile,b,time) && time<physicalBest) {
+                        physicalBest=time; physicalPosition=detail::at(a,time);
+                    }
+                }
+                if (std::isfinite(interceptors[ir.body].pendingDetonation)) continue;
                 const double start=std::max(a.start,interceptors[ir.body].sensorStart);
                 if (start>=a.end || std::max(start,b.start)>=best) continue;
                 const Segment armed{start,a.end,detail::at(a,start),a.to};
@@ -84,6 +94,8 @@ std::vector<BatchEvent> resolve(const std::vector<Interceptor> &interceptors,
             }
             if (std::isfinite(best))
                 candidates.push_back({{best,ib.id,mb.id,ib.order,mb.order,position},ir.body,mr.body});
+            if (std::isfinite(physicalBest))
+                candidates.push_back({{physicalBest,ib.id,mb.id,ib.order,mb.order,physicalPosition},ir.body,mr.body,false,true});
         }
         active[side].insert(e.ref);
     }
@@ -115,7 +127,7 @@ std::vector<BatchEvent> resolve(const std::vector<Interceptor> &interceptors,
         if (used[c.interceptor] || (c.missile != noMissile && dead[c.missile])) continue;
         if (!c.detonation && c.missile==noMissile) continue;
         const auto &selected=interceptors[c.interceptor];
-        if (!c.detonation && selected.fuseDelay > 0.) {
+        if (!c.detonation && !c.physical && selected.fuseDelay > 0.) {
             used[c.interceptor]=1;
             result.push_back({c.contact,{},true});
             const double due=std::min(c.contact.time+selected.fuseDelay, selected.body.expires);
@@ -126,9 +138,12 @@ std::vector<BatchEvent> resolve(const std::vector<Interceptor> &interceptors,
                 used[c.interceptor]=0;
                 break;
             }
+            // Even when detonation is in a later frame, a physical impact in
+            // this frame must remain eligible.
+            used[c.interceptor]=0;
             // Suppress any additional contact candidates after this trigger.
             for (size_t k=cursor+1;k<candidates.size();++k)
-                if (candidates[k].interceptor==c.interceptor && !candidates[k].detonation)
+                if (candidates[k].interceptor==c.interceptor && !candidates[k].detonation && !candidates[k].physical)
                     candidates[k].missile=noMissile;
             continue;
         }

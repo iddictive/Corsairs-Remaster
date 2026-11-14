@@ -1,0 +1,18 @@
+namespace storm::ship::material {
+inline bool probeClipFast(Surface &surface,const Plane &field,size_t &skipped) {
+    if(!surface.cells || !field.beams.empty() || field.roughness!=0 ||
+       surface.cells->source->bounds.size()!=surface.cells->source->solids.size()) return false;
+    auto next=std::make_shared<MaterialCells>(*surface.cells);
+    for(uint32_t id=0;id<next->source->solids.size();++id) {
+        const auto &box=next->source->bounds[id];const auto n=field.normal;
+        const auto c=(box.lo+box.hi)*.5f,e=(box.hi-box.lo)*.5f;
+        const double upper=double(n.x)*c.x+double(n.y)*c.y+double(n.z)*c.z-field.distance+
+            std::abs(double(n.x))*e.x+std::abs(double(n.y))*e.y+std::abs(double(n.z))*e.z;
+        if(upper < -0.0001) {++skipped;continue;}
+        const auto &solid=materialCell(*next,id);if(solid.empty())continue;
+        auto divided=split(solid,field,nullptr,true);if(!divided.complete)return false;
+        next->changed[id]=std::make_shared<const Mesh>(std::move(divided.kept));
+    }
+    surface.cells=std::move(next);return true;
+}
+}

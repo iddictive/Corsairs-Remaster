@@ -305,7 +305,13 @@ float seaOrdinaryFoamAlpha(SeaO o,constant SeaU& u,float pattern,texture3d<float
     }
     float width=clamp(fwidth(coverage),.015f,.08f);
     coverage+=(pattern-.5f)*width;
-    return max(coverage,0.f)*smoothstep(-width,width,coverage);
+    float alpha=max(coverage,0.f)*smoothstep(-width,width,coverage);
+    // The CPU disables ordinary waves beyond its distance limit per vertex.
+    // Fade the ordinary material across those same boundary triangles; event
+    // foam is composed separately and must not inherit this fade.
+    if(u.bumpIsVolume&&u.vc[225].z==1.f&&u.stride>=60u)
+        alpha*=smoothstep(0.f,1.f,saturate(o.t4.w));
+    return alpha;
 }
 // Preserve the original near/grazing texture. At distance, reuse the shared
 // anti-tiling taps and their explicit gradients to break the authored stripes.
@@ -315,6 +321,9 @@ float seaFoamAntitileBlend(SeaO o) {
     return smoothstep(90.f,220.f,distance)*smoothstep(.25f,.6f,overhead);
 }
 float4 seaOrdinaryFoamTexture(texture2d<float> texture,sampler state,float2 uv,float blend) {
+    // Break the repeating texture lattice continuously without another sample.
+    // Derivatives below include the warp, preserving mip selection.
+    uv+=.32f*sin(uv.yx*.37f);
     float2 dx=dfdx(uv),dy=dfdy(uv);
     if(blend<=0.f)return texture.sample(state,uv,gradient2d(dx,dy));
     float2 centered=uv-.5f;

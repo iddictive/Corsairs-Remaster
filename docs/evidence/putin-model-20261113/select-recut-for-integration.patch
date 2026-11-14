@@ -1,0 +1,12 @@
+diff --git a/tools/sync_metal_gameplay.py b/tools/sync_metal_gameplay.py
+--- a/tools/sync_metal_gameplay.py
++++ b/tools/sync_metal_gameplay.py
+@@ -20,7 +20,7 @@
+ PROJECT = Path(__file__).resolve().parents[1]
+ UI_ASSETS = PROJECT / "src/assets/ui"
+ CHARACTER_ASSETS = PROJECT / "src/assets/characters/red-beard"
+-PHONK_CHARACTER_ASSETS = PROJECT / "src/assets/characters/putin-phonk-candidate"
++PHONK_CHARACTER_ASSETS = PROJECT / "src/assets/characters/putin-phonk-recut-candidate"
+ RECIPE_ASSETS = PROJECT / "src/assets/quests/great-recipe"
+ MUSIC_ASSETS = PROJECT / "src/assets/audio"
+ CLUSTER_VFX_ASSETS = PROJECT / "src/assets/cluster-vfx"

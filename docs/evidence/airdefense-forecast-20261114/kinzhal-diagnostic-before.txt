@@ -1,0 +1,86 @@
+# source SHA256
+# /tmp/corsairs-prior-forecast.cpp 7b9f70549c609c75a8f1af9c878788d93ac02156c7ca2008db4f86a0cfacb0e0
+# /Users/md/05_Repo/Corsairs/experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp f7372ff202224d9ac8c5b8c79a465f018b7e4e29caee7e14a2e3a64ce659edc6
+# /Users/md/05_Repo/Corsairs/experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp 5584a9166d1b95317ec6864573ede894efe35be58d774ba9a525cf0742d9ec7f
+# /Users/md/05_Repo/Corsairs/experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp 33455185634373ac438c3cf0d90bd026b46910f08c8e028147234cfd9c887d8e
+# /Users/md/05_Repo/Corsairs/experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp 6cc05ccfc575fc0a22cb2c42ceb33d1fe4125809e68e6757fa11b1109b0bc2a6
+# /Users/md/05_Repo/Corsairs/experiments/native-metal/engine/src/libs/math/include/c_vector.h bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a
+# /Users/md/05_Repo/Corsairs/docs/evidence/airdefense-forecast-20261114/matrix.py 74a424960847f0a2044f68f88a7a002238eef3280596f278ad1d3b0ff3e03a55
+# /Users/md/05_Repo/Corsairs/docs/evidence/airdefense-forecast-20261114/player-simulation.cpp 903b997d7a74cd0877f054fdca2e6c1d39b158ce0f457c7368126b6c2625ffab
+# /private/tmp/corsairs-kdiag-old.py 0d04eb32bbc18863afb7bb35b50d26a8af1c6baef00399176840713a4cd6a8a1
+DIAG Kinzhal Pantsir launched=478 age=0.410 v=372.9 duration=1.469 armed=13 gaps10=4 gaps20=12 gaps50=62 sensorOff=0 flight=1.000 error=382.0 horizon=3.000
+DIAG Kinzhal Patriot launched=500 age=0.375 v=353.4 duration=1.472 armed=32 gaps10=15 gaps20=47 gaps50=244 sensorOff=0 flight=0.473 error=61.7 horizon=3.000
+DIAG Kalibr Pantsir launched=500 age=0.830 v=88.7 duration=7.337 armed=500 gaps10=48 gaps20=336 gaps50=500 sensorOff=0 flight=1.632 error=130.9 horizon=3.000
+DIAG Kalibr Patriot launched=500 age=0.831 v=88.6 duration=7.337 armed=500 gaps10=482 gaps20=500 gaps50=500 sensorOff=0 flight=0.615 error=27.5 horizon=3.000
+DIAG Shtorm Pantsir launched=500 age=0.375 v=62.7 duration=3.458 armed=122 gaps10=5 gaps20=66 gaps50=488 sensorOff=0 flight=1.560 error=137.6 horizon=3.000
+DIAG Shtorm Patriot launched=500 age=0.375 v=62.7 duration=3.458 armed=500 gaps10=489 gaps20=500 gaps50=500 sensorOff=0 flight=0.606 error=22.5 horizon=3.000
+DIAG Oreshnik Pantsir launched=500 age=7.009 v=603.6 duration=9.239 armed=156 gaps10=40 gaps20=157 gaps50=365 sensorOff=0 flight=1.216 error=285.3 horizon=3.000
+DIAG Oreshnik Patriot launched=500 age=6.895 v=588.5 duration=9.239 armed=359 gaps10=225 gaps20=428 gaps50=500 sensorOff=1 flight=0.763 error=95.7 horizon=3.000
+
+DISTANCE 1000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,12,2.400,12,2.400,653,653,0,2,2,0
+single,Kinzhal,Patriot,500,500,28,5.600,28,5.600,1000,0,1000,2,2,0
+single,Kalibr,Pantsir,500,500,500,100.000,500,100.000,2340,2340,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,121,24.200,121,24.200,1965,1965,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,156,31.200,156,31.200,1343,1343,0,2,2,0
+single,Oreshnik,Patriot,500,500,350,70.000,350,70.000,1019,0,1019,2,2,0
+DIAG Kinzhal Pantsir launched=477 age=0.589 v=537.7 duration=2.097 armed=1 gaps10=0 gaps20=1 gaps50=11 sensorOff=0 flight=1.421 error=654.1 horizon=3.000
+DIAG Kinzhal Patriot launched=500 age=0.375 v=366.8 duration=2.101 armed=12 gaps10=4 gaps20=17 gaps50=73 sensorOff=0 flight=0.940 error=268.7 horizon=3.000
+DIAG Kalibr Pantsir launched=500 age=0.744 v=93.2 duration=10.009 armed=493 gaps10=56 gaps20=340 gaps50=500 sensorOff=0 flight=2.766 error=321.8 horizon=3.000
+DIAG Kalibr Patriot launched=500 age=0.744 v=93.2 duration=10.009 armed=500 gaps10=495 gaps20=500 gaps50=500 sensorOff=0 flight=1.226 error=80.8 horizon=3.000
+DIAG Shtorm Pantsir launched=500 age=0.375 v=63.0 duration=5.251 armed=343 gaps10=77 gaps20=300 gaps50=496 sensorOff=0 flight=2.638 error=440.1 horizon=3.000
+DIAG Shtorm Patriot launched=500 age=0.375 v=63.0 duration=5.251 armed=500 gaps10=496 gaps20=500 gaps50=500 sensorOff=0 flight=1.206 error=87.4 horizon=3.000
+DIAG Oreshnik Pantsir launched=500 age=7.991 v=1022.4 duration=10.613 armed=99 gaps10=29 gaps20=91 gaps50=204 sensorOff=0 flight=1.676 error=462.4 horizon=3.000
+DIAG Oreshnik Patriot launched=500 age=7.671 v=968.8 duration=10.613 armed=167 gaps10=97 gaps20=215 gaps50=353 sensorOff=0 flight=1.350 error=433.8 horizon=3.000
+
+DISTANCE 2000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,1,0.200,1,0.200,818,818,0,2,2,0
+single,Kinzhal,Patriot,500,500,9,1.800,9,1.800,1000,0,1000,2,2,0
+single,Kalibr,Pantsir,500,500,493,98.600,493,98.600,2839,2839,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,340,68.000,340,68.000,2399,2399,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,97,19.400,97,19.400,1165,1165,0,2,2,0
+single,Oreshnik,Patriot,500,500,155,31.000,155,31.000,1021,0,1021,2,2,0
+DIAG Kinzhal Pantsir launched=500 age=0.901 v=810.0 duration=3.302 armed=35 gaps10=14 gaps20=34 gaps50=85 sensorOff=0 flight=2.031 error=969.7 horizon=3.000
+DIAG Kinzhal Patriot launched=500 age=0.395 v=397.5 duration=3.302 armed=18 gaps10=4 gaps20=34 gaps50=115 sensorOff=0 flight=1.781 error=987.7 horizon=3.000
+DIAG Kalibr Pantsir launched=500 age=0.706 v=95.3 duration=13.790 armed=446 gaps10=65 gaps20=324 gaps50=500 sensorOff=0 flight=4.789 error=815.6 horizon=3.000
+DIAG Kalibr Patriot launched=500 age=0.706 v=95.3 duration=13.790 armed=500 gaps10=498 gaps20=500 gaps50=500 sensorOff=0 flight=2.431 error=275.1 horizon=3.000
+DIAG Shtorm Pantsir launched=500 age=0.375 v=63.1 duration=8.831 armed=416 gaps10=51 gaps20=319 gaps50=500 sensorOff=0 flight=4.524 error=1067.6 horizon=3.000
+DIAG Shtorm Patriot launched=500 age=0.375 v=63.1 duration=8.831 armed=500 gaps10=498 gaps20=500 gaps50=500 sensorOff=0 flight=2.371 error=411.0 horizon=3.000
+DIAG Oreshnik Pantsir launched=294 age=11.826 v=1892.5 duration=12.509 armed=113 gaps10=19 gaps20=88 gaps50=213 sensorOff=0 flight=0.582 error=56.9 horizon=3.000
+DIAG Oreshnik Patriot launched=500 age=8.657 v=1586.6 duration=12.580 armed=0 gaps10=0 gaps20=1 gaps50=16 sensorOff=0 flight=2.487 error=2091.4 horizon=3.000
+
+DISTANCE 4000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,34,6.800,34,6.800,1081,1081,0,2,2,0
+single,Kinzhal,Patriot,500,500,14,2.800,14,2.800,1004,0,1004,2,2,0
+single,Kalibr,Pantsir,500,500,446,89.200,446,89.200,3502,3502,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,415,83.000,415,83.000,2724,2724,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,107,21.400,107,21.400,400,400,0,2,2,0
+single,Oreshnik,Patriot,500,500,0,0.000,0,0.000,1000,0,1000,2,2,0
+DIAG Kinzhal Pantsir launched=500 age=0.579 v=564.7 duration=5.450 armed=111 gaps10=29 gaps20=99 gaps50=233 sensorOff=0 flight=3.793 error=1734.2 horizon=3.000
+DIAG Kinzhal Patriot launched=500 age=0.375 v=346.8 duration=5.450 armed=181 gaps10=24 gaps20=350 gaps50=472 sensorOff=0 flight=3.040 error=1373.5 horizon=3.000
+DIAG Kalibr Pantsir launched=500 age=0.850 v=107.9 duration=19.138 armed=339 gaps10=64 gaps20=267 gaps50=496 sensorOff=0 flight=8.256 error=2012.9 horizon=3.000
+DIAG Kalibr Patriot launched=500 age=0.850 v=107.9 duration=19.138 armed=500 gaps10=497 gaps20=500 gaps50=500 sensorOff=0 flight=4.653 error=746.1 horizon=3.000
+DIAG Shtorm Pantsir launched=500 age=0.375 v=55.3 duration=14.671 armed=406 gaps10=58 gaps20=334 gaps50=500 sensorOff=0 flight=8.008 error=2422.5 horizon=3.000
+DIAG Shtorm Patriot launched=500 age=0.375 v=55.3 duration=14.671 armed=500 gaps10=499 gaps20=500 gaps50=500 sensorOff=0 flight=4.561 error=1207.1 horizon=3.000
+DIAG Oreshnik Pantsir launched=294 age=14.062 v=2695.4 duration=14.695 armed=86 gaps10=11 gaps20=66 gaps50=186 sensorOff=0 flight=0.566 error=77.4 horizon=3.000
+DIAG Oreshnik Patriot launched=500 age=12.008 v=2621.4 duration=14.738 armed=306 gaps10=211 gaps20=370 gaps50=440 sensorOff=4 flight=1.693 error=171.3 horizon=3.000
+
+DISTANCE 8000
+scenario,type,defense,trials,carriers,hits,hit_pct,all_intercepted_trials,all_intercepted_pct,interceptors,pantsir_launches,patriot_launches,peak_airborne,max_assignments,unresolved
+single,Kinzhal,Pantsir,500,500,105,21.000,105,21.000,1789,1789,0,2,2,0
+single,Kinzhal,Patriot,500,500,119,23.800,119,23.800,1062,0,1062,2,2,0
+single,Kalibr,Pantsir,500,500,333,66.600,333,66.600,3918,3918,0,2,2,0
+single,Kalibr,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Shtorm,Pantsir,500,500,404,80.800,404,80.800,3488,3488,0,2,2,0
+single,Shtorm,Patriot,500,500,500,100.000,500,100.000,1000,0,1000,2,2,0
+single,Oreshnik,Pantsir,500,500,81,16.200,81,16.200,349,349,0,2,2,0
+single,Oreshnik,Patriot,500,500,239,47.800,239,47.800,1075,0,1075,2,2,0

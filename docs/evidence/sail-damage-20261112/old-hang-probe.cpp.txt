@@ -1,0 +1,76 @@
+
+#include <vector>
+#include <cstdlib>
+#include <cstdint>
+#include <cmath>
+#include <cstdio>
+struct Node { const char *GetName() { return "mast"; } };
+struct Sail { struct {bool hole[14]{};int holeCount=0;} ss; Node node; Node *hostNode=&node; int groupNum=0; float maxSpeed=1; int GetMaxHoleCount(){return 14;} unsigned GetHoleDword(){return 0;} void CalculateMirrorSailIndex(){} };
+struct Group {int sailQuantity; int *sailIdx; float speed_m=1;};
+struct VDATA {float GetFloat(){return .000001f;}};
+struct Core {VDATA value; template<class... T> VDATA *Event(T...){return &value;} void Trace(const char*){}} core;
+struct SAIL {int groupQuantity=1; Group *gdata; Sail **slist; void DoRandomsSailsDmg(int,int,float);};
+void SAIL::DoRandomsSailsDmg(int chrIdx, int gn, float fDmg)
+{
+    if (gn < 0 || gn >= groupQuantity)
+        return;
+
+    int i;
+    int _sailsIdx[256];
+    for (i = 0; i < gdata[gn].sailQuantity; i++)
+        _sailsIdx[i] = gdata[gn].sailIdx[i];
+
+    for (int _sailsQnt = gdata[gn].sailQuantity; _sailsQnt > 0;)
+    {
+        const int tmp = rand() % _sailsQnt;
+        const int sn = _sailsIdx[tmp];
+
+        int holeIdx = rand() % slist[sn]->GetMaxHoleCount();
+        for (int j = 0; j < 14 && slist[sn]->ss.hole[holeIdx]; j++)
+            if (holeIdx < static_cast<int>(slist[sn]->GetMaxHoleCount()) - 1)
+                holeIdx++;
+            else
+                holeIdx = 0;
+
+        const bool bOldHole = slist[sn]->ss.hole[holeIdx];
+        slist[sn]->ss.hole[holeIdx] = true;
+        int nNewHoleCount = slist[sn]->ss.holeCount;
+        if (!bOldHole)
+            nNewHoleCount++;
+        VDATA *pvd = core.Event("evntRandomSailDmg", "lslfflll", chrIdx, slist[sn]->hostNode->GetName(),
+                                slist[sn]->groupNum, fDmg, static_cast<float>(slist[sn]->maxSpeed) / gdata[gn].speed_m,
+                                nNewHoleCount, slist[sn]->GetMaxHoleCount(), slist[sn]->GetHoleDword());
+        slist[sn]->ss.hole[holeIdx] = bOldHole;
+        if (pvd == nullptr)
+        {
+            core.Trace("WARNING!!! Event evntRandomSailDmg not float return!");
+            return;
+        }
+        float fDoDmg = pvd->GetFloat();
+
+        if (fDoDmg > 0.f)
+        {
+            slist[sn]->ss.holeCount = nNewHoleCount;
+            slist[sn]->ss.hole[holeIdx] = true;
+            slist[sn]->CalculateMirrorSailIndex();
+        }
+        else
+            fDoDmg = -fDoDmg;
+        if (fDoDmg == 0.f)
+        {
+            _sailsQnt--;
+            _sailsIdx[sn] = _sailsIdx[_sailsQnt];
+        }
+        else
+        {
+            fDmg -= fDoDmg;
+            if (fDmg <= 0.f)
+            {
+                return;
+            }
+        }
+    }
+}
+
+
+int main(){ Sail s0; Sail* ptrs[1]={&s0}; int ids[1]={0}; Group group{1,ids,1}; SAIL s{1,&group,ptrs}; s.DoRandomsSailsDmg(1,0,1000000.f); puts("returned"); }

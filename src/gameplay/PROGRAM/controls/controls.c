@@ -1,4 +1,32 @@
 #event_handler("frame","procUpdateControlKeyGroup");
+#event_handler("ChrPeeTick", "ChrPeeTick");
+
+int chrPeeGeneration = 0;
+string chrPeeLocation = "";
+
+void ChrPeeStart()
+{
+    if (FindLoadedLocation() < 0 || !IsEntity(pchar) || LAi_IsDead(pchar) ||
+        !LAi_IsCharacterControl(pchar) || LAi_IsFightMode(pchar)) return;
+    chrPeeGeneration++;
+    chrPeeLocation = pchar.location;
+    PostEvent("ChrPeeTick", 1, "ll", chrPeeGeneration, 0);
+}
+
+void ChrPeeTick()
+{
+    int generation = GetEventData();
+    int step = GetEventData();
+    if (generation != chrPeeGeneration || step >= 20 || FindLoadedLocation() < 0 ||
+        !IsEntity(pchar) || LAi_IsDead(pchar) || !LAi_IsCharacterControl(pchar) ||
+        LAi_IsFightMode(pchar) || pchar.location != chrPeeLocation || dialogRun ||
+        sti(InterfaceStates.Launched)) return;
+    float x, y, z, angle;
+    if (!GetCharacterPos(pchar, &x, &y, &z) || !GetCharacterAy(pchar, &angle)) return;
+    CreateParticleSystem("hero_stream", x + 0.23 * sin(angle), y + 0.85,
+        z + 0.23 * cos(angle), 1.35, angle, 0.0, 1000);
+    PostEvent("ChrPeeTick", 200, "ll", generation, step + 1);
+}
 
 // control flags
 #define USE_AXIS_AS_BUTTON				1
@@ -210,6 +238,21 @@ void RestoreKeysFromOptions(aref arControlsRoot)
 		CI_CreateAndSetControls("FightModeControls", "ChrRoundhouseJump", jumpKey, jumpState, true);
 	}
 	Roundhouse_InitControls();
+	// Existing saves may already use P for another land action.
+	if (!CheckAttribute(arControlsRoot, "PrimaryLand.ChrPee"))
+	{
+		int peeKey = CI_GetKeyCode("KEY_P");
+		aref landControls, landControl;
+		makearef(landControls, objControlsState.keygroups.PrimaryLand);
+		for (i = 0; i < GetAttributesNum(landControls); i++)
+		{
+			landControl = GetAttributeN(landControls, i);
+			if (GetAttributeName(landControl) != "ChrPee" && GetAttributeValue(landControl) == "KEY_P") peeKey = -1;
+		}
+		int peeState = 0;
+		if (peeKey < 0) peeState = -1;
+		CI_CreateAndSetControls("PrimaryLand", "ChrPee", peeKey, peeState, true);
+	}
 	// Older profiles have no deck-camera entries; reconsider defaults after
 	// restoring their other bindings, but never replace a saved assignment.
 	if (!CheckAttribute(arControlsRoot, "Sailing1Pers.Phonk_DeckCameraUp"))

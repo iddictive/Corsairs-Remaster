@@ -15,6 +15,9 @@ interface definition; `tools/gameplay_sources.py` projects them to runtime files
 `tools/sync_metal_gameplay.py` delivers these files and prepared assets directly;
 `metal_graphics_settings.py` owns settings and the launch environment.
 
+The [nuclear VFX pilot](evidence/nuclear-vfx-20261105/README.md) records the
+isolated fleet lighting and shadow measurements and their limits.
+
 Captured `experiments/native-metal/inputs` own dependency headers, baseline
 game data and toolchain. Existing payloads remain compatible; their historical
 engine archive, patch originals and baseline build files are unused. Keep inputs and generated
@@ -203,8 +206,19 @@ The [combat damage evidence](evidence/combat-damage/README.md) records weapon
 wounds, nonlethal bleeding, detached-part ownership and the supported cut meshes.
 The [combat debug controls](evidence/debug-combat-cheats/README.md) record
 independent player cheats and safe queued-salvo policy changes.
+The [deck heel evidence](evidence/deck-heel-20261105/README.md) records player
+and crew movement, the existing death handoff, and bounded native timings.
+The [high-altitude sea evidence](evidence/sea-high-altitude-20261105/README.md)
+records mesh coverage, foam filtering and bounded offscreen timings.
 
 ## Verification and troubleshooting
+
+The [sail-damage crash and hang evidence](evidence/sail-damage-20261112/README.md)
+records the stack traces and bounded failure probes.
+The [missile VFX evidence](evidence/missile-vfx-20261112/README.md) records
+the airburst source mapping and synthetic smoke frames.
+The [thermobaric evidence](evidence/thermobaric-20261112/README.md) records
+the visual references, damage tuning and bounded renderer comparison.
 
 Normal staging builds only the engine. Diagnostic executables remain available as explicit targets; for example, `cmake --build experiments/native-metal/.cache/build --target gpu-skinning-parity-probe` followed by `experiments/native-metal/.cache/build/bin/gpu-skinning-parity-probe`. Run only the diagnostics relevant to the change.
 

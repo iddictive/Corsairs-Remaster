@@ -1122,6 +1122,7 @@ void ProcessControls()
 
     if (dialogRun) return;
 	if (sti(InterfaceStates.Launched)==true) return;
+	if (ControlName == "ChrPee") { ChrPeeStart(); return; }
 	if (SeaPhonk_IsActive() && ControlName == "Phonk_Rangefinder")
 	{
 		if (!CheckAttribute(&Sea, "Phonk.Rangefinder")) Sea.Phonk.Rangefinder = 0;

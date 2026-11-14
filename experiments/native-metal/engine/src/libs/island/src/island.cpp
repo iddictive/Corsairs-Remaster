@@ -571,6 +571,7 @@ void ISLAND::Realize(uint32_t Delta_Time)
         for (uint32_t k = 0; k < aForts.size(); k++)
         {
             auto *const ent = core.GetEntityPointer(aForts[k]);
+            if (!ent) continue;
             auto mOld = static_cast<MODEL *>(ent)->mtx;
             static_cast<MODEL *>(ent)->mtx = mOld * mTemp;
 

@@ -1,0 +1,74 @@
+// Diagnostic scene driver. It never runs seadogs.c, loads SAVE, shows or focuses
+// a window. The isolated fixture owns scene setup; CORE owns the real frame.
+#include "core_impl.h"
+#include "dx9render.h"
+#include "os_window.hpp"
+#include "steam_api.hpp"
+#include "weather_engine.hpp"
+#include "script_libriary.h"
+#include "s_import_func.h"
+#include "v_s_stack.h"
+#include "ship_base.h"
+#include <SDL2/SDL.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <spdlog/spdlog.h>
+#include <mimalloc-new-delete.h>
+#include <mimalloc.h>
+extern "C" uint64_t StormMetalRawSkinnedDraws(void *);
+extern "C" bool StormMetalFlushFrameTrace(void *);
+extern uint64_t dwRdtsc; // Existing TOUCH::Execute timer, in SDL performance ticks.
+
+#include "service/particle_service.h"
+#include "manager/particle_manager.h"
+#include "system/particle_system/particle_system.h"
+#include "i_common/i_emitter.h"
+#include "i_common/names.h"
+#include "system/data_source/data_graph.h"
+
+
+#include "sailors.h"
+#include "shared/sea_ai/deck_collision.hpp"
+#include "shared/messages.h"
+void check(bool b,const char*n){if(!b){printf("FAIL %s\n",n);std::exit(75);}}
+class FlatSea final:public SEA_BASE {public:bool Init()override{return true;}void ProcessStage(Stage,uint32_t)override{}float WaveXZ(float,float,CVECTOR*n=nullptr)override{if(n)*n=CVECTOR(0.f,1.f,0.f);return 0;}float Cannon_Trace(int32_t,const CVECTOR&,const CVECTOR&)override{return 2;}float Trace(const CVECTOR&,const CVECTOR&)override{return 2;}bool Clip(const PLANE*,int32_t,const CVECTOR&,float,ADD_POLYGON_FUNC)override{return false;}const char *GetCollideMaterialName()override{return "";}bool GetCollideTriangle(TRIANGLE&)override{return false;}};
+class FakeShip final:public SHIP_BASE {
+MODEL *model;entid_t id;public:FakeShip(MODEL*m,entid_t i,ATTRIBUTES*c):model(m),id(i){SetACharacter(c);}bool Init()override{return true;}void ProcessStage(Stage,uint32_t)override{}bool Mount(ATTRIBUTES*)override{return true;}void SetPos(const CVECTOR&p)override{model->mtx.Pos()=p;}CVECTOR GetPos()const override{return model->mtx.Pos();}CVECTOR GetAng()const override{return CVECTOR(0.f);}CMatrix *GetMatrix()override{return &model->mtx;}CVECTOR GetBoxsize()const override{return CVECTOR(20.f,20.f,50.f);}MODEL *GetModel()const override{return model;}entid_t GetModelEID()const override{return id;}void Save(CSaveLoad*)override{}void Load(CSaveLoad*)override{}void Fire(const CVECTOR&)override{}void PublishShipPose()override{}BOOL BuildContour(CVECTOR*,int32_t&,float)override{return false;}BOOL TouchMove(uint32_t,TOUCH_PARAMS*,TOUCH_PARAMS*)override{return false;}int32_t AddStrength(STRENGTH*)override{return -1;}bool DelStrength(int32_t)override{return false;}float GetMaxSpeedZ()override{return 0;}float GetMaxSpeedY()override{return 0;}float GetWindAgainst()override{return 0;}void SetSailState(float)override{}float GetSailState()override{return 0;}void SetRotate(float)override{}float GetRotate()override{return 0;}float GetBrakingDistance(float*)override{return 0;}float GetRotationAngle(float*)override{return 0;}float GetCurrentSpeed()override{return 0;}void SetDead()override{}bool isDead()override{return false;}void SetLightAndFog(bool)override{}void RestoreLightAndFog()override{}void SetLights()override{}void UnSetLights()override{}void SetFixedSpeed(bool,float)override{}float Cannon_Trace(int32_t,const CVECTOR&a,const CVECTOR&b)override{return model->Trace(a,b);}float Trace(const CVECTOR&a,const CVECTOR&b)override{return model->Trace(a,b);}bool Clip(const PLANE*p,int32_t n,const CVECTOR&c,float r,ADD_POLYGON_FUNC f)override{return model->Clip(p,n,c,r,f);}const char *GetCollideMaterialName()override{return "";}bool GetCollideTriangle(TRIANGLE&t)override{return model->GetCollideTriangle(t);}
+};
+
+int main(int argc,char **argv) {
+ if(argc!=2) return 64;
+ const auto cwd=std::filesystem::canonical(argv[1]); std::filesystem::current_path(cwd);
+ std::filesystem::create_directories(cwd/"userdata/Logs");
+ setenv("STORM_USERDATA",(cwd/"userdata").c_str(),1); setenv("STORM_QUIET_CLIENT","1",1);
+ spdlog::set_level(spdlog::level::off);
+ if(SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO)!=0) return 65;
+ steamapi::SteamApi::getInstance(true);
+ auto window=storm::OSWindow::Create(640,480,0,false,false);
+ core_internal.Init(); core_internal.SetWindow(window); core_internal.InitBase(); core_internal.SetDeltaTime(16);
+ if(!core_internal.Run())return 68;
+ auto *rs=static_cast<VDX9RENDER*>(core.GetService("dx9render"));
+ rs->SetCamera(CVECTOR(0.f,0.f,-20.f),CVECTOR(0.f,0.f,100.f),CVECTOR(0.f,1.f,0.f));rs->SetPerspective(1.05f);
+ auto *device=static_cast<storm_render::Device*>(rs->GetNativeDevice());
+ storm_render::Surface *target=nullptr,*readback=nullptr;
+ device->GetRenderTarget(&target);device->CreateOffscreenPlainSurface(640,480,storm_render::AssetFormat::A8R8G8B8,&readback);
+
+ setbuf(stdout,nullptr);auto *character=static_cast<VDATA*>(core.GetScriptVariable("Character"))->GetAClass();
+ FlatSea sea;auto id=core.CreateEntity("MODELR");check(core.Send_Message(id,"ls",MSG_MODEL_LOAD_GEO,"ships\\Brig1\\Brig1"),"ship_model");auto *model=static_cast<MODEL*>(core.GetEntityPointer(id));
+ {FakeShip ship(model,id,character);ShipWalk walk{};walk.ship=&ship;walk.shipModel=model;walk.shipState.sea=&sea;walk.shipState.hull=&ship;
+ model->mtx=CMatrix(CVECTOR(0.f),CVECTOR(0.f,30.f,0.f));model->Update();ShipMan man;man.pos=CVECTOR(0.f,2.f,0.f);man.mode=MAN_WALK;
+ man.modelID=core.CreateEntity("MODELR");check(core.Send_Message(man.modelID,"ls",MSG_MODEL_LOAD_GEO,"Lowcharacters\\Lo_Man_1"),"npc_model");check(core.Send_Message(man.modelID,"ls",MSG_MODEL_LOAD_ANI,"Lo_Man"),"npc_animation");
+ walk.AdvanceHeelFall(man,16);check(man.heelFall.phase==deck_fall::Phase::aboard,"upright_stays_attached");
+ model->mtx=CMatrix(CVECTOR(0.f,0.f,1.22f),CVECTOR(0.f,30.f,0.f));model->Update();walk.AdvanceHeelFall(man,16);check(man.heelFall.phase==deck_fall::Phase::falling,"tilt_detaches");auto start=man.heelFall.position;
+ for(int i=0;i<120;i++)walk.AdvanceHeelFall(man,16);printf("npc_start=(%.3f,%.3f,%.3f) end=(%.3f,%.3f,%.3f)\n",start.x,start.y,start.z,man.heelFall.position.x,man.heelFall.position.y,man.heelFall.position.z);check(man.heelFall.position.y<start.y-.1f,"npc_moves_under_gravity");uint32_t dt=16;man.SetPos(model,&ship,dt,walk.shipState);auto *npc=static_cast<MODEL*>(core.GetEntityPointer(man.modelID));check(~(npc->mtx.Pos()-man.heelFall.position)<.00001f,"npc_model_detached_world");
+ model->mtx=CMatrix(CVECTOR(0.f),CVECTOR(0.f,30.f,0.f));model->Update();auto *path=model->FindNode("path");check(path!=nullptr,"landing_path");CVECTOR origin=path->glob_mtx*CVECTOR(0.f,2.f,0.f),support;int flags=path->flags;path->flags&=~NODE::CLIP_ENABLE;bool found=deck_collision::findSupport(*model,origin,CVECTOR(0.f,1.f,0.f),1.5f,support,.5f);path->flags=flags;check(found,"landing_support");walk.sailorsPoints.points.Add();auto &pt=walk.sailorsPoints.points.point[0];pt.x=0.f;pt.y=2.f;pt.z=0.f;man.heelFall.phase=deck_fall::Phase::falling;man.heelFall.position=support+CVECTOR(0.f,.03f,0.f);man.heelFall.velocity=CVECTOR(0.f);walk.AdvanceHeelFall(man,16);check(man.heelFall.phase==deck_fall::Phase::aboard&&man.mode==MAN_WALK,"npc_stable_deck_recovery");
+
+ std::vector<ShipMan> crowd(40);for(auto &m:crowd){m.pos=CVECTOR(0.f,2.f,0.f);m.mode=MAN_WALK;}auto begin=std::chrono::steady_clock::now();for(int i=0;i<60;i++)for(auto &m:crowd)walk.AdvanceHeelFall(m,16);auto ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();printf("npc_40_frame_ms=%.4f\n",ms/60.0);
+ }
+ puts("NPC_OWNER_PASS");readback->Release();target->Release();core_internal.EraseEntities();core_internal.CleanUp();window.reset();SDL_Quit();return 0;
+}

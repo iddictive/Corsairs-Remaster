@@ -1,0 +1,14 @@
+--- a/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp
++++ b/experiments/native-metal/engine/src/libs/ship/src/ship_reactive_jet.cpp
+@@ -176,12 +176,6 @@
+ bool SHIP::AdvancePhonkJet(uint32_t milliseconds, bool prediction)
+ {
+-    if (!PhonkActive())
+-    {
+-        phonkJet.active = false;
+-        phonkJet.forces.clear();
+-        return false;
+-    }
+     const bool thrust = PhonkMotionAllowed() && Held("Phonk_Jet");
+     if (!phonkJet.active && (!thrust || prediction)) return false;
+     if (prediction)

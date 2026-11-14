@@ -1,0 +1,8 @@
+scale=1 age=1 front=20.0 amplitude=0.469 min=0.000 max=0.464 foam=0.032 slope_error=0.00013 trough_samples=0
+scale=1 age=5 front=100.0 amplitude=7.215 min=-2.702 max=6.956 foam=0.493 slope_error=0.00083 trough_samples=8289
+scale=1 age=12 front=240.0 amplitude=10.100 min=-3.826 max=10.072 foam=0.584 slope_error=0.00014 trough_samples=5735
+scale=1 age=35 expired=1
+scale=10 age=1 front=63.2 amplitude=0.089 min=0.000 max=0.089 foam=0.004 slope_error=0.00000 trough_samples=0
+scale=10 age=5 front=316.2 amplitude=1.960 min=-0.199 max=1.896 foam=0.076 slope_error=0.00004 trough_samples=8256
+scale=10 age=12 front=758.9 amplitude=8.705 min=-3.307 max=8.681 foam=0.283 slope_error=0.00006 trough_samples=8305
+scale=10 age=35 front=2213.6 amplitude=18.499 min=-7.016 max=18.472 foam=0.641 slope_error=0.00019 trough_samples=5740

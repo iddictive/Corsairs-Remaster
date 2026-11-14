@@ -1,0 +1,12 @@
+sea 0.12 0 median 0.017 ms p90 0.018 ms
+sea 0.12 1 median 0.377 ms p90 0.381 ms
+sea 0.55 0 median 0.018 ms p90 0.018 ms
+sea 0.55 1 median 0.400 ms p90 0.425 ms
+sea 4.50 0 median 0.020 ms p90 0.024 ms
+sea 4.50 1 median 0.023 ms p90 0.024 ms
+land 0.12 0 median 0.026 ms p90 0.031 ms
+land 0.12 1 median 0.680 ms p90 0.681 ms
+land 0.55 0 median 0.041 ms p90 0.043 ms
+land 0.55 1 median 0.976 ms p90 0.978 ms
+land 4.50 0 median 0.040 ms p90 0.043 ms
+land 4.50 1 median 0.040 ms p90 0.043 ms

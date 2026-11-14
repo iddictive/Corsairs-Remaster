@@ -1,0 +1,51 @@
+# isolated model; source sha256:
+# bf72c5c938b6e1dc1a04f6573f801f507b37e2259f91f6429821a4ff74895b6f experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp
+# 0e8fe26b5fa1c5dece1241cc0a75e7dd78ff0156462bfdd06225fed8e3f8e3c2 experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp
+# b826f219bcb6fe6b624d95c5738cd2f13457a02ec4431d86cf91433659fc9533 experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp
+# 33455185634373ac438c3cf0d90bd026b46910f08c8e028147234cfd9c887d8e experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept.hpp
+# 6cc05ccfc575fc0a22cb2c42ceb33d1fe4125809e68e6757fa11b1109b0bc2a6 experiments/native-metal/engine/src/libs/ship/src/phonk_air_intercept_batch.hpp
+# bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a experiments/native-metal/engine/src/libs/math/include/c_vector.h
+# 99858d32ca4cb38669508ab82a5070ad1cfacf5163d6cd291f91319fc12932e4 docs/evidence/pantsir-proximity-20261113/matrix_driver.cpp
+# 3b4d238625175abceefe2903aa16bfb595507b70d08fec97ede2a06cd5a0f6c6 docs/evidence/pantsir-proximity-20261113/matrix.py
+# seed=1 trials_per_cell=500; detector radius in metres; fuse 2–7 ms; reaction 50–250 ms
+range_m,attack,defense,attacks,acquired,launches,hits,hit_per_attack_percent,armed,evaded
+800,Kinzhal,Pantsir,500,500,56,7,1.40,8,55
+800,Kinzhal,Patriot,500,500,457,0,0.00,1,457
+800,Kalibr,Pantsir,500,500,495,231,46.20,234,7
+800,Kalibr,Patriot,500,500,500,479,95.80,484,8
+800,Shtorm,Pantsir,500,500,500,260,52.00,263,0
+800,Shtorm,Patriot,500,500,500,476,95.20,477,0
+800,Oreshnik,Pantsir,500,500,0,0,0.00,0,0
+800,Oreshnik,Patriot,500,500,73,0,0.00,0,0
+1600,Kinzhal,Pantsir,500,500,491,78,15.60,85,471
+1600,Kinzhal,Patriot,500,500,500,288,57.60,304,500
+1600,Kalibr,Pantsir,500,500,500,145,29.00,149,32
+1600,Kalibr,Patriot,500,500,500,489,97.80,491,32
+1600,Shtorm,Pantsir,500,500,500,237,47.40,237,0
+1600,Shtorm,Patriot,500,500,500,489,97.80,492,0
+1600,Oreshnik,Pantsir,500,500,9,4,0.80,6,0
+1600,Oreshnik,Patriot,500,500,349,0,0.00,0,0
+2400,Kinzhal,Pantsir,500,500,500,66,13.20,69,486
+2400,Kinzhal,Patriot,500,500,500,436,87.20,447,500
+2400,Kalibr,Pantsir,500,500,500,102,20.40,105,57
+2400,Kalibr,Patriot,500,500,500,487,97.40,494,67
+2400,Shtorm,Pantsir,500,500,500,210,42.00,212,0
+2400,Shtorm,Patriot,500,500,500,491,98.20,494,0
+2400,Oreshnik,Pantsir,500,500,126,24,4.80,29,0
+2400,Oreshnik,Patriot,500,500,482,46,9.20,72,0
+4000,Kinzhal,Pantsir,500,500,500,21,4.20,22,379
+4000,Kinzhal,Patriot,500,500,500,452,90.40,474,500
+4000,Kalibr,Pantsir,500,500,500,100,20.00,105,119
+4000,Kalibr,Patriot,500,500,500,487,97.40,497,134
+4000,Shtorm,Pantsir,500,500,500,156,31.20,160,0
+4000,Shtorm,Patriot,500,500,500,487,97.40,497,0
+4000,Oreshnik,Pantsir,500,500,443,86,17.20,116,0
+4000,Oreshnik,Patriot,500,500,500,381,76.20,468,0
+8000,Kinzhal,Pantsir,500,500,500,2,0.40,2,240
+8000,Kinzhal,Patriot,500,500,500,422,84.40,452,500
+8000,Kalibr,Pantsir,500,500,500,82,16.40,82,119
+8000,Kalibr,Patriot,500,500,500,490,98.00,497,134
+8000,Shtorm,Pantsir,500,500,500,0,0.00,0,0
+8000,Shtorm,Patriot,500,500,500,488,97.60,500,0
+8000,Oreshnik,Pantsir,500,500,499,38,7.60,55,0
+8000,Oreshnik,Patriot,500,500,500,341,68.20,440,0

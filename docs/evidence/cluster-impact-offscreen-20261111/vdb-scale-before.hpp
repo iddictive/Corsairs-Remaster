@@ -1,0 +1,319 @@
+#pragma once
+#import <Metal/Metal.h>
+#include <simd/simd.h>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <vector>
+
+namespace storm_metal {
+
+// A stateless, depth-occluded impact volume. The caller owns impact lifetimes,
+// ordering, visibility and a frame-wide budget. Coordinates follow the existing
+// nuclear renderer: center is game space, worldOrigin is the renderer's rebase.
+enum class ClusterImpactSurface : unsigned { Sea = 0, Land = 1 };
+inline constexpr float clusterImpactLifetime = 4.0f;
+inline constexpr float clusterImpactLife(unsigned warhead) { return warhead == 4 ? 6.5f : clusterImpactLifetime; }
+
+inline constexpr const char *clusterImpactMSL = R"MSL(
+#include <metal_stdlib>
+using namespace metal;
+struct ClusterImpactUniforms { float4x4 inverseVP; float4 eye, centerRadius, params, viewport, incoming, volumeParams; };
+vertex float4 cluster_impact_vs(uint i [[vertex_id]]) {
+    constexpr float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)};
+    return float4(p[i],0,1);
+}
+float ciNoise(float3 p,texture3d<float> noise) {
+    constexpr sampler s(coord::normalized,address::repeat,filter::linear);
+    float3 i=floor(p), f=fract(p); f=f*f*(3-2*f);
+    return noise.sample(s,(i+f+.5)/64.).r;
+}
+float3 ciUnproject(float2 pixel,float d,constant ClusterImpactUniforms &u) {
+    float2 ndc=(pixel-u.viewport.xy)/u.viewport.zw*float2(2,-2)+float2(-1,1);
+    float4 p=u.inverseVP*float4(ndc,d,1); return p.xyz/p.w;
+}
+float ciRand(float x) { return fract(sin(x*91.733+17.17)*43758.5453); }
+// Exact ray/sphere coverage avoids stacked integration slices. Each fragment
+// evaluates the same finite set of ballistic 3D clumps and small droplets.
+float4 ciEject(float3 origin,float3 ray,float stop,float age,float land,float seed,float3 incoming,texture3d<float> noise) {
+    float optical=0.,spark=0.;
+    float fade=1-smoothstep(1.3,2.5,age);
+    // Continuous, oblique cores have analytic ray/segment coverage: no ray
+    // marching slices can produce rings. Surface detail comes from 3D noise.
+    for(uint j=0;j<5;j++) {
+        if(land<.5 && j>=4)break;
+        float id=float(j)+seed*13., a=ciRand(id+2.)*6.2831853;
+        float growth=1-exp(-age*(4.+ciRand(id+6.)));
+        float3 start=float3(cos(a)*.09,.03,sin(a)*.09);
+        float lateral=land>.5?.32+ciRand(id+4.)*.35:.40+ciRand(id+4.)*.42;
+        float height=land>.5?1.45+ciRand(id+5.)*.95:.70+ciRand(id+5.)*.70;
+        float3 axis=float3(cos(a)*lateral+incoming.x*.4,height,sin(a)*lateral+incoming.z*.4)*growth;
+        float3 w=origin-start;float b=dot(ray,axis),c=dot(axis,axis),d=dot(ray,w),e=dot(axis,w);
+        float denom=max(c-b*b,1e-5),along=(b*e-c*d)/denom;
+        float h=clamp((e+b*along)/max(c,1e-5),0.,1.);
+        along=dot(start+axis*h-origin,ray);
+        if(along>0. && along<stop) {
+            float3 q=origin+ray*along;float n=ciNoise(q*8.+float3(seed*9,-age,3),noise);
+            float detail=ciNoise(q*19.+float3(seed*7,age*1.3,11),noise);
+            float radius=(.055+.07*(1.-h))*(.55+.95*n)*(land>.5?1.:.60);
+            float dist=length(q-(start+axis*h));
+            float shape=1.-smoothstep(radius*.55,radius*1.35,dist);
+            float breakup=smoothstep(.58,.73,detail*.65+n*.35);
+            optical+=shape*breakup*.56*growth*fade*smoothstep(0.,.10,h)*(1.-smoothstep(.80,1.,h));
+        }
+    }
+    for(uint j=0;j<32;j++) {
+        float id=float(j)+seed*37.;
+        float a=ciRand(id+2.)*6.2831853;
+        float k=ciRand(id+7.), z=ciRand(id+13.);
+        float t=max(0.,age-ciRand(id+19.)*.20);
+        float radial=(land>.5?.25+1.15*k:.40+1.35*k)*t;
+        float height=(land>.5?2.1+2.4*z:.85+1.85*z)*t-(land>.5?1.15:1.65)*t*t;
+        float2 drift=incoming.xz*(.35*t+.1*t*t);
+        float3 c=float3(cos(a)*radial+drift.x,height+.06,sin(a)*radial+drift.y);
+        float r=land>.5?(j<10 ? .025+.025*ciRand(id+23.) : .009+.018*ciRand(id+23.)):(.011+.016*ciRand(id+23.));
+        r*=smoothstep(0.,.10,age)*(1.+t*.17);
+        float along=dot(c-origin,ray);
+        if(along>0. && along<stop && c.y>0.) {
+            float3 delta=origin+ray*along-c;
+            float rr=length(delta)/max(r,1e-4);
+            if(rr<1.35) {
+                float n=ciNoise((origin+ray*along)*8.+float3(seed*11.,-age*1.2,id),noise);
+                float shape=1.-smoothstep(.75,1.04,rr+(n-.5)*.18);
+                float light=.65+.35*n;
+                optical+=shape*light*(j<10?.65:.45)*fade;
+                if(j>=28) spark+=shape*.20*(1.-smoothstep(.45,1.2,age));
+            }
+        }
+    }
+    float opacity=(1.-exp(-optical))*(land>.5?1.:.8);
+    float3 tint=mix(float3(.80,.87,.90),float3(.44,.32,.21),land);
+    return float4(tint*opacity+float3(2.2,.9,.15)*spark,opacity);
+}
+// A short radial burst for fragmentation; rising, independently timed embers
+// for incendiary. Both intersect finite 3D streaks with the viewing ray.
+uint ciBits(uint x) { x^=x>>16;x*=0x7feb352du;x^=x>>15;x*=0x846ca68bu;x^=x>>16;return x; }
+float2 ciPair(uint x) { return float2(x&65535u,x>>16)*(1./65535.); }
+float4 ciWarheadSparks(float3 origin,float3 ray,float stop,float age,float kind,float seed) {
+    if(kind<2.5 || (kind<3.5 && age>1.4)) return 0;
+    float light=0;
+    for(uint j=0;j<24;j++) {
+        if(kind>3.5 && j>=16) break;
+        uint hash=ciBits(as_type<uint>(seed)^(j*0x9e3779b9u));
+        float2 ra=ciPair(hash),rb=ciPair(ciBits(hash+1u)),rc=ciPair(ciBits(hash+2u));
+        float2 re=ciPair(ciBits(hash+3u)),rf=ciPair(ciBits(hash+4u));
+        float2 dir=normalize(ra*2.-1.+float2(1e-4,0));
+        float4 motion=float4(dir,rb),style=float4(rc,re),life=float4(rf,0,0);
+        float t=kind<3.5?max(0.,age-style.x*.13):fract(age*(.38+.28*life.x)+life.y)*1.7;
+        float speed=kind<3.5 ? 1.6+2.6*motion.z : .2+.55*motion.z;
+        float temperature=exp(-t*(kind<3.5?1.6:.85));
+        float y=kind<3.5 ? (.7+2.*motion.w)*t-1.2*t*t : .15+(1.+motion.w)*t+.22*temperature*t*t;
+        float spread=kind<3.5?speed*(t+.025+.04*style.x):speed*t;
+        float3 point=float3(dir.x*spread,y,dir.y*spread);
+        float streakLength=.025+.12*style.y;
+        float3 trail=kind<3.5?normalize(float3(dir.x*speed,.7+2.*motion.w-2.4*t,dir.y*speed))*streakLength:float3(dir.x*.02,.035+streakLength*.45,dir.y*.02);
+        float3 start=point-trail,axis=trail;float3 w=origin-start;
+        float b=dot(ray,axis),c=dot(axis,axis),d=dot(ray,w),e=dot(axis,w);
+        float along=(b*e-c*d)/max(c-b*b,1e-6),h=clamp((e+b*along)/max(c,1e-6),0.,1.);
+        along=dot(start+axis*h-origin,ray);
+        if(along>0 && along<stop && point.y>0) {
+            float dist=length(origin+ray*along-(start+axis*h));
+            float width=(kind<3.5?.006:.004)*(0.6+.9*style.z);
+            float shape=1-smoothstep(width*.5,width*1.8,dist);
+            float fade=kind<3.5 ? 1-smoothstep(.55,1.4,age) : (1-smoothstep(1.1,1.7,t))*(1-smoothstep(5.2,6.5,age));
+            light+=shape*fade*(.35+.65*style.w)*(.4+.6*temperature)*smoothstep(0.,.08,stop-along);
+        }
+    }
+    float alpha=1-exp(-light*.8); return float4(float3(3.5,1.25,.16)*alpha,alpha);
+}
+fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpactUniforms &u [[buffer(0)]],
+                                  depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],texture2d<float> atlas [[texture(2)]],texture3d<float> volumeA [[texture(4)]],texture3d<float> volumeB [[texture(5)]]) {
+    uint2 ij=min(uint2(pixel.xy),uint2(depth.get_width()-1,depth.get_height()-1));
+    float d=depth.read(ij), radius=u.centerRadius.w;
+    float3 ray=normalize(ciUnproject(pixel.xy,1,u)-u.eye.xyz);
+    float stop=d<1 ? max(0.,dot(ciUnproject(pixel.xy,d,u)-u.eye.xyz,ray))/radius : 1e7;
+    float3 origin=(u.eye.xyz-u.centerRadius.xyz)/radius;
+    float3 safe=select(ray,select(float3(-1e-6),float3(1e-6),ray>=0),abs(ray)<1e-6);
+    float bound=u.params.w==3 && u.params.x<1.4 ? clamp(.4+4.2*u.params.x,2.,4.) : 2.0;
+    float3 a=(float3(-bound,-.2,-bound)-origin)/safe, b=(float3(bound,2.8,bound)-origin)/safe;
+    float3 lo=min(a,b),hi=max(a,b);
+    float near=max(0.,max(lo.x,max(lo.y,lo.z))),far=min(stop,min(hi.x,min(hi.y,hi.z)));
+    if(far<=near) return 0;
+    float age=u.params.x*(.78+.44*fract(abs(u.params.z)*.618));
+    constexpr sampler volumeSampler(coord::normalized,address::clamp_to_edge,filter::linear);
+    float step=(far-near)/16., trans=1.; float3 color=0;
+    float jitter=.25+.5*fract(sin(dot(floor(pixel.xy),float2(12.9898,78.233)))*43758.5453);
+    float angle=u.volumeParams.y,ca=cos(angle),sa=sin(angle);
+    for(uint i=0;i<16;i++) {
+        float3 p=origin+ray*(near+(float(i)+jitter)*step);
+        float3 uv=float3((ca*p.x-sa*p.z)/(2.0*u.volumeParams.z)+.5,p.y/(2.8*u.volumeParams.w),(sa*p.x+ca*p.z)/(2.0/u.volumeParams.z)+.5);
+        if(any(uv<0.)||any(uv>1.))continue;
+        float2 f=mix(volumeA.sample(volumeSampler,uv).rg,volumeB.sample(volumeSampler,uv).rg,u.volumeParams.x)*float2(2.,8.);
+        // A short, spatial initiation flash covers the first simulated frames;
+        // the authored volume remains the evolving body of the explosion.
+        float3 flashOffset=p-float3(0,.16,0);
+        float flash=0.;
+        float density=f.x*3.2+f.y*.35+flash*1.5;
+        float alpha=1-exp(-density*step);
+        float3 smoke=mix(float3(.24,.27,.30),float3(.30,.25,.20),u.params.y)*(.55+.45*uv.y);
+        float3 emission=mix(float3(1.7,.18,.015),float3(4.0,2.2,.65),saturate(f.y*.3));
+        float3 light=smoke*f.x*3.2+emission*f.y*.35+float3(5.,3.4,1.5)*flash*1.5;
+        color+=trans*alpha*light/max(density,1e-4); trans*=1-alpha;
+        if(trans<.025)break;
+    }
+    // The old sea-impact ejecta layer produced oversized opaque blobs over
+    // the explosion. Keep land debris; ordinary sea rendering is independent.
+    float4 eject=u.params.y>.5?ciEject(origin,ray,stop,age,u.params.y,u.params.z,u.incoming.xyz,noise):float4(0);
+    float4 volume=float4(color,1-trans);
+    float4 spray=eject;
+    // Ejecta is a separate approximate layer, so it has no per-droplet sort
+    // against the volume. Keep spray away from pixels occupied by hot fire.
+    spray*=1.-smoothstep(.12,.50,color.r);
+    float4 combined=spray+volume*(1-spray.a);
+    float4 sparks=ciWarheadSparks(origin,ray,stop,age,u.params.w,u.params.z);
+    return sparks+combined*(1-sparks.a);
+}
+)MSL";
+
+struct ClusterImpactUniforms {
+    simd_float4x4 inverseVP;
+    simd_float4 eye, centerRadius, params, viewport, incoming, volumeParams;
+};
+static_assert(sizeof(ClusterImpactUniforms)==160);
+
+class ClusterImpactRenderer {
+    id<MTLLibrary> library = nil;
+    id<MTLRenderPipelineState> pipeline = nil;
+    id<MTLTexture> noise = nil;
+    id<MTLTexture> explosionAtlases[3] = {nil,nil,nil};
+    id<MTLTexture> sprayAtlas = nil;
+    std::array<id<MTLTexture>,19> volumeFrames{};
+    std::array<unsigned,19> volumeTimes{};
+    id<MTLDevice> volumeOwner = nil;
+    id<MTLDevice> owner = nil;
+    MTLPixelFormat format = MTLPixelFormatInvalid;
+    bool prepare(id<MTLDevice> device, MTLPixelFormat requested) {
+        if (owner != device) { owner=device; library=nil; pipeline=nil; noise=nil; format=MTLPixelFormatInvalid; }
+        if (pipeline && format==requested) return true;
+        NSError *error=nil;
+        if (!noise) {
+            constexpr unsigned side=64; std::vector<uint8_t> data(side*side*side); uint32_t seed=0x6d2b79f5u;
+            for(auto &v:data) { seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;v=uint8_t(seed>>24); }
+            auto t=[MTLTextureDescriptor new];t.textureType=MTLTextureType3D;t.pixelFormat=MTLPixelFormatR8Unorm;
+            t.width=t.height=t.depth=side;t.storageMode=MTLStorageModeShared;t.usage=MTLTextureUsageShaderRead;
+            noise=[device newTextureWithDescriptor:t];if(!noise)return false;
+            [noise replaceRegion:MTLRegionMake3D(0,0,0,side,side,side) mipmapLevel:0 slice:0 withBytes:data.data() bytesPerRow:side bytesPerImage:side*side];
+        }
+        if (!library) {
+            library=[device newLibraryWithSource:[NSString stringWithUTF8String:clusterImpactMSL] options:nil error:&error];
+            if (!library) { fprintf(stderr,"[StormMetal] cluster impact shader: %s\n",error.localizedDescription.UTF8String); return false; }
+        }
+        auto d=[MTLRenderPipelineDescriptor new];
+        d.vertexFunction=[library newFunctionWithName:@"cluster_impact_vs"];
+        d.fragmentFunction=[library newFunctionWithName:@"cluster_impact_fs"];
+        auto c=d.colorAttachments[0]; c.pixelFormat=requested; c.blendingEnabled=YES;
+        c.sourceRGBBlendFactor=c.sourceAlphaBlendFactor=MTLBlendFactorOne;
+        c.destinationRGBBlendFactor=c.destinationAlphaBlendFactor=MTLBlendFactorOneMinusSourceAlpha;
+        pipeline=[device newRenderPipelineStateWithDescriptor:d error:&error];
+        if(!pipeline) { fprintf(stderr,"[StormMetal] cluster impact pipeline: %s\n",error.localizedDescription.UTF8String); return false; }
+        format=requested; return true;
+    }
+public:
+    // Packed CIVDB01: magic, 19 little-endian frame numbers, then 19 64³ RG8 grids.
+    // No partial state is published if validation or allocation fails.
+    bool setVolumeData(id<MTLDevice> device,const void *bytes,size_t length) {
+        constexpr size_t count=19, header=12+count*4, frameBytes=64*64*64*2;
+        if(!device||!bytes||length!=header+count*frameBytes)return false;
+        auto data=static_cast<const uint8_t *>(bytes);
+        if(std::memcmp(data,"CIVDB01\0",8)!=0)return false;
+        auto read32=[](const uint8_t *p){return unsigned(p[0])|(unsigned(p[1])<<8)|(unsigned(p[2])<<16)|(unsigned(p[3])<<24);};
+        if(read32(data+8)!=count)return false;
+        std::array<unsigned,count> times{}; std::array<id<MTLTexture>,count> textures{};
+        for(size_t i=0;i<count;i++) {
+            times[i]=read32(data+12+i*4);
+            if(times[i]>199||(i&&times[i]<=times[i-1]))return false;
+        }
+        if(times.front()!=0||times.back()!=199)return false;
+        auto desc=[MTLTextureDescriptor new];desc.textureType=MTLTextureType3D;desc.pixelFormat=MTLPixelFormatRG8Unorm;
+        desc.width=desc.height=desc.depth=64;desc.storageMode=MTLStorageModeShared;desc.usage=MTLTextureUsageShaderRead;
+        for(size_t i=0;i<count;i++) {
+            textures[i]=[device newTextureWithDescriptor:desc];if(!textures[i])return false;
+            [textures[i] replaceRegion:MTLRegionMake3D(0,0,0,64,64,64) mipmapLevel:0 slice:0
+                withBytes:data+header+i*frameBytes bytesPerRow:128 bytesPerImage:8192];
+        }
+        volumeFrames=textures;volumeTimes=times;volumeOwner=device;return true;
+    }
+    // 5x5 Unity Labs Explosion atlas, uploaded as premultiplied RGBA with
+    // top-to-bottom image rows, no mipmaps. Retained by this renderer.
+    void setImpactAtlases(id<MTLTexture> first,id<MTLTexture> second,id<MTLTexture> third,id<MTLTexture> spray) {
+        explosionAtlases[0]=first;explosionAtlases[1]=second;explosionAtlases[2]=third;sprayAtlas=spray;
+    }
+    bool ready(id<MTLDevice> device,MTLPixelFormat color) {
+        if(!device||color==MTLPixelFormatInvalid||volumeOwner!=device||!volumeFrames[0]||!sprayAtlas||sprayAtlas.device!=device) return false;
+        for(auto atlas:explosionAtlases) if(!atlas||atlas.device!=device) return false;
+        return prepare(device,color);
+    }
+    // Call after opaque scene/depth is complete, outside any open encoder.
+    // radius is metres; age seconds; seed is stable for the impact lifetime.
+    // Returns false on invalid input or GPU setup failure, true for a culled draw.
+    bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,
+                const simd_float4x4 &view,const simd_float4x4 &projection,simd_float3 worldOrigin,
+                simd_float4 viewport,simd_float3 center,float radius,float age,ClusterImpactSurface surface,float seed,simd_float3 incoming,unsigned warhead=1) {
+        if(!device||!command||!target||!depth||!std::isfinite(seed)) return false;
+        const unsigned atlasIndex=unsigned(std::fmod(std::floor(std::fabs(double(seed))*19.),3.));
+        id<MTLTexture> explosionAtlas=explosionAtlases[atlasIndex];
+        if(!explosionAtlas||explosionAtlas.device!=device||!sprayAtlas||sprayAtlas.device!=device||target.sampleCount!=1||depth.sampleCount!=1||
+           target.width!=depth.width||target.height!=depth.height||!std::isfinite(radius)||radius<=0||
+           !std::isfinite(age)||age<0||!std::isfinite(seed)||
+           (surface!=ClusterImpactSurface::Sea&&surface!=ClusterImpactSurface::Land)||warhead<1||warhead>4) return false;
+        for(int i=0;i<3;i++) if(!std::isfinite(center[i])||!std::isfinite(worldOrigin[i])||!std::isfinite(incoming[i])) return false;
+        float directionLength=simd_length(incoming); if(!std::isfinite(directionLength)||directionLength<1e-5f) return false;
+        for(int i=0;i<4;i++) if(!std::isfinite(viewport[i])) return false;
+        if(viewport.z<=0||viewport.w<=0) return false;
+        if(age>=clusterImpactLife(warhead)) return true;
+        auto vp=simd_mul(projection,view); float det=simd_determinant(vp), vdet=simd_determinant(view);
+        if(!std::isfinite(det)||fabsf(det)<1e-12f||!std::isfinite(vdet)||fabsf(vdet)<1e-12f) return false;
+        const float variation=std::fmod(std::fabs(seed)*.754877666f,1.f);
+        // Visual extent is independent of the gameplay damage calculation.
+        if(warhead==2)radius*=.80f+.40f*variation;
+        ClusterImpactUniforms u{}; u.inverseVP=simd_inverse(vp); u.eye=simd_inverse(view).columns[3];
+        u.centerRadius=simd_make_float4(center+worldOrigin,radius);
+        u.params={age,surface==ClusterImpactSurface::Land?1.f:0.f,seed,float(warhead)}; u.viewport=viewport;u.incoming=simd_make_float4(incoming/directionLength,0);
+        if(volumeOwner!=device||!volumeFrames[0])return false;
+        const float volumeAge=age*(.78f+.44f*std::fmod(std::fabs(seed)*.618f,1.f));
+        const float frame=std::min(199.f,volumeAge*(warhead==4?20.f:49.75f));
+        size_t next=1;while(next+1<volumeTimes.size()&&frame>volumeTimes[next])++next;
+        const size_t prev=next-1;
+        const float mix=std::clamp((frame-volumeTimes[prev])/float(volumeTimes[next]-volumeTimes[prev]),0.f,1.f);
+        u.volumeParams={mix,seed*2.39996f,.80f+.40f*variation,.85f+.30f*std::fmod(std::fabs(seed)*.56984f,1.f)};
+        float left=viewport.x+viewport.z,top=viewport.y+viewport.w,right=viewport.x,bottom=viewport.y;
+        bool nearPlane=false;
+        const float bound=warhead==3 && age<1.4f?std::clamp(.4f+4.2f*age,2.f,4.f):2.f;
+        for(float x:{-bound,bound}) for(float y:{-.2f,2.8f}) for(float z:{-bound,bound}) {
+            auto clip=simd_mul(vp,simd_make_float4(u.centerRadius.xyz+simd_make_float3(x,y,z)*radius,1));
+            if(clip.w<=1e-5f||clip.z<=0) { nearPlane=true; continue; }
+            float px=viewport.x+(clip.x/clip.w*.5f+.5f)*viewport.z;
+            float py=viewport.y+(.5f-clip.y/clip.w*.5f)*viewport.w;
+            left=std::min(left,px);right=std::max(right,px);top=std::min(top,py);bottom=std::max(bottom,py);
+        }
+        if(nearPlane) { left=viewport.x;top=viewport.y;right=viewport.x+viewport.z;bottom=viewport.y+viewport.w; }
+        left=std::clamp(floorf(left)-2,0.f,float(target.width)); right=std::clamp(ceilf(right)+2,0.f,float(target.width));
+        top=std::clamp(floorf(top)-2,0.f,float(target.height)); bottom=std::clamp(ceilf(bottom)+2,0.f,float(target.height));
+        if(right<=left||bottom<=top) return true;
+        if(!prepare(device,target.pixelFormat)) return false;
+        auto pass=[MTLRenderPassDescriptor renderPassDescriptor];
+        pass.colorAttachments[0].texture=target; pass.colorAttachments[0].loadAction=MTLLoadActionLoad;
+        pass.colorAttachments[0].storeAction=MTLStoreActionStore;
+        auto encoder=[command renderCommandEncoderWithDescriptor:pass]; if(!encoder)return false;
+        [encoder setRenderPipelineState:pipeline];
+        [encoder setViewport:MTLViewport{viewport.x,viewport.y,viewport.z,viewport.w,0,1}];
+        [encoder setScissorRect:MTLScissorRect{NSUInteger(left),NSUInteger(top),NSUInteger(right-left),NSUInteger(bottom-top)}];
+        [encoder setFragmentBytes:&u length:sizeof(u) atIndex:0]; [encoder setFragmentTexture:depth atIndex:0]; [encoder setFragmentTexture:noise atIndex:1]; [encoder setFragmentTexture:explosionAtlas atIndex:2];
+        [encoder setFragmentTexture:volumeFrames[prev] atIndex:4];[encoder setFragmentTexture:volumeFrames[next] atIndex:5];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [encoder endEncoding];
+        return true;
+    }
+};
+}

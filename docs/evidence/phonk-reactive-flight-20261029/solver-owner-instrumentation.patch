@@ -1,0 +1,26 @@
+--- ship_reactive_jet.cpp
++++ ship_reactive_jet.cpp
+@@ -334,6 +334,7 @@
+         neighbors.push_back({uint64_t(id), other});
+         ships.push_back(ship); beforeVelocity.push_back(other.velocity); beforeAngular.push_back(other.angularVelocity);
+     }
++    const auto observedStart = body.pose.Pos();
+     if (!phonkJet.world->Step(body, phonkJet.forces, fluid, seconds, &neighbors, drive))
+     {
+         if (phonkJet.active && !phonkJet.preparationReported)
+@@ -342,6 +343,7 @@
+         phonkJet.preparationReported = true;
+         return true;
+     }
++    if (std::getenv("JET_FRAME_LOG")) std::fprintf(stderr,"SOLVED start=(%.9f,%.9f,%.9f) end=(%.9f,%.9f,%.9f)\n",observedStart.x,observedStart.y,observedStart.z,body.pose.Pos().x,body.pose.Pos().y,body.pose.Pos().z);
+     phonkJet.preparationReported = false;
+     phonkJet.active = true;
+     phonkJet.wet = phonkJet.world->Wet();
+@@ -351,6 +353,7 @@
+     State.vSpeed = CVECTOR(METERS2KNOTS(body.velocity.x*c-body.velocity.z*s), body.velocity.y,
+                            METERS2KNOTS(body.velocity.x*s+body.velocity.z*c));
+     State.vRotate = body.angularVelocity;
++    if (std::getenv("JET_FRAME_LOG")) std::fprintf(stderr,"PUBLISHED pos=(%.9f,%.9f,%.9f)\n",State.vPos.x,State.vPos.y,State.vPos.z);
+     if (!prediction)
+     {
+         CVECTOR consumedSpeed(0.f), consumedRotation(0.f);

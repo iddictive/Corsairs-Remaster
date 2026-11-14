@@ -1,0 +1,377 @@
+diff --git a/experiments/native-metal/engine/src/libs/sea/src/sea.cpp b/experiments/native-metal/engine/src/libs/sea/src/sea.cpp
+index 5b3f2cd..ca30756 100644
+--- a/experiments/native-metal/engine/src/libs/sea/src/sea.cpp
++++ b/experiments/native-metal/engine/src/libs/sea/src/sea.cpp
+@@ -1,6 +1,9 @@
+ #include "sea.h"
+ #include "weather_base.h"
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++extern "C" void StormMetalPublishSeaCamera(void *device, float depth);
++#endif
+ #include "ship_base.h"
+ #include "sea_geomorph.h"
+ #include "vai_objbase.h"
+@@ -212,6 +215,8 @@ void SEA::CreateVertexDeclaration()
+         {0, 12, storm_render::VertexComponent::Float3, storm_render::VertexMethod::Default, storm_render::VertexSemantic::Normal, 0},
+         {0, 24, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 0},
+         {0, 32, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 1},
++        {0, 40, storm_render::VertexComponent::Float2, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 2},
++        {0, 48, storm_render::VertexComponent::Float1, storm_render::VertexMethod::Default, storm_render::VertexSemantic::TexCoord, 3},
+         storm_render::vertexLayoutTerminator()};
+ 
+     rs->CreateVertexDeclaration(VertexElements, &vertexDecl_);
+@@ -703,11 +708,12 @@ void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev, uint32_t viewDimensi
+     int32_t iMaxLOD, iMinLOD;
+     const int32_t iSize = static_cast<int32_t>(viewDimension >> iLev);
+     const float fGSize = fGridStep * iSize;
++    const float nuclearHeightBound = NuclearWaveHeightBound();
+ 
+     const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
+-        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
++        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - nuclearHeightBound - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
+     const CVECTOR v2 = v1 + CVECTOR(fGSize,
+-        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + NuclearWaveHeightBound() + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
++        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + 2.f * nuclearHeightBound + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
+ 
+     if (!isVisibleBBox(vSeaCenterPos, v1, v2))
+         return;
+@@ -748,8 +754,11 @@ void SEA::ApplyTsunami(float x, float z, float &height, CVECTOR *normal, float *
+     height += sample.height + vortex.height + nuclear.height;
+     if (eventMaterial)
+     {
+-        eventMaterial[0] = std::max({sample.height / sample.amplitude, vortex.load, nuclear.load});
+-        eventMaterial[1] = std::max({sample.foam, vortex.foam, nuclear.foam});
++        eventMaterial[0] = std::max(sample.height / sample.amplitude, vortex.load);
++        eventMaterial[1] = std::max(sample.foam, vortex.foam);
++        eventMaterial[2] = nuclear.load;
++        eventMaterial[3] = nuclear.foam;
++        eventMaterial[4] = nuclear.height;
+     }
+     if (normal && (sample.height != 0.f || vortex.height != 0.f || nuclear.height != 0.f))
+     {
+@@ -781,7 +790,7 @@ void SEA::ApplyShipWake(float x, float z, float &height, CVECTOR *normal) const
+ {
+     const auto *snapshot=shipWake.snapshot.get();
+     if (!snapshot) return;
+-    const auto wave=snapshot->sample(x,z);
++    const auto wave=snapshot->sample(x,z,normal!=nullptr);
+     height+=wave.h;
+     if(normal && (wave.sx!=0.f||wave.sz!=0.f)) {
+         normal->x-=wave.sx*normal->y;
+@@ -1171,8 +1180,11 @@ void SEA::WaveXZBlock(SeaBlock &pB)
+             const auto eventSample = GetTsunamiSample(cx, cz);
+             const auto vortexSample = GetWhirlpoolSample(cx, cz);
+             const auto nuclear = NuclearWaveSample(cx, cz);
+-            pVSea[dwVIndex].eventMaterial[0] = std::max({eventSample.height / eventSample.amplitude, vortexSample.load, nuclear.load});
+-            pVSea[dwVIndex].eventMaterial[1] = std::max({eventSample.foam, vortexSample.foam, nuclear.foam});
++            pVSea[dwVIndex].eventMaterial[0] = std::max(eventSample.height / eventSample.amplitude, vortexSample.load);
++            pVSea[dwVIndex].eventMaterial[1] = std::max(eventSample.foam, vortexSample.foam);
++            pVSea[dwVIndex].eventMaterial[2] = nuclear.load;
++            pVSea[dwVIndex].eventMaterial[3] = nuclear.foam;
++            pVSea[dwVIndex].eventMaterial[4] = nuclear.height;
+ 
+             iIStart1++;
+         }
+@@ -1485,14 +1497,23 @@ void SEA::Realize(uint32_t dwDeltaTime)
+     vWorldOffset.y = 0.f;
+ #endif
+ 
+-    bUnderSea = false;
+-
+-    if (vCamPos.y < 0.0f && !whirlpool.Frame().active)
+-        bUnderSea = true;
+-
+-    if ((bStarted || tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) &&
+-        vCamPos.y < WaveXZ(vCamPos.x, vCamPos.z))
+-        bUnderSea = true;
++    // Update both physical wave maps before sampling. The reflection decision,
++    // renderer and audio all consume the same current camera-relative height.
++    uint64_t dwX;
++    RDTSC_B(dwX);
++    MetalCpuParallelFor(2, [this](size_t index) noexcept {
++        const float frame = index == 0 ? fFrame1 : fFrame2;
++        CalculateHeightMap(frame, 1.0f / 255.0f,
++                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
++        CalculateNormalMap(frame, 1.0f / 255.0f,
++                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
++    });
++    RDTSC_E(dwX);
++    const float cameraDepth = WaveXZ(vCamPos.x, vCamPos.z) - vCamPos.y;
++    bUnderSea = cameraDepth > 0.f;
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++    StormMetalPublishSeaCamera(rs->GetNativeDevice(), cameraDepth);
++#endif
+ 
+     if (!bUnderSea)
+         bUnderSeaStarted = false;
+@@ -1585,20 +1606,6 @@ void SEA::Realize(uint32_t dwDeltaTime)
+ 
+     memset(pIndices, 0xFF, NUM_VERTEXS * sizeof(pIndices[0]) * 3);
+ 
+-    uint64_t dwX;
+-    RDTSC_B(dwX);
+-    // SetEvent(hEventCalcMaps);
+-    // Independent immutable samples; join before buoyancy/mesh reads them.
+-    MetalCpuParallelFor(2, [this](size_t index) noexcept {
+-        const float frame = index == 0 ? fFrame1 : fFrame2;
+-        CalculateHeightMap(frame, 1.0f / 255.0f,
+-                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
+-        CalculateNormalMap(frame, 1.0f / 255.0f,
+-                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
+-    });
+-    RDTSC_E(dwX);
+-    // core.Trace("dwX = %d", dwX);
+-
+     aBlocks.clear();
+     BuildTree(0, 0, 0, viewDimension);
+     // aBlocks.QSort(SeaBlock::QSort);
+@@ -1771,12 +1778,13 @@ void SEA::Realize(uint32_t dwDeltaTime)
+         // Frenel K, Frenel Max
+         rs->SetVertexShaderConstantF(GC_FREE + 7, (const float *)&vec8, 1);
+         rs->SetVertexShaderConstantF(GC_FREE + 30, (const float *)&vec9, 1);
+-        // x identifies the extended 40-byte SEA layout even when the event is off.
++        // x identifies the extended SEA layout even when the event is off.
+         const auto &event = tsunami.Frame();
+         const CVECTOR4 eventState(1.f, event.envelope, event.age, event.amplitude);
+         const CVECTOR4 eventOrigin(vWorldOffset.x, vWorldOffset.z, event.originX, event.originZ);
+         const CVECTOR4 eventFront(event.directionX, event.directionZ, event.frontDistance, tsunami.SupportBound());
+-        const CVECTOR4 eventSeverity(event.severity, event.damageFraction, 0.f, 0.f);
++        const bool ordinaryFoam = !bSimpleSea && fFoamK > 0.0f && bFoamEnable && bIniFoamEnable;
++        const CVECTOR4 eventSeverity(event.severity, event.damageFraction, nuclearWavesActive ? 1.f : 0.f, ordinaryFoam ? 1.f : 0.f);
+         rs->SetVertexShaderConstantF(240, (const float *)&eventState, 1);
+         rs->SetVertexShaderConstantF(241, (const float *)&eventOrigin, 1);
+         rs->SetVertexShaderConstantF(242, (const float *)&eventFront, 1);
+@@ -2104,10 +2112,22 @@ void SEA::StartNuclearWave(float x, float z, unsigned /*slot*/, bool active, flo
+ {
+     if (!active || !std::isfinite(x) || !std::isfinite(z)) return;
+     const float scale = std::isfinite(lengthScale) ? std::clamp(lengthScale, 1.f, 10.f) : 1.f;
+-    unsigned nearby = 0;
+-    for (const auto &wave : nuclearWaves) {
+-        const float dx = wave.x - x, dz = wave.z - z;
+-        if (wave.active && wave.lengthScale == scale && dx * dx + dz * dz <= 25.f && ++nearby == 3) return;
++    const auto liveCount = std::count_if(nuclearWaves.begin(), nuclearWaves.end(),
++        [](const auto &wave) { return !wave.retiring; });
++    if (liveCount >= SeaNuclearWave::maxActiveWaves) {
++        // Keep the newest impact and let the oldest surface disappear smoothly.
++        // A bounded retirement reserve handles ordinary sustained bursts.
++        if (nuclearWaves.size() >= 2 * SeaNuclearWave::maxActiveWaves) {
++            const auto retiring = std::find_if(nuclearWaves.begin(), nuclearWaves.end(),
++                [](const auto &wave) { return wave.retiring; });
++            if (retiring != nuclearWaves.end()) nuclearWaves.erase(retiring);
++        }
++        const auto oldest = std::find_if(nuclearWaves.begin(), nuclearWaves.end(),
++            [](const auto &wave) { return !wave.retiring; });
++        if (oldest != nuclearWaves.end()) {
++            oldest->retiring = true;
++            oldest->retirementRemaining = SeaNuclearWave::retirementTime;
++        }
+     }
+     nuclearWaves.push_back({x, z, 0.f, 0.f, true, scale});
+     nuclearWavesActive = true;
+diff --git a/experiments/native-metal/engine/src/libs/sea/src/sea.h b/experiments/native-metal/engine/src/libs/sea/src/sea.h
+index 68d56fb..5af6f5e 100644
+--- a/experiments/native-metal/engine/src/libs/sea/src/sea.h
++++ b/experiments/native-metal/engine/src/libs/sea/src/sea.h
+@@ -29,7 +29,7 @@ class SEA : public SEA_BASE
+         CVECTOR vPos;
+         CVECTOR vNormal;
+         float tu, tv;
+-        float eventMaterial[2]; // normalized tsunami height, native breaking foam
++        float eventMaterial[5]; // tsunami/vortex, nuclear load/foam, nuclear height
+     };
+ 
+     struct SeaBlock
+diff --git a/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp b/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp
+index 0ea0a44..daedc23 100644
+--- a/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp
++++ b/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp
+@@ -6,25 +6,48 @@
+ // Small radial water crest; both the mesh and buoyancy sample this sea clock.
+ struct SeaNuclearWave
+ {
+-    static constexpr float speed = 70.f, width = 45.f, radius = 560.f;
+-    static constexpr float lifetime = radius / speed, maxHeight = 8.f;
++    static constexpr float speed = 20.f, width = 45.f, radius = 560.f;
++    static constexpr float maxHeight = 8.f;
++    static constexpr unsigned maxActiveWaves = 128;
++    static constexpr float retirementTime = .5f;
+     float x = 0.f, z = 0.f, age = 0.f, amplitude = 0.f;
+     bool active = false;
+     float lengthScale = 1.f;
+     float normalizedAmplitude = 0.f;
++    float retirementRemaining = 0.f;
++    bool retiring = false;
++    float front = 0.f, sampleWidth = width, innerSquared = 0.f, outerSquared = width * width;
++    float phaseSin = 0.f, phaseCos = 1.f;
+ 
+-    float Front() const { return age * speed * lengthScale; }
++    float Front() const { return front; }
++    float Lifetime() const { return radius * std::sqrt(lengthScale) / speed; }
+     void Advance(float seconds)
+     {
+         if (!active || !(seconds > 0.f) || !std::isfinite(seconds)) return;
+         age += seconds;
++        const float lifetime = Lifetime();
+         if (age >= lifetime) { active = false; amplitude = normalizedAmplitude = 0.f; return; }
++        front = age * speed * std::sqrt(lengthScale);
++        sampleWidth = width * lengthScale;
++        // The angular crest deformation can displace the support by 22%.
++        const float inner = std::max(0.f, front - sampleWidth * 1.22f);
++        const float outer = front + sampleWidth * 1.22f;
++        innerSquared = inner * inner;
++        outerSquared = outer * outer;
++        const float phase = age * .11f + x * .00131f + z * .00091f;
++        phaseSin = std::sin(phase);
++        phaseCos = std::cos(phase);
+         const auto smooth = [](float t) {
+             t = std::clamp(t, 0.f, 1.f);
+             return t * t * (3.f - 2.f * t);
+         };
+         normalizedAmplitude = smooth(age / .4f) * smooth((lifetime - age) / 1.5f) *
+                               (1.f - .65f * Front() / (radius * lengthScale));
++        if (retiring) {
++            retirementRemaining = std::max(0.f, retirementRemaining - seconds);
++            if (retirementRemaining <= 0.f) { active = false; amplitude = normalizedAmplitude = 0.f; return; }
++            normalizedAmplitude *= smooth(retirementRemaining / retirementTime);
++        }
+         amplitude = maxHeight * std::sqrt(lengthScale) * normalizedAmplitude;
+     }
+ };
+@@ -38,15 +61,38 @@ inline SeaNuclearWaveSample EvaluateSeaNuclearWave(const SeaNuclearWave &wave, f
+ {
+     if (!wave.active || wave.amplitude <= 0.f) return {};
+     const float dx = x - wave.x, dz = z - wave.z;
+-    const float width = wave.width * wave.lengthScale;
+-    const float outer = wave.Front() + width, inner = std::max(0.f, wave.Front() - width);
++    const float width = wave.sampleWidth;
++    const float front = wave.Front();
+     const float squared = dx * dx + dz * dz;
+-    if (squared >= outer * outer || (inner > 0.f && squared <= inner * inner)) return {};
++    if (squared >= wave.outerSquared || (wave.innerSquared > 0.f && squared <= wave.innerSquared)) return {};
+     const float distance = std::sqrt(squared);
+-    const float u = (distance - wave.Front()) / width;
++    const float nx = distance > .001f ? dx / distance : 1.f;
++    const float nz = distance > .001f ? dz / distance : 0.f;
++    const float cos2 = nx * nx - nz * nz, sin2 = 2.f * nx * nz;
++    const float cos3 = nx * (nx * nx - 3.f * nz * nz);
++    const float sin3 = nz * (3.f * nx * nx - nz * nz);
++    const float lobe = .65f * cos3 + .35f * (sin2 * wave.phaseCos + cos2 * wave.phaseSin);
++    const float lobeDerivative = -1.95f * sin3 + .7f * (cos2 * wave.phaseCos - sin2 * wave.phaseSin);
++    const float t = std::min(distance / width, 1.f);
++    const float ramp = t * t * (3.f - 2.f * t);
++    const float radialWarp = .22f * 6.f * t * (1.f - t) * lobe;
++    const float u = (distance - front) / width - .22f * ramp * lobe;
++    if (std::abs(u) >= 1.f) return {};
+     const float profile = 1.f - u * u;
+-    const float height = wave.amplitude * profile * profile;
+-    const float slope = distance > .001f ? -4.f * wave.amplitude * u * profile / (width * distance) : 0.f;
+-    const float load = wave.normalizedAmplitude * profile * profile;
+-    return {height, slope * dx, slope * dz, load * profile, load};
++    // A zero-integral crest and trough share one C1 surface with buoyancy.
++    const float shape = profile * profile * (1.f - 7.f * u * u);
++    const float height = wave.amplitude * shape;
++    const float derivative = -2.f * wave.amplitude * u * profile * (9.f - 21.f * u * u);
++    const float radialSlope = distance > .001f ? derivative * (1.f - radialWarp) / width : 0.f;
++    const float angularSlope = distance > .001f ? -derivative * .22f * ramp * lobeDerivative / distance : 0.f;
++    const float load = wave.normalizedAmplitude * std::max(0.f, shape);
++    const float crest = std::clamp((shape - .62f) / .34f, 0.f, 1.f);
++    float foam = 0.f;
++    if (crest > 0.f) {
++        const float patches = .6f * (sin3 * wave.phaseCos - cos3 * wave.phaseSin) + .4f * cos2;
++        const float broken = std::clamp((patches + .15f) * 2.f, 0.f, 1.f);
++        foam = wave.normalizedAmplitude * crest * crest * (3.f - 2.f * crest) * broken;
++    }
++    return {height, radialSlope * nx - angularSlope * nz,
++            radialSlope * nz + angularSlope * nx, foam, load};
+ }
+diff --git a/experiments/native-metal/sea_shaders.hpp b/experiments/native-metal/sea_shaders.hpp
+index 33c2361..eb117bc 100644
+--- a/experiments/native-metal/sea_shaders.hpp
++++ b/experiments/native-metal/sea_shaders.hpp
+@@ -73,9 +73,9 @@ struct SeaO {
+     float fog;
+     float3 surfaceNormal; float3 viewToEye; float3 waterBody;
+     float3 fogColor;
+-    float2 eventMaterial; float2 worldXZ;
++    float2 eventMaterial; float2 nuclearMaterial; float2 worldXZ;
+ };
+-struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;};
++struct SeaInput {float4 p;float3 n;float2 uv;float2 eventMaterial;float2 nuclearMaterial;float nuclearHeight;};
+ SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU& u) {
+     const device float* p=(const device float*)(bytes+index*stride);
+     SeaInput v;v.p=float4(p[0],p[1],p[2],1);v.n=float3(p[3],p[4],p[5]);v.uv=float2(p[6],p[7]);
+@@ -83,6 +83,8 @@ SeaInput seaInput(const device uchar* bytes,uint index,uint stride,constant SeaU
+     // The native SEA evaluator owns both values, including its event envelope.
+     // Existing 32-byte fixture vertices retain their ordinary material contract.
+     v.eventMaterial=(u.vc[240].x>.5f&&stride>=40u)?saturate(float2(p[8],p[9])):float2(0);
++    v.nuclearMaterial=(u.vc[240].x>.5f&&stride>=48u)?saturate(float2(p[10],p[11])):float2(0);
++    v.nuclearHeight=(u.vc[240].x>.5f&&stride>=52u)?p[12]:0.f;
+     return v;
+ }
+ float3 seaNormalize(float3 v) {return v*rsqrt(max(dot(v,v),1.e-20f));}
+@@ -92,7 +94,7 @@ SeaO seaBase(SeaInput v,constant SeaU& u) {
+     o.position=float4(dot(v.p,u.vc[24]),dot(v.p,u.vc[25]),dot(v.p,u.vc[26]),dot(v.p,u.vc[27]));
+     o.fog=exp2(-o.position.z*u.vc[1].w);
+     o.surfaceNormal=v.n;o.viewToEye=u.vc[23].xyz-v.p.xyz;
+-    o.eventMaterial=v.eventMaterial;o.worldXZ=v.p.xz+u.vc[241].xy;
++    o.eventMaterial=v.eventMaterial;o.nuclearMaterial=v.nuclearMaterial;o.worldXZ=v.p.xz+u.vc[241].xy;
+     o.fogColor=u.fogColor.rgb;
+     // The weather palette already combines authored pigment with the smoothed
+     // visible fog/ambient state. Convert it once at vertex frequency. Preserve
+@@ -141,7 +143,7 @@ vertex SeaO seasun_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0
+ vertex SeaO seafoam_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
+     SeaInput v=seaInput(bytes,id,u.stride,u);SeaO o=seaBase(v,u);seaBasis(o,v,u);
+     o.t0=o.t1;o.t1=o.t2;o.t2=o.t3;
+-    o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
++    o.t3=float4(v.uv*u.vc[3].z,max((v.p.y-v.nuclearHeight-u.vc[3].x)*u.vc[3].y,u.vc[0].x),0);
+     o.t4=float4(v.uv,u.vc[2].x,0);return o;
+ }
+ vertex SeaO sea3_vs(uint id [[vertex_id]],const device uchar* bytes [[buffer(0)]],constant SeaU& u [[buffer(1)]]) {
+@@ -249,13 +251,33 @@ float4 seaEventFoam(float4 authored,SeaO o,constant SeaU& u,texture2d<float> tex
+     float4 vortex=seaFog(float4(tint*(.67f+.33f*saturate(n.y)),coverage),o,u);
+     return mix(result,vortex,u.vc[245].w*(1.f-smoothstep(.86f,1.f,q)));
+ }
++float4 seaNuclearFoam(float4 base,SeaO o,constant SeaU& u,texture2d<float> texture,sampler state) {
++    // Nuclear foam is a separate additive contribution; ordinary event masks
++    // and their material path stay independent when the events overlap.
++    float2 uv=o.worldXZ/38.f;
++    float2 bend=float2(texture.sample(state,uv*.13f+float2(.31f,.67f)).r,
++                       texture.sample(state,uv*.19f+float2(.73f,.21f)).r)-.5f;
++    float pattern=antiTilingSampleNatural(texture,state,uv+bend,0x4e55434cu).r;
++    float coverage=o.nuclearMaterial.y*.65f*smoothstep(.3f,.75f,pattern);
++    if (coverage<=0.f) return base;
++    float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
++    float4 nuclear=seaFog(float4(tint*(.72f+.28f*saturate(seaNormalize(o.surfaceNormal).y)),coverage),o,u);
++    float alpha=base.a+nuclear.a;
++    return float4((base.rgb*base.a+nuclear.rgb*nuclear.a)/max(alpha,1.e-6f),min(alpha,1.f));
++}
++float4 seaCombinedFoam(float4 authored,SeaO o,constant SeaU& u,texture2d<float> texture,sampler state) {
++    bool ordinaryEvent=u.vc[240].y>0.f||u.vc[245].w>0.f;
++    if(u.vc[243].z>0.f&&u.stride>=48u&&!ordinaryEvent&&u.vc[243].w<=0.f) authored.a=0.f;
++    float4 result=ordinaryEvent?seaEventFoam(authored,o,u,texture,state):authored;
++    return u.vc[243].z>0.f&&u.stride>=48u?seaNuclearFoam(result,o,u,texture,state):result;
++}
+ fragment float4 seafoam_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {
+     // Original ps_1_4 computes a perturbed normal in r5 but never consumes it.
+     // Phase two samples the foam texture using unperturbed r3.xy, alpha=r3.z.
+     // Uniform admission keeps derivative evaluation coherent across quads.
+-    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u) {
++    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f||u.vc[243].z>0.f)&&u.stride>=40u) {
+         float4 authored=seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
+-        return seaEventFoam(authored,o,u,t[0],s[0]);
++        return seaCombinedFoam(authored,o,u,t[0],s[0]);
+     }
+     return seaFog(float4(t[0].sample(s[0],o.t3.xy).rgb,o.t3.z),o,u);
+ }
+@@ -279,8 +301,8 @@ float4 seaFoamModernColor(SeaO o,constant SeaU& u,array<texture2d<float>,8> t,ar
+     } else foam=t[0].sample(s[0],o.t3.xy);
+     float3 tint=u.weatherFoam.w>0?u.weatherFoam.rgb:float3(1);
+     // RGB follows available weather light; authored coverage and blending stay exact.
+-    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f)&&u.stride>=40u)
+-        return seaEventFoam(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),o,u,t[0],s[0]);
++    if(u.vc[240].x>.5f&&(u.vc[240].y>0.f||u.vc[245].w>0.f||u.vc[243].z>0.f)&&u.stride>=40u)
++        return seaCombinedFoam(seaFog(float4(foam.rgb*tint,o.t3.z),o,u),o,u,t[0],s[0]);
+     return seaFog(float4(foam.rgb*tint,o.t3.z),o,u);
+ }
+ fragment float4 seafoam_modern_fs(SeaO o [[stage_in]],constant SeaU& u [[buffer(1)]],array<texture2d<float>,8> t [[texture(0)]],array<sampler,8> s [[sampler(0)]]) {return seaFoamModernColor(o,u,t,s);}

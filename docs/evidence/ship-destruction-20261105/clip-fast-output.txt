@@ -1,0 +1,6 @@
+Brig1 first: CLIP_CELLS ok=1 ms=4.992; FASTCLIP ok=1 ms=3.327 skipped=2642 total=7797 old_entries=7797 new_entries=5155 diff_cells=0 old_payload=13836720 new_payload=5646736
+Brig1 restore: RESTORE old=1 fast=1 diff_cells=0
+Brig1 second: FASTCLIP_SECOND ok=1 ms=1.489 skipped=2036 diff=0 restored=1 restore_diff=0 payload=6206440
+Manowar1 first: CLIP_CELLS ok=1 ms=6.744; FASTCLIP ok=1 ms=4.549 skipped=3126 total=6250 old_entries=6250 new_entries=3124 diff_cells=0 old_payload=30772648 new_payload=20788408
+Manowar1 restore: RESTORE old=1 fast=1 diff_cells=0
+Manowar1 second: FASTCLIP_SECOND ok=1 ms=2.304 skipped=2968 diff=0 restored=1 restore_diff=0 payload=21173136

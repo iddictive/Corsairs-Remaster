@@ -1,0 +1,28 @@
+namespace storm::ship::material {
+inline storm_ship_structure::State hybridPlane(const storm_ship_structure::State &old,
+        const Surface &retained, const std::map<int,float> &wood, const Plane &plane) {
+    namespace ss=storm_ship_structure;
+    auto state=old; const auto &layout=*old.layout;
+    if(!plane.beams.empty() || plane.roughness!=0 || old.physicalCellHealth.size()!=layout.cells.size() ||
+       old.physicalBondHealth.size()!=layout.bonds.size()) return ss::seed(old.layout,retained,wood);
+    auto material=ss::detail::contactMaterial(retained,wood);
+    std::vector<int>side(layout.cells.size()); std::vector<uint8_t>needed(layout.cells.size());
+    const auto boundsSide=[&](const Bounds &box) {
+        const auto c=(box.lo+box.hi)*.5f, e=(box.hi-box.lo)*.5f, n=plane.normal;
+        const float d=storm_ship_hull::dot(n,c)-plane.distance;
+        const float r=std::abs(n.x)*e.x+std::abs(n.y)*e.y+std::abs(n.z)*e.z;
+        return d+r < -1e-5f ? -1 : d-r > 1e-5f ? 1 : 0;
+    };
+    for(size_t i=0;i<side.size();++i){side[i]=boundsSide(layout.cells[i].bounds);needed[i]=side[i]==0;}
+    for(const auto &b:layout.bonds) if(side[b.a]==0||side[b.b]==0||side[b.a]!=side[b.b]) needed[b.a]=needed[b.b]=1;
+    std::vector<uint32_t> tetra,chunk;
+    for(size_t i=0;i<needed.size();++i) if(needed[i]) {material->index.queryBounds(layout.cells[i].bounds,chunk);tetra.insert(tetra.end(),chunk.begin(),chunk.end());}
+    std::sort(tetra.begin(),tetra.end());tetra.erase(std::unique(tetra.begin(),tetra.end()),tetra.end());
+    ss::ContactMaterial subset;subset.tetrahedra.reserve(tetra.size());for(auto i:tetra)subset.tetrahedra.push_back(material->tetrahedra[i]);
+    auto measured=ss::detail::measure(layout,subset);std::vector<uint32_t>gridOf(layout.cells.size());
+    for(uint32_t g=0;g<layout.gridToCell.size();++g) if(layout.gridToCell[g]>=0) gridOf[layout.gridToCell[g]]=g;
+    for(size_t i=0;i<side.size();++i){float physical=old.physicalCellHealth[i];if(side[i]>0)physical=0;else if(needed[i])physical=float(std::clamp(measured.volume[gridOf[i]]/layout.cells[i].volume,0.,1.));state.physicalCellHealth[i]=physical;state.cellHealth[i]=std::min(old.cellHealth[i],physical);state.alive[i]=old.alive[i]&&physical>1e-6f;}
+    for(size_t i=0;i<layout.bonds.size();++i){const auto &b=layout.bonds[i];float physical=old.physicalBondHealth[i];if(state.physicalCellHealth[b.a]<=1e-6f||state.physicalCellHealth[b.b]<=1e-6f)physical=0;else if(side[b.a]==0||side[b.b]==0||side[b.a]!=side[b.b]){auto key=std::minmax(gridOf[b.a],gridOf[b.b]);auto found=measured.sections.find(key);const double section=found==measured.sections.end()?0:std::min(found->second.low,found->second.high);physical=float(std::clamp(section/b.section,0.,1.));}state.physicalBondHealth[i]=physical;state.bondHealth[i]=std::min(old.bondHealth[i],physical);}
+    state.contact=std::move(material);return state;
+}
+}

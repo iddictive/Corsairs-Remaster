@@ -1,0 +1,16 @@
+#include <cmath>
+#include <cassert>
+#include <cstdio>
+#include "c_vector.h"
+bool interceptorForwardSector(const CVECTOR &forward, const CVECTOR &origin, const CVECTOR &target)
+{
+    const float x = target.x - origin.x, z = target.z - origin.z;
+    const float forwardSquared = forward.x * forward.x + forward.z * forward.z;
+    const float distanceSquared = x * x + z * z;
+    if (!std::isfinite(forwardSquared) || !std::isfinite(distanceSquared) || forwardSquared < .001f) return false;
+    if (distanceSquared < .001f) return true;
+    // Allow a modest sector behind the beam, but not an almost-aft launch.
+    return forward.x * x + forward.z * z >= -.70710678f * std::sqrt(forwardSquared * distanceSquared);
+}
+
+int main(){CVECTOR f(0.f,0.f,1.f),o(0.f); for(float a:{0.f,90.f,134.f}){float r=a*3.14159265f/180.f;assert(interceptorForwardSector(f,o,CVECTOR(sinf(r),0.f,cosf(r))));}for(float a:{136.f,180.f}){float r=a*3.14159265f/180.f;assert(!interceptorForwardSector(f,o,CVECTOR(sinf(r),0.f,cosf(r))));}puts("forward sector: 0/90/134 allowed; 136/180 rejected");}

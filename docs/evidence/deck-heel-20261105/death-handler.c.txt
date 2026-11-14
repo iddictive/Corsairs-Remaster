@@ -1,0 +1,40 @@
+#define MSG_MODEL_RELEASE 1
+object Hero,AIBalls,SeaDeckCamera; ref pchar; int nMainCharacterIndex=0; bool bSeaActive=true; bool bAbordageStarted=true; bool claim=false; int ended=0; int removed=0; int camera=0;
+bool GreatRecipe_ClaimDeath(int index){return claim;}
+void PauseParticles(bool value){}
+void GameOver(string value){ended++;}
+void DeleteSeaEnvironment(){removed++;}
+void SeaCameras_SetDieCamera(){camera++;}
+int GetCharacterIndex(string value){return 7;}
+void GameOverE()
+{
+    if (GreatRecipe_ClaimDeath(nMainCharacterIndex)) return;
+	// вылетам у форта НЕТ -->
+    if (bSeaActive && !bAbordageStarted)
+    {
+		PauseParticles(true); //fix вылета у форта
+		SendMessage(&AIBalls, "l", MSG_MODEL_RELEASE);
+	}
+	// вылетам у форта НЕТ <--
+	GameOver("sea");
+	DeleteSeaEnvironment();
+}
+void DeckFall_Water()
+{
+	if (!CheckAttribute(&SeaDeckCamera, "DeckFall.waterPending") || sti(SeaDeckCamera.DeckFall.waterPending) == 0) return;
+	SeaDeckCamera.DeckFall.waterPending = 0;
+	if (!bSeaActive || bAbordageStarted) return;
+	SeaCameras_SetDieCamera();
+	int ghost = GetCharacterIndex("GhostCapt");
+	if (ghost >= 0 && CheckAttribute(pchar, "Killer.Index") && sti(pchar.Killer.Index) == ghost &&
+		CheckAttribute(pchar, "Ship.HP") && stf(pchar.Ship.HP) <= 0.0) return;
+	GameOverE();
+}
+int Run(){
+ makeref(pchar,Hero);DeleteAttribute(pchar,""); bSeaActive=false; SeaDeckCamera.DeckFall.waterPending=1; DeckFall_Water(); if(camera!=0) return 1; if(ended!=0) return 2;
+ bSeaActive=true; bAbordageStarted=true; SeaDeckCamera.DeckFall.waterPending=1; DeckFall_Water(); if(camera!=0) return 3;
+ bAbordageStarted=false; pchar.Killer.Index=7; pchar.Ship.HP=0; SeaDeckCamera.DeckFall.waterPending=1; DeckFall_Water(); if(camera!=1) return 4; if(ended!=0) return 5;
+ pchar.Killer.Index=4; claim=true; SeaDeckCamera.DeckFall.waterPending=1; DeckFall_Water(); if(camera!=2) return 6; if(ended!=0) return 7;
+ claim=false; SeaDeckCamera.DeckFall.waterPending=1; DeckFall_Water(); if(camera!=3) return 8; if(ended!=1) return 9; if(removed!=1) return 10; DeckFall_Water(); if(ended!=1) return 11;
+ return 0;
+}

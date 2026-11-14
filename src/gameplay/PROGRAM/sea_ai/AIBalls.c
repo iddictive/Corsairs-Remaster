@@ -350,7 +350,7 @@ void Ball_WaterHitEvent()
 	string splashAlias = "ball_splash";
 	if (iCharacterIndex < 0) splashAlias = "debris_splash";
 	int splashSound = Play3DSound(splashAlias, x, y, z);
-	if (iCharacterIndex < 0 && splashSound > 0) Sound_SetVolume(splashSound, 0.22);
+	if (iCharacterIndex < 0 && splashSound > 0) Sound_SetVolume(splashSound, 0.08);
 }
 
 void Ball_FortHit()

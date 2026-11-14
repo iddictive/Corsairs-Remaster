@@ -1,0 +1,18 @@
+authored_hull_parts=44206 native_weight_cwt=8000 capacity_cwt=1800
+CAPTURE ok=1 material=1 input_fingerprint=11230681268548776834 ms=0.017
+SPLIT complete=1 ms=2.333
+RAW ok=1 changed=1 fragments=2 ms=6.883
+EXACT_GEOMETRY ok=1 changed=1 fragments=2
+CLIP_CELLS ok=1 ms=5.651
+TRIM_CELLS ok=0 released=1
+TAG_WITHOUT_TRIM ok=1
+REBASE ms=0.277
+ENCODE ms=21.479 bytes=13836720
+PREPARE ok=1 changed=1 fragments=2 ms=52.609
+SIDES retained_max=0.000001103 released_min=-0.000000745 retained_vertices=71961 released_vertices=42948
+STAGE ok=1 ms=2.559
+COMMIT revision_before=1 after=2
+REBASE ms=0.317
+ENCODE ms=19.796 bytes=12518472
+SECOND prepare=1 changed=1 fragments=1 ms=51.266
+SECOND_COMMIT revision=3

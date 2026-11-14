@@ -331,12 +331,18 @@ class SHIP : public SHIP_BASE
 
   public:
     void ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning = false, std::size_t only = static_cast<std::size_t>(-1));
+    static void ExecutePhonkMissilesForOwner(SHIP *ship, entid_t fortModel, uint64_t generation,
+                                            uint32_t deltaTime, bool planning = false,
+                                            std::size_t only = static_cast<std::size_t>(-1));
+    static void DrawPhonkOrdnanceForOwner(SHIP *ship, entid_t fortModel, uint64_t generation);
     void FinishPhonkMissilesLate();
     static bool PreparePhonkAirFrame(const std::vector<entid_t> &ships);
     static void ResolvePhonkAirFrame(const std::vector<entid_t> &ships, uint32_t deltaTime);
     static void ExecutePhonkAirFrame(const std::vector<entid_t> &ships, uint32_t deltaTime);
     void FinishPhonkInterceptorsLate();
     bool FinishPhonkInterceptorLate(bool test, std::size_t index);
+    static bool FinishPhonkInterceptorForOwner(SHIP *ship, entid_t fortModel, uint64_t generation,
+                                                bool test, std::size_t index);
     layer_index_t GetMastContactLayer() const override { return ExecuteLayer; }
     bool GetMastContactFrame(SHIP_MAST_CONTACT_FRAME &frame) override;
     void ApplyMastContact(const SHIP_MAST_CONTACT_FRAME &frame,const SHIP_MAST_CONTACT &mast,

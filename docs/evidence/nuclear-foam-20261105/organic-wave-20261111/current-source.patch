@@ -1,0 +1,230 @@
+diff --git a/experiments/native-metal/engine/src/libs/sea/src/sea.cpp b/experiments/native-metal/engine/src/libs/sea/src/sea.cpp
+index 5b3f2cd..a543bce 100644
+--- a/experiments/native-metal/engine/src/libs/sea/src/sea.cpp
++++ b/experiments/native-metal/engine/src/libs/sea/src/sea.cpp
+@@ -1,6 +1,9 @@
+ #include "sea.h"
+ #include "weather_base.h"
+ #include "shared/sea_ai/manual_aim_volume_bridge.hpp"
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++extern "C" void StormMetalPublishSeaCamera(void *device, float depth);
++#endif
+ #include "ship_base.h"
+ #include "sea_geomorph.h"
+ #include "vai_objbase.h"
+@@ -703,11 +706,12 @@ void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev, uint32_t viewDimensi
+     int32_t iMaxLOD, iMinLOD;
+     const int32_t iSize = static_cast<int32_t>(viewDimension >> iLev);
+     const float fGSize = fGridStep * iSize;
++    const float nuclearHeightBound = NuclearWaveHeightBound();
+ 
+     const CVECTOR v1 = vSeaCenterPos + CVECTOR(iTX * fGSize,
+-        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
++        -fMaxSeaHeight / 2.0f - whirlpool.HeightBound() - nuclearHeightBound - (shipWake.snapshot ? shipWake.snapshot->heightBound : 0.f), iTY * fGSize);
+     const CVECTOR v2 = v1 + CVECTOR(fGSize,
+-        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + NuclearWaveHeightBound() + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
++        fMaxSeaHeight + tsunami.HeightBound() + 2.f * whirlpool.HeightBound() + 2.f * nuclearHeightBound + (shipWake.snapshot ? 2.f * shipWake.snapshot->heightBound : 0.f), fGSize);
+ 
+     if (!isVisibleBBox(vSeaCenterPos, v1, v2))
+         return;
+@@ -781,7 +785,7 @@ void SEA::ApplyShipWake(float x, float z, float &height, CVECTOR *normal) const
+ {
+     const auto *snapshot=shipWake.snapshot.get();
+     if (!snapshot) return;
+-    const auto wave=snapshot->sample(x,z);
++    const auto wave=snapshot->sample(x,z,normal!=nullptr);
+     height+=wave.h;
+     if(normal && (wave.sx!=0.f||wave.sz!=0.f)) {
+         normal->x-=wave.sx*normal->y;
+@@ -1485,14 +1489,23 @@ void SEA::Realize(uint32_t dwDeltaTime)
+     vWorldOffset.y = 0.f;
+ #endif
+ 
+-    bUnderSea = false;
+-
+-    if (vCamPos.y < 0.0f && !whirlpool.Frame().active)
+-        bUnderSea = true;
+-
+-    if ((bStarted || tsunami.Frame().active || whirlpool.Frame().active || nuclearWavesActive) &&
+-        vCamPos.y < WaveXZ(vCamPos.x, vCamPos.z))
+-        bUnderSea = true;
++    // Update both physical wave maps before sampling. The reflection decision,
++    // renderer and audio all consume the same current camera-relative height.
++    uint64_t dwX;
++    RDTSC_B(dwX);
++    MetalCpuParallelFor(2, [this](size_t index) noexcept {
++        const float frame = index == 0 ? fFrame1 : fFrame2;
++        CalculateHeightMap(frame, 1.0f / 255.0f,
++                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
++        CalculateNormalMap(frame, 1.0f / 255.0f,
++                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
++    });
++    RDTSC_E(dwX);
++    const float cameraDepth = WaveXZ(vCamPos.x, vCamPos.z) - vCamPos.y;
++    bUnderSea = cameraDepth > 0.f;
++#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
++    StormMetalPublishSeaCamera(rs->GetNativeDevice(), cameraDepth);
++#endif
+ 
+     if (!bUnderSea)
+         bUnderSeaStarted = false;
+@@ -1585,20 +1598,6 @@ void SEA::Realize(uint32_t dwDeltaTime)
+ 
+     memset(pIndices, 0xFF, NUM_VERTEXS * sizeof(pIndices[0]) * 3);
+ 
+-    uint64_t dwX;
+-    RDTSC_B(dwX);
+-    // SetEvent(hEventCalcMaps);
+-    // Independent immutable samples; join before buoyancy/mesh reads them.
+-    MetalCpuParallelFor(2, [this](size_t index) noexcept {
+-        const float frame = index == 0 ? fFrame1 : fFrame2;
+-        CalculateHeightMap(frame, 1.0f / 255.0f,
+-                           index == 0 ? pSeaFrame1 : pSeaFrame2, aBumps);
+-        CalculateNormalMap(frame, 1.0f / 255.0f,
+-                           index == 0 ? pSeaNormalsFrame1 : pSeaNormalsFrame2, aNormals);
+-    });
+-    RDTSC_E(dwX);
+-    // core.Trace("dwX = %d", dwX);
+-
+     aBlocks.clear();
+     BuildTree(0, 0, 0, viewDimension);
+     // aBlocks.QSort(SeaBlock::QSort);
+@@ -1776,7 +1775,7 @@ void SEA::Realize(uint32_t dwDeltaTime)
+         const CVECTOR4 eventState(1.f, event.envelope, event.age, event.amplitude);
+         const CVECTOR4 eventOrigin(vWorldOffset.x, vWorldOffset.z, event.originX, event.originZ);
+         const CVECTOR4 eventFront(event.directionX, event.directionZ, event.frontDistance, tsunami.SupportBound());
+-        const CVECTOR4 eventSeverity(event.severity, event.damageFraction, 0.f, 0.f);
++        const CVECTOR4 eventSeverity(event.severity, event.damageFraction, nuclearWavesActive ? 1.f : 0.f, 0.f);
+         rs->SetVertexShaderConstantF(240, (const float *)&eventState, 1);
+         rs->SetVertexShaderConstantF(241, (const float *)&eventOrigin, 1);
+         rs->SetVertexShaderConstantF(242, (const float *)&eventFront, 1);
+@@ -2104,10 +2103,22 @@ void SEA::StartNuclearWave(float x, float z, unsigned /*slot*/, bool active, flo
+ {
+     if (!active || !std::isfinite(x) || !std::isfinite(z)) return;
+     const float scale = std::isfinite(lengthScale) ? std::clamp(lengthScale, 1.f, 10.f) : 1.f;
+-    unsigned nearby = 0;
+-    for (const auto &wave : nuclearWaves) {
+-        const float dx = wave.x - x, dz = wave.z - z;
+-        if (wave.active && wave.lengthScale == scale && dx * dx + dz * dz <= 25.f && ++nearby == 3) return;
++    const auto liveCount = std::count_if(nuclearWaves.begin(), nuclearWaves.end(),
++        [](const auto &wave) { return !wave.retiring; });
++    if (liveCount >= SeaNuclearWave::maxActiveWaves) {
++        // Keep the newest impact and let the oldest surface disappear smoothly.
++        // A bounded retirement reserve handles ordinary sustained bursts.
++        if (nuclearWaves.size() >= 2 * SeaNuclearWave::maxActiveWaves) {
++            const auto retiring = std::find_if(nuclearWaves.begin(), nuclearWaves.end(),
++                [](const auto &wave) { return wave.retiring; });
++            if (retiring != nuclearWaves.end()) nuclearWaves.erase(retiring);
++        }
++        const auto oldest = std::find_if(nuclearWaves.begin(), nuclearWaves.end(),
++            [](const auto &wave) { return !wave.retiring; });
++        if (oldest != nuclearWaves.end()) {
++            oldest->retiring = true;
++            oldest->retirementRemaining = SeaNuclearWave::retirementTime;
++        }
+     }
+     nuclearWaves.push_back({x, z, 0.f, 0.f, true, scale});
+     nuclearWavesActive = true;
+diff --git a/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp b/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp
+index 0ea0a44..daedc23 100644
+--- a/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp
++++ b/experiments/native-metal/engine/src/libs/shared_headers/include/shared/sea_nuclear_wave.hpp
+@@ -6,25 +6,48 @@
+ // Small radial water crest; both the mesh and buoyancy sample this sea clock.
+ struct SeaNuclearWave
+ {
+-    static constexpr float speed = 70.f, width = 45.f, radius = 560.f;
+-    static constexpr float lifetime = radius / speed, maxHeight = 8.f;
++    static constexpr float speed = 20.f, width = 45.f, radius = 560.f;
++    static constexpr float maxHeight = 8.f;
++    static constexpr unsigned maxActiveWaves = 128;
++    static constexpr float retirementTime = .5f;
+     float x = 0.f, z = 0.f, age = 0.f, amplitude = 0.f;
+     bool active = false;
+     float lengthScale = 1.f;
+     float normalizedAmplitude = 0.f;
++    float retirementRemaining = 0.f;
++    bool retiring = false;
++    float front = 0.f, sampleWidth = width, innerSquared = 0.f, outerSquared = width * width;
++    float phaseSin = 0.f, phaseCos = 1.f;
+ 
+-    float Front() const { return age * speed * lengthScale; }
++    float Front() const { return front; }
++    float Lifetime() const { return radius * std::sqrt(lengthScale) / speed; }
+     void Advance(float seconds)
+     {
+         if (!active || !(seconds > 0.f) || !std::isfinite(seconds)) return;
+         age += seconds;
++        const float lifetime = Lifetime();
+         if (age >= lifetime) { active = false; amplitude = normalizedAmplitude = 0.f; return; }
++        front = age * speed * std::sqrt(lengthScale);
++        sampleWidth = width * lengthScale;
++        // The angular crest deformation can displace the support by 22%.
++        const float inner = std::max(0.f, front - sampleWidth * 1.22f);
++        const float outer = front + sampleWidth * 1.22f;
++        innerSquared = inner * inner;
++        outerSquared = outer * outer;
++        const float phase = age * .11f + x * .00131f + z * .00091f;
++        phaseSin = std::sin(phase);
++        phaseCos = std::cos(phase);
+         const auto smooth = [](float t) {
+             t = std::clamp(t, 0.f, 1.f);
+             return t * t * (3.f - 2.f * t);
+         };
+         normalizedAmplitude = smooth(age / .4f) * smooth((lifetime - age) / 1.5f) *
+                               (1.f - .65f * Front() / (radius * lengthScale));
++        if (retiring) {
++            retirementRemaining = std::max(0.f, retirementRemaining - seconds);
++            if (retirementRemaining <= 0.f) { active = false; amplitude = normalizedAmplitude = 0.f; return; }
++            normalizedAmplitude *= smooth(retirementRemaining / retirementTime);
++        }
+         amplitude = maxHeight * std::sqrt(lengthScale) * normalizedAmplitude;
+     }
+ };
+@@ -38,15 +61,38 @@ inline SeaNuclearWaveSample EvaluateSeaNuclearWave(const SeaNuclearWave &wave, f
+ {
+     if (!wave.active || wave.amplitude <= 0.f) return {};
+     const float dx = x - wave.x, dz = z - wave.z;
+-    const float width = wave.width * wave.lengthScale;
+-    const float outer = wave.Front() + width, inner = std::max(0.f, wave.Front() - width);
++    const float width = wave.sampleWidth;
++    const float front = wave.Front();
+     const float squared = dx * dx + dz * dz;
+-    if (squared >= outer * outer || (inner > 0.f && squared <= inner * inner)) return {};
++    if (squared >= wave.outerSquared || (wave.innerSquared > 0.f && squared <= wave.innerSquared)) return {};
+     const float distance = std::sqrt(squared);
+-    const float u = (distance - wave.Front()) / width;
++    const float nx = distance > .001f ? dx / distance : 1.f;
++    const float nz = distance > .001f ? dz / distance : 0.f;
++    const float cos2 = nx * nx - nz * nz, sin2 = 2.f * nx * nz;
++    const float cos3 = nx * (nx * nx - 3.f * nz * nz);
++    const float sin3 = nz * (3.f * nx * nx - nz * nz);
++    const float lobe = .65f * cos3 + .35f * (sin2 * wave.phaseCos + cos2 * wave.phaseSin);
++    const float lobeDerivative = -1.95f * sin3 + .7f * (cos2 * wave.phaseCos - sin2 * wave.phaseSin);
++    const float t = std::min(distance / width, 1.f);
++    const float ramp = t * t * (3.f - 2.f * t);
++    const float radialWarp = .22f * 6.f * t * (1.f - t) * lobe;
++    const float u = (distance - front) / width - .22f * ramp * lobe;
++    if (std::abs(u) >= 1.f) return {};
+     const float profile = 1.f - u * u;
+-    const float height = wave.amplitude * profile * profile;
+-    const float slope = distance > .001f ? -4.f * wave.amplitude * u * profile / (width * distance) : 0.f;
+-    const float load = wave.normalizedAmplitude * profile * profile;
+-    return {height, slope * dx, slope * dz, load * profile, load};
++    // A zero-integral crest and trough share one C1 surface with buoyancy.
++    const float shape = profile * profile * (1.f - 7.f * u * u);
++    const float height = wave.amplitude * shape;
++    const float derivative = -2.f * wave.amplitude * u * profile * (9.f - 21.f * u * u);
++    const float radialSlope = distance > .001f ? derivative * (1.f - radialWarp) / width : 0.f;
++    const float angularSlope = distance > .001f ? -derivative * .22f * ramp * lobeDerivative / distance : 0.f;
++    const float load = wave.normalizedAmplitude * std::max(0.f, shape);
++    const float crest = std::clamp((shape - .62f) / .34f, 0.f, 1.f);
++    float foam = 0.f;
++    if (crest > 0.f) {
++        const float patches = .6f * (sin3 * wave.phaseCos - cos3 * wave.phaseSin) + .4f * cos2;
++        const float broken = std::clamp((patches + .15f) * 2.f, 0.f, 1.f);
++        foam = wave.normalizedAmplitude * crest * crest * (3.f - 2.f * crest) * broken;
++    }
++    return {height, radialSlope * nx - angularSlope * nz,
++            radialSlope * nz + angularSlope * nx, foam, load};
+ }

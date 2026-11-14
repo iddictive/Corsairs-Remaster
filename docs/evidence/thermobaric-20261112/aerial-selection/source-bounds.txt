@@ -1,0 +1,75 @@
+Name: density
+  Max value: 0.0825806
+  Bounding box of active voxels: [212, 213, 106] -> [300, 300, 195]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.0666667
+Name: flames
+  Max value: 1.4375
+  Bounding box of active voxels: [212, 213, 107] -> [300, 300, 195]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.0666667
+Name: temperature
+  Max value: 5384
+  Bounding box of active voxels: [212, 213, 106] -> [300, 300, 195]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.0666667
+Name: density
+  Max value: 0.503906
+  Bounding box of active voxels: [140, 134, 38] -> [370, 372, 274]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.4
+Name: flames
+  Max value: 5.82812
+  Bounding box of active voxels: [141, 136, 39] -> [367, 371, 273]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.4
+Name: temperature
+  Max value: 6960
+  Bounding box of active voxels: [140, 134, 38] -> [370, 372, 274]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.4
+Name: density
+  Max value: 1
+  Bounding box of active voxels: [98, 84, 20] -> [408, 463, 368]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.9
+Name: flames
+  Max value: 7.50391
+  Bounding box of active voxels: [100, 86, 53] -> [408, 459, 367]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.9
+Name: temperature
+  Max value: 9880
+  Bounding box of active voxels: [98, 84, 20] -> [408, 463, 368]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 0.9
+Name: density
+  Max value: 0.868652
+  Bounding box of active voxels: [35, 33, 0] -> [474, 510, 425]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 1.4
+Name: flames
+  Max value: 8.34375
+  Bounding box of active voxels: [59, 44, 2] -> [472, 506, 423]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 1.4
+Name: temperature
+  Max value: 14840
+  Bounding box of active voxels: [35, 33, 0] -> [474, 510, 425]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 1.4
+Name: density
+  Max value: 0.79541
+  Bounding box of active voxels: [30, 30, 0] -> [480, 510, 439]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 1.73333
+Name: flames
+  Max value: 8.1875
+  Bounding box of active voxels: [92, 36, 7] -> [456, 492, 416]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 1.73333
+Name: temperature
+  Max value: 17632
+  Bounding box of active voxels: [30, 30, 0] -> [480, 510, 439]
+  original_texture_resolution: [511, 511, 703]
+  simulation_time: 1.73333

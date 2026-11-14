@@ -94,6 +94,9 @@ void PhonkMissile_Refresh()
 	SetNodeUsing("PHONK_MISSILES",missileList); SetSelectable("PHONK_MISSILES",missileList);
 	SetNodeUsing("PHONK_MISSILES_SCROLL",missileList); SetSelectable("PHONK_MISSILES_SCROLL",missileList);
 	for (i = 0; i < 8; i++) { bool shown = missileList && (sti(Sea.Phonk.MissileType) != 3 || i < 3 || i == 7); SetNodeUsing("PHONK_CONTROL" + i,shown); SetSelectable("PHONK_CONTROL" + i,shown); }
+	SetSelectable("PHONK_CONTROL7", false);
+	SetNodeUsing("PHONK_RANGE_SLIDE", missileList); SetSelectable("PHONK_RANGE_SLIDE", missileList);
+	if (missileList) SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_RANGE_SLIDE",1,390);
 	for (i = 0; i < 3; i++) { bool showSlide = PhonkMissileSection == 2 || PhonkMissileSection == 4 || (PhonkMissileSection == 3 && (i == 1 || i == 2)); SetNodeUsing("PHONK_SLIDE" + i, showSlide); SetSelectable("PHONK_SLIDE" + i, showSlide); }
 	if (PhonkMissileSection >= 2)
 	{
@@ -107,7 +110,7 @@ void PhonkMissile_Refresh()
 		}
 		else
 		{
-			SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",1,495);
+			SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",1,490);
 			SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",1,31);
 		}
 	}
@@ -124,6 +127,7 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL5",0,"#Ускорение -");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL6",0,"#Ускорение +");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL7",0,"#Дальность: " + sti(Sea.Phonk.MissileRange) + " м");
+		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_RANGE_SLIDE",3,(stf(Sea.Phonk.MissileRange)-500.0)/19500.0 + 0.000001);
 		label = "Выбрана: " + SeaPhonk_MissileName(sti(Sea.Phonk.MissileType));
 		string missilePath = "SeaPhonk.Missile" + sti(Sea.Phonk.MissileType) + ".";
 		if (sti(Sea.Phonk.MissileType) != 3) label += NewStr() + "Скорость: x" + FloatToString(PhonkMissile_Multiplier(missilePath + "Speed"), 2) + "   Ускорение: x" + FloatToString(PhonkMissile_Multiplier(missilePath + "Acceleration"), 2);
@@ -189,12 +193,11 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION6",0,"#Одновременно в воздухе: " + sti(Sea.Phonk.AirDefenseMax));
 		label = "Панцирь";
 		if (sti(Sea.Phonk.AirDefenseType) == 1) label = "Patriot";
-		if (sti(Sea.Phonk.AirDefenseType) == 2) label = "Панцирь + Patriot";
 		if (sti(Sea.Phonk.AirDefenseType) == 3) label = "Панцирь + Patriot 10%";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#Перехватчик: " + label);
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION11",0,"#Макс. на цель: " + sti(Sea.Phonk.AirDefensePerTarget));
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE0",3,(stf(Sea.Phonk.AirDefenseRange)-400.0)/7600.0 + 0.000001);
-		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(Sea.Phonk.AirDefenseInterval)-0.05)/4.95 + 0.000001);
+		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(Sea.Phonk.AirDefenseInterval)-0.1)/4.9 + 0.000001);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",3,(stf(Sea.Phonk.AirDefenseMax)-1.0)/31.0 + 0.000001);
 		label = "Интервал между пусками: " + FloatToString(stf(Sea.Phonk.AirDefenseInterval), 2) + " с" + NewStr() + "Одновременно в воздухе: " + sti(Sea.Phonk.AirDefenseMax);
 	}
@@ -229,13 +232,12 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION4",0,"#Интервал: " + FloatToString(stf(pchar.SeaPhonk.Spawn.DefenseInterval), 2) + " с");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION6",0,"#В воздухе: " + sti(pchar.SeaPhonk.Spawn.DefenseMax));
 		label = "случайный"; if (sti(pchar.SeaPhonk.Spawn.AirDefenseType) == 0) label = "Панцирь"; if (sti(pchar.SeaPhonk.Spawn.AirDefenseType) == 1) label = "Patriot";
-		if (sti(pchar.SeaPhonk.Spawn.AirDefenseType) == 3) label = "Панцирь + Patriot";
 		if (sti(pchar.SeaPhonk.Spawn.AirDefenseType) == 4) label = "Панцирь + Patriot 10%";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#Перехватчик: " + label);
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION8",0,"#Создать врага");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION9",0,"#Создать союзника");
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE0",3,(stf(pchar.SeaPhonk.Spawn.DefenseRange)-400.0)/7600.0 + 0.000001);
-		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(pchar.SeaPhonk.Spawn.DefenseInterval)-0.05)/4.95 + 0.000001);
+		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(pchar.SeaPhonk.Spawn.DefenseInterval)-0.1)/4.9 + 0.000001);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",3,(stf(pchar.SeaPhonk.Spawn.DefenseMax)-1.0)/31.0 + 0.000001);
 		if (sti(pchar.SeaPhonk.Spawn.DefenseCustom)) label = "ПВО: свои настройки."; else label = "ПВО: случайные параметры.";
 	}
@@ -271,7 +273,6 @@ void PhonkMissile_Command(string node)
 		case "ACTION2": Sea.Phonk.MissileHoming = !sti(Sea.Phonk.MissileHoming); break;
 		case "ACTION3": Sea.Phonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval) - 0.1; if (stf(Sea.Phonk.NuclearInterval) < 0.0) Sea.Phonk.NuclearInterval = 0.0; break;
 		case "ACTION4": Sea.Phonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval) + 0.1; if (stf(Sea.Phonk.NuclearInterval) > 10.0) Sea.Phonk.NuclearInterval = 10.0; break;
-		case "ACTION10": Sea.Phonk.MissileRange = sti(Sea.Phonk.MissileRange) + 500; if (sti(Sea.Phonk.MissileRange) > 20000) Sea.Phonk.MissileRange = 500; break;
 		}
 	}
 	else if (PhonkMissileSection == 1)
@@ -310,7 +311,7 @@ void PhonkMissile_Command(string node)
 		case "ACTION1": SeaPhonkTest_Start(); break;
 		case "ACTION8": SeaPhonkTest_StartAlly(); break;
 		case "ACTION9": Sea.Phonk.AirDefenseEconomy = !sti(Sea.Phonk.AirDefenseEconomy); break;
-		case "ACTION10": Sea.Phonk.AirDefenseType = (sti(Sea.Phonk.AirDefenseType) + 1) % 4; pchar.SeaPhonk.AirDefenseType = sti(Sea.Phonk.AirDefenseType); break;
+		case "ACTION10": Sea.Phonk.AirDefenseType = SeaPhonk_PlayerDefenseType((sti(Sea.Phonk.AirDefenseType) + 1) % 4); pchar.SeaPhonk.AirDefenseType = sti(Sea.Phonk.AirDefenseType); break;
 		case "ACTION11": Sea.Phonk.AirDefensePerTarget = sti(Sea.Phonk.AirDefensePerTarget) % 8 + 1; pchar.SeaPhonk.AirDefensePerTarget = sti(Sea.Phonk.AirDefensePerTarget); break;
 		case "ACTION2": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) - 0.1; if (stf(Sea.Phonk.AirDefenseInterval) < 0.1) Sea.Phonk.AirDefenseInterval = 0.1; break;
 		case "ACTION3": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) + 0.1; if (stf(Sea.Phonk.AirDefenseInterval) > 2.0) Sea.Phonk.AirDefenseInterval = 2.0; break;
@@ -332,7 +333,7 @@ void PhonkMissile_Command(string node)
 	{
 		if (node == "ACTION0") { pchar.SeaPhonk.Spawn.DefenseEnabled = !sti(pchar.SeaPhonk.Spawn.DefenseEnabled); pchar.SeaPhonk.Spawn.DefenseCustom = 1; }
 		if (node == "ACTION1") pchar.SeaPhonk.Spawn.DefenseCustom = !sti(pchar.SeaPhonk.Spawn.DefenseCustom);
-		if (node == "ACTION10") pchar.SeaPhonk.Spawn.AirDefenseType = (sti(pchar.SeaPhonk.Spawn.AirDefenseType) + 1) % 5;
+		if (node == "ACTION10") pchar.SeaPhonk.Spawn.AirDefenseType = SeaPhonk_SpawnDefenseType((sti(pchar.SeaPhonk.Spawn.AirDefenseType) + 1) % 5);
 		if (node == "ACTION8") SeaPhonkTest_Start();
 		if (node == "ACTION9") SeaPhonkTest_StartAlly();
 	}
@@ -344,10 +345,12 @@ void PhonkMissile_Slide()
 	string node = GetEventData();
 	int step = GetEventData();
 	float value = GetEventData();
-	if (!PhonkMissileSettings || PhonkMissileSection < 2) return;
-	if (PhonkMissileSection == 2) {
+	if (!PhonkMissileSettings) return;
+	if (PhonkMissileSection == 0 && node == "PHONK_RANGE_SLIDE") {
+		Sea.Phonk.MissileRange = 500 + step * 50;
+	} else if (PhonkMissileSection == 2) {
 		if (node == "PHONK_SLIDE0") Sea.Phonk.AirDefenseRange = 400 + step * 10;
-		if (node == "PHONK_SLIDE1") Sea.Phonk.AirDefenseInterval = 0.05 + step * 0.01;
+		if (node == "PHONK_SLIDE1") Sea.Phonk.AirDefenseInterval = 0.1 + step * 0.01;
 		if (node == "PHONK_SLIDE2") Sea.Phonk.AirDefenseMax = 1 + step;
 	} else if (PhonkMissileSection == 3) {
 		if (node == "PHONK_SLIDE1") pchar.SeaPhonk.Spawn.Volley = 1 + step;
@@ -355,7 +358,7 @@ void PhonkMissile_Slide()
 		pchar.SeaPhonk.Spawn.Custom = 1;
 	} else if (PhonkMissileSection == 4) {
 		if (node == "PHONK_SLIDE0") pchar.SeaPhonk.Spawn.DefenseRange = 400 + step * 10;
-		if (node == "PHONK_SLIDE1") pchar.SeaPhonk.Spawn.DefenseInterval = 0.05 + step * 0.01;
+		if (node == "PHONK_SLIDE1") pchar.SeaPhonk.Spawn.DefenseInterval = 0.1 + step * 0.01;
 		if (node == "PHONK_SLIDE2") pchar.SeaPhonk.Spawn.DefenseMax = 1 + step;
 		pchar.SeaPhonk.Spawn.DefenseCustom = 1;
 	}
@@ -643,6 +646,7 @@ void InitInterface(string iniName)
 	SendMessage(&GameInterface,"ls",MSG_INTERFACE_INIT,iniName);
 	SetNodeUsing("ACTION12",false); SetSelectable("ACTION12",false);
 	for (int slide = 0; slide < 3; slide++) { SetNodeUsing("PHONK_SLIDE" + slide,false); SetSelectable("PHONK_SLIDE" + slide,false); }
+	SetNodeUsing("PHONK_RANGE_SLIDE",false); SetSelectable("PHONK_RANGE_SLIDE",false);
 	PhonkMissileSettings = CheckAttribute(&Sea,"Phonk.MissileSettings") && sti(Sea.Phonk.MissileSettings) != 0;
 	SetNodeUsing("DEBUG_ACTIONS",!PhonkMissileSettings); SetSelectable("DEBUG_ACTIONS",!PhonkMissileSettings);
 	SetNodeUsing("DEBUG_ACTIONS_SCROLL",!PhonkMissileSettings); SetSelectable("DEBUG_ACTIONS_SCROLL",!PhonkMissileSettings);
@@ -668,7 +672,7 @@ void InitInterface(string iniName)
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseEconomy")) Sea.Phonk.AirDefenseEconomy = 1;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseRange")) Sea.Phonk.AirDefenseRange = 800;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseInterval")) Sea.Phonk.AirDefenseInterval = 0.25;
-		if (stf(Sea.Phonk.AirDefenseInterval) < 0.05) Sea.Phonk.AirDefenseInterval = 0.05;
+		if (stf(Sea.Phonk.AirDefenseInterval) < 0.1) Sea.Phonk.AirDefenseInterval = 0.1;
 		if (stf(Sea.Phonk.AirDefenseInterval) > 5.0) Sea.Phonk.AirDefenseInterval = 5.0;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefenseMax")) Sea.Phonk.AirDefenseMax = 8;
 		if (sti(Sea.Phonk.AirDefenseMax) < 1) Sea.Phonk.AirDefenseMax = 1;
@@ -684,9 +688,10 @@ void InitInterface(string iniName)
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.FireInterval")) pchar.SeaPhonk.Spawn.FireInterval = 5.0;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseEnabled")) pchar.SeaPhonk.Spawn.DefenseEnabled = 1;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.AirDefenseType")) pchar.SeaPhonk.Spawn.AirDefenseType = 2;
-		if (sti(pchar.SeaPhonk.Spawn.AirDefenseType) < 0 || sti(pchar.SeaPhonk.Spawn.AirDefenseType) > 4) pchar.SeaPhonk.Spawn.AirDefenseType = 2;
+		pchar.SeaPhonk.Spawn.AirDefenseType = SeaPhonk_SpawnDefenseType(sti(pchar.SeaPhonk.Spawn.AirDefenseType));
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseRange")) pchar.SeaPhonk.Spawn.DefenseRange = 1600;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseInterval")) pchar.SeaPhonk.Spawn.DefenseInterval = 0.3;
+		if (stf(pchar.SeaPhonk.Spawn.DefenseInterval) < 0.1) pchar.SeaPhonk.Spawn.DefenseInterval = 0.1;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseMax")) pchar.SeaPhonk.Spawn.DefenseMax = 4;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseSpeed")) pchar.SeaPhonk.Spawn.DefenseSpeed = 600;
 		PhonkMissileSection = 0;
@@ -875,6 +880,7 @@ void ProcCommand()
 		}
 		if (PhonkMissileSection == 0)
 		{
+			if (nodName == "PHONK_RANGE_SLIDE" && comName == "upstep") { if (GetSelectable("PHONK_CONTROL5")) SetCurrentNode("PHONK_CONTROL5"); else SetCurrentNode("PHONK_CONTROL1"); return; }
 			for (int control = 0; control < 8; control++)
 			{
 				if (nodName != "PHONK_CONTROL" + control || !GetSelectable(nodName)) continue;
@@ -893,7 +899,7 @@ void ProcCommand()
 				if (comName == "downstep") { if (control == 0) next = 1; else if (control < 5) next = control + 2; else next = 7; }
 				if (comName == "upstep") { if (control == 7) next = 5; else if (control <= 2) next = 0; else next = control - 2; }
 				if (next >= 3 && next <= 6 && !GetSelectable("PHONK_CONTROL" + next)) { if (comName == "downstep") next = 7; else next = 1; }
-				if (next != control) SetCurrentNode("PHONK_CONTROL" + next);
+				if (next == 7) SetCurrentNode("PHONK_RANGE_SLIDE"); else if (next != control) SetCurrentNode("PHONK_CONTROL" + next);
 				return;
 			}
 		}

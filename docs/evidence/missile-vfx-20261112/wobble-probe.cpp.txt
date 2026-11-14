@@ -1,0 +1,7 @@
+#include <cstdint>
+using entid_t=uint64_t;
+#include "phonk_ordnance.hpp"
+#include <cmath>
+#include <cstdio>
+using namespace storm::ship::phonk;
+int main(){ NuclearMissile m; m.type=missile::Type::Kalibr;m.launch=CVECTOR(0.f,30.f,0.f);m.target=CVECTOR(8000.f,10.f,0.f);m.duration=missile::duration(m.type,{0,30,0},{8000,10,0});m.shotId=12;m.owner=3; int turns=0,last=0; float maxDeviation=0.f; for(float t=m.duration*.15f;t<m.duration*.85f;t+=.1f){auto a=nuclearPosition(m,t-.1f),b=nuclearPosition(m,t),c=nuclearPosition(m,t+.1f);float curvature=c.z-2*b.z+a.z;int sign=curvature>.005f?1:curvature<-.005f?-1:0;if(sign&&last&&sign!=last)++turns;if(sign)last=sign;maxDeviation=std::max(maxDeviation,std::abs(b.z));} std::printf("mid-flight curvature reversals=%d max lateral deviation=%.1fm\n",turns,maxDeviation);return turns>=3&&maxDeviation>10.f?0:1;}

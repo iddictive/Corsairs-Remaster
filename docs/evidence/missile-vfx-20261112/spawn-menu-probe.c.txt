@@ -1,0 +1,96 @@
+object Player; ref pchar; object Sea; int PhonkMissileSection=0; int enemies=0; int allies=0; void PhonkMissile_Refresh(){} float PhonkMissile_Multiplier(string p){return 1.0;} bool SeaPhonkTest_Start(){enemies++;return true;} bool SeaPhonkTest_StartAlly(){allies++;return true;}
+void PhonkMissile_Command(string node)
+{
+	if (node == "CATEGORY0" || node == "CATEGORY1" || node == "CATEGORY2" || node == "CATEGORY3" || node == "CATEGORY4")
+	{
+		if (node == "CATEGORY0") PhonkMissileSection = 0;
+		if (node == "CATEGORY1") PhonkMissileSection = 1;
+		if (node == "CATEGORY2") PhonkMissileSection = 2;
+		if (node == "CATEGORY3") PhonkMissileSection = 3;
+		if (node == "CATEGORY4") PhonkMissileSection = 4;
+	}
+	else if (PhonkMissileSection == 0)
+	{
+		if (node == "ACTION6" || node == "ACTION7" || node == "ACTION8" || node == "ACTION9")
+		{
+			string missilePath = "SeaPhonk.Missile" + sti(Sea.Phonk.MissileType) + ".";
+			if (node == "ACTION6" || node == "ACTION7") missilePath += "Speed"; else missilePath += "Acceleration";
+			float multiplier = PhonkMissile_Multiplier(missilePath);
+			if (node == "ACTION6" || node == "ACTION8") multiplier -= 0.25; else multiplier += 0.25;
+			if (multiplier < 0.25) multiplier = 0.25;
+			if (multiplier > 4.0) multiplier = 4.0;
+			pchar.(missilePath) = multiplier;
+			PhonkMissile_Refresh();
+			return;
+		}
+		switch (node)
+	{
+		case "ACTION0": Sea.Phonk.MissileType = 0; Sea.Phonk.Weapon = 7; break;
+		case "ACTION1": Sea.Phonk.MissileType = 1; Sea.Phonk.Weapon = 7; break;
+		case "ACTION2": Sea.Phonk.MissileHoming = !sti(Sea.Phonk.MissileHoming); break;
+		case "ACTION3": if (stf(Sea.Phonk.NuclearInterval) >= 0.5) Sea.Phonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval) - 0.5; break;
+		case "ACTION4": if (stf(Sea.Phonk.NuclearInterval) < 10.0) Sea.Phonk.NuclearInterval = stf(Sea.Phonk.NuclearInterval) + 0.5; break;
+		case "ACTION5": Sea.Phonk.MissileType = 2; Sea.Phonk.Weapon = 7; break;
+		case "ACTION11": Sea.Phonk.MissileType = 3; Sea.Phonk.Weapon = 7; break;
+		}
+	}
+	else if (PhonkMissileSection == 1)
+	{
+		if (sti(Sea.Phonk.MissileWarhead) != 0 && (node == "ACTION7" || node == "ACTION8" || node == "ACTION9" || node == "ACTION10")) {
+			string path = "SeaPhonk.Warhead" + sti(Sea.Phonk.MissileWarhead) + ".";
+			if (node == "ACTION7" || node == "ACTION8") path += "Power"; else path += "Radius";
+			float current = 1.0;
+			if (CheckAttribute(pchar,path)) current = stf(pchar.(path));
+			if (node == "ACTION7" || node == "ACTION9") current -= 0.25; else current += 0.25;
+			if (current < 0.5) current = 0.5;
+			if (current > 2.0) current = 2.0;
+			pchar.(path) = current;
+			PhonkMissile_Refresh();
+			return;
+		}
+		switch (node)
+	{
+		case "ACTION0": Sea.Phonk.MissileWarhead = 0; break;
+		case "ACTION1": Sea.Phonk.MissileWarhead = 1; break;
+		case "ACTION2": Sea.Phonk.MissileWarhead = 2; break;
+		case "ACTION3": Sea.Phonk.MissileWarhead = 4; break;
+		case "ACTION11": Sea.Phonk.MissileWarhead = 5; break;
+		case "ACTION5": if (sti(Sea.Phonk.MissileWarhead) == 0 && sti(Sea.Phonk.NuclearWarheads) > 1) Sea.Phonk.NuclearWarheads = sti(Sea.Phonk.NuclearWarheads) - 1; else if (sti(Sea.Phonk.MissileWarhead) == 2 && sti(Sea.Phonk.ClusterCount) > 20) Sea.Phonk.ClusterCount = sti(Sea.Phonk.ClusterCount) - 1; break;
+		case "ACTION6": if (sti(Sea.Phonk.MissileWarhead) == 0 && sti(Sea.Phonk.NuclearWarheads) < 20) Sea.Phonk.NuclearWarheads = sti(Sea.Phonk.NuclearWarheads) + 1; else if (sti(Sea.Phonk.MissileWarhead) == 2 && sti(Sea.Phonk.ClusterCount) < 30) Sea.Phonk.ClusterCount = sti(Sea.Phonk.ClusterCount) + 1; break;
+		case "ACTION7": if (sti(Sea.Phonk.NuclearPowerLimit) > 1) Sea.Phonk.NuclearPowerLimit = sti(Sea.Phonk.NuclearPowerLimit) - 1; break;
+		case "ACTION8": if (sti(Sea.Phonk.NuclearPowerLimit) < 10) Sea.Phonk.NuclearPowerLimit = sti(Sea.Phonk.NuclearPowerLimit) + 1; break;
+		}
+	}
+	else if (PhonkMissileSection == 2)
+	{
+		switch (node)
+	{
+		case "ACTION0": if (CheckAttribute(&Sea,"Phonk.AirDefenseAvailable") && sti(Sea.Phonk.AirDefenseAvailable) != 0) Sea.Phonk.AirDefenseEnabled = !sti(Sea.Phonk.AirDefenseEnabled); break;
+		case "ACTION1": SeaPhonkTest_Start(); break;
+		case "ACTION8": SeaPhonkTest_StartAlly(); break;
+		case "ACTION9": Sea.Phonk.AirDefenseEconomy = !sti(Sea.Phonk.AirDefenseEconomy); break;
+		case "ACTION2": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) - 0.1; if (stf(Sea.Phonk.AirDefenseInterval) < 0.1) Sea.Phonk.AirDefenseInterval = 0.1; break;
+		case "ACTION3": Sea.Phonk.AirDefenseInterval = stf(Sea.Phonk.AirDefenseInterval) + 0.1; if (stf(Sea.Phonk.AirDefenseInterval) > 2.0) Sea.Phonk.AirDefenseInterval = 2.0; break;
+		case "ACTION4": if (sti(Sea.Phonk.AirDefenseMax) > 1) Sea.Phonk.AirDefenseMax = sti(Sea.Phonk.AirDefenseMax) - 1; break;
+		case "ACTION5": if (sti(Sea.Phonk.AirDefenseMax) < 12) Sea.Phonk.AirDefenseMax = sti(Sea.Phonk.AirDefenseMax) + 1; break;
+		case "ACTION6": break;
+		}
+	}
+	else if (PhonkMissileSection == 3)
+	{
+		if (node == "ACTION0") pchar.SeaPhonk.Spawn.Custom = !sti(pchar.SeaPhonk.Spawn.Custom);
+		if (node == "ACTION1") { pchar.SeaPhonk.Spawn.ShipClass = (sti(pchar.SeaPhonk.Spawn.ShipClass) + 1) % 6; pchar.SeaPhonk.Spawn.Custom = 1; }
+		if (node == "ACTION2") { pchar.SeaPhonk.Spawn.MissileType = (sti(pchar.SeaPhonk.Spawn.MissileType) + 1) % 4; pchar.SeaPhonk.Spawn.Custom = 1; }
+		if (node == "ACTION3") { int warhead = sti(pchar.SeaPhonk.Spawn.Warhead); if (warhead == 5) warhead = 1; else if (warhead == 1) warhead = 2; else if (warhead == 2) warhead = 4; else warhead = 5; pchar.SeaPhonk.Spawn.Warhead = warhead; pchar.SeaPhonk.Spawn.Custom = 1; }
+		if (node == "ACTION8") SeaPhonkTest_Start();
+		if (node == "ACTION9") SeaPhonkTest_StartAlly();
+	}
+	else
+	{
+		if (node == "ACTION0") { pchar.SeaPhonk.Spawn.DefenseEnabled = !sti(pchar.SeaPhonk.Spawn.DefenseEnabled); pchar.SeaPhonk.Spawn.Custom = 1; }
+		if (node == "ACTION8") SeaPhonkTest_Start();
+		if (node == "ACTION9") SeaPhonkTest_StartAlly();
+	}
+	PhonkMissile_Refresh();
+}
+int Run(){makeref(pchar,Player); pchar.SeaPhonk.Spawn.Custom=0; pchar.SeaPhonk.Spawn.ShipClass=0; pchar.SeaPhonk.Spawn.MissileType=3; pchar.SeaPhonk.Spawn.Warhead=5; pchar.SeaPhonk.Spawn.DefenseEnabled=1; PhonkMissile_Command("CATEGORY3"); if(PhonkMissileSection!=3)return 1; PhonkMissile_Command("ACTION1"); PhonkMissile_Command("ACTION2"); PhonkMissile_Command("ACTION3"); if(sti(pchar.SeaPhonk.Spawn.Custom)!=1 || sti(pchar.SeaPhonk.Spawn.ShipClass)!=1 || sti(pchar.SeaPhonk.Spawn.MissileType)!=0 || sti(pchar.SeaPhonk.Spawn.Warhead)!=1)return 2; PhonkMissile_Command("ACTION8");PhonkMissile_Command("ACTION9");if(enemies!=1 || allies!=1)return 3; PhonkMissile_Command("CATEGORY4");PhonkMissile_Command("ACTION0");if(PhonkMissileSection!=4 || sti(pchar.SeaPhonk.Spawn.DefenseEnabled)!=0)return 4; return 0;}

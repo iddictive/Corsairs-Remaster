@@ -1,8 +1,33 @@
 #include "ai_fort.h"
+#include "../../ship/src/phonk_ordnance.hpp"
 #include "sea_atlas.hpp"
 #include "shared/messages.h"
 #include "shared/sea_ai/manual_aim_geometry.hpp"
 #include <optional>
+
+AIFort::AI_FORT::AI_FORT(ATTRIBUTES *label) : pFortLabelAP(label)
+{
+    SetObjType(AIOBJ_FORT);
+    tmpObject.pFort = this;
+    vPos.x = label->GetAttributeAsFloat("x");
+    vPos.y = 0.0f;
+    vPos.z = label->GetAttributeAsFloat("z");
+}
+
+AIFort::AI_FORT::~AI_FORT() = default;
+
+storm::ship::phonk::OrdnanceState &AIFort::AI_FORT::EnsurePhonkOrdnance()
+{
+    if (!phonkOrdnance)
+        phonkOrdnance = std::make_unique<storm::ship::phonk::OrdnanceState>();
+    return *phonkOrdnance;
+}
+
+void AIFort::AI_FORT::ResetPhonkOrdnance()
+{
+    phonkOrdnance.reset();
+    ++phonkOrdnanceGeneration;
+}
 
 static AIShip *FindFortTarget(AIFort::AI_FORT &fort, AICannon &cannon, float speed)
 {
@@ -498,7 +523,7 @@ bool AIFort::AddFort(ATTRIBUTES *pIslandAP, ATTRIBUTES *pFortLabelAP, ATTRIBUTES
 }
 
 void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius, CANNON_TRACE_BASE *island,
-                       bool nuclear)
+                       bool nuclear, ATTRIBUTES *hostileTo)
 {
     const bool airburst = radius > 0.0f;
     const float maxDistance = airburst ? radius : fMinCannonDamageDistance;
@@ -506,6 +531,9 @@ void AIFort::AddFortHit(int32_t iCharacterIndex, CVECTOR &vHitPos, float radius,
     for (i = 0; i < aForts.size(); i++)
     {
         auto *pF = aForts[i];
+
+        if (hostileTo && (!ATTRIBUTES::IsLive(pF->GetACharacter()) || !Helper.isEnemy(hostileTo, pF->GetACharacter())))
+            continue;
 
         if (airburst && (!pF->GetModel() || !pF->GetACharacter() || !pF->isNormalMode() ||
                         GetIndex(pF->GetACharacter()) == iCharacterIndex))
@@ -849,6 +877,8 @@ void AIFort::AI_FORT::Save(CSaveLoad *pSL)
 
 void AIFort::AI_FORT::Load(CSaveLoad *pSL, entid_t eid)
 {
+    // Ordnance is transient and must not survive loading a different state.
+    ResetPhonkOrdnance();
     std::optional<storm_sea_atlas::Frame> relocation;
     const auto *model = GetModel();
     if (const auto *pose = model && model->AttributesPointer ? model->AttributesPointer->GetAttributeClass("SeaAtlasLegacyPose") : nullptr)

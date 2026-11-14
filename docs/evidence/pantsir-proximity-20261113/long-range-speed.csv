@@ -1,0 +1,13 @@
+# 19000m launch, 8000m spherical detection, 300 synthetic serials, 10ms sampling
+# bb87b8f4c2c6155c7e1cdd25c438021f8bf2692d456091caa60e3f2fec0f1e9f experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.cpp
+# a17ebb6347e68552376f17270fee47a3c837695223d771d035fde716dc4d9f4d experiments/native-metal/engine/src/libs/ship/src/phonk_ordnance.hpp
+# b826f219bcb6fe6b624d95c5738cd2f13457a02ec4431d86cf91433659fc9533 experiments/native-metal/engine/src/libs/ship/src/phonk_missile_profiles.hpp
+# bcffba0379d66d5ce4d3590f6255c1fd549b8194ab73eab7db0003e96514924a experiments/native-metal/engine/src/libs/math/include/c_vector.h
+# 3b4d238625175abceefe2903aa16bfb595507b70d08fec97ede2a06cd5a0f6c6 docs/evidence/pantsir-proximity-20261113/matrix.py
+# f02d0a8312bf11b75abaa966bd1ffb291f1154c6049f02afd690aa6115ede7c3 docs/evidence/pantsir-proximity-20261113/long-range-speed.cpp
+# 4c355c3082ee85ba146b1267eb0d839517c41c1b8aa015045077ae29eca8e969 docs/evidence/pantsir-proximity-20261113/long-range-speed.py
+type,detected,min_speed_mps,mean_speed_mps,max_speed_mps,mean_detection_alt_m,mean_peak_alt_m,mean_speed_over_profile
+Kinzhal,300,1738.1,1794.0,1852.0,467.7,635.3,0.998
+Kalibr,300,987.5,1012.4,1036.2,78.4,116.1,0.780
+Shtorm,300,770.6,793.6,819.0,978.9,1006.4,0.993
+Oreshnik,300,4163.1,4348.5,4543.8,6542.1,8995.4,0.871

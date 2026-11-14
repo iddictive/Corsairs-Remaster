@@ -1,0 +1,18 @@
+#include <cstdint>
+using entid_t = uint64_t;
+#include "phonk_ordnance.hpp"
+#include "shared/sea_ai/manual_aim_geometry.hpp"
+#include <cassert>
+#include <cstdio>
+using namespace storm::ship::phonk;
+int main() {
+    NuclearMissile m; m.launch=CVECTOR(0.f,30.f,0.f); m.target=CVECTOR(1500.f,8.f,0.f); m.type=missile::Type::Kalibr; m.shotId=33; m.owner=1; m.duration=missile::duration(m.type,{0,30,0},{1500,8,0});
+    auto end=nuclearPosition(m,m.duration); assert((~(end-m.target))<.001f);
+    auto water=[](float,float){return 0.f;}; float hitAge=-1.f;
+    m.evasionStart=m.duration*.55f; m.evasionOffset=CVECTOR(50.f,-120.f,0.f);
+    for(float t=m.evasionStart;t<m.duration;t+=.02f){auto a=nuclearPosition(m,t);auto b=nuclearPosition(m,t+.02f);float h=manual_aim::waterContact(a,b,water);if(h<=1.f){hitAge=t;break;}}
+    assert(hitAge>0.f && hitAge<m.duration);
+    CVECTOR velocity(700.f,-15.f,0.f); NuclearMissile coast; coast.launch=CVECTOR(0.f,30.f,0.f); coast.coasting=true; coast.continueVelocity=true;coast.initialVelocity=velocity;coast.duration=60.f;auto p=nuclearPosition(coast,1.f);assert(p.x>699.f && p.x<701.f && p.y>9.f && p.y<11.f);
+    auto type=missile::Type::Shtorm; CVECTOR launch(0.f,10.f,0.f), base(5000.f,10.f,0.f), target=base;float duration=missile::duration(type,{launch.x,launch.y,launch.z},{target.x,target.y,target.z});for(int i=0;i<4;i++){target=base+CVECTOR(0.f,0.f,12.f)*duration;duration=missile::duration(type,{launch.x,launch.y,launch.z},{target.x,target.y,target.z});}assert(target.z>100.f);assert(std::abs(target.z-12.f*duration)<.1f);
+    std::printf("trajectory endpoint, water collision, coasting and moving-target lead passed (water at %.2fs, lead %.1fm)\n",hitAge,target.z);
+}
