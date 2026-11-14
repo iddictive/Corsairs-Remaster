@@ -125,10 +125,12 @@ void initializePatriot(OrdnanceState::Interceptor &i, const CVECTOR &observed)
     const auto up = !(direction ^ side);
     uint32_t bits = i.serial * 0x9e3779b9u ^ uint32_t(i.missileShip);
     bits ^= bits >> 16; bits *= 0x7feb352du; bits ^= bits >> 15;
+    bits *= 0x846ca68bu; bits ^= bits >> 16;
     i.speedScale = .96f + .08f * float(bits & 65535u) / 65535.f;
     i.accelerationScale = .96f + .08f * float(bits >> 16) / 65535.f;
     const float angle = 6.2831853f * float(bits & 65535u) / 65535.f;
-    const float radius = 16.5f * std::sqrt(float(bits >> 16) / 65535.f);
+    // Sensor/steering offset remains a geometric error, independent of target type.
+    const float radius = 35.f * std::sqrt(float(bits >> 16) / 65535.f);
     // Each launch starts on its own gently displaced course; guidance then
     // corrects naturally towards the tracked target.
     const float launchSpread = .02f + .035f * float(bits >> 16) / 65535.f;
