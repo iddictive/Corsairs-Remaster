@@ -47,7 +47,7 @@ inline Profile profile(Type type)
 {
     // Gameplay values, not real-world performance specifications.
     return type == Type::Oreshnik ? Profile{5000.f, 3.f, 9000.f, 1.2f}
-         : type == Type::Shtorm ? Profile{800.f, 2.f, 1000.f, .25f}
+         : type == Type::Shtorm ? Profile{640.f, 2.f, 1000.f, .25f}
          : type == Type::Kalibr ? Profile{1300.f, 2.f, 42.f, .035f}
                                 : Profile{1800.f, 1.2f, 650.f, .16f};
 }
@@ -284,7 +284,7 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         const float arcSlope = 4.f * altitude * (type == Type::Kinzhal && variation.arcPattern == 1 ? 3.f :
                                                  type == Type::Kinzhal && variation.arcPattern == 2 ? 2.f : 1.f);
         const float slopeBound = std::sqrt(horizontal*horizontal + (std::abs(d.y) + arcSlope)*(std::abs(d.y) + arcSlope));
-        const float speedLimit = (type == Type::Shtorm ? 1400.f : 5000.f) *
+        const float speedLimit = (type == Type::Shtorm ? 1120.f : 5000.f) *
                                  flightScale(variation.speedScale) * settingScale(variation.configuredSpeed);
         distance = std::max(distance, slopeBound * variedCruise(type, variation) / speedLimit);
     }
