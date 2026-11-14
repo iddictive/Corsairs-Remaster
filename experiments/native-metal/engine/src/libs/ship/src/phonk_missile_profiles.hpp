@@ -214,6 +214,8 @@ inline float oreshnikParameter(const OreshnikCurve &c, float fraction)
 // force integration; in particular it does not model v^2 drag or gravity.
 struct OreshnikAir { float a, b, c; };
 inline constexpr float oreshnikDrag = .08f;
+// Bounded arcade approximation of gravity adding speed on the descending leg.
+inline constexpr float oreshnikDescentBias = .08f;
 inline OreshnikAir oreshnikAir(float startHeight, float targetHeight, float altitude)
 {
     const auto density = [](float h) { return 1.f / (1.f + std::max(0.f, h) / 8000.f); };
@@ -235,7 +237,7 @@ inline float oreshnikAirProgress(OreshnikAir air, float fraction)
         const float density = air.a + u*(air.b + u*air.c);
         u = std::clamp(u - (oreshnikAirDistance(air, u) - desired) / (1.f + oreshnikDrag*density), 0.f, 1.f);
     }
-    return u;
+    return u - oreshnikDescentBias * u * u * (1.f - u);
 }
 inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variation = {})
 {
@@ -270,6 +272,9 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         const auto curve = oreshnikCurve(horizontal, d.y, altitude);
         distance = float(oreshnikLength(curve, 1.));
         distance *= oreshnikAirDistance(oreshnikAir(start.y, target.y, altitude), 1.f);
+        // The final time-warp slope grows by at most this factor; reserve it
+        // in the cruise cap instead of allowing descent to exceed that cap.
+        cruiseSpeed /= 1.f + oreshnikDescentBias;
         // Bound turning acceleration along the whole arc by choosing the
         // flight speed up front, instead of braking abruptly at its apex.
         const double radius = oreshnikMinimumRadius(curve);

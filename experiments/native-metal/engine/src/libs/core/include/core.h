@@ -90,6 +90,8 @@ class Core
     virtual uint32_t GetDeltaTime() = 0;
     // Milliseconds, scaled like entity time; fixed-step mode takes precedence.
     virtual float GetVisualDeltaTime() { return float(GetDeltaTime()); }
+    // Unconsumed scaled simulation time, in milliseconds, for render-only interpolation.
+    virtual float GetScaledDeltaRemainder() const { return 0.f; }
     virtual uint32_t GetRDeltaTime() = 0;
     //
     virtual VDATA *Event(const std::string_view &event_name) = 0;

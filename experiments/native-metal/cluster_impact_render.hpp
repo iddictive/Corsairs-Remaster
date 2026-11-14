@@ -189,8 +189,10 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
     bool sampleVolume=true;
     float angle=u.volumeParams.y,ca=cos(angle),sa=sin(angle);
     if(midair) {
-        float3 vo=float3((ca*origin.x-sa*origin.z)/(1.4*u.volumeParams.z)+.5,(sa*origin.x+ca*origin.z)/(1.4/u.volumeParams.z)+.39,origin.y/(.65*u.volumeParams.w)+.10);
-        float3 vr=float3((ca*ray.x-sa*ray.z)/(1.4*u.volumeParams.z),(sa*ray.x+ca*ray.z)/(1.4/u.volumeParams.z),ray.y/(.65*u.volumeParams.w));
+        // Texture Z is world height; preserve more of the airborne volume's
+        // vertical extent while keeping the ray interval and sampling aligned.
+        float3 vo=float3((ca*origin.x-sa*origin.z)/(1.4*u.volumeParams.z)+.5,(sa*origin.x+ca*origin.z)/(1.4/u.volumeParams.z)+.39,origin.y/u.volumeParams.w+.10);
+        float3 vr=float3((ca*ray.x-sa*ray.z)/(1.4*u.volumeParams.z),(sa*ray.x+ca*ray.z)/(1.4/u.volumeParams.z),ray.y/u.volumeParams.w);
         float3 vs=select(vr,select(float3(-1e-6),float3(1e-6),vr>=0),abs(vr)<1e-6);
         float3 t0=-vo/vs,t1=(1.-vo)/vs;
         float3 vl=min(t0,t1),vh=max(t0,t1);
@@ -205,7 +207,7 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
         // Keep the authored surface volume rooted; translating it upward also
         // lifts its lower boundary away from the impact plane.
         float volumeY=p.y;
-        float3 uv=midair ? float3((ca*p.x-sa*p.z)/(1.4*u.volumeParams.z)+.5,(sa*p.x+ca*p.z)/(1.4/u.volumeParams.z)+.39,p.y/(.65*u.volumeParams.w)+.10) : float3((ca*p.x-sa*p.z)/(2.0*u.volumeParams.z)+.5,volumeY/(2.8*u.volumeParams.w),(sa*p.x+ca*p.z)/(2.0/u.volumeParams.z)+.5);
+        float3 uv=midair ? float3((ca*p.x-sa*p.z)/(1.4*u.volumeParams.z)+.5,(sa*p.x+ca*p.z)/(1.4/u.volumeParams.z)+.39,p.y/u.volumeParams.w+.10) : float3((ca*p.x-sa*p.z)/(2.0*u.volumeParams.z)+.5,volumeY/(2.8*u.volumeParams.w),(sa*p.x+ca*p.z)/(2.0/u.volumeParams.z)+.5);
         if(any(uv<0.)||any(uv>1.))continue;
         float2 f=mix(volumeA.sample(volumeSampler,uv).rg,volumeB.sample(volumeSampler,uv).rg,u.volumeParams.x)*float2(2.,midair?2.:8.);
         if(thermo && !air) f.x*=8.;

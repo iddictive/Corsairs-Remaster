@@ -21,6 +21,17 @@ inline constexpr float nuclearBlastLife = 9.f;
 inline constexpr float nuclearPressureLife = 8.f;
 inline constexpr float clusterAirDrag = .15f;
 inline float dragTravelTime(float drag, float elapsed) { return -std::expm1(-drag * elapsed) / drag; }
+inline float clusterFallTravel(float height, float verticalSpeed)
+{
+    float lo = 0.f, hi = 30.f;
+    for (unsigned step = 0; step < 16; ++step) {
+        const float mid = (lo + hi) * .5f;
+        const float travel = dragTravelTime(clusterAirDrag, mid);
+        const float altitude = height + verticalSpeed * travel - 9.81f * (mid - travel) / clusterAirDrag;
+        if (altitude > 0.f) lo = mid; else hi = mid;
+    }
+    return dragTravelTime(clusterAirDrag, (lo + hi) * .5f);
+}
 struct NuclearYield
 {
     uint32_t tier = 1;
@@ -150,6 +161,7 @@ struct NuclearBlast
     CVECTOR center = CVECTOR(0.f);
     float age = 0.f;
     bool active = false;
+    bool intercepted = false;
     float seed = 0.f;
     int32_t owner = -1;
     uint32_t surrenderEpoch = 0;
@@ -254,7 +266,7 @@ struct OrdnanceState
     std::array<DefenseReaction, 64> airDefenseReaction{}, testDefenseReaction{};
     struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0;
         bool patriot = false, diverting = false, patriotContact = false, sonicBoomPlayed = false;
-        CVECTOR position{}, previousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
+        CVECTOR position{}, previousPosition{}, visualPreviousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
         float simulationDebt = 0.f, speedScale = 1.f, accelerationScale = 1.f;
         float lostTargetTime = 0.f, nextTargetSearch = 0.f;
         float fuseAtAge = -1.f, fuseDelay = 0.f;

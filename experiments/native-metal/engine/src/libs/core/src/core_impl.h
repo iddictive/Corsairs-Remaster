@@ -96,6 +96,7 @@ class CoreImpl final : public CorePrivate
     void SetDeltaTime(int32_t delta_time) override;
     uint32_t GetDeltaTime() override;
     float GetVisualDeltaTime() override;
+    float GetScaledDeltaRemainder() const override { return float(scaledDeltaRemainder); }
     uint32_t GetRDeltaTime() override;
     //    
     VDATA *Event(const std::string_view &event_name) override;
