@@ -59,7 +59,9 @@ float advanceReentryHeat(float heat, const CVECTOR &velocity, float altitude, fl
             target *= onset * onset * (3.f - 2.f * onset);
         }
     }
-    const float timeConstant = target > heat ? 1.8f : 3.f;
+    // Retained heat fades over several seconds even if aerodynamic heating
+    // briefly drops; a momentary speed change must not erase incandescence.
+    const float timeConstant = target > heat ? 1.8f : 12.f;
     return std::clamp(heat + (target - heat) * -std::expm1(-dt / timeConstant), 0.f, 1.f);
 }
 float heatTone(float heat)
@@ -3410,7 +3412,7 @@ void SHIP::DrawPhonkOrdnance()
         const bool supersonic = std::isfinite(speedSquared) && speedSquared > 343.f * 343.f;
         const bool heatOreshnik = missile.type == missile::Type::Oreshnik;
         const bool reentry = !missile.interceptionFragment && !missile.intercepted &&
-            !missile.suppressReentryHeat && std::isfinite(speedSquared) && speedSquared > 0.f &&
+            !missile.suppressReentryHeat && std::isfinite(speedSquared) &&
             std::isfinite(missile.visualHeat) && missile.visualHeat > 0.f;
         const float speed = reentry || supersonic ? std::sqrt(speedSquared) : 0.f;
         const unsigned heatStyle = heatOreshnik ? 1u : 0u;
@@ -3539,13 +3541,15 @@ void SHIP::DrawPhonkOrdnance()
                 const float speed = std::sqrt(speedSquared);
                 const auto flightAxis = velocity * (1.f / speed);
                 submitShock(head, flightAxis, speed);
-                if (missileVfx && interceptor.visualHeat > .0001f) {
-                    const auto interceptorNose = head + flightAxis * (interceptor.patriot ? 0.f : missile::noseTip(missile::Type::Kalibr)*.5f);
-                    const float length = interceptor.patriot ? -storm_metal::patriot_visual::tailZ :
-                        (missile::noseTip(missile::Type::Kalibr)-missile::tailTip(missile::Type::Kalibr))*.5f;
-                    const float radius = interceptor.patriot ? storm_metal::patriot_visual::outerRadius : missile::outerRadius(missile::Type::Kalibr)*.5f;
-                    StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &interceptorNose.x, &flightAxis.x, speed, interceptor.visualHeat, 0u, interceptor.serial, length, radius);
-                }
+            }
+            if (missileVfx && std::isfinite(speedSquared) && std::isfinite(interceptor.visualHeat) && interceptor.visualHeat > .0001f) {
+                const float speed = std::sqrt(speedSquared);
+                const auto heatAxis = speed > .001f ? velocity * (1.f / speed) : direction;
+                const auto interceptorNose = head + heatAxis * (interceptor.patriot ? 0.f : missile::noseTip(missile::Type::Kalibr)*.5f);
+                const float length = interceptor.patriot ? -storm_metal::patriot_visual::tailZ :
+                    (missile::noseTip(missile::Type::Kalibr)-missile::tailTip(missile::Type::Kalibr))*.5f;
+                const float radius = interceptor.patriot ? storm_metal::patriot_visual::outerRadius : missile::outerRadius(missile::Type::Kalibr)*.5f;
+                StormMetalMissileVfxReentry(pRS->GetNativeDevice(), &interceptorNose.x, &heatAxis.x, speed, interceptor.visualHeat, 0u, interceptor.serial, length, radius);
             }
         }
         if (interceptor.patriot) storm_metal::patriot_visual::geometry(emitInterceptor);

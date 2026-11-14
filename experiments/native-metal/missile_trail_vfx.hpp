@@ -343,8 +343,9 @@ public:
             // Stable seed owns identity; animation never samples world position.
             if(!std::isfinite(heat)) return;
             heat=std::clamp(heat,0.f,1.f); if(heat<=0.f) return;
-            float load=airLoad();
-            if(load<=0.f) return;
+            // The visible hot envelope follows accumulated heat, not the
+            // instantaneous aerodynamic load that drives its temperature.
+            float load=heat;
             auto sample=[&](uint32_t salt) { uint32_t h=seed+salt; h^=h>>16; h*=0x7feb352du; h^=h>>15; h*=0x846ca68bu; h^=h>>16; return float(h&65535u)/65535.f; };
             float shape=sample(0x9e3779b9u), proportion=sample(0x85ebca6bu), tone=sample(0xc2b2ae35u), pulse=sample(0x27d4eb2fu);
             // Integer cycles make the 1024-second wrap continuous; clear()

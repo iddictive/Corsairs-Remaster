@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 // Arcade-scale flight and geometry for the Phonk ship. These profiles are
 // deliberately independent of warhead and impact handling.
@@ -142,25 +143,15 @@ inline float arcAltitude(Type type, float distance, FlightVariation variation)
         (type == Type::Kinzhal ? scale : type == Type::Kalibr ?
             .35f + 1.05f * (scale - .3f) / 1.35f : .9f + .2f * (scale - .3f) / 1.35f);
 }
-// When the minimum high arc dominates the range, make room by climbing away
-// before returning. The weight and its first derivative vanish as the minimum
-// stops dominating; ordinary long-range trajectories remain unchanged.
-inline float oreshnikApproach(float distance, float altitude)
-{
-    const float excess = std::max(0.f, 1200.f - distance * profile(Type::Oreshnik).altitudeFraction);
-    const float weight = excess / std::max(.001f, distance + excess);
-    return 1.1f * altitude * weight * weight;
-}
 struct OreshnikCurve { float horizontal, vertical, altitude, retreat; };
 inline OreshnikCurve oreshnikCurve(float horizontal, float vertical, float altitude)
 {
-    const float retreat = horizontal > .001f ? oreshnikApproach(horizontal, altitude) : 0.f;
-    const float lift = std::hypot(altitude, retreat);
-    if (lift <= .001f) return {horizontal, vertical, altitude, retreat};
-    // Rotate the parabola into its own plane to reuse the exact arc-length and
-    // turn-rate clock, including the initial retreat and the return approach.
-    return {std::abs((horizontal*altitude + vertical*retreat) / lift),
-            (vertical*altitude - horizontal*retreat) / lift, lift, retreat};
+    // Give a high arc enough horizontal room for a broad turn.  Close shots
+    // may initially travel away; the offset and its end slope vanish at impact.
+    const float desiredRadius = .35f * altitude;
+    const float spanAtApex = std::sqrt(std::max(0.f, 8.f * altitude * desiredRadius));
+    const float retreat = 4.f * std::max(0.f, spanAtApex - horizontal);
+    return {horizontal, vertical, altitude, retreat};
 }
 inline float arcProgress(Type type, float travel, FlightVariation variation)
 {
@@ -168,52 +159,53 @@ inline float arcProgress(Type type, float travel, FlightVariation variation)
     if (type == Type::Kinzhal && variation.arcPattern == 2) return 1.f - (1.f-travel)*(1.f-travel);
     return travel;
 }
-// Arc length of the Oreshnik parabola through parameter u. Parameterizing by
-// distance rather than horizontal progress keeps speed bounded on steep arcs.
-inline double ballisticPrimitive(double horizontal, double z)
+inline double oreshnikCurveSpeed(const OreshnikCurve &c, double u)
 {
-    if (horizontal <= .001) return .5*z*std::abs(z);
-    return .5 * (z*std::sqrt(horizontal*horizontal + z*z) +
-                 horizontal*horizontal*std::asinh(z/horizontal));
+    const double dx = c.horizontal - c.retreat * (1. - u) * (1. - 3. * u);
+    const double dy = c.vertical + 4. * c.altitude * (1. - 2. * u);
+    return std::hypot(dx, dy);
 }
-inline double ballisticLength(double horizontal, double vertical, double altitude, double u)
+// Two bounded Gauss-Legendre panels integrate the actual curve rather than
+// charging extra distance for turning.  The same mapping owns all consumers.
+inline double oreshnikLength(const OreshnikCurve &c, double u)
 {
-    if (altitude <= .001f) return std::sqrt(horizontal*horizontal + vertical*vertical) * u;
-    const double initial = vertical + 4.f*altitude;
-    return (ballisticPrimitive(horizontal, initial) - ballisticPrimitive(horizontal, initial - 8.f*altitude*u)) / (8.f*altitude);
+    constexpr double x[] = {.1834346424956498, .5255324099163290, .7966664774136267, .9602898564975363};
+    constexpr double w[] = {.3626837833783620, .3137066458778873, .2223810344533745, .1012285362903763};
+    double length = 0.;
+    for (unsigned panel = 0; panel < 2; ++panel) {
+        const double midpoint = u * (double(panel) + .5) * .5, half = u * .25;
+        for (unsigned i = 0; i < 4; ++i)
+            length += half * w[i] * (oreshnikCurveSpeed(c, midpoint - half*x[i]) + oreshnikCurveSpeed(c, midpoint + half*x[i]));
+    }
+    return length;
 }
-// Arcade turn allowance: the flight clock accounts for the change in tangent
-// as well as distance, slowing a tight apex without lowering the arc.
-inline constexpr double ballisticTurnAllowance = 1200.;
-inline double ballisticTurn(double horizontal, double vertical, double altitude, double u)
+inline double oreshnikMinimumRadius(const OreshnikCurve &c)
 {
-    if (horizontal <= .001 || altitude <= .001) return 0.;
-    const double initial = vertical + 4. * altitude;
-    return std::atan2(initial, horizontal) - std::atan2(initial - 8. * altitude * u, horizontal);
+    double radius = std::numeric_limits<double>::infinity();
+    for (unsigned i = 0; i <= 48; ++i) {
+        const double u = double(i) / 48.;
+        const double dx = c.horizontal - c.retreat*(1.-u)*(1.-3.*u);
+        const double dy = c.vertical + 4.*c.altitude*(1.-2.*u);
+        const double ddx = c.retreat*(4.-6.*u), ddy = -8.*c.altitude;
+        const double speed = std::hypot(dx, dy), cross = std::abs(dx*ddy - dy*ddx);
+        if (cross > 1.e-9) radius = std::min(radius, speed*speed*speed/cross);
+    }
+    return radius;
 }
-inline float ballisticParameter(float horizontal, float vertical, float altitude, float fraction)
+inline float oreshnikParameter(const OreshnikCurve &c, float fraction)
 {
     if (fraction <= 0.f || fraction >= 1.f) return fraction;
-    if (altitude <= .001f) return fraction;
-    const double initial = vertical + 4. * altitude, span = 8. * altitude;
-    const double first = ballisticPrimitive(horizontal, initial);
-    const double firstAngle = horizontal > .001f ? std::atan2(initial, horizontal) : 0.;
-    const double length = (first - ballisticPrimitive(horizontal, initial - span)) / span +
-                          ballisticTurnAllowance * (horizontal > .001f ? firstAngle - std::atan2(initial - span, horizontal) : 0.);
-    if (length <= .001f) return fraction;
+    const double length = oreshnikLength(c, 1.);
+    if (length <= .001) return fraction;
     const double desired = length * fraction;
     double lo = 0., hi = 1., u = fraction;
-    for (unsigned i = 0; i < 12; ++i) {
-        const double error = (first - ballisticPrimitive(horizontal, initial - span*u)) / span +
-                             ballisticTurnAllowance * (horizontal > .001f ? firstAngle - std::atan2(initial - span*u, horizontal) : 0.) - desired;
-        if (std::abs(error) <= length * 1e-10) break;
-        if (error < 0.f) lo = u; else hi = u;
-        const double slope = vertical + 4.*altitude*(1.-2.*u);
-        const double squared = double(horizontal)*horizontal + slope*slope;
-        const double derivative = std::sqrt(squared) + (horizontal > .001f ?
-            ballisticTurnAllowance * span * horizontal / squared : 0.);
-        const double next = derivative > .001 ? u - error / derivative : (lo+hi)*.5;
-        u = next > lo && next < hi ? next : (lo+hi)*.5f;
+    for (unsigned i = 0; i < 8; ++i) {
+        const double error = oreshnikLength(c, u) - desired;
+        if (std::abs(error) <= length * 1.e-7) break;
+        if (error < 0.) lo = u; else hi = u;
+        const double derivative = oreshnikCurveSpeed(c, u);
+        const double next = derivative > .001 ? u - error / derivative : (lo + hi)*.5;
+        u = next > lo && next < hi ? next : (lo + hi)*.5;
     }
     return float(u);
 }
@@ -273,11 +265,16 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         distance += magnitude(point - previous);
         previous = point;
     }
+    float cruiseSpeed = variedCruise(type, variation);
     if (type == Type::Oreshnik) {
         const auto curve = oreshnikCurve(horizontal, d.y, altitude);
-        distance = ballisticLength(curve.horizontal, curve.vertical, curve.altitude, 1.f) +
-                   ballisticTurnAllowance * ballisticTurn(curve.horizontal, curve.vertical, curve.altitude, 1.f);
+        distance = float(oreshnikLength(curve, 1.));
         distance *= oreshnikAirDistance(oreshnikAir(start.y, target.y, altitude), 1.f);
+        // Bound turning acceleration along the whole arc by choosing the
+        // flight speed up front, instead of braking abruptly at its apex.
+        const double radius = oreshnikMinimumRadius(curve);
+        const float turnAcceleration = 3500.f * settingScale(variation.configuredAcceleration);
+        if (std::isfinite(radius)) cruiseSpeed = std::min(cruiseSpeed, float(std::sqrt(std::max(0., radius * turnAcceleration))));
     } else {
         const float arcSlope = 4.f * altitude * (type == Type::Kinzhal && variation.arcPattern == 1 ? 3.f :
                                                  type == Type::Kinzhal && variation.arcPattern == 2 ? 2.f : 1.f);
@@ -287,7 +284,7 @@ inline float duration(Type type, Vec3 start, Vec3 target, FlightVariation variat
         distance = std::max(distance, slopeBound * variedCruise(type, variation) / speedLimit);
     }
     const float ramp = variedRamp(type, variation), initial = variedInitial(type, variation);
-    const float needed = distance / variedCruise(type, variation);
+    const float needed = distance / std::max(.001f, cruiseSpeed);
     float flight = needed + (1.f-initial)*ramp*.5f;
     if (flight < ramp) {
         float lo = 0.f, hi = ramp;
@@ -367,14 +364,16 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
         travel = oreshnikAirProgress(oreshnikAir(start.y, target.y, altitude), travel);
         const auto curve = oreshnikCurve(distance, d.y, altitude);
         retreat = curve.retreat;
-        travel = ballisticParameter(curve.horizontal, curve.vertical, curve.altitude, travel);
+        travel = oreshnikParameter(curve, travel);
     }
     if (type != Type::Kalibr) {
         const float arc = arcProgress(type, travel, variation);
         Vec3 result = start + d*travel + Vec3{0.f, 4.f*altitude*arc*(1.f-arc), 0.f};
-        if (retreat > 0.f && distance > .001f) {
-            const float back = 4.f * retreat * travel * (1.f-travel) / distance;
-            result = result - Vec3{d.x * back, 0.f, d.z * back};
+        if (retreat > 0.f) {
+            const float back = retreat * travel * (1.f-travel) * (1.f-travel);
+            const float fx = distance > .001f ? d.x / distance : 1.f;
+            const float fz = distance > .001f ? d.z / distance : 0.f;
+            result = result - Vec3{fx * back, 0.f, fz * back};
         }
         return result;
     }
