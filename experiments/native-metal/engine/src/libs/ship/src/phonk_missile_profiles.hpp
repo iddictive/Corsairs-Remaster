@@ -84,6 +84,10 @@ inline constexpr float kalibrEjectTime = .40f;
 inline constexpr float kalibrTurnTime = 1.f;
 inline constexpr float kalibrCoastTime = .65f;
 inline constexpr float kalibrEjectHeight = 36.f;
+inline constexpr float kalibrPivotTime = kalibrTurnTime - kalibrCoastTime;
+inline constexpr float kalibrStarterLead = .12f;
+inline constexpr float kalibrGravity = 9.81f;
+inline constexpr float kalibrStarterAcceleration = 12.f;
 // Fictional game units: near-original acceleration with a finite speed cap.
 inline constexpr float kalibrAcceleration = 48.f;
 inline float variedKalibrAcceleration(FlightVariation v)
@@ -299,6 +303,24 @@ inline Vec3 kalibrEjectionVelocity(float fx, float fz, FlightVariation variation
     return {fx*forward - fz*side, .8f * kalibrLaunchHeight(variation) / kalibrEjectTime,
             fz*forward + fx*side};
 }
+inline float kalibrStarterThrottle(float age)
+{
+    const float start = kalibrEjectTime + kalibrCoastTime - kalibrStarterLead;
+    const float u = std::clamp((age - start) / (kalibrStarterLead + kalibrPivotTime), 0.f, 1.f);
+    return u*u*(3.f-2.f*u);
+}
+inline bool kalibrLaunchJetActive(float age, FlightVariation variation)
+{
+    const float u = (age - kalibrEjectTime - kalibrCoastTime) / kalibrPivotTime;
+    if (variation.arcPattern % 2u != 0u)
+        return (u > .02f && u < .24f) || (u > .38f && u < .62f) || (u > .76f && u < .98f);
+    return u > .02f && u < .98f && (u < .40f || u > .60f);
+}
+inline bool kalibrLaunchJetBraking(float age, FlightVariation variation)
+{
+    const float u = (age - kalibrEjectTime - kalibrCoastTime) / kalibrPivotTime;
+    return u > (variation.arcPattern % 2u != 0u ? .70f : .50f);
+}
 inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDuration = 0.f, FlightVariation variation = {})
 {
     t = std::clamp(t, 0.f, 1.f);
@@ -346,11 +368,27 @@ inline Vec3 position(Type type, Vec3 start, Vec3 target, float t, float flightDu
     // the main motor starts. Carry the launch velocity continuously into the
     // coast; horizontal ship movement is added separately by the caller.
     const float coast = std::clamp(elapsedFlight - kalibrEjectTime, 0.f, kalibrCoastTime);
-    const Vec3 raised = ejected + ejectVelocity * (kalibrCoastTime * .5f);
+    const float starterAge = std::max(0.f, elapsedFlight - (kalibrEjectTime + kalibrCoastTime - kalibrStarterLead));
+    const float starterCoast = std::min(starterAge, kalibrStarterLead);
+    // The weak starter begins before the apex and gently contributes lift.
+    const float liftAcceleration = 4.f / (kalibrStarterLead + kalibrPivotTime);
+    const float liftDistance = liftAcceleration * starterCoast*starterCoast*starterCoast / 6.f;
+    const float liftSpeed = liftAcceleration * starterCoast*starterCoast * .5f;
+    const float pivot = std::clamp(elapsedFlight - kalibrEjectTime - kalibrCoastTime, 0.f, kalibrPivotTime);
+    const float forward = kalibrStarterAcceleration * pivot*pivot*pivot / (6.f * kalibrPivotTime);
+    const Vec3 drift{fx*forward, liftDistance + liftSpeed*pivot - .5f*kalibrGravity*pivot*pivot, fz*forward};
+    const Vec3 raised = ejected + ejectVelocity * (kalibrCoastTime * .5f) + drift;
     if (elapsedFlight < kalibrEjectTime + kalibrTurnTime) {
-        return ejected + ejectVelocity * (coast - coast*coast / (2.f * kalibrCoastTime));
+        return ejected + ejectVelocity * (coast - coast*coast / (2.f * kalibrCoastTime)) + drift;
     }
-    return raised + (target-raised)*travel + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
+    // Preserve the small sideways and downward velocity through main ignition.
+    const Vec3 exitVelocity{fx*kalibrStarterAcceleration*kalibrPivotTime*.5f,
+                            liftSpeed - kalibrGravity*kalibrPivotTime,
+                            fz*kalibrStarterAcceleration*kalibrPivotTime*.5f};
+    const float poweredAge = elapsedFlight - kalibrEjectTime - kalibrTurnTime;
+    const float remaining = 1.f - travel;
+    const float carry = poweredAge / (1.f + poweredAge / .8f) * remaining * remaining;
+    return raised + (target-raised)*travel + exitVelocity*carry + Vec3{0.f, altitude*smoothLift*smoothDive, 0.f};
 }
 
 // The body rotates independently of translation while nearly stationary at

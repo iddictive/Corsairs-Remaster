@@ -3277,11 +3277,19 @@ void SHIP::DrawPhonkOrdnance()
         auto axis = actualVelocity;
         if (missile.type == missile::Type::Kalibr && !missile.continueVelocity &&
             !missile.intercepted && !missile.interceptionFragment && !missile.manualFlight &&
-            missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime) {
+            missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime + .75f) {
             const auto direction = missile::kalibrLaunchAxis(
                 {missile.launch.x, missile.launch.y, missile.launch.z},
                 {missile.target.x, missile.target.y, missile.target.z}, missile.age, missile.flightVariation);
             axis = CVECTOR(direction.x, direction.y, direction.z);
+            // Gravity can make velocity point downward while the body is
+            // already turning toward the target. Blend into flight attitude
+            // as the main motor gains speed instead of snapping to velocity.
+            const float u = std::clamp((missile.age - missile::kalibrEjectTime - missile::kalibrTurnTime) / .75f, 0.f, 1.f);
+            if (u > 0.f && (~actualVelocity) > .001f) {
+                const float blend = u*u*(3.f-2.f*u);
+                axis = axis * (1.f - blend) + !actualVelocity * blend;
+            }
         }
         if ((~axis) < .001f) axis = missile.target - missile.launch;
         if ((~axis) < .001f) continue;
@@ -3371,17 +3379,31 @@ void SHIP::DrawPhonkOrdnance()
             const auto tail = head - axis * (4.f * modelScale);
             StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 8, missile.age);
         }
+        if (cruise && !burning && !missile.continueVelocity && !missile.intercepted &&
+            !missile.interceptionFragment && (missileVfx || !vfxBootstrapAttempted)) {
+            const float throttle = missile::kalibrStarterThrottle(missile.age);
+            if (throttle > 0.f) {
+                const auto tail = head - axis * (4.f * modelScale);
+                if (!missileVfx) vfxBootstrapAttempted = true;
+                StormMetalMissileVfxMotorThrottle(pRS->GetNativeDevice(), &tail.x, &axis.x, throttle, missile.age);
+                if (!missileVfx) missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
+            }
+        }
         if (missileVfx && cruise && !missile.continueVelocity && !missile.intercepted) {
             const bool launchTurn = missile.age >= missile::kalibrEjectTime + missile::kalibrCoastTime &&
                                     missile.age < missile::kalibrEjectTime + missile::kalibrTurnTime;
             const float pulseAge = launchTurn ? missile.age - missile::kalibrEjectTime - missile::kalibrCoastTime : missile.age - missile.divertStart;
             const bool correction = !launchTurn && missile.divertStart >= 0.f && (~missile.guidanceVelocity) > 1.f;
-            if ((launchTurn || correction) && kalibrDivertPulse(pulseAge, missile.shotId, uint32_t(missile.owner), launchTurn)) {
+            const bool launchPulse = launchTurn && missile::kalibrLaunchJetActive(missile.age, missile.flightVariation);
+            if (launchPulse || (correction && kalibrDivertPulse(pulseAge, missile.shotId, uint32_t(missile.owner), false))) {
                 auto desired = launchTurn ? missile.target - head : missile.guidanceVelocity;
                 auto exhaust = desired - axis * (desired | axis);
                 if ((~exhaust) > .001f) {
                     exhaust = !exhaust * -1.f;
-                    const auto jet = head - axis * 2.f;
+                    // Opposing jets start and brake the turn; coast between
+                    // them while the body retains angular motion.
+                    const bool braking = launchTurn && missile::kalibrLaunchJetBraking(missile.age, missile.flightVariation);
+                    const auto jet = head + axis * (braking ? 2.f : -2.f);
                     const auto smoke = jet + exhaust * 2.f;
                     StormMetalMissileVfxDivert(pRS->GetNativeDevice(), &jet.x, &exhaust.x, .45f, missile.age);
                     StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &jet.x, &smoke.x, .04f, 4);

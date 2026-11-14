@@ -306,6 +306,13 @@ public:
         // Match the model's tail radius before the plume expands downstream.
         float width=type==MissileVfxType::KalibrEject?.65f:type==MissileVfxType::Fragment?.28f:type==MissileVfxType::OreshnikCarrier?2.86f:type==MissileVfxType::Patriot?.81f:type==MissileVfxType::Interceptor?.50f:type==MissileVfxType::Kinzhal?1.10f:type==MissileVfxType::Kalibr?1.f:1.67f;
         simd_float4 color=type==MissileVfxType::Kalibr?simd_make_float4(.40f,.68f,1.f,.85f):simd_make_float4(1.f,.30f,.035f,.9f);
+        if (type==MissileVfxType::Kalibr && std::isfinite(heat) && heat<1.f) {
+            const float throttle=std::clamp(heat,0.f,1.f);
+            if (throttle<=0.f) return;
+            length*=.25f+.75f*throttle;
+            width*=.5f+.5f*throttle;
+            color.w*=.35f+.65f*throttle;
+        }
         if(type==MissileVfxType::Patriot) color={1.f,.53f,.15f,.96f};
         if(type==MissileVfxType::Fragment) {
             color.w *= std::clamp(1.f-phase/2.5f,0.f,1.f);

@@ -2139,6 +2139,10 @@ extern "C" void StormMetalMissileVfxMotor(void*pointer,const float*tail,const fl
  if(!pointer||!tail||!direction||type>9)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  d->missileVfx.motor({tail[0],tail[1],tail[2]},{direction[0],direction[1],direction[2]},static_cast<storm_metal::MissileVfxType>(type),phase);
 }
+extern "C" void StormMetalMissileVfxMotorThrottle(void*pointer,const float*tail,const float*direction,float throttle,float phase){
+ if(!pointer||!tail||!direction)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
+ d->missileVfx.motor({tail[0],tail[1],tail[2]},{direction[0],direction[1],direction[2]},storm_metal::MissileVfxType::Kalibr,phase,throttle);
+}
 extern "C" void StormMetalMissileVfxMotorBend(void*pointer,const float*tail,const float*direction,const float*bend,unsigned type,float phase){
  if(!pointer||!tail||!direction||!bend||type>9)return;auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  d->missileVfx.motor({tail[0],tail[1],tail[2]},{direction[0],direction[1],direction[2]},static_cast<storm_metal::MissileVfxType>(type),phase,1.f,1,0,{bend[0],bend[1],bend[2]});
