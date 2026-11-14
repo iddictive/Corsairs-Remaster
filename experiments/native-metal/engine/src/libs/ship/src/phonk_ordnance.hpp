@@ -266,8 +266,10 @@ struct OrdnanceState
     std::array<DefenseReaction, 64> airDefenseReaction{}, testDefenseReaction{};
     struct Interceptor { CVECTOR launch{}, target{}; float age = 0.f, duration = 1.f, arc = 140.f, lateral = 0.f; uint32_t serial = 0; entid_t missileShip = 0; uint32_t missileShot = 0, missileVariant = 0; bool finished = false, evasionTriggered = false; size_t missileHint = 0;
         bool patriot = false, diverting = false, patriotContact = false, sonicBoomPlayed = false;
-        CVECTOR position{}, previousPosition{}, visualPreviousPosition{}, velocity{}, seekerBias{}, divertExhaust{};
+        CVECTOR position{}, previousPosition{}, visualPreviousPosition{}, velocity{}, seekerPosition{}, seekerVelocity{}, divertExhaust{};
         float simulationDebt = 0.f, speedScale = 1.f, accelerationScale = 1.f;
+        float seekerInterval = .05f, seekerTimer = 0.f, seekerElapsed = 0.f;
+        bool seekerHasObservation = false;
         float lostTargetTime = 0.f, nextTargetSearch = 0.f;
         float fuseAtAge = -1.f, fuseDelay = 0.f;
         float sensorEnableAge = std::numeric_limits<float>::infinity();

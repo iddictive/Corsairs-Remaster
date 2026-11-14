@@ -126,17 +126,19 @@ void initializePatriot(OrdnanceState::Interceptor &i, const CVECTOR &observed)
     uint32_t bits = i.serial * 0x9e3779b9u ^ uint32_t(i.missileShip);
     bits ^= bits >> 16; bits *= 0x7feb352du; bits ^= bits >> 15;
     bits *= 0x846ca68bu; bits ^= bits >> 16;
+    uint32_t latencyBits = bits ^ 0xa3429bd1u;
+    latencyBits ^= latencyBits >> 16; latencyBits *= 0x7feb352du; latencyBits ^= latencyBits >> 15;
+    i.seekerInterval = .05f + .2f * float(latencyBits & 65535u) / 65535.f;
+    i.seekerTimer = i.seekerElapsed = 0.f;
+    i.seekerHasObservation = false;
     i.speedScale = .96f + .08f * float(bits & 65535u) / 65535.f;
     i.accelerationScale = .96f + .08f * float(bits >> 16) / 65535.f;
     const float angle = 6.2831853f * float(bits & 65535u) / 65535.f;
-    // Sensor/steering offset remains a geometric error, independent of target type.
-    const float radius = 28.f * std::sqrt(float(bits >> 16) / 65535.f);
     // Each launch starts on its own gently displaced course; guidance then
     // corrects naturally towards the tracked target.
     const float launchSpread = .02f + .035f * float(bits >> 16) / 65535.f;
     const auto launchDirection = !(direction + side * (launchSpread * std::cos(angle)) + up * (launchSpread * std::sin(angle)));
     i.velocity = launchDirection * (interceptorProfile(true).initialSpeed * i.speedScale);
-    i.seekerBias = side * (radius * std::cos(angle)) + up * (radius * std::sin(angle));
 }
 // Fixed simulated steps, with a bounded catch-up budget. The debt is retained.
 // Tracking uses only this interceptor's stable missile identity, never another contact.
@@ -149,9 +151,21 @@ void advancePatriot(OrdnanceState::Interceptor &i, const NuclearMissile *shot, f
         const float remaining = std::max(0.f, i.simulationDebt - step);
         CVECTOR observed = i.target, targetVelocity(0.f);
         if (shot) {
-            const float observedAge = std::max(0.f, shot->age - remaining);
-            observed = nuclearPosition(*shot, observedAge);
-            targetVelocity = nuclearVelocity(*shot, observedAge);
+            const float currentAge = std::max(0.f, shot->age - remaining);
+            i.seekerTimer -= step;
+            if (!i.seekerHasObservation || i.seekerTimer <= 0.f) {
+                i.seekerPosition = nuclearPosition(*shot, currentAge);
+                const float earlier = std::max(0.f, currentAge - .12f);
+                const float sample = currentAge - earlier;
+                i.seekerVelocity = sample > .001f && !shot->manualFlight ?
+                    (i.seekerPosition - nuclearPosition(*shot, earlier)) * (1.f / sample) :
+                    nuclearVelocity(*shot, currentAge);
+                i.seekerTimer = i.seekerInterval;
+                i.seekerElapsed = 0.f;
+                i.seekerHasObservation = true;
+            } else i.seekerElapsed += step;
+            targetVelocity = i.seekerVelocity;
+            observed = i.seekerPosition + targetVelocity * i.seekerElapsed;
         }
         const float speed = std::sqrt(~i.velocity);
         const auto relativePosition = observed - i.position;
@@ -159,7 +173,7 @@ void advancePatriot(OrdnanceState::Interceptor &i, const NuclearMissile *shot, f
         const float closing = distance > .001f ? -(targetVelocity | relativePosition) / distance : 0.f;
         float lead = std::clamp(distance / std::max(400.f, speed + closing), 0.f, 2.f);
         if (shot) lead = std::min(lead, std::max(0.f, shot->duration - shot->age));
-        auto aim = shot ? observed + targetVelocity * lead + i.seekerBias : i.target;
+        auto aim = shot ? observed + targetVelocity * lead : i.target;
         if (shot) aim.y = std::max(i.launch.y, aim.y);
         const auto oldVelocity = i.velocity;
         if (shot || !i.missileShip)
@@ -246,7 +260,12 @@ missile::Type randomMissileType(float choice)
 }
 float interceptorFuseDelay(uint32_t serial, uint32_t owner)
 {
-    return .001f + .002f * shotVariation(serial, owner, 0xa498731du);
+    return .002f + .005f * shotVariation(serial, owner, 0xa498731du);
+}
+float interceptorBlastRadius(bool patriot, uint32_t serial, uint32_t owner)
+{
+    const float variation = shotVariation(serial, owner, 0x6c3874a5u);
+    return patriot ? 10.f + 10.f * variation : 15.f + 15.f * variation;
 }
 void advanceDefenseReaction(std::array<OrdnanceState::DefenseReaction, 64> &reactions, float seconds)
 {
@@ -2315,6 +2334,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 i.missileShip = bestOwner->GetId(); i.missileShot = best->shotId;
                 i.missileVariant = interceptorVariant(*best); i.missileHint = bestIndex;
                 i.evasionTriggered = false; i.lostTargetTime = 0.f;
+                i.seekerHasObservation = false;
             }
             return best;
         };
@@ -2587,7 +2607,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                                           interceptorVariant(shot), enemyState.airDefenseSerial + 1u, uint32_t(enemyIndex))) continue;
                 const float arc = std::clamp(std::sqrt(~(target-launch)) * .02f, 3.f, 20.f);
                 enemyDefense.push_back({launch, target, 0.f, std::max(.05f, hi), arc, 0.f, ++enemyState.airDefenseSerial, missileOwner->GetId(), shot.shotId, interceptorVariant(shot)});
-                enemyDefense.back().blastRadius = 15.f + 15.f * shotVariation(enemyState.airDefenseSerial, uint32_t(enemyIndex), 0x6c3874a5u);
+                enemyDefense.back().blastRadius = interceptorBlastRadius(testPatriot, enemyState.airDefenseSerial, uint32_t(enemyIndex));
                 enemyDefense.back().fuseDelay = interceptorFuseDelay(enemyState.airDefenseSerial, uint32_t(enemyIndex));
                 enemyDefense.back().missileHint = enemyState.testMissileCursor - 1;
                 if (testPatriot) initializePatriot(enemyDefense.back(), position);
@@ -2770,7 +2790,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     const float arc = std::clamp(distance * .02f, 3.f, 20.f);
                     const float lateral = (float(variation >> 16) / 65535.f * 2.f - 1.f) * std::min(12.f, distance*.015f);
                     state.interceptors.push_back({start, target, 0.f, flight, arc, lateral, state.airDefenseSerial, missileShip, missileShot, missileVariant});
-                    state.interceptors.back().blastRadius = 15.f + 15.f * shotVariation(state.airDefenseSerial, uint32_t(defender), 0x6c3874a5u);
+                    state.interceptors.back().blastRadius = interceptorBlastRadius(playerPatriot, state.airDefenseSerial, uint32_t(defender));
                     state.interceptors.back().fuseDelay = interceptorFuseDelay(state.airDefenseSerial, uint32_t(defender));
                     state.interceptors.back().missileHint = missileHint;
                     if (playerPatriot) initializePatriot(state.interceptors.back(), contact.position);
