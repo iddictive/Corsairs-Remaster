@@ -23,6 +23,25 @@ namespace
 using namespace storm::ship::phonk;
 static_assert(PHONK_WARHEAD_THERMOBARIC == thermobaricWarhead);
 constexpr size_t maxMissiles = 64;
+CVECTOR missileVisualAxis(const NuclearMissile &shot, float age, CVECTOR velocity)
+{
+    auto axis = velocity;
+    if (shot.type == missile::Type::Kalibr && !shot.continueVelocity &&
+        !shot.intercepted && !shot.interceptionFragment && !shot.manualFlight &&
+        age < missile::kalibrLaunchDuration(shot.flightVariation) + .75f) {
+        const auto direction = missile::kalibrLaunchAxis(
+            {shot.launch.x, shot.launch.y, shot.launch.z},
+            {shot.target.x, shot.target.y, shot.target.z}, age, shot.flightVariation);
+        axis = CVECTOR(direction.x, direction.y, direction.z);
+        const float u = std::clamp((age - missile::kalibrLaunchDuration(shot.flightVariation)) / .75f, 0.f, 1.f);
+        if (u > 0.f && (~velocity) > .001f) {
+            const float blend = u*u*(3.f-2.f*u);
+            axis = axis * (1.f - blend) + !velocity * blend;
+        }
+    }
+    if ((~axis) < .001f) axis = shot.target - shot.launch;
+    return (~axis) < .001f ? CVECTOR(0.f) : !axis;
+}
 // Visual response to aerodynamic load, not a physical temperature model.
 float advanceReentryHeat(float heat, const CVECTOR &velocity, float altitude, float dt, bool carrier)
 {
@@ -1504,12 +1523,14 @@ void SHIP::ExecutePhonkMissilesLate(uint32_t deltaTime, bool planning, std::size
                 !missile.continueVelocity && missile.age <= missile::kalibrEjectionDuration(missile.flightVariation);
             if (visualFraction > 0.f && !missile.intercepted && !missile.interceptionFragment && !isClusterSubmunition(missile) && (steps-n-1)*seconds/float(steps) <= .20f &&
                 (missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.continueVelocity || missile.ignitionPlayed || kalibrEject)) {
-                auto axis = visualEnd-before;
-                if ((~axis) > .001f) axis = !axis; else axis = CVECTOR(0.f);
+                const auto velocity = visualEnd-before;
+                const float visualAge = substepStartAge + (missile.age-substepStartAge)*visualFraction;
+                const auto axisBefore = missileVisualAxis(missile, substepStartAge, velocity);
+                const auto axisAfter = missileVisualAxis(missile, visualAge, velocity);
                 const float modelScale = missile.continueVelocity ? (missile.cluster ? .8f : .6f) : 1.f;
                 const float offset = (missile.continueVelocity && missile.cluster ? 2.f :
                     missile.type == storm::ship::phonk::missile::Type::Kalibr ? 4.f : missile.type == missile::Type::Shtorm ? 6.f : 5.f)*modelScale;
-                const auto tailBefore=before-axis*offset, tailAfter=visualEnd-axis*offset;
+                const auto tailBefore=before-axisBefore*offset, tailAfter=visualEnd-axisAfter*offset;
                 StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &tailBefore.x, &tailAfter.x, seconds/float(steps)*visualFraction, kalibrEject ? 8u : missileVfxType(missile.type));
             }
 #endif
@@ -3291,24 +3312,7 @@ void SHIP::DrawPhonkOrdnance()
         if (!missile.active) continue;
         const auto head = nuclearPosition(missile, missile.age);
         const auto actualVelocity = nuclearVelocity(missile, missile.age);
-        auto axis = actualVelocity;
-        if (missile.type == missile::Type::Kalibr && !missile.continueVelocity &&
-            !missile.intercepted && !missile.interceptionFragment && !missile.manualFlight &&
-            missile.age < missile::kalibrLaunchDuration(missile.flightVariation) + .75f) {
-            const auto direction = missile::kalibrLaunchAxis(
-                {missile.launch.x, missile.launch.y, missile.launch.z},
-                {missile.target.x, missile.target.y, missile.target.z}, missile.age, missile.flightVariation);
-            axis = CVECTOR(direction.x, direction.y, direction.z);
-            // Gravity can make velocity point downward while the body is
-            // already turning toward the target. Blend into flight attitude
-            // as the main motor gains speed instead of snapping to velocity.
-            const float u = std::clamp((missile.age - missile::kalibrLaunchDuration(missile.flightVariation)) / .75f, 0.f, 1.f);
-            if (u > 0.f && (~actualVelocity) > .001f) {
-                const float blend = u*u*(3.f-2.f*u);
-                axis = axis * (1.f - blend) + !actualVelocity * blend;
-            }
-        }
-        if ((~axis) < .001f) axis = missile.target - missile.launch;
+        auto axis = missileVisualAxis(missile, missile.age, actualVelocity);
         if ((~axis) < .001f) continue;
         axis = !axis;
         // Anchor roll to the flight plane, so passing close to vertical does
