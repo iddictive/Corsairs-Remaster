@@ -3350,11 +3350,13 @@ void SHIP::DrawPhonkOrdnance()
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
         const float modelScale = missile.interceptionFragment ? .12f : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
-        float bodyHeat = 0.f;
+        float bodyHeat = 0.f, bodyGlow = 0.f;
         if (!missile.suppressReentryHeat && !missile.intercepted && !missile.interceptionFragment &&
             std::isfinite(missile.visualHeat)) {
             const float heat = std::clamp((missile.visualHeat - .08f) / .37f, 0.f, 1.f);
-            bodyHeat = heat * heat * (3.f - 2.f * heat) * .6f;
+            bodyHeat = heat * heat * (3.f - 2.f * heat) * .9f;
+            const float hot = std::clamp((missile.visualHeat - .12f) / .45f, 0.f, 1.f);
+            bodyGlow = hot * hot * (3.f - 2.f * hot);
         }
         const auto emit = [&](const storm::ship::phonk::missile::Vertex &a,
                               const storm::ship::phonk::missile::Vertex &b,
@@ -3368,7 +3370,8 @@ void SHIP::DrawPhonkOrdnance()
                         const float original = float((v.color >> shift) & 255u);
                         return uint32_t(std::clamp(original + (hot - original) * blend, 0.f, 255.f)) << shift;
                     };
-                    color = (v.color & 0xff000000u) | channel(16, 205.f) | channel(8, 48.f) | channel(0, 24.f);
+                    color = (v.color & 0xff000000u) | channel(16, 205.f + 50.f*bodyGlow) |
+                            channel(8, 48.f + 163.f*bodyGlow) | channel(0, 24.f + 121.f*bodyGlow);
                 }
                 bodies.push_back({head + (side*v.position.x + up*v.position.y + axis*v.position.z)*modelScale,color});
             };

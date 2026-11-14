@@ -318,7 +318,8 @@ public:
             float length=(style==0?2.5f+4.f*load:3.f+8.f*load)*scale*(.84f+.32f*proportion);
             float width=(.65f+1.25f*load)*scale*(.88f+.24f*shape);
             float opacity=std::clamp(load*2.f,0.f,1.f)*flicker*heat*(.88f+.12f*pulse);
-            float hot=heat*heat*(3.f-2.f*heat);
+            float hot=std::clamp((heat-.12f)/.45f,0.f,1.f);
+            hot=hot*hot*(3.f-2.f*hot);
             simd_float3 cold={.65f,.035f,.01f};
             simd_float3 bright=style==0?simd_make_float3(1.f,.82f,.68f):simd_make_float3(1.f,.96f,.84f);
             auto tint=cold+(bright-cold)*hot;
