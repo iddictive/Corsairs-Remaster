@@ -372,7 +372,7 @@ public:
         // The halo shares the hot nose and the existing bounded sprite pass.
         const float radius=(style==1 ? 10.f : 6.f)*(.55f+.45f*glow);
         heads[headCount++]={simd_make_float4(head,radius),simd_make_float4(0,1,0,radius),
-            {0,1,2,0},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
+            {-1,1,2,0},{1.f,.34f+.42f*glow,.12f+.33f*glow,.38f*glow}};
     }
     // One instantaneous lateral attitude-motor jet. Caller supplies the
     // actual outward exhaust direction and controls the short firing window.
@@ -439,7 +439,20 @@ public:
             float size=scale*(.35f+age*2.f),alpha=.9f*(1.f-age/.45f);
             sprites.push_back({simd_make_float4(f.position+worldOrigin,size),simd_make_float4(0,1,0,size),{age,.45f,2,0},{1.f,.31f,.045f,alpha}});
         }
-        for(size_t i=0;i<headCount;i++) if(heads[i].params.z<=3.5f) { auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin; sprites.push_back(sprite); }
+        for(size_t i=0;i<headCount;i++) if(heads[i].params.z<=3.5f) {
+            auto sprite=heads[i]; sprite.positionSize.xyz+=worldOrigin;
+            if(sprite.params.z==2.f && sprite.params.x<0.f) {
+                // Close cameras see the heated surface and directional wake;
+                // soften the distant halo so it does not read as a round blob.
+                const float distance=simd_length(sprite.positionSize.xyz-eye);
+                const float t=std::clamp((distance-60.f)/740.f,0.f,1.f);
+                const float blend=t*t*(3.f-2.f*t);
+                const float size=.35f+.65f*blend;
+                sprite.positionSize.w*=size; sprite.axisLength.w*=size;
+                sprite.color.w*=.25f+.75f*blend;
+            }
+            sprites.push_back(sprite);
+        }
         const size_t coneStart=sprites.size();
         for(size_t i=0;i<headCount;i++) if(heads[i].params.z>3.5f) { auto cone=heads[i]; cone.positionSize.xyz+=worldOrigin; sprites.push_back(cone); }
         if(sprites.empty())return true;
