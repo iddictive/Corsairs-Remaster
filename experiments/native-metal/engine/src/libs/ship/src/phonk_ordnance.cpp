@@ -857,14 +857,13 @@ bool blastClearOfOwner(SHIP &owner, AIShip *ai, const CVECTOR &point, float seco
 }
 bool clearTrajectory(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
                      SHIP &owner, AIShip *ai, const NuclearMissile &missile, float blastRadius, entid_t movingTarget = 0,
-                     ImpactSurface *obstruction = nullptr)
+                     ImpactSurface *obstruction = nullptr, unsigned steps = 48)
 {
     if (obstruction) *obstruction = ImpactSurface::Other;
     if (!blastClearOfOwner(owner, ai, missile.target, missile.duration, blastRadius)) return false;
     // Sample the same bounded arc as live flight. The selected moving ship is
     // tested live during flight; its old pose cannot obstruct its led endpoint.
     CVECTOR before = missile.launch;
-    constexpr unsigned steps = 48;
     for (unsigned n = 1; n <= steps; ++n)
     {
         const float age = missile.duration * float(n) / float(steps);
@@ -882,18 +881,29 @@ bool clearTrajectory(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid
     return true;
 }
 bool planTerrainRoute(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
-                      SHIP &owner, AIShip *ai, NuclearMissile &missile, float radius, entid_t target)
+                      SHIP &owner, AIShip *ai, NuclearMissile &missile, float radius, entid_t target, unsigned steps = 48)
 {
     ImpactSurface obstruction;
-    if (clearTrajectory(sea, island, ships, owner, ai, missile, radius, target, &obstruction)) return true;
+    if (clearTrajectory(sea, island, ships, owner, ai, missile, radius, target, &obstruction, steps)) return true;
     if (missile.type != missile::Type::Kalibr || obstruction != ImpactSurface::Land) return false;
     for (const float lift : {250.f, 600.f, 1200.f}) {
         missile.terrainLift = lift;
-        if (clearTrajectory(sea, island, ships, owner, ai, missile, radius, target, &obstruction)) return true;
+        if (clearTrajectory(sea, island, ships, owner, ai, missile, radius, target, &obstruction, steps)) return true;
         if (obstruction != ImpactSurface::Land) break;
     }
     missile.terrainLift = 0.f;
     return false;
+}
+bool islandBlocksIntercept(ISLAND_BASE *island, const NuclearMissile &shot, float flight, const CVECTOR &aim)
+{
+    if (!island || flight <= 0.f || !manual_aim::finite(aim)) return false;
+    const auto from = nuclearPosition(shot, shot.age);
+    const auto midpoint = nuclearPosition(shot, std::min(shot.duration, shot.age + flight * .5f));
+    entid_t receiver = 0;
+    const float first = island->TraceWorldWeapon(from, midpoint, receiver);
+    if (first >= 0.f && first <= 1.f) return true;
+    const float second = island->TraceWorldWeapon(midpoint, aim, receiver);
+    return second >= 0.f && second <= 1.f;
 }
 bool automaticTarget(SEA_BASE *sea, ISLAND_BASE *island, const std::vector<entid_t> &ships,
                      SHIP &owner, AIShip *ai, const CVECTOR &launch, CVECTOR &target,
@@ -2464,6 +2474,12 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 incoming.cluster = incoming.warhead == 2;
                 incoming.warheadCount = incoming.cluster ? 24u : 1u;
                 incoming.split = incoming.cluster;
+                if (pIsland && !planTerrainRoute(pSea, pIsland, receivers, *testShip, nullptr, incoming,
+                        conventionalMissileRadius(kind, incoming.cluster, incoming.warhead) * incoming.blastScale,
+                        target->GetId(), 12)) {
+                    enemyState.testVolleyRemaining = 0;
+                    continue;
+                }
                 incoming.seeker = true;
                 incoming.guidedShip = incoming.seeker ? target->GetId() : 0;
                 incoming.lastGuidedPosition = target->GetPos();
@@ -2546,6 +2562,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     reachable = true;
                 }
                 if (!reachable) continue;
+                if (islandBlocksIntercept(pIsland, shot, hi, target)) continue;
                 if (!interceptorForwardSector(testShip->GetModel()->mtx.Vz(), launch, target)) continue;
                 target += interceptorAimError(launch, target, std::sqrt(~relative), hi, enemyState.airDefenseSerial + 1u, uint32_t(enemyIndex)) +
                           interceptorTrackingError(shot, hi, enemyState.airDefenseSerial + 1u, uint32_t(enemyIndex));
@@ -2633,6 +2650,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     reachable = estimatePantsir(defenseStart, position, observed, accel, limit, state.airDefenseSerial+1u, candidateFlight, candidateTarget, observeBallistic(incoming.type));
                 }
                 if (!reachable && !(playerPatriot && incoming.type == missile::Type::Oreshnik)) continue;
+                if (reachable && islandBlocksIntercept(pIsland, incoming, candidateFlight, candidateTarget)) continue;
                 if (economical && !playerPatriot && reachable) {
                     // A fixed-aim interceptor should wait for a better track if
                     // the target is not yet urgent and the timing corridor is
@@ -2726,6 +2744,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     flight = std::clamp(std::sqrt(~(target - start)) / interceptorSpeed, .15f, 15.f);
                     reachable = true;
                 }
+                if (reachable && tracked && islandBlocksIntercept(pIsland, *tracked, flight, target)) reachable = false;
                 if (reachable && manual_aim::finite(target) &&
                     defenseReactionReady(state.airDefenseReaction, missileShip, missileShot, missileVariant,
                                          state.airDefenseSerial, uint32_t(defender))) {

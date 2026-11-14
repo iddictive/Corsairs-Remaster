@@ -1002,7 +1002,7 @@ BOOL SHIP::Move(uint32_t DeltaTime, BOOL bCollision, GroundMotion *groundMotion)
                 State.vSpeed.y += buoyantAccel * dtime;
                 State.vPos.y += State.vSpeed.y * dtime;
                 const auto rock = ShipRocking(dtime);
-                const float blend = 1.0f - std::exp(-3.5f * dtime);
+                const float blend = PhonkActive() ? 1.f : 1.f - std::exp(-3.5f * dtime);
                 State.vAng.x += (rock.x - State.vAng.x) * blend;
                 State.vAng.z += (rock.z - State.vAng.z) * blend;
             }
