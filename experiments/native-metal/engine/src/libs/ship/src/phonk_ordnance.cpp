@@ -231,6 +231,11 @@ float shotVariation(uint32_t serial, uint32_t owner, uint32_t salt)
     bits ^= bits >> 16; bits *= 0x7feb352du; bits ^= bits >> 15;
     return float(bits & 65535u) / 65535.f;
 }
+bool defensePatriot(uint32_t mode, uint32_t serial, uint32_t owner)
+{
+    return mode == 1u || (mode >= 2u &&
+        shotVariation(serial, owner, 0x729b483du) < (mode == 3u ? .1f : .5f));
+}
 missile::Type randomMissileType(float choice)
 {
     return choice < .05f ? missile::Type::Kinzhal :
@@ -2514,7 +2519,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             const float testRange = setting("DefenseRange", 1600.f, 400.f, 8000.f);
             const float testInterval = setting("DefenseInterval", .3f, .05f, 5.f);
             const uint32_t defenseChoice = testLoadout ? testLoadout->GetAttributeAsDword("AirDefenseType", 2) : 2u;
-            const bool testPatriot = defenseChoice == 1u || (defenseChoice > 1u && ((uint32_t(testShip->GetId()) * 0x9e3779b9u) >> 31));
+            const bool testPatriot = defenseChoice == 2u ? ((uint32_t(testShip->GetId()) * 0x9e3779b9u) >> 31) != 0 :
+                defensePatriot(defenseChoice > 2u ? defenseChoice - 1u : defenseChoice,
+                               enemyState.airDefenseSerial + 1u, uint32_t(enemyIndex));
             const float testSpeed = interceptorProfile(testPatriot).planningSpeed;
             const unsigned testMax = defenseSettings ? std::clamp(testLoadout->GetAttributeAsDword("DefenseMax", 4), 1u, 32u) : 4u;
             if (enemyState.testDefenseShip != testShip->GetId()) {
@@ -2586,7 +2593,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                 if (testPatriot) StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &launch.x, 7);
 #endif
-                enemyState.testDefenseCooldown = testInterval;
+                enemyState.testDefenseCooldown = testInterval * (defenseChoice >= 3u && testPatriot && !customDefense ? 1.5f : 1.f);
                 missileSound(testPatriot ? "phonk_missile_interceptor_patriot" : "phonk_missile_interceptor", launch);
                 break;
             }
@@ -2597,8 +2604,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         const auto defenseMax = std::clamp(mode->GetAttributeAsDword("AirDefenseMax", 8), 1u, 32u);
         const auto defensePerTarget = std::clamp(mode->GetAttributeAsDword("AirDefensePerTarget", 2), 1u, 8u);
         const auto playerDefenseType = mode->GetAttributeAsDword("AirDefenseType", 0);
-        const bool playerPatriot = playerDefenseType == 1u ||
-            (playerDefenseType == 2u && shotVariation(state.airDefenseSerial + 1u, uint32_t(defender), 0x729b483du) < .5f);
+        const bool playerPatriot = defensePatriot(playerDefenseType, state.airDefenseSerial + 1u, uint32_t(defender));
         const float interceptorSpeed = interceptorProfile(playerPatriot).planningSpeed;
         if (enabled && available && defender >= 0 && state.airDefenseCooldown <= 0.f && state.airDefenseScanCooldown <= 0.f && state.interceptors.size() < defenseMax)
         {

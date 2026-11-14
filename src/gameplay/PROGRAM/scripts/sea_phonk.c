@@ -3,7 +3,7 @@ string SEA_PHONK_TRACK = "MUSIC\\phonk-drive.mp3";
 
 int SeaPhonk_PlayerDefenseType(int type)
 {
-    if (type < 0 || type > 2) return 0;
+    if (type < 0 || type > 3) return 0;
     return type;
 }
 
