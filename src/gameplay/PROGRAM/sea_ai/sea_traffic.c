@@ -147,7 +147,12 @@ bool SeaPhonkTest_StartSide(bool allied)
     captain.PhonkTest.DefenseCustom = defenseCustom;
     int defenseType = 2;
     if (CheckAttribute(pchar, "SeaPhonk.Spawn.AirDefenseType")) defenseType = SeaPhonk_SpawnDefenseType(sti(pchar.SeaPhonk.Spawn.AirDefenseType));
-    if (defenseType == 2 || defenseType < 0 || defenseType > 4) defenseType = rand(1);
+    if (defenseType == 2 || defenseType < 0 || defenseType > 4) {
+        int pick = rand(2);
+        if (pick == 0) defenseType = 0;      // 33% Панцирь
+        else if (pick == 1) defenseType = 1; // 33% Patriot
+        else defenseType = 4;                // 33% Панцирь + Patriot 10%
+    }
     captain.PhonkTest.AirDefenseType = defenseType;
     if (defenseCustom)
     {
@@ -163,7 +168,9 @@ bool SeaPhonkTest_StartSide(bool allied)
         captain.PhonkTest.DefenseRange = 1200 + rand(24) * 100;
         captain.PhonkTest.DefenseInterval = 0.3 + rand(9) * 0.1;
         if (defenseType == 1) captain.PhonkTest.DefenseInterval = stf(captain.PhonkTest.DefenseInterval) * 1.5;
-        captain.PhonkTest.DefenseMax = 2 + rand(6);
+        int perTarget = 2 + rand(2); // 2..4 ракет на цель
+        captain.PhonkTest.DefensePerTarget = perTarget;
+        captain.PhonkTest.DefenseMax = perTarget * 4; // x4 от этого диапазон одновременно летящих ракет (8..16)
         captain.PhonkTest.DefenseSpeed = 450 + rand(6) * 50;
     }
     SeaPhonkTest.enemies.(key).index = index;

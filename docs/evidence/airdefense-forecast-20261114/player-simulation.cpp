@@ -24,6 +24,7 @@ int main() {
      m.launch=CVECTOR(0.f,10.f,19000.f);
      m.target=CVECTOR((shotVariation(shotSerial,attacker,102)*2-1)*80,5.5f,(shotVariation(shotSerial,attacker,103)*2-1)*80);
      varyMissile(m,attacker); shots.push_back({m,true,false}); created++; total++;
+     if(m.type==missile::Type::Oreshnik) shots.back().m.durability = 2u + (m.shotId % 2u);
      if(created%4==0) nextShot=float(created/4)*4.f;
      else nextShot=time+.2f+.15f*shotVariation(shotSerial,attacker,0xb192a437u);
     }
@@ -38,11 +39,11 @@ int main() {
       auto &s=shots[n]; auto &m=s.m; if(!s.alive)continue;
       auto p=nuclearPosition(m,m.age),rel=p-ship; CVECTOR v(0.f),a(0.f);
       if(observeBallistic(m.type))observeShtorm(m,p,v,a);else v=nuclearVelocity(m,m.age);
-      float v2=v.x*v.x+v.z*v.z;
-      if((~rel)>8000.f*8000.f || (rel|v)>=0.f || v2<1.f)continue;
-      float approach=std::max(0.f,-(rel.x*v.x+rel.z*v.z)/v2);
-      float mx=rel.x+v.x*approach,mz=rel.z+v.z*approach;
-      float threat=approach+std::hypot(mx,mz)/std::max(100.f,std::sqrt(v2));
+      const float distSq = ~rel;
+      if(distSq > 8000.f*8000.f || (rel|v) >= 0.f || (~v) < 1.f) continue;
+      const float relDist = std::sqrt(distSq);
+      const float closing = -(rel|v) / relDist;
+      float threat = closing > .01f ? relDist / closing : std::max(0.f, m.duration - m.age);
       if(!std::isfinite(threat)||threat>=best)continue;
       unsigned assigned=0;for(auto &d:defenses)if(d.live&&d.target==n)assigned++;
       if(assigned>=8)continue;
@@ -50,7 +51,7 @@ int main() {
       float flight=0,limit=std::min(60.f,m.duration-m.age);CVECTOR target(0.f);bool ok=false;
       if(pat) ok=observeBallistic(m.type)?interceptorEstimateShtorm(start,p,v,a,speed/scale,limit,flight,target):m.type==missile::Type::Kalibr?interceptorEstimateCruise(m,start,p,stale,speed/scale,limit,flight,target):interceptorEstimate(start,p,stale,speed/scale,limit,flight,target);
       else {auto accel=observeBallistic(m.type)?a:observedMissileAcceleration(m,stale);auto observed=stale+(m.type==missile::Type::Kalibr?accel*std::min(.12f,std::max(0.f,m.age)):CVECTOR(0.f));ok=estimatePantsir(start,p,observed,accel,limit,ds+1,flight,target,observeBallistic(m.type));}
-      if(!ok && !(pat && m.type==missile::Type::Oreshnik))continue;
+      if(!ok)continue;
       best=threat;selected=n;
      }
      if(selected<shots.size()) {
@@ -61,7 +62,6 @@ int main() {
       ++ds;
       if(pat)ok=observeBallistic(m.type)?interceptorEstimateShtorm(start,p,v,a,speed/scale,limit,flight,target):m.type==missile::Type::Kalibr?interceptorEstimateCruise(m,start,p,stale,speed/scale,limit,flight,target):interceptorEstimate(start,p,stale,speed/scale,limit,flight,target);
       else {auto accel=observeBallistic(m.type)?a:observedMissileAcceleration(m,stale);auto observed=stale+(m.type==missile::Type::Kalibr?accel*std::min(.12f,std::max(0.f,m.age)):CVECTOR(0.f));ok=estimatePantsir(start,p,observed,accel,limit,ds,flight,target,observeBallistic(m.type));}
-      if(!ok && pat && m.type==missile::Type::Oreshnik){target=p;flight=std::clamp(std::sqrt(~(target-start))/speed,.15f,15.f);ok=true;}
       if(ok && defenseReactionReady(reaction,attacker,m.shotId,0,ds,defender)) {
        target+=interceptorAimError(start,target,std::sqrt(~(p-start)),flight,ds,defender)+interceptorTrackingError(m,flight,ds,defender);
        float distance=std::sqrt(~(target-start)),arc=std::clamp(distance*.02f,3.f,20.f);
@@ -91,7 +91,7 @@ int main() {
      }
      for(size_t n=0;n<shots.size();n++)if(shots[n].alive){auto &m=shots[n].m;float step=std::min(DT,m.duration-m.age);if(step>0)targets.push_back({n+1,2,n+1,0,step<DT?double(step):std::numeric_limits<double>::infinity(),{{0,double(step),point(nuclearPosition(m,m.age)),point(nuclearPosition(m,m.age+step))}}});}
      auto events=air::resolve(interceptors,targets,[](auto x,auto y){return x!=y;});
-     for(auto &e:events){size_t n=e.contact.interceptor-1;auto &d=defenses[n];if(e.armed)d.i.fuseAtAge=frameStart[n]+float(e.contact.time)+d.i.fuseDelay;else{d.live=false;for(auto id:e.splash){auto &s=shots[id-1];if(s.alive){s.alive=false;s.hit=true;hits++;trialHits++;}}}}
+     for(auto &e:events){size_t n=e.contact.interceptor-1;auto &d=defenses[n];if(e.armed)d.i.fuseAtAge=frameStart[n]+float(e.contact.time)+d.i.fuseDelay;else{d.live=false;for(auto id:e.splash){auto &s=shots[id-1];if(s.alive){if(s.m.type==missile::Type::Oreshnik&&s.m.durability>1){s.m.durability--;}else{s.alive=false;s.hit=true;hits++;trialHits++;}}}}}
      for(auto &d:defenses)if(d.i.age>=d.i.duration)d.live=false;
      std::erase_if(defenses,[](auto &d){return !d.live;});
     }

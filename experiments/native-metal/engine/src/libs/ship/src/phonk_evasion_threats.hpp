@@ -90,6 +90,12 @@ inline Result select(State &state, const Input &in, std::span<const Threat> thre
     state.reactions = std::move(next);
     result.observed = unsigned(state.reactions.size()); result.ready = unsigned(ready.size());
     if (ready.empty()) return result;
+    // Evaluate at most the 2 most immediate threats by time-to-closest-approach
+    if (ready.size() > 2) {
+        std::partial_sort(ready.begin(), ready.begin() + 2, ready.end(),
+            [](const auto &a, const auto &b) { return a.closest < b.closest; });
+        ready.resize(2);
+    }
     const Vec3 forward = unit(in.velocity);
     if (dot(forward,forward) < .5) return result;
     Vec3 side = unit(cross(forward, {0.f,1.f,0.f}));
@@ -98,7 +104,7 @@ inline Result select(State &state, const Input &in, std::span<const Threat> thre
     // All candidates are lateral to current velocity. Score uses a constant-
     // velocity estimate from observations, not known future interceptor motion.
     double best = -1.; bool found = false;
-    constexpr unsigned count = 64;
+    constexpr unsigned count = 12;
     for (unsigned i = 0; i < count; ++i) {
         const double angle = 6.283185307179586 * double(i) / count;
         const Vec3 direction = side * float(std::cos(angle)) + up * float(std::sin(angle));

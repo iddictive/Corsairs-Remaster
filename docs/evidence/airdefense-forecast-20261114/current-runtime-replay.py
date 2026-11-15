@@ -11,7 +11,8 @@ names.extend(['initializeKinzhalTiming', 'advanceEvasion', 'considerInterceptorE
 f.update({n:m.function(runtime,n) for n in names if n not in f})
 names.remove('initializeKinzhalTiming'); names.insert(names.index('evadeInterceptor'), 'initializeKinzhalTiming')
 names.remove('advanceEvasion'); names.insert(names.index('evadeInterceptor'), 'advanceEvasion')
-for a,b in [('scenario<2','scenario<1'),('mode<3','mode<2'),('assigned>=8','assigned>=2'),('defenses.size()<32','defenses.size()<8'),('cooldown=.05f','cooldown=.25f'),('scan=.05f','scan=.1f'),('i.blastRadius=15.f+15.f*shotVariation(ds,defender,0x6c3874a5u)','i.blastRadius=interceptorBlastRadius(pat,ds,defender)'),('varyMissile(m,attacker); shots.push_back','varyMissile(m,attacker); m.seeker=true; initializeKinzhalTiming(m); shots.push_back'),('if(tracked.alive&&!i.evasionTriggered&&(~(nuclearPosition(tracked.m,tracked.m.age)-to))<=300.f*300.f){i.evasionTriggered=true;evadeInterceptor(tracked.m,ship,nullptr);}','if(tracked.alive)considerInterceptorEvasion(tracked.m,i,before,ship,nullptr);')]:assert driver.count(a)==1;driver=driver.replace(a,b)
+for a,b in [('scenario<2','scenario<1'),('mode<3','mode<2'),('assigned>=8','assigned>=8'),('defenses.size()<32','defenses.size()<32'),('cooldown=.05f','cooldown=.10f'),('scan=.05f','scan=.05f'),('i.blastRadius=15.f+15.f*shotVariation(ds,defender,0x6c3874a5u)','i.blastRadius=interceptorBlastRadius(pat,ds,defender)'),('varyMissile(m,attacker); shots.push_back','varyMissile(m,attacker); m.seeker=true; initializeKinzhalTiming(m); shots.push_back'),('if(tracked.alive&&!i.evasionTriggered&&(~(nuclearPosition(tracked.m,tracked.m.age)-to))<=300.f*300.f){i.evasionTriggered=true;evadeInterceptor(tracked.m,ship,nullptr);}','if(tracked.alive)considerInterceptorEvasion(tracked.m,i,before,ship,nullptr);')]:assert driver.count(a)==1;driver=driver.replace(a,b)
+driver=driver.replace('i.duration=std::max(.05f,pantsirFlightTime(distance,ds));', 'i.duration=std::max(.05f,pantsirFlightTime(distance,ds)+1.f+4.f*shotVariation(ds,defender,0x5a18c943u));')
 before='interceptorAimError(start,target,std::sqrt(~(p-start)),flight,ds,defender)'
 after='interceptorAimError(start,target,std::sqrt(~(p-start)),flight,ds,defender,interceptorProfile(pat).planningSpeed)'
 assert driver.count(before)==1
@@ -34,7 +35,7 @@ d=pathlib.Path(tempfile.mkdtemp(prefix='corsairs-forecast-matrix-'))
 try:
     (d/'phonk_ordnance.hpp').write_text(h)
     for dist in [1000,2000,4000,8000]:
-     src=d/'matrix.cpp';exe=d/'matrix';src.write_text(prefix+''.join(f[n] for n in names)+driver.replace('0.f,10.f,19000.f',f'0.f,10.f,{dist}.f'));subprocess.run(['xcrun','clang++','-std=c++20','-O2','-I'+str(d),'-I'+str(m.SHIP),'-I'+str(m.MATH),str(src),'-o',str(exe)],check=True);out=subprocess.run([str(exe)],capture_output=True,text=True,check=True).stdout;print('DISTANCE',dist,flush=True);print(out,end='',flush=True)
+        src=d/'matrix.cpp';exe=d/'matrix';src.write_text(prefix+''.join(f[n] for n in names)+driver.replace('0.f,10.f,19000.f',f'0.f,10.f,{dist}.f'));subprocess.run(['xcrun','clang++','-std=c++20','-O2','-I'+str(d),'-I'+str(m.SHIP),'-I'+str(m.MATH),str(src),'-o',str(exe)],check=True);out=subprocess.run([str(exe)],capture_output=True,text=True,check=True).stdout;print('DISTANCE',dist,flush=True);print(out,end='',flush=True)
     if snapshots!={str(x.relative_to(root)):hashlib.sha256(x.read_bytes()).hexdigest() for x in inputs}: raise RuntimeError('inputs changed during run')
 finally:
     subprocess.run([str(pathlib.Path.home()/'.codex/bin/codex-delete-temp'),str(d)],check=True,stdout=subprocess.DEVNULL)

@@ -553,7 +553,8 @@ float Fort_ApplyCannonDamage(int damageMode)
 		float radius = stf(Sea.Phonk.FortMissileRadius);
 		float power = Clampf(1.0 - fDistance / radius);
 		power = power * power * stf(Sea.Phonk.FortMissileMultiplier);
-		fHullDamage = stf(Goods[GOOD_BOMBS].DamageHull) * power * 0.4;
+		// Limit damage per strike so a heavy missile salvo (e.g. Oreshnik) cannot 1-shot the fort from full health
+		fHullDamage = stf(Goods[GOOD_BOMBS].DamageHull) * power * 0.25;
 		fCrewDamage = stf(Goods[GOOD_BOMBS].DamageCrew) * power * 0.6;
 	}
 	fCrewDamage = Ship_AmmoCrewLoss(rFortCharacter, fCrewDamage);

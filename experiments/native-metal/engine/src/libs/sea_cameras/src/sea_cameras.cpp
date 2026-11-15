@@ -343,11 +343,12 @@ bool SEA_CAMERAS::RealizeMissileView()
     }
     auto *sea = core.GetEntityPointer(core.GetEntityId("sea"));
     auto *phonk = sea && sea->AttributesPointer ? sea->AttributesPointer->GetAttributeClass("Phonk") : nullptr;
+    const uint32_t viewMode = phonk ? phonk->GetAttributeAsDword("MissileViewEnabled", 0) : 0u;
     auto *view = phonk ? phonk->GetAttributeClass("MissileView") : nullptr;
     auto *player = mainVisualShip();
     COMMON_CAMERA *current = nullptr;
     for (auto *camera : CamerasArray) if (camera->isOn()) current = camera;
-    if (!phonk || !phonk->GetAttributeAsDword("Active", 0) || !phonk->GetAttributeAsDword("MissileViewEnabled", 0) ||
+    if (!phonk || !phonk->GetAttributeAsDword("Active", 0) || !viewMode ||
         !view || !view->GetAttributeAsDword("active", 0) || !player || !current || !current->isActive()) {
         ClearMissileControl();
         return false;
@@ -441,6 +442,13 @@ bool SEA_CAMERAS::RealizeMissileView()
     const float azimuth = missileOrbitOffset.y;
     const float elevation = missileOrbitOffset.x;
     float baseRadius = flight && !cluster ? 220.f : 500.f;
+    float targetPerspective = .9f;
+    if (viewMode == 1) {
+        baseRadius = flight && !cluster ? 35.f : 70.f;
+    } else if (viewMode == 2) {
+        baseRadius = flight && !cluster ? 600.f : 1200.f;
+        targetPerspective = .25f;
+    }
     // The shot owner publishes the impact footprint, not the mutable menu selection.
     const float impactRadius = view->GetAttributeAsFloat("impactRadius", 0.f);
     if (std::isfinite(impactRadius) && impactRadius > 500.f && (!flight || cluster)) {
@@ -473,7 +481,7 @@ bool SEA_CAMERAS::RealizeMissileView()
     returnPerspective = current->GetPerspective();
     returnMagnification = render->GetCameraMagnification();
     render->SetCamera(position, focus, CVECTOR(0.f, 1.f, 0.f));
-    render->SetPerspective(.9f, -1.f, 1.f);
+    render->SetPerspective(targetPerspective, -1.f, 1.f);
     CVECTOR renderedAngles;
     render->GetCamera(dartPosition, renderedAngles, dartPerspective);
     dartViewApplied = true;

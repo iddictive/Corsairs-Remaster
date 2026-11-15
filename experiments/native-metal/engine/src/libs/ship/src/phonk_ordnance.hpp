@@ -183,6 +183,9 @@ struct NuclearMissile
     CVECTOR visualExhaustAxis = CVECTOR(0.f);
     float visualExhaustAge = -1.f;
     float kalibrManualAge = -1.f, kalibrManualAccelerationScale = 1.f;
+    uint8_t durability = 1;
+    uint8_t damageHits = 0;
+    uint8_t aaBulletHits = 0;
 };
 inline bool isClusterSubmunition(const NuclearMissile &missile)
 {
@@ -279,6 +282,8 @@ struct OrdnanceState
     float sonicSoundCooldown = 0.f;
     uint32_t airDefenseScanCursor = 0, airDefenseHitCursor = 0, airDefenseSerial = 0;
     uint32_t fortPatriotLaunches = 0;
+    float fortAaCooldown = 0.f;
+    uint32_t fortAaSerial = 0;
     float testEnemyCooldown = 0.f;
     uint32_t testEnemySerial = 0;
     uint32_t testVolleyRemaining = 0, testVolleyIndex = 0, testVolleyWarhead = 1;

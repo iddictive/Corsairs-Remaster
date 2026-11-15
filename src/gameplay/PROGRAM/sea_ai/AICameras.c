@@ -158,8 +158,11 @@ void SeaCameras_DartViewControl()
 	{
 		SeaCameras_CancelDartView();
 		if (!CheckAttribute(&Sea,"Phonk.MissileViewEnabled")) Sea.Phonk.MissileViewEnabled = 0;
-		Sea.Phonk.MissileViewEnabled = !sti(Sea.Phonk.MissileViewEnabled);
-		if (sti(Sea.Phonk.MissileViewEnabled)) Log_Info("Камера ракеты: вкл");
+		int curMode = sti(Sea.Phonk.MissileViewEnabled);
+		curMode = (curMode + 1) % 3;
+		Sea.Phonk.MissileViewEnabled = curMode;
+		if (curMode == 1) Log_Info("Камера ракеты: притреканная (хвост)");
+		else if (curMode == 2) Log_Info("Камера ракеты: зум-наблюдение");
 		else Log_Info("Камера ракеты: выкл");
 		return;
 	}

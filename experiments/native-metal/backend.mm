@@ -2106,8 +2106,13 @@ extern "C" bool StormMetalClusterImpact(void*pointer,const float*position,const 
  for(unsigned i=0;i<3;i++)if(!std::isfinite(position[i])||!std::isfinite(direction[i]))return false;
  auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  simd_float3 incoming={direction[0],direction[1],direction[2]};float length=simd_length(incoming);
- // Do not evict current impacts: overflow takes the legacy surface-specific path.
- if(!std::isfinite(length)||length<1.e-5f||d->clusterImpacts.size()+d->clusterImpactFallbacks.size()>=96||!d->prepareClusterImpacts())return false;
+ if(!std::isfinite(length)||length<1.e-5f||!d->prepareClusterImpacts())return false;
+ constexpr size_t maxClusterImpacts = 384;
+ if(d->clusterImpacts.size()>=maxClusterImpacts){
+  auto oldest = std::max_element(d->clusterImpacts.begin(),d->clusterImpacts.end(),[](const auto &a,const auto &b){return a.age<b.age;});
+  if(oldest!=d->clusterImpacts.end()) d->clusterImpacts.erase(oldest);
+ }
+ if(d->clusterImpacts.size()+d->clusterImpactFallbacks.size()>=maxClusterImpacts)return false;
  d->clusterImpacts.push_back({{position[0],position[1],position[2]},incoming/length,0.f,float(++d->clusterImpactSerial%4096u),radius,surface,warhead});
  return true;
 }
