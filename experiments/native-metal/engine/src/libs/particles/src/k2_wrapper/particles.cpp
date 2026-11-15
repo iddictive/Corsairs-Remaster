@@ -469,27 +469,30 @@ void PARTICLES::Realize(uint32_t Delta_Time)
     storm_render::markSceneBoundary(storm_render::SceneBoundary::Effects);
 #endif
     bSystemDelete = true;
-    const float fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;
+    // Execute supplies unrounded simulation time. Consume it once so a second
+    // render pass cannot advance smoke/emission again; a true pause supplies zero.
+    const float visualMs = std::exchange(pendingVisualMs, 0.f);
+    const float fDeltaTime = visualMs * 0.001f;
     pManager->Execute(fDeltaTime);
 
     // If it's time, pause emission
     // when all particles die, the system will retire by itself ...
     for (auto &info : CreatedSystems)
     {
-        info.PassedTime += Delta_Time;
-        if (Delta_Time > 0 && info.Budgeted && !info.Fading && info.NavalActiveMs < 500 &&
+        info.PassedTime += visualMs;
+        if (visualMs > 0.f && info.Budgeted && !info.Fading && info.NavalActiveMs < 500 &&
             !info.pSystem->GetSystem()->IsEmissionPaused())
         {
             if (!info.NavalHasUpdated)
                 info.NavalHasUpdated = true;
             else
             {
-                const uint32_t remaining = 500 - info.NavalActiveMs;
-                info.NavalActiveMs += Delta_Time < remaining ? Delta_Time : remaining;
+                const double remaining = 500.0 - info.NavalActiveMs;
+                info.NavalActiveMs += std::min(double(visualMs), remaining);
             }
         }
 
-        if (Delta_Time > 0 && info.Budgeted) info.NavalHasUpdated = true;
+        if (visualMs > 0.f && info.Budgeted) info.NavalHasUpdated = true;
 
         if (info.LifeTime == 0)
             continue;
@@ -511,13 +514,14 @@ void PARTICLES::Realize(uint32_t Delta_Time)
         else
             ++it;
     }
-    if (Delta_Time > 0)
+    if (visualMs > 0.f)
         DrainNavalQueues();
     bSystemDelete = false;
 }
 
 void PARTICLES::Execute(uint32_t Delta_Time)
 {
+    pendingVisualMs = core.GetVisualDeltaTime();
 }
 
 void PARTICLES::PauseAllActive(bool bPaused)

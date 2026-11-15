@@ -17,13 +17,14 @@ class PARTICLES : public Entity
 {
     bool CreationCapture;
     bool bSystemDelete;
+    float pendingVisualMs = 0.f;
 
     struct SystemInfo
     {
         std::string FileName;
         PARTICLE_SYSTEM *pSystem;
         uint32_t LifeTime;
-        uint32_t PassedTime;
+        double PassedTime;
         uint32_t NavalEffect = 0;
         float NavalX = 0.0f;
         float NavalZ = 0.0f;
@@ -31,7 +32,7 @@ class PARTICLES : public Entity
         bool Fading = false;
         bool Captured = false;
         bool NavalHasUpdated = false;
-        uint32_t NavalActiveMs = 0;
+        double NavalActiveMs = 0;
         std::list<SystemInfo>::iterator Self;
         std::list<SystemInfo *>::iterator NavalIt;
         std::list<SystemInfo *>::iterator CaptureIt;

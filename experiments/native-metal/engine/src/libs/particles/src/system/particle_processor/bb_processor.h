@@ -72,6 +72,8 @@ class BillBoardProcessor
     // The native draw bridge has no fixed vertex/index-buffer particle limit.
     std::deque<BB_ParticleData> particleStorage;
     std::vector<BB_ParticleData *> freeParticles;
+    // Reuse the compact submission storage instead of allocating every draw.
+    std::vector<StormMetalAdvancedParticle> nativeParticles;
 #else
     MemArrayItem *pMemArray;
 #endif

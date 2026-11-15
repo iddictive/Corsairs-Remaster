@@ -373,7 +373,7 @@ void BillBoardProcessor::Draw()
     ParticleSorter.QSort(CompareFunction, &Particles[0], Particles.size());
 
 #ifdef STORM_METAL_PARTICLE_BRIDGE
-    std::vector<StormMetalAdvancedParticle> nativeParticles;
+    nativeParticles.clear();
     nativeParticles.reserve(Particles.size());
     // Separate alpha blending can alter the destination even for a zero source.
     uint32_t separateAlphaBlend = 1;

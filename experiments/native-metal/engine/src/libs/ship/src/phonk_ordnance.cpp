@@ -23,6 +23,12 @@ namespace
 using namespace storm::ship::phonk;
 static_assert(PHONK_WARHEAD_THERMOBARIC == thermobaricWarhead);
 constexpr size_t maxMissiles = 64;
+
+CVECTOR fortAaShellPosition(const FortAaShell &shell, float age)
+{
+    return shell.launch + shell.velocity * age + CVECTOR(0.f, -4.905f * age * age, 0.f);
+}
+
 constexpr float defenseTimerEpsilon = 1.e-6f;
 CVECTOR missileVisualAxis(const NuclearMissile &shot, float age, CVECTOR velocity)
 {
@@ -3132,9 +3138,6 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 }
                 // Fort AA shells are bounded to 32 slots per fort. They are not
                 // interceptors: no missile can see or evade them.
-                const auto shellPosition = [](const FortAaShell &shell, float age) {
-                    return shell.launch + shell.velocity * age + CVECTOR(0.f, -4.905f * age * age, 0.f);
-                };
                 const auto applyFortAaHit = [&](FortAaShell &shell, const CVECTOR &contact) {
                     if (!shell.expectedHit) return false;
                     auto *targetOwner = static_cast<SHIP *>(core.GetEntityPointer(shell.missileShip));
@@ -3167,10 +3170,10 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     if (!shell.active) continue;
                     const float previousAge = shell.age;
                     shell.age = std::min(5.f, shell.age + seconds);
-                    const auto before = shellPosition(shell, previousAge);
-                    const auto after = shellPosition(shell, shell.age);
+                    const auto before = fortAaShellPosition(shell, previousAge);
+                    const auto after = fortAaShellPosition(shell, shell.age);
                     if (shell.expectedHit && previousAge < shell.contactTime && shell.age >= shell.contactTime &&
-                        applyFortAaHit(shell, shellPosition(shell, shell.contactTime))) {
+                        applyFortAaHit(shell, fortAaShellPosition(shell, shell.contactTime))) {
                         shell.active = false;
                         continue;
                     }
@@ -3182,11 +3185,6 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         shell.active = false;
                         continue;
                     }
-#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-                    auto axis = after-before;
-                    if ((~axis) > .001f) axis = !axis; else axis = shell.velocity;
-                    StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &after.x, &axis.x, 4, 0.f);
-#endif
                     if (shell.age >= 5.f) shell.active = false;
                 }
                 // Continuous Fort Anti-Air Autocannon (300..430 rpm, range 2.5km, low accuracy)
@@ -4505,15 +4503,17 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
     // Prepare rendering anyway, without advancing the effect clock on pause.
     StormMetalMissileVfxTick(pRS->GetNativeDevice(), uint64_t(core.GetEntityId("sea")), 0.f);
 #endif
+    const auto aaShellCount = std::count_if(phonkOrdnance.fortAaShells.begin(), phonkOrdnance.fortAaShells.end(),
+        [](const FortAaShell &shell) { return shell.active; });
     if (phonkOrdnance.missiles.empty() && phonkOrdnance.blasts.empty() && phonkOrdnance.interceptors.empty() && phonkOrdnance.testInterceptors.empty() &&
-        phonkOrdnance.harpoonCables.empty() && phonkOrdnance.harpoonProjectiles.empty()) return;
+        phonkOrdnance.harpoonCables.empty() && phonkOrdnance.harpoonProjectiles.empty() && aaShellCount == 0) return;
     CMatrix previous;
     pRS->GetTransform(storm_render::TransformWorld, previous);
     pRS->SetTransform(storm_render::TransformWorld, CMatrix());
     struct Vertex { CVECTOR position; uint32_t color; };
     // Missile bodies use up to 128 triangles; exhaust is separately bounded.
     std::vector<Vertex> vertices(phonkOrdnance.missiles.size() * (104 * 3 + 25 * 6) +
-                                 (phonkOrdnance.interceptors.size()+phonkOrdnance.testInterceptors.size()) * (104 * 3 + 12));
+                                 (phonkOrdnance.interceptors.size()+phonkOrdnance.testInterceptors.size()) * (104 * 3 + 12) + aaShellCount * 12);
     std::vector<Vertex> bodies;
     bodies.reserve((phonkOrdnance.missiles.size()+phonkOrdnance.interceptors.size())*128*3);
     unsigned at = 0;
@@ -4540,6 +4540,34 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
         for (const Vertex &v : {Vertex{a-side,color}, {a+side,color}, {b+side,color},
                                {a-side,color}, {b+side,color}, {b-side,color}}) vertices[at++] = v;
     };
+    // Autocannon rounds are not missile motors. Draw their current ballistic
+    // segment here, once per view, so zero-ms slow-motion frames retain the
+    // tracer and fractional frame time advances it without changing collision.
+    for (const auto &shell : phonkOrdnance.fortAaShells)
+    {
+        if (!shell.active) continue;
+        const float age = std::clamp(shell.age + core.GetScaledDeltaRemainder() * .001f, 0.f, 5.f);
+        const auto head = fortAaShellPosition(shell, age);
+        const auto tail = fortAaShellPosition(shell, std::max(0.f, age - .012f));
+        const auto axis = head - tail;
+        if ((~axis) < .000001f) continue;
+        auto side = axis ^ (camera - head);
+        if ((~side) < .000001f) side = axis ^ CVECTOR(0.f, 1.f, 0.f);
+        if ((~side) < .000001f) side = axis ^ CVECTOR(1.f, 0.f, 0.f);
+        side = !side;
+        // Soft amber sheath, smaller hot core; both taper and fade at the tail.
+        // Two quads per active round, sharing the existing alpha draw below.
+        for (unsigned layer = 0; layer < 2; ++layer)
+        {
+            const auto width = side * (layer == 0 ? .28f : .075f);
+            const auto tipWidth = width * .08f;
+            const uint32_t headColor = layer == 0 ? 0x70FF9C32u : 0xF0FFF0C0u;
+            const uint32_t tailColor = layer == 0 ? 0x00FF9C32u : 0x00FFF0C0u;
+            for (const Vertex &v : {Vertex{tail-tipWidth,tailColor}, {tail+tipWidth,tailColor}, {head+width,headColor},
+                                   {tail-tipWidth,tailColor}, {head+width,headColor}, {head-width,headColor}})
+                vertices[at++] = v;
+        }
+    }
     // Render-only history: emitted gas keeps its earlier direction briefly.
     // Advance with simulation age so pausing or rendering twice cannot add lag.
     const auto exhaustBend = [](CVECTOR axis, float age, CVECTOR &history, float &historyAge) {
