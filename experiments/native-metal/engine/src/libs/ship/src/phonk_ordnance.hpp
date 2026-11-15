@@ -435,6 +435,13 @@ inline CVECTOR evasionDisplacement(const NuclearMissile &missile, float age)
     const auto &last = missile.evasionHistory[(missile.evasionHistoryNext + capacity - 1) % capacity];
     return interpolate(last, {missile.evasionStateAge, missile.evasionPosition, missile.evasionVelocity});
 }
+// Share the renderer's sub-millisecond sample with the missile-follow camera.
+// This is presentation only: simulation ages, guidance and collisions stay unchanged.
+inline float missileRenderAge(const NuclearMissile &missile, float remainderMs)
+{
+    return std::min(missile.duration, missile.age + remainderMs * .001f);
+}
+
 inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
 {
     if (missile.kinzhalReplanned && age >= missile.kinzhalReplanAge &&

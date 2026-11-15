@@ -2647,14 +2647,15 @@ void SHIP::FinishPhonkMissilesLate()
                 if (!missile.active || missile.interceptionFragment || missile.shotId != state.cameraShot) continue;
                 flight = true;
                 cluster |= isClusterSubmunition(missile);
-                state.cameraPosition = nuclearPosition(missile, missile.age);
+                const float renderAge = missileRenderAge(missile, core.GetScaledDeltaRemainder());
+                state.cameraPosition = nuclearPosition(missile, renderAge);
                 if (isClusterSubmunition(missile) && missile.manualCluster) {
                     manualClusterCenter += state.cameraPosition;
                     ++manualClusterCount;
                 }
                 if (!isClusterSubmunition(missile)) {
                     flightAge = missile.age;
-                    const auto direction = nuclearVelocity(missile, missile.age);
+                    const auto direction = nuclearVelocity(missile, renderAge);
                     if ((~direction) > .001f) state.cameraTarget = state.cameraPosition + direction;
                 }
             }
@@ -4076,13 +4077,14 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         cameraFlight = true;
         cameraCluster |= isClusterSubmunition(missile);
         if (!isClusterSubmunition(missile)) cameraFlightAge = missile.age;
-        state.cameraPosition = nuclearPosition(missile, missile.age);
+        const float renderAge = missileRenderAge(missile, core.GetScaledDeltaRemainder());
+        state.cameraPosition = nuclearPosition(missile, renderAge);
         if (isClusterSubmunition(missile) && missile.manualCluster) {
             manualClusterCenter += state.cameraPosition;
             ++manualClusterCount;
         }
         if (!isClusterSubmunition(missile)) {
-            const auto direction = nuclearVelocity(missile, missile.age);
+            const auto direction = nuclearVelocity(missile, renderAge);
             if ((~direction) > .001f) state.cameraTarget = state.cameraPosition + direction;
         }
     }
@@ -4585,7 +4587,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
     for (auto &missile : phonkOrdnance.missiles)
     {
         if (!missile.active) continue;
-        const float renderAge = std::min(missile.duration, missile.age + core.GetScaledDeltaRemainder() * .001f);
+        const float renderAge = missileRenderAge(missile, core.GetScaledDeltaRemainder());
         const auto head = nuclearPosition(missile, renderAge);
         const auto actualVelocity = nuclearVelocity(missile, renderAge);
         auto axis = missileVisualAxis(missile, renderAge, actualVelocity);
