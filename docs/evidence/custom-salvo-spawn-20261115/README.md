@@ -1,3 +1,11 @@
+# Latest correction: staggered salvo, pause after final round
+
+The owner corrected the earlier interpretation below. This revision restores0.2–0.35s spacing between rounds and at most one launch attempt per visited ship. Custom volley count remains1–16. The configurable pause is1–20s and does not count down while any rounds remain pending. Random loadouts use3–10s and1–5rounds. The hidden Kinzhal cooldown multiplier is removed. The64active offensive missile-group limit remains per ship; existing independent AA settings are unchanged, not pooled globally or increased to64.
+
+The existing salvo_probe.py now tests these corrected rules, extracting actual cooldown/clamp expressions in addition to round scheduling. It covers a full16-round stagger retaining its1s pause, two independent64-group ship pools, pending continuation, UI1–20mapping, and random spawn values. The spawn-distance probe remains valid. These replace the earlier same-frame/custom-burst assertions. Native engine/script-runtime/frame-time checks remain open.
+
+## Historical implementation, superseded for salvo cadence
+
 # Custom salvo and spawn controls
 
 ## Confirmed defects and repair

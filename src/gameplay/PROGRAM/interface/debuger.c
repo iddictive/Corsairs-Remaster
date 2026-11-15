@@ -109,7 +109,7 @@ void PhonkMissile_Refresh()
 		if (PhonkMissileSection == 3)
 		{
 			SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",1,15);
-			SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",1,195);
+			SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",1,190);
 		}
 		else
 		{
@@ -221,7 +221,7 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION8",0,"#Создать врага");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION9",0,"#Создать союзника");
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(pchar.SeaPhonk.Spawn.Volley)-1.0)/15.0 + 0.000001);
-		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",3,(stf(pchar.SeaPhonk.Spawn.FireInterval)-0.5)/19.5 + 0.000001);
+		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",3,(stf(pchar.SeaPhonk.Spawn.FireInterval)-1.0)/19.0 + 0.000001);
 		int spawnDistance = sti(pchar.SeaPhonk.Spawn.Distance);
 		label = "Дистанция: авто";
 		if (spawnDistance > 0) label = "Дистанция: " + spawnDistance + " м";
@@ -363,7 +363,7 @@ void PhonkMissile_Slide()
 	} else if (PhonkMissileSection == 3) {
 		if (node == "PHONK_RANGE_SLIDE") pchar.SeaPhonk.Spawn.Distance = step * 250;
 		if (node == "PHONK_SLIDE1") pchar.SeaPhonk.Spawn.Volley = 1 + step;
-		if (node == "PHONK_SLIDE2") pchar.SeaPhonk.Spawn.FireInterval = 0.5 + step * 0.1;
+		if (node == "PHONK_SLIDE2") pchar.SeaPhonk.Spawn.FireInterval = 1.0 + step * 0.1;
 		if (node == "PHONK_SLIDE1" || node == "PHONK_SLIDE2") pchar.SeaPhonk.Spawn.Custom = 1;
 	} else if (PhonkMissileSection == 4) {
 		if (node == "PHONK_SLIDE0") pchar.SeaPhonk.Spawn.DefenseRange = 400 + step * 10;
@@ -698,6 +698,8 @@ void InitInterface(string iniName)
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.Warhead")) pchar.SeaPhonk.Spawn.Warhead = 5;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.Volley")) pchar.SeaPhonk.Spawn.Volley = 3;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.FireInterval")) pchar.SeaPhonk.Spawn.FireInterval = 5.0;
+		if (stf(pchar.SeaPhonk.Spawn.FireInterval) < 1.0) pchar.SeaPhonk.Spawn.FireInterval = 1.0;
+		if (stf(pchar.SeaPhonk.Spawn.FireInterval) > 20.0) pchar.SeaPhonk.Spawn.FireInterval = 20.0;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseEnabled")) pchar.SeaPhonk.Spawn.DefenseEnabled = 1;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.AirDefenseType")) pchar.SeaPhonk.Spawn.AirDefenseType = 2;
 		pchar.SeaPhonk.Spawn.AirDefenseType = SeaPhonk_SpawnDefenseType(sti(pchar.SeaPhonk.Spawn.AirDefenseType));

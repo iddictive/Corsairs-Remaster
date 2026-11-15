@@ -301,6 +301,7 @@ struct OrdnanceState
     bool testVolleyRareCooldownApplied = false;
     missile::Type testVolleyType = missile::Type::Kinzhal;
     entid_t testVolleyTarget = 0;
+    uint64_t testVolleyFortGeneration = 0;
     float testVolleyDelay = 0.f;
     double testControllerClock = 0.0, testLastUpdate = -1.0;
     uint32_t testShipCursor = 0, testTargetCursor = 0, testSourceCursor = 0, testMissileCursor = 0;

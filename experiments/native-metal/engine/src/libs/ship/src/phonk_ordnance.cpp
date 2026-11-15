@@ -3412,16 +3412,19 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             const float elapsed = enemyState.testLastUpdate < 0.0 ? seconds :
                 float(std::clamp(state.testControllerClock - enemyState.testLastUpdate, 0.0, 1.0));
             enemyState.testLastUpdate = state.testControllerClock;
-            enemyState.testEnemyCooldown = std::max(0.f, enemyState.testEnemyCooldown - elapsed);
+            // The UI interval is the pause after the final round, not time
+            // consumed while a staggered salvo is still being launched.
+            if (!enemyState.testVolleyRemaining)
+                enemyState.testEnemyCooldown = std::max(0.f, enemyState.testEnemyCooldown - elapsed);
             enemyState.testVolleyDelay = std::max(0.f, enemyState.testVolleyDelay - elapsed);
             if (!registered || testShip->isDead()) enemyState.testVolleyRemaining = 0;
             if (registered && !testShip->isDead() && !enemyState.testVolleyRemaining && enemyState.testEnemyCooldown <= 0.f && activeMissileGroups(enemyState.missiles) < maxMissiles) {
                 uint32_t random = ++enemyState.testEnemySerial * 0x9e3779b9u ^ uint32_t(testShip->GetId());
                 random ^= random >> 16; random *= 0x7feb352du; random ^= random >> 15;
-                const float requestedMin = testLoadout ? testLoadout->GetAttributeAsFloat("CooldownMin", 2.f) : 2.f;
+                const float requestedMin = testLoadout ? testLoadout->GetAttributeAsFloat("CooldownMin", 3.f) : 3.f;
                 const float requestedMax = testLoadout ? testLoadout->GetAttributeAsFloat("CooldownMax", 10.f) : 10.f;
-                const float minInterval = std::clamp(std::isfinite(requestedMin) ? requestedMin : 2.f, customLoadout ? .5f : 2.f, customLoadout ? 20.f : 10.f);
-                const float maxInterval = std::clamp(std::isfinite(requestedMax) ? requestedMax : 10.f, minInterval, customLoadout ? 20.f : 12.f);
+                const float minInterval = std::clamp(std::isfinite(requestedMin) ? requestedMin : 3.f, customLoadout ? 1.f : 3.f, customLoadout ? 20.f : 10.f);
+                const float maxInterval = std::clamp(std::isfinite(requestedMax) ? requestedMax : 10.f, minInterval, customLoadout ? 20.f : 10.f);
                 enemyState.testEnemyCooldown = minInterval + (maxInterval-minInterval) * float(random & 65535u) / 65535.f;
                 const float choice = shotVariation(enemyState.testEnemySerial, enemyIndex, 0x5e10412du);
                 auto kind = randomMissileType(choice);
@@ -3461,8 +3464,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const size_t pick = (random >> 8) % total;
                 if (pick < targets.size()) {
                     enemyState.testVolleyTarget = targets[pick]->GetId();
+                    enemyState.testVolleyFortGeneration = 0;
                 } else {
-                    enemyState.testVolleyTarget = fortTargets[pick - targets.size()]->GetModelEID();
+                    auto *fort = fortTargets[pick - targets.size()];
+                    enemyState.testVolleyTarget = fort->GetModelEID();
+                    enemyState.testVolleyFortGeneration = fort->GetPhonkOrdnanceGeneration();
                 }
                 const auto randomWarhead = (random >> 17) % 4u;
                 const auto selectedWarhead = testLoadout ? testLoadout->GetAttributeAsDword("Warhead", 5) : 5u;
@@ -3471,16 +3477,16 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 if (enemyState.testVolleyWarhead == 3) enemyState.testVolleyWarhead = 1;
                 }
             }
-            // Custom Volley is a salvo, not a hidden 0.2-0.35s-per-round train.
-            // Keep randomized traffic cadence and bound custom work to 16 launches.
-            const unsigned launchBudget = customLoadout ? 16u : 1u;
-            for (unsigned attempt = 0; attempt < launchBudget && enemyState.testVolleyRemaining &&
-                    enemyState.testVolleyDelay <= 0.f && activeMissileGroups(enemyState.missiles) < maxMissiles; ++attempt) {
+            // Both custom and random salvos retain staggered launches.
+            // At most one route/launch attempt per visited ship per frame.
+            if (enemyState.testVolleyRemaining && enemyState.testVolleyDelay <= 0.f && activeMissileGroups(enemyState.missiles) < maxMissiles) {
                 // A volley target can be a ship entity or a fort MODEL entity.
                 // Reject other entity types before calling any SHIP virtual method.
                 auto *target = dynamic_cast<SHIP *>(core.GetEntityPointer(enemyState.testVolleyTarget));
                 auto *captain = target ? target->GetACharacter() : nullptr;
-                auto fortTarget = fortOrdnanceOwner(enemyState.testVolleyTarget, 0);
+                // Loading a save resets fort ordnance and advances its generation.
+                // Capture it at selection; never resolve a queued salvo against a reset fort.
+                auto fortTarget = fortOrdnanceOwner(enemyState.testVolleyTarget, enemyState.testVolleyFortGeneration);
                 auto *fortCharacter = fortTarget.fort ? fortTarget.fort->GetACharacter() : nullptr;
                 const bool validShipTarget = target && target->bMounted && !target->isDead() && ATTRIBUTES::IsLive(captain) &&
                     Helper.isEnemy(testShip->GetACharacter(), captain);
@@ -3495,10 +3501,6 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const bool randomType = !customLoadout || selectedType == 3u;
                 const auto kind = randomType ? randomMissileType(shotVariation(enemyState.testEnemySerial, enemyIndex, 0x5e10412du)) :
                                                enemyState.testVolleyType;
-                if (!customLoadout && kind == missile::Type::Kinzhal && !enemyState.testVolleyRareCooldownApplied) {
-                    enemyState.testEnemyCooldown *= 2.f;
-                    enemyState.testVolleyRareCooldownApplied = true;
-                }
                 const auto launch = testShip->GetModel()->mtx * CVECTOR(0.f, std::max(4.f, testShip->State.vBoxSize.y * .35f) + 1.5f, 0.f);
                 const float across = (float(n % 2u)-.5f) * std::min(8.f, testShip->State.vBoxSize.x*.35f);
                 const float along = (float(n / 2u)-1.f) * std::min(10.f, testShip->State.vBoxSize.z*.18f);
@@ -3561,7 +3563,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &shotLaunch.x, missileVfxType(kind));
 #endif
                 --enemyState.testVolleyRemaining;
-                enemyState.testVolleyDelay = customLoadout ? 0.f : .2f + .15f * shotVariation(enemyState.testEnemySerial, enemyIndex, 0xb192a437u);
+                enemyState.testVolleyDelay = .2f + .15f * shotVariation(enemyState.testEnemySerial, enemyIndex, 0xb192a437u);
                 if (state.launchSoundCooldown <= 0.f) {
                     state.launchSoundCooldown = .12f;
                     const auto firingShipId = testShip->GetId();

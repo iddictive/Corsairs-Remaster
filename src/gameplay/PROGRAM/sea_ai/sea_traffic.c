@@ -140,10 +140,9 @@ bool SeaPhonkTest_StartSide(bool allied)
     if (warheadChoice == 1) captain.PhonkTest.Warhead = 2;
     if (warheadChoice == 2) captain.PhonkTest.Warhead = 4;
     if (warheadChoice == 3) captain.PhonkTest.Warhead = PHONK_WARHEAD_THERMOBARIC;
-    captain.PhonkTest.CooldownMin = 2 + rand(4);
-    captain.PhonkTest.CooldownMax = sti(captain.PhonkTest.CooldownMin) + 3 + rand(3);
-    if (shipType == SHIP_MANOWAR) captain.PhonkTest.Volley = 3 + rand(2);
-    else captain.PhonkTest.Volley = 1 + rand(2);
+    captain.PhonkTest.CooldownMin = 3;
+    captain.PhonkTest.CooldownMax = 10;
+    captain.PhonkTest.Volley = 1 + rand(4);
     if (custom)
     {
         captain.PhonkTest.Custom = 1;
