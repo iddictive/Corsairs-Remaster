@@ -3049,11 +3049,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     }
 #endif
                 }
-                if (fort->isDead() || !fort->isNormalMode() || fortState->airDefenseCooldown > defenseTimerEpsilon ||
-                    fortState->airDefenseScanCooldown > defenseTimerEpsilon || defense.size() >= 25) continue;
-                fortState->airDefenseScanCooldown = .1f;
                 const auto ownerIndex = fortCharacter->GetAttributeAsDword("index", uint32_t(-1));
                 if (ownerIndex == uint32_t(-1)) continue;
+                if (!fort->isDead() && fort->isNormalMode() && fortState->airDefenseCooldown <= defenseTimerEpsilon &&
+                    fortState->airDefenseScanCooldown <= defenseTimerEpsilon && defense.size() < 25) {
+                fortState->airDefenseScanCooldown = .1f;
                 // Account for actual launches, not failed scans: an unreachable
                 // preferred interceptor must not block a usable alternative.
                 const bool patriotDue = uint64_t(fortState->fortPatriotLaunches) * 10u <= fortState->airDefenseSerial;
@@ -3129,12 +3129,72 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
                     break;
                 }
-                // Continuous Fort Anti-Air Autocannon (180 rpm = 3 rps, range 2.5km, tracers, low accuracy)
+                }
+                // Fort AA shells are bounded to 32 slots per fort. They are not
+                // interceptors: no missile can see or evade them.
+                const auto shellPosition = [](const FortAaShell &shell, float age) {
+                    return shell.launch + shell.velocity * age + CVECTOR(0.f, -4.905f * age * age, 0.f);
+                };
+                const auto applyFortAaHit = [&](FortAaShell &shell, const CVECTOR &contact) {
+                    if (!shell.expectedHit) return false;
+                    auto *targetOwner = static_cast<SHIP *>(core.GetEntityPointer(shell.missileShip));
+                    if (!targetOwner || !targetOwner->bMounted) return false;
+                    auto &shots = targetOwner->phonkOrdnance.missiles;
+                    const auto it = std::find_if(shots.begin(), shots.end(), [&](const NuclearMissile &shot) {
+                        return shot.active && !shot.intercepted && shot.shotId == shell.missileShot &&
+                            interceptorVariant(shot) == shell.missileVariant;
+                    });
+                    if (it == shots.end()) return false;
+                    const auto targetPos = nuclearPosition(*it, it->age);
+                    if ((~(targetPos-contact)) > shell.hitRadius*shell.hitRadius) return false;
+                    ++it->aaBulletHits;
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+                    StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &targetPos.x, 2);
+#endif
+                    const uint8_t requiredHits = it->type == missile::Type::Oreshnik ? 8 : (it->type == missile::Type::Kinzhal ? 4 : 3);
+                    if (it->aaBulletHits < requiredHits) return true;
+                    it->active = false;
+                    it->intercepted = true;
+                    it->target = targetPos;
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+                    const auto targetVelocity = nuclearVelocity(*it, it->age);
+                    StormMetalClusterImpact(pRS->GetNativeDevice(), &targetPos.x, &targetVelocity.x, 3, 5.f, 1);
+#endif
+                    core.Event("Ball_BombExplosion", "fffl", targetPos.x, targetPos.y, targetPos.z, 0);
+                    return true;
+                };
+                for (auto &shell : fortState->fortAaShells) {
+                    if (!shell.active) continue;
+                    const float previousAge = shell.age;
+                    shell.age = std::min(5.f, shell.age + seconds);
+                    const auto before = shellPosition(shell, previousAge);
+                    const auto after = shellPosition(shell, shell.age);
+                    if (shell.expectedHit && previousAge < shell.contactTime && shell.age >= shell.contactTime &&
+                        applyFortAaHit(shell, shellPosition(shell, shell.contactTime))) {
+                        shell.active = false;
+                        continue;
+                    }
+                    const float water = pSea ? manual_aim::waterContact(before, after,
+                        [&](float x, float z) { return pSea->WaveXZ(x, z); }) : 2.f;
+                    if (water <= 1.f) {
+                        const auto impact = before + (after-before)*water;
+                        if (pSea) pSea->StartImpactWave(impact.x, impact.z, 1.5f);
+                        shell.active = false;
+                        continue;
+                    }
+#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
+                    auto axis = after-before;
+                    if ((~axis) > .001f) axis = !axis; else axis = shell.velocity;
+                    StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &after.x, &axis.x, 4, 0.f);
+#endif
+                    if (shell.age >= 5.f) shell.active = false;
+                }
+                // Continuous Fort Anti-Air Autocannon (300..430 rpm, range 2.5km, low accuracy)
                 fortState->fortAaCooldown = std::max(0.f, fortState->fortAaCooldown - seconds);
                 if (!fort->isDead() && fort->isNormalMode() && fortState->fortAaCooldown <= 0.f) {
                     const uint32_t serial = ++fortState->fortAaSerial;
-                    // Скорострельность плавает в диапазоне ~150..210 выстрелов/мин (0.28..0.40с)
-                    fortState->fortAaCooldown = .28f + .12f * shotVariation(serial, ownerIndex, 0x4f12ab89u);
+                    // Скорострельность плавает в диапазоне ~300..430 выстрелов/мин (0.14..0.20с)
+                    fortState->fortAaCooldown = .14f + .06f * shotVariation(serial, ownerIndex, 0x4f12ab89u);
                     AICannon *topGun = nullptr;
                     float maxY = -10000.f;
                     const uint32_t totalCannons = fort->GetAllCannonsNum();
@@ -3145,11 +3205,20 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                             topGun = cannon;
                         }
                     }
-                    const CVECTOR aaOrigin = topGun ? topGun->GetPos() + CVECTOR(0.f, 2.0f, 0.f) : fort->GetPos() + CVECTOR(0.f, 30.f, 0.f);
+                    CVECTOR aaOrigin = fort->GetPos() + CVECTOR(0.f, 30.f, 0.f);
+                    if (topGun) {
+                        aaOrigin = topGun->GetPos();
+                        auto muzzleDirection = topGun->GetDir();
+                        if ((~muzzleDirection) > .001f) aaOrigin += !muzzleDirection * 2.5f;
+                        aaOrigin.y += .7f;
+                    }
                     NuclearMissile *bestTarget = nullptr;
+                    SHIP *bestOwner = nullptr;
                     float closestDistSq = 2500.f * 2500.f;
-                    const auto checkMissiles = [&](std::vector<NuclearMissile> &missileList, ATTRIBUTES *shooter) {
+                    const auto checkMissiles = [&](SHIP *candidate) {
+                        auto *shooter = candidate ? candidate->GetACharacter() : nullptr;
                         if (!shooter || !Helper.isEnemy(fortCharacter, shooter)) return;
+                        auto &missileList = candidate->phonkOrdnance.missiles;
                         for (auto &shot : missileList) {
                             if (!shot.active || shot.intercepted) continue;
                             const auto pos = nuclearPosition(shot, shot.age);
@@ -3160,21 +3229,22 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                                 if ((rel | vel) < 0.f) {
                                     closestDistSq = distSq;
                                     bestTarget = &shot;
+                                    bestOwner = candidate;
                                 }
                             }
                         }
                     };
-                    checkMissiles(this->phonkOrdnance.missiles, this->GetACharacter());
+                    checkMissiles(this);
                     for (const auto shipId : receivers) {
                         auto *otherShip = static_cast<SHIP *>(core.GetEntityPointer(shipId));
                         if (otherShip && otherShip->bMounted && ATTRIBUTES::IsLive(otherShip->GetACharacter()))
-                            checkMissiles(otherShip->phonkOrdnance.missiles, otherShip->GetACharacter());
+                            checkMissiles(otherShip);
                     }
-                    if (bestTarget) {
+                    if (bestTarget && bestOwner) {
                         const auto targetPos = nuclearPosition(*bestTarget, bestTarget->age);
                         const auto targetVel = nuclearVelocity(*bestTarget, bestTarget->age);
                         const float dist = std::sqrt(closestDistSq);
-                        const float bulletFlight = dist / 900.f;
+                        float bulletFlight = std::max(.05f, dist / 900.f);
                         const auto predictedPos = targetPos + targetVel * bulletFlight;
                         const float spreadRadius = 15.f + dist * 0.015f;
                         const float spreadAngle = shotVariation(serial, ownerIndex, 0x82b419c7u) * 6.2831853f;
@@ -3184,11 +3254,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         const float err = std::sqrt(~(bulletEnd - predictedPos));
                         const float hitThreshold = bestTarget->type == missile::Type::Oreshnik ? 16.f : 8.f;
                         const bool bulletHit = err < hitThreshold;
-                        const auto tracerEnd = bulletHit ? targetPos : bulletEnd;
-#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-                        // Яркий трассер летит к цели
-                        StormMetalMissileVfxSegment(pRS->GetNativeDevice(), &aaOrigin.x, &tracerEnd.x, 0.12f, 7);
-#endif
+                        bulletFlight = std::max(.05f, std::sqrt(~(bulletEnd-aaOrigin)) / 900.f);
+                        const auto bulletVelocity = (bulletEnd-aaOrigin) / bulletFlight + CVECTOR(0.f, 4.905f * bulletFlight, 0.f);
                         // Уникальный звук автоматического зенитного орудия
                         const auto sndEntity = core.GetEntityId("sound");
                         if (sndEntity) {
@@ -3197,22 +3264,17 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                                                           VOLUME_FX, false, false, false, 0, aaOrigin.x, aaOrigin.y, aaOrigin.z);
                             if (sndId > 0) core.Send_Message(sndEntity, "llf", MSG_SOUND_SET_VOLUME, sndId, vol);
                         }
-                        if (bulletHit) {
-                            ++bestTarget->aaBulletHits;
-#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-                            StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &targetPos.x, 2);
-#endif
-                            const uint8_t requiredHits = bestTarget->type == missile::Type::Oreshnik ? 8 : (bestTarget->type == missile::Type::Kinzhal ? 4 : 3);
-                            if (bestTarget->aaBulletHits >= requiredHits) {
-                                bestTarget->active = false;
-                                bestTarget->intercepted = true;
-                                bestTarget->target = targetPos;
-#ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-                                StormMetalClusterImpact(pRS->GetNativeDevice(), &targetPos.x, &targetVel.x, 3, 5.f, 1);
-#endif
-                                core.Event("Ball_BombExplosion", "fffl", targetPos.x, targetPos.y, targetPos.z, 0);
-                            }
-                        }
+                        auto &shell = fortState->fortAaShells[fortState->fortAaShellCursor++ % fortState->fortAaShells.size()];
+                        shell = {};
+                        shell.launch = aaOrigin;
+                        shell.velocity = bulletVelocity;
+                        shell.contactTime = bulletFlight;
+                        shell.hitRadius = hitThreshold;
+                        shell.missileShip = bestOwner->GetId();
+                        shell.missileShot = bestTarget->shotId;
+                        shell.missileVariant = interceptorVariant(*bestTarget);
+                        shell.active = true;
+                        shell.expectedHit = bulletHit;
                     }
                 }
             }

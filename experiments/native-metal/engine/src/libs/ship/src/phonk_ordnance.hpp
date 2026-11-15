@@ -220,6 +220,15 @@ struct HarpoonProjectile
     float age = 0.f;
     bool active = false;
 };
+struct FortAaShell
+{
+    CVECTOR launch = CVECTOR(0.f), velocity = CVECTOR(0.f);
+    float age = 0.f, contactTime = 0.f, hitRadius = 0.f;
+    entid_t missileShip = 0;
+    uint32_t missileShot = 0;
+    uint8_t missileVariant = 0;
+    bool active = false, expectedHit = false;
+};
 struct OrdnanceState
 {
     unsigned weapon = 6;
@@ -284,6 +293,8 @@ struct OrdnanceState
     uint32_t fortPatriotLaunches = 0;
     float fortAaCooldown = 0.f;
     uint32_t fortAaSerial = 0;
+    std::array<FortAaShell, 32> fortAaShells{};
+    uint32_t fortAaShellCursor = 0;
     float testEnemyCooldown = 0.f;
     uint32_t testEnemySerial = 0;
     uint32_t testVolleyRemaining = 0, testVolleyIndex = 0, testVolleyWarhead = 1;
