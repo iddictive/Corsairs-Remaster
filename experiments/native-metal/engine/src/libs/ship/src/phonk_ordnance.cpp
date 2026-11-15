@@ -3450,7 +3450,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 enemyState.testTargetCursor = (enemyState.testTargetCursor + targetBudget) % candidateCount;
                 if (!targets.empty() || !fortTargets.empty()) {
                 unsigned requested = testLoadout ? std::clamp(testLoadout->GetAttributeAsDword("Volley", 1), 1u, customLoadout ? 16u : 5u) : 1u;
-                enemyState.testVolleyRemaining = unsigned(std::min<size_t>(requested, maxMissiles-activeMissileGroups(enemyState.missiles)));
+                // Keep the requested volley pending when the live-missile cap is reached.
+                // Capacity is checked at each launch; it must not silently discard rounds.
+                enemyState.testVolleyRemaining = requested;
                 enemyState.testVolleyIndex = 0;
                 enemyState.testVolleyRareCooldownApplied = false;
                 enemyState.testVolleyDelay = 0.f;
@@ -3469,7 +3471,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 if (enemyState.testVolleyWarhead == 3) enemyState.testVolleyWarhead = 1;
                 }
             }
-            if (enemyState.testVolleyRemaining && enemyState.testVolleyDelay <= 0.f && activeMissileGroups(enemyState.missiles) < maxMissiles) {
+            // Custom Volley is a salvo, not a hidden 0.2-0.35s-per-round train.
+            // Keep randomized traffic cadence and bound custom work to 16 launches.
+            const unsigned launchBudget = customLoadout ? 16u : 1u;
+            for (unsigned attempt = 0; attempt < launchBudget && enemyState.testVolleyRemaining &&
+                    enemyState.testVolleyDelay <= 0.f && activeMissileGroups(enemyState.missiles) < maxMissiles; ++attempt) {
                 // A volley target can be a ship entity or a fort MODEL entity.
                 // Reject other entity types before calling any SHIP virtual method.
                 auto *target = dynamic_cast<SHIP *>(core.GetEntityPointer(enemyState.testVolleyTarget));
@@ -3555,10 +3561,13 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &shotLaunch.x, missileVfxType(kind));
 #endif
                 --enemyState.testVolleyRemaining;
-                enemyState.testVolleyDelay = .2f + .15f * shotVariation(enemyState.testEnemySerial, enemyIndex, 0xb192a437u);
+                enemyState.testVolleyDelay = customLoadout ? 0.f : .2f + .15f * shotVariation(enemyState.testEnemySerial, enemyIndex, 0xb192a437u);
                 if (state.launchSoundCooldown <= 0.f) {
                     state.launchSoundCooldown = .12f;
+                    const auto firingShipId = testShip->GetId();
                     missileSound(missileLaunchSound(kind), shotLaunch);
+                    if (core.GetEntityPointer(sourceId) != this || phonkOrdnanceGeneration != generation || !seaLive()) return;
+                    if (core.GetEntityPointer(firingShipId) != testShip) return;
                 }
                 }
             }

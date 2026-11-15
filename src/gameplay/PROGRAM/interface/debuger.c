@@ -81,13 +81,13 @@ void PhonkMissile_Refresh()
 	bool cluster = sti(Sea.Phonk.MissileWarhead) == 2;
 	for (i = 0; i < 13; i++)
 	{
-		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
+		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
 		if (PhonkMissileSection == 1 && !nuclear && sti(Sea.Phonk.MissileWarhead) != 5 && i >= 7 && i <= 10) visible = true;
 		if (PhonkMissileSection == 2 && (i == 3 || i == 5)) visible = false;
 		SetNodeUsing("ACTION" + i, visible);
 		SetSelectable("ACTION" + i, visible);
 		if (PhonkMissileSection == 2 && (i == 2 || i == 4 || i == 6)) SetSelectable("ACTION" + i, false);
-		if (PhonkMissileSection == 3 && (i == 4 || i == 6)) SetSelectable("ACTION" + i, false);
+		if (PhonkMissileSection == 3 && (i == 4 || i == 6 || i == 10)) SetSelectable("ACTION" + i, false);
 		if (PhonkMissileSection == 4 && (i == 2 || i == 4 || i == 6)) SetSelectable("ACTION" + i, false);
 	}
 	bool missileList = PhonkMissileSection == 0;
@@ -95,7 +95,10 @@ void PhonkMissile_Refresh()
 	SetNodeUsing("PHONK_MISSILES_SCROLL",missileList); SetSelectable("PHONK_MISSILES_SCROLL",missileList);
 	for (i = 0; i < 8; i++) { bool shown = missileList && (sti(Sea.Phonk.MissileType) != 3 || i < 3 || i == 7); SetNodeUsing("PHONK_CONTROL" + i,shown); SetSelectable("PHONK_CONTROL" + i,shown); }
 	SetSelectable("PHONK_CONTROL7", false);
-	SetNodeUsing("PHONK_RANGE_SLIDE", missileList); SetSelectable("PHONK_RANGE_SLIDE", missileList);
+	bool rangeSlide = missileList || PhonkMissileSection == 3;
+	SetNodeUsing("PHONK_RANGE_SLIDE", rangeSlide); SetSelectable("PHONK_RANGE_SLIDE", rangeSlide);
+	if (rangeSlide) SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_RANGE_SLIDE",3,0.0);
+	if (PhonkMissileSection == 3) SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_RANGE_SLIDE",1,80);
 	if (missileList) SendMessage(&GameInterface,"lsll",MSG_INTERFACE_MSG_TO_NODE,"PHONK_RANGE_SLIDE",1,390);
 	for (i = 0; i < 3; i++) { bool showSlide = PhonkMissileSection == 2 || PhonkMissileSection == 4 || (PhonkMissileSection == 3 && (i == 1 || i == 2)); SetNodeUsing("PHONK_SLIDE" + i, showSlide); SetSelectable("PHONK_SLIDE" + i, showSlide); }
 	if (PhonkMissileSection >= 2)
@@ -219,7 +222,12 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION9",0,"#Создать союзника");
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE1",3,(stf(pchar.SeaPhonk.Spawn.Volley)-1.0)/15.0 + 0.000001);
 		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_SLIDE2",3,(stf(pchar.SeaPhonk.Spawn.FireInterval)-0.5)/19.5 + 0.000001);
-		label = "Настройки применяются к следующему кораблю.";
+		int spawnDistance = sti(pchar.SeaPhonk.Spawn.Distance);
+		label = "Дистанция: авто";
+		if (spawnDistance > 0) label = "Дистанция: " + spawnDistance + " м";
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#" + label);
+		SendMessage(&GameInterface,"lslf",MSG_INTERFACE_MSG_TO_NODE,"PHONK_RANGE_SLIDE",3,spawnDistance / 20000.0 + 0.000001);
+		label = "Дистанция для врага и союзника. Авто: 8250 / 600 м." + NewStr() + "Настройки применяются к следующему кораблю.";
 	}
 	else
 	{
@@ -353,9 +361,10 @@ void PhonkMissile_Slide()
 		if (node == "PHONK_SLIDE1") Sea.Phonk.AirDefenseInterval = 0.1 + step * 0.01;
 		if (node == "PHONK_SLIDE2") Sea.Phonk.AirDefenseMax = 1 + step;
 	} else if (PhonkMissileSection == 3) {
+		if (node == "PHONK_RANGE_SLIDE") pchar.SeaPhonk.Spawn.Distance = step * 250;
 		if (node == "PHONK_SLIDE1") pchar.SeaPhonk.Spawn.Volley = 1 + step;
 		if (node == "PHONK_SLIDE2") pchar.SeaPhonk.Spawn.FireInterval = 0.5 + step * 0.1;
-		pchar.SeaPhonk.Spawn.Custom = 1;
+		if (node == "PHONK_SLIDE1" || node == "PHONK_SLIDE2") pchar.SeaPhonk.Spawn.Custom = 1;
 	} else if (PhonkMissileSection == 4) {
 		if (node == "PHONK_SLIDE0") pchar.SeaPhonk.Spawn.DefenseRange = 400 + step * 10;
 		if (node == "PHONK_SLIDE1") pchar.SeaPhonk.Spawn.DefenseInterval = 0.1 + step * 0.01;
@@ -679,6 +688,9 @@ void InitInterface(string iniName)
 		if (sti(Sea.Phonk.AirDefenseMax) > 32) Sea.Phonk.AirDefenseMax = 32;
 		if (!CheckAttribute(&Sea,"Phonk.AirDefensePerTarget")) Sea.Phonk.AirDefensePerTarget = 2;
 		Sea.Phonk.AirDefensePerTarget = SeaPhonk_DefensePerTarget(sti(Sea.Phonk.AirDefensePerTarget));
+		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.Distance")) pchar.SeaPhonk.Spawn.Distance = 0;
+		if (sti(pchar.SeaPhonk.Spawn.Distance) < 0) pchar.SeaPhonk.Spawn.Distance = 0;
+		if (sti(pchar.SeaPhonk.Spawn.Distance) > 20000) pchar.SeaPhonk.Spawn.Distance = 20000;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.Custom")) pchar.SeaPhonk.Spawn.Custom = 0;
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.DefenseCustom")) pchar.SeaPhonk.Spawn.DefenseCustom = sti(pchar.SeaPhonk.Spawn.Custom);
 		if (!CheckAttribute(pchar,"SeaPhonk.Spawn.ShipClass")) pchar.SeaPhonk.Spawn.ShipClass = 0;

@@ -43,6 +43,19 @@ bool SeaPhonkTest_StartAlly()
     return SeaPhonkTest_StartSide(true);
 }
 
+float SeaPhonkTest_SpawnRadius(bool allied)
+{
+    float radius = 0.0;
+    if (CheckAttribute(pchar, "SeaPhonk.Spawn.Distance")) radius = stf(pchar.SeaPhonk.Spawn.Distance);
+    if (radius <= 0.0) {
+        if (allied) return 600.0;
+        return 8250.0;
+    }
+    if (radius < 250.0) radius = 250.0;
+    if (radius > 20000.0) radius = 20000.0;
+    return radius;
+}
+
 bool SeaPhonkTest_StartSide(bool allied)
 {
     if (!bSeaActive || !bSeaLoaded || !IsEntity(&AISea)) return false;
@@ -53,14 +66,13 @@ bool SeaPhonkTest_StartSide(bool allied)
     float angle = heading;
     float offset = 0.0;
     bool found = false;
+    float radius = SeaPhonkTest_SpawnRadius(allied);
     for (int attempt = 0; attempt < 128; attempt++)
     {
         int step = (attempt + 1) / 2;
         offset = 6.2831853 * step / 128.0;
         if (attempt % 2 == 0) offset = -offset;
         float a = heading + offset;
-        float radius = 8250.0;
-        if (allied) radius = 600.0;
         x = stf(pchar.Ship.Pos.x) + radius * sin(a);
         z = stf(pchar.Ship.Pos.z) + radius * cos(a);
         if (SendMessage(&AISea, "lff", AI_MESSAGE_TEST_SPAWN_POSITION, x, z)) { found = true; angle = a; break; }
@@ -191,14 +203,14 @@ bool SeaPhonkTest_StartSide(bool allied)
     WdmFleetSeaSetDrift(groupID);
     if (allied)
     {
-        Log_Info("Союзный ракетный корабль появился рядом");
+        Log_Info("Союзный ракетный корабль: " + sti(radius) + " м");
         return true;
     }
     string description = "Вражеский корабль: " + GetStrSmallRegister(XI_ConvertString(RealShips[sti(captain.Ship.Type)].BaseName));
-    if (offset == 0.0) Log_Info(description + ": прямо по курсу, 8,25 км.");
-    else if (offset >= 3.1415926) Log_Info(description + ": позади, 8,25 км.");
-    else if (offset > 0.0) Log_Info(description + ": вправо от курса на " + sti(offset * 57.29578 + 0.5) + "°, 8,25 км.");
-    else Log_Info(description + ": влево от курса на " + sti(-offset * 57.29578 + 0.5) + "°, 8,25 км.");
+    if (offset == 0.0) Log_Info(description + ": прямо по курсу, " + sti(radius) + " м.");
+    else if (offset >= 3.1415926) Log_Info(description + ": позади, " + sti(radius) + " м.");
+    else if (offset > 0.0) Log_Info(description + ": вправо от курса на " + sti(offset * 57.29578 + 0.5) + "°, " + sti(radius) + " м.");
+    else Log_Info(description + ": влево от курса на " + sti(-offset * 57.29578 + 0.5) + "°, " + sti(radius) + " м.");
     return true;
 }
 
