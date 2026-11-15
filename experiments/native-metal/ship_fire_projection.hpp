@@ -6,6 +6,41 @@
 
 namespace storm_ship_fire {
 
+
+// Homogeneous corners use the same x/y/z bit ordering as the volume AABB.
+// Clip its twelve edges before perspective division: one near-plane crossing
+// does not imply a screen-filling volume (or a fleet-wide resolution drop).
+inline bool volumeClipRect(const std::array<std::array<float,4>,8>& corners,
+                           bool reverseZ, std::array<float,4>& rect) {
+    rect={1.f,1.f,-1.f,-1.f};
+    bool visible=false;
+    const auto distance=[&](const auto& p){return reverseZ?p[3]-p[2]:p[2];};
+    const auto append=[&](const auto& p){
+        if (p[3]<=0.f) return;
+        const float x=p[0]/p[3],y=p[1]/p[3];
+        rect[0]=std::min(rect[0],x);rect[1]=std::min(rect[1],y);
+        rect[2]=std::max(rect[2],x);rect[3]=std::max(rect[3],y);visible=true;
+    };
+    for (const auto& p:corners) {
+        for(float v:p) if(!std::isfinite(v)) return false;
+        if(distance(p)>=0.f) append(p);
+    }
+    for(unsigned i=0;i<8;++i) for(unsigned axis=0;axis<3;++axis) {
+        const unsigned bit=1u<<axis;
+        if(i&bit)continue;
+        const auto& a=corners[i];const auto& b=corners[i|bit];
+        const float da=distance(a),db=distance(b);
+        if((da<0.f)==(db<0.f))continue;
+        const float t=da/(da-db);
+        std::array<float,4> cut{};
+        for(unsigned c=0;c<4;++c)cut[c]=a[c]+(b[c]-a[c])*t;
+        append(cut);
+    }
+    rect[0]=std::max(-1.f,rect[0]);rect[1]=std::max(-1.f,rect[1]);
+    rect[2]=std::min(1.f,rect[2]);rect[3]=std::min(1.f,rect[3]);
+    return visible&&rect[2]>rect[0]&&rect[3]>rect[1];
+}
+
 inline StormMetalShipFirePoint renderPoint(const Cell& cell, std::size_t index, float seed) {
     return {{cell.x,cell.y,cell.z},cell.radius,cell.visualIntensity,cell.charred,cell.visualHeat,
             float(index)*17.31f+seed};

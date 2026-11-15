@@ -1067,7 +1067,10 @@ void evadeInterceptor(NuclearMissile &shot, const CVECTOR &defender, SEA_BASE *s
         sideways = forward ^ CVECTOR(0.f, 1.f, 0.f);
         if ((~sideways) < .001f) sideways = forward ^ CVECTOR(1.f, 0.f, 0.f);
         sideways = !sideways;
-        up = !(forward ^ sideways);
+        // sideways = forward x worldUp, so sideways x forward is up.
+        // Reversing this cross product inverted vertical evasion and made
+        // the downward-clearance guard protect the wrong manoeuvre.
+        up = !(sideways ^ forward);
     }
     if ((~sideways) < .001f) return;
     float sign = shotVariation(shot.shotId, uint32_t(shot.owner), 0x1cd773b5u ^ (attempt * 0x85ebca6bu)) < .5f ? -1.f : 1.f;
@@ -2841,8 +2844,11 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
         state.weapon = mode ? mode->GetAttributeAsDword("Weapon", 6) : 6;
         if (state.weapon != 0 && state.weapon != 6 && state.weapon != 7 && state.weapon != 8) state.weapon = 6;
     }
-    // Delta0 is a paused frame: neither a launch nor flight/damage may advance.
+    // No whole simulation millisecond: neither launch nor flight/damage advances.
     if (!deltaTime) {
+        // Slow motion also yields zero-ms ticks. Preserve the held trigger and
+        // burst debt until the next simulation tick; only a real pause cancels them.
+        if (core.GetVisualDeltaTime() > 0.f) return;
         state.charging = false; state.charge = 0.f;
         state.burstArmed = false; state.burstSeconds = state.burstDebt = 0.0;
         state.triggerHeld = true; // A paused release must not become a later shot.

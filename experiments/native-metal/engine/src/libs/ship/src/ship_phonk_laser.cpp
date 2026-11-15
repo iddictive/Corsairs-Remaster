@@ -97,7 +97,16 @@ class SHIP_CUT_FRAGMENTS final : public Entity
     }
     void ProcessStage(Stage stage, uint32_t delta) override
     {
-        if ((stage != Stage::execute && stage != Stage::realize) || (!delta && stage == Stage::execute)) return;
+        if (stage != Stage::execute && stage != Stage::realize) return;
+        // A rounded zero-millisecond slow-motion frame still advances the
+        // fractional render clock. Refresh camera presentation without running
+        // flight, collision, effects, or lifetime simulation.
+        if (!delta && stage == Stage::execute) {
+            for (const auto id : core.GetEntityIds("ship"))
+                if (auto *ship = static_cast<SHIP *>(core.GetEntityPointer(id)); ship && ship->bMounted)
+                    ship->FinishPhonkMissilesLate();
+            return;
+        }
         const auto ships = core.GetEntityIds("ship");
         if (delta && ships.empty() && orphans.empty() && !future.valid()) { core.EraseEntity(GetId()); return; }
         std::vector<std::pair<entid_t, uint64_t>> forts;

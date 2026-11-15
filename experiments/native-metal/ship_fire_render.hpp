@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "ship_fire_bridge.hpp"
+#include "ship_fire_projection.hpp"
 #include "ship_fire_shaders.hpp"
 #include "frame_arena.hpp"
 
@@ -139,14 +140,15 @@ struct ShipFireRenderer {
             const simd_float3 extent={radius*5.2f,height,radius*5.2f};
             const float y=height/radius;const simd_float3 drift={airflow.x*(y*y/(4.f+y))*.11f*radius,0,airflow.z*(y*y/(4.f+y))*.11f*radius};
             const simd_float3 low=source+simd_min(simd_make_float3(0),drift)-simd_make_float3(extent.x,radius*.16f,extent.z),high=source+simd_max(simd_make_float3(0),drift)+extent;
-            simd_float2 lo={1.f,1.f},hi={-1.f,-1.f};bool crossedNear=false;unsigned visible=0;
+            std::array<std::array<float,4>,8> corners{};
             for(unsigned corner=0;corner<8;corner++){
-                simd_float3 p={corner&1?high.x:low.x,corner&2?high.y:low.y,corner&4?high.z:low.z};auto clip=simd_mul(viewProjection,simd_make_float4(p,1.f));
-                if(clip.w<=.001f||(reverseZ?clip.z>clip.w:clip.z<0.f)){crossedNear=true;continue;}simd_float2 xy=clip.xy/clip.w;lo=simd_min(lo,xy);hi=simd_max(hi,xy);++visible;
+                simd_float3 p={corner&1?high.x:low.x,corner&2?high.y:low.y,corner&4?high.z:low.z};
+                const auto clip=simd_mul(viewProjection,simd_make_float4(p,1.f));
+                corners[corner]={clip.x,clip.y,clip.z,clip.w};
             }
-            const bool eyeInside=simd_all(camera.eye.xyz>=low)&&simd_all(camera.eye.xyz<=high);
-            if(!visible&&!eyeInside)continue;if(crossedNear){lo={-1,-1};hi={1,1};}
-            lo=simd_max(lo,simd_make_float2(-1.f,-1.f));hi=simd_min(hi,simd_make_float2(1.f,1.f));if(hi.x<=lo.x||hi.y<=lo.y)continue;
+            std::array<float,4> rect{};
+            if(!storm_ship_fire::volumeClipRect(corners,reverseZ,rect))continue;
+            const simd_float2 lo={rect[0],rect[1]},hi={rect[2],rect[3]};
             const auto sourceView=simd_mul(view,simd_make_float4(source,1.f));
             const float footprint=radius*std::abs(projection.columns[1].y)*viewport.w/std::max(std::abs(sourceView.z),radius);
             // Keep distant fire readable while reducing only sampling/detail.
