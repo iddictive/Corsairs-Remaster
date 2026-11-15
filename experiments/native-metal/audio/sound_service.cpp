@@ -8,6 +8,7 @@
 #include "shared/sea_camera_medium.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 #include <cctype>
 #include <cstdlib>
@@ -296,7 +297,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     }
     const bool clusteredImpact = spatial && position && !looped && !simpleCache && volumeType == VOLUME_FX &&
         storm::metal::audio::IsClusteredImpactAlias(aliasKey);
-    const std::string impactKey = aliasKey == "debris_splash" ? "ball_splash" : aliasKey;
+    const std::string impactKey(storm::metal::audio::ClusteredVoiceKey(aliasKey));
     const auto impactStarted = clusteredImpact ? std::chrono::steady_clock::now() :
         std::chrono::steady_clock::time_point{};
     if (clusteredImpact)
@@ -319,7 +320,7 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
                 std::chrono::milliseconds(storm::metal::audio::kSpatialRepeatIntervalMs))
                 return SOUND_INVALID_ID;
         }
-        if (activeImpacts >= storm::metal::audio::kMaxImpactVoicesPerAlias ||
+        if (activeImpacts >= storm::metal::audio::MaxClusteredVoices(impactKey) ||
             localImpacts >= storm::metal::audio::kMaxLocalImpactVoices)
             return SOUND_INVALID_ID;
     }
@@ -350,6 +351,12 @@ TSD_ID SoundService::SoundPlay(const char *name, eSoundType type, eVolumeType vo
     const std::string path = ResolvePath(selected.c_str());
     if (path.empty()) return SOUND_INVALID_ID;
     if (spatial) volume *= spatialPolicy.volumeGain;
+    if (clusteredImpact && aliasKey.starts_with("phonk_missile_"))
+    {
+        static std::atomic<std::uint32_t> missileAudioSequence{0};
+        volume *= storm::metal::audio::MissileEventGain(
+            missileAudioSequence.fetch_add(1, std::memory_order_relaxed));
+    }
     auto it = std::find_if(slots_.begin(), slots_.end(), [](const Slot &slot) { return !slot.initialized; });
     if (it == slots_.end()) return SOUND_INVALID_ID;
 
@@ -584,3 +591,4 @@ void SoundService::ProcessSchemes()
     const int elapsed = static_cast<int>(core.GetDeltaTime());
     for (auto &channel : schemes_) { if (channel.looped && (Find(channel.id) || SoundIsPlaying(channel.id))) continue; channel.remaining -= elapsed; if (channel.remaining > 0) continue; channel.id = SoundPlay(channel.name.c_str(), PCM_STEREO, VOLUME_FX, false, channel.looped, false, 0, nullptr, -1, -1, 0, channel.volume, 128); if (!channel.looped) { const int64_t span = std::max<int64_t>(0, static_cast<int64_t>(channel.maxDelay) - channel.minDelay); const int64_t offset = span ? static_cast<int64_t>((static_cast<double>(std::rand()) / RAND_MAX) * span) : 0; channel.remaining = static_cast<int32_t>(static_cast<int64_t>(channel.minDelay) + offset); } else channel.remaining = static_cast<int32_t>(channel.id) == SOUND_INVALID_ID ? 1000 : 0; }
 }
+
