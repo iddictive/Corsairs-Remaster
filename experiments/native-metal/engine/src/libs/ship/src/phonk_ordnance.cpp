@@ -3470,7 +3470,9 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 }
             }
             if (enemyState.testVolleyRemaining && enemyState.testVolleyDelay <= 0.f && activeMissileGroups(enemyState.missiles) < maxMissiles) {
-                auto *target = static_cast<SHIP *>(core.GetEntityPointer(enemyState.testVolleyTarget));
+                // A volley target can be a ship entity or a fort MODEL entity.
+                // Reject other entity types before calling any SHIP virtual method.
+                auto *target = dynamic_cast<SHIP *>(core.GetEntityPointer(enemyState.testVolleyTarget));
                 auto *captain = target ? target->GetACharacter() : nullptr;
                 auto fortTarget = fortOrdnanceOwner(enemyState.testVolleyTarget, 0);
                 auto *fortCharacter = fortTarget.fort ? fortTarget.fort->GetACharacter() : nullptr;
