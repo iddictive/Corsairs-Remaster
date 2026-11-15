@@ -98,11 +98,17 @@ fragment float4 missile_vfx_fs(O i [[stage_in]], texture2d<float> smoke [[textur
   constexpr sampler sm(coord::normalized,address::clamp_to_edge,filter::linear);
   float variation=fract(sin(i.params.w*37.73)*43758.5453);
   float progress=clamp(i.params.x/i.params.y,0.,1.);
-  float frame=mix(variation*12.,58.+variation*5.,progress); float n=min(63.,floor(frame+variation));
-  float2 cell=float2(fmod(n,8.),floor(n/8.)); float2 texel=1./float2(smoke.get_width(),smoke.get_height());
+  // Eight-second puffs traverse only ~50 frames: nearest-frame playback
+  // visibly steps at ~6 Hz even when the scene and particle motion are smooth.
+  // Blend premultiplied RGBA before deriving density; never blend atlas UVs.
+  float frame=clamp(mix(variation*12.,58.+variation*5.,progress)+variation,0.,63.);
+  float n=floor(frame),next=min(63.,n+1.);
+  float2 cell=float2(fmod(n,8.),floor(n/8.)),nextCell=float2(fmod(next,8.),floor(next/8.));
+  float2 texel=1./float2(smoke.get_width(),smoke.get_height());
   float2 p=float2(i.uv.x,1.-i.uv.y);
   float2 uv=clamp((cell+p)/8.,cell/8.+texel*.51,(cell+1.)/8.-texel*.51);
-  float4 a=smoke.sample(sm,uv);
+  float2 nextUV=clamp((nextCell+p)/8.,nextCell/8.+texel*.51,(nextCell+1.)/8.-texel*.51);
+  float4 a=mix(smoke.sample(sm,uv),smoke.sample(sm,nextUV),fract(frame));
   float fade=smoothstep(0.,.06,i.params.x)*(1.-smoothstep(.4,1.,progress));
   // The atlas is premultiplied dark smoke. Preserve its density and texture
   // while lighting it with the exhaust's material instead of multiplying black.

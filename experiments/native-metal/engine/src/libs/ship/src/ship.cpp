@@ -2370,10 +2370,11 @@ void SHIP::Execute(uint32_t DeltaTime)
     auto matrix = UpdateModelMatrix();
     if(!mastContactContinues)mastContactPrevious=matrix; // Mount/load/teleport is not a swept ram.
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-    // A zero simulation step can be a paused or sub-millisecond frame. Keep
-    // the renderer's frame lifecycle alive without advancing ordnance or VFX.
-    if (!DeltaTime && pSea && pRS)
-        StormMetalMissileVfxTick(pRS->GetNativeDevice(), uint64_t(sea_id), 0.f);
+    // One fractional presentation clock owns missile smoke and impact volumes.
+    // The backend admits this once per frame across all ships. A true pause
+    // supplies zero; rounded-zero slow-motion ticks still animate the effects.
+    if (pSea && pRS)
+        StormMetalMissileVfxTick(pRS->GetNativeDevice(), uint64_t(sea_id), core.GetVisualDeltaTime() * .001f);
 #endif
     ExecutePhonkOrdnance(DeltaTime);
     ExecutePhonkLaser(DeltaTime);

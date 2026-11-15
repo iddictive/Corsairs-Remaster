@@ -2925,7 +2925,6 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     };
     const float seconds = deltaTime * .001f;
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
-    StormMetalMissileVfxTick(pRS->GetNativeDevice(), uint64_t(sea_id), seconds);
     CVECTOR fallbackPosition; unsigned fallbackSurface = 0, fallbackWarhead = 0;
     while (StormMetalClusterImpactTakeFallback(pRS->GetNativeDevice(), &fallbackPosition.x, &fallbackSurface, &fallbackWarhead)) {
         const bool surfaceEffect = fallbackWarhead == 2 || fallbackWarhead == 4;
