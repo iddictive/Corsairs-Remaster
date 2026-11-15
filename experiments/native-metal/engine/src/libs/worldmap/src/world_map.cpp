@@ -357,7 +357,10 @@ bool WorldMap::LoadNext()
     }
     // create the player's ship
     ro = CreateModel(new WdmPlayerShip(), storm_map_player::model);
-    Assert(ro);
+    // LoadNext false means pending work, not failure: callers retry it.
+    // Abort failed construction instead of dereferencing null or retrying forever.
+    if (!ro)
+        throw std::runtime_error("World map: failed to create player ship model");
     AddLObject(ro, wdm::render_levels::Ship);
     auto psX = 50.0f;
     auto psZ = 0.0f;
