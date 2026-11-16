@@ -81,7 +81,7 @@ void PhonkMissile_Refresh()
 	bool cluster = sti(Sea.Phonk.MissileWarhead) == 2;
 	for (i = 0; i < 13; i++)
 	{
-		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
+		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11 || i == 12)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
 		if (PhonkMissileSection == 1 && !nuclear && sti(Sea.Phonk.MissileWarhead) != 5 && i >= 7 && i <= 10) visible = true;
 		if (PhonkMissileSection == 2 && (i == 3 || i == 5)) visible = false;
 		SetNodeUsing("ACTION" + i, visible);
@@ -144,6 +144,7 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION2",0,"#Кассетная");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION3",0,"#Зажигательная");
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION4",0,"#Термобарическая");
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION12",0,"#Тандемная");
 		if (sti(Sea.Phonk.MissileWarhead) == 5) label = "Случайная [выбрана]"; else label = "Случайная";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION11",0,"#" + label);
 		if (cluster) label = "Суббоеприпасы"; else label = "Боеголовки";
@@ -165,6 +166,7 @@ void PhonkMissile_Refresh()
 			case 3: label += "осколочно-фугасная" + NewStr() + "Взрыв и осколки поражают корпус, экипаж и паруса."; break;
 			case 4: label += "зажигательная" + NewStr() + "Взрыв может поджечь поражённые корабли."; break;
 			case 5: label += "случайная" + NewStr() + "Случайная неядерная боеголовка при каждом пуске."; break;
+			case PHONK_WARHEAD_TANDEM: label += "тандемная" + NewStr() + "Две фазы взрыва; единый фугасный урон."; break;
 			case PHONK_WARHEAD_THERMOBARIC: label += "термобарическая" + NewStr() + "Объёмный взрыв поражает экипаж и может поджечь корабль."; break;
 		}
 		if (nuclear) label += NewStr() + "Боеголовки: " + sti(Sea.Phonk.NuclearWarheads) + "   Уровень мощности: " + sti(Sea.Phonk.NuclearPowerLimit);
@@ -214,7 +216,7 @@ void PhonkMissile_Refresh()
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION1",0,"#Корабль: " + label);
 		label = SeaPhonk_MissileName(sti(pchar.SeaPhonk.Spawn.MissileType));
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION2",0,"#Ракета: " + label);
-		label = "случайная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == 1) label = "фугасная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == 2) label = "кассетная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == 4) label = "зажигательная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == PHONK_WARHEAD_THERMOBARIC) label = "термобарическая";
+		label = "случайная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == 1) label = "фугасная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == 2) label = "кассетная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == 4) label = "зажигательная"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == PHONK_WARHEAD_THERMOBARIC) label = "термобарическая"; if (sti(pchar.SeaPhonk.Spawn.Warhead) == PHONK_WARHEAD_TANDEM) label = "тандемная";
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION3",0,"#БЧ: " + label);
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION4",0,"#Ракет в залпе: " + sti(pchar.SeaPhonk.Spawn.Volley));
 		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION6",0,"#Перерыв: " + FloatToString(stf(pchar.SeaPhonk.Spawn.FireInterval), 1) + " с");
@@ -305,6 +307,7 @@ void PhonkMissile_Command(string node)
 		case "ACTION3": Sea.Phonk.MissileWarhead = 4; break;
 		case "ACTION4": Sea.Phonk.MissileWarhead = PHONK_WARHEAD_THERMOBARIC; break;
 		case "ACTION11": Sea.Phonk.MissileWarhead = 5; break;
+		case "ACTION12": Sea.Phonk.MissileWarhead = PHONK_WARHEAD_TANDEM; break;
 		case "ACTION5": if (sti(Sea.Phonk.MissileWarhead) == 0 && sti(Sea.Phonk.NuclearWarheads) > 1) Sea.Phonk.NuclearWarheads = sti(Sea.Phonk.NuclearWarheads) - 1; else if (sti(Sea.Phonk.MissileWarhead) == 2 && sti(Sea.Phonk.ClusterCount) > 20) Sea.Phonk.ClusterCount = sti(Sea.Phonk.ClusterCount) - 1; break;
 		case "ACTION6": if (sti(Sea.Phonk.MissileWarhead) == 0 && sti(Sea.Phonk.NuclearWarheads) < 20) Sea.Phonk.NuclearWarheads = sti(Sea.Phonk.NuclearWarheads) + 1; else if (sti(Sea.Phonk.MissileWarhead) == 2 && sti(Sea.Phonk.ClusterCount) < 30) Sea.Phonk.ClusterCount = sti(Sea.Phonk.ClusterCount) + 1; break;
 		case "ACTION7": if (sti(Sea.Phonk.NuclearPowerLimit) > 1) Sea.Phonk.NuclearPowerLimit = sti(Sea.Phonk.NuclearPowerLimit) - 1; break;
@@ -333,7 +336,7 @@ void PhonkMissile_Command(string node)
 		if (node == "ACTION0") pchar.SeaPhonk.Spawn.Custom = !sti(pchar.SeaPhonk.Spawn.Custom);
 		if (node == "ACTION1") pchar.SeaPhonk.Spawn.ShipClass = (sti(pchar.SeaPhonk.Spawn.ShipClass) + 1) % 6;
 		if (node == "ACTION2") { pchar.SeaPhonk.Spawn.MissileType = SeaPhonk_NextMissileType(sti(pchar.SeaPhonk.Spawn.MissileType)); pchar.SeaPhonk.Spawn.Custom = 1; }
-		if (node == "ACTION3") { int warhead = sti(pchar.SeaPhonk.Spawn.Warhead); if (warhead == 5) warhead = 1; else if (warhead == 1) warhead = 2; else if (warhead == 2) warhead = 4; else if (warhead == 4) warhead = PHONK_WARHEAD_THERMOBARIC; else warhead = 5; pchar.SeaPhonk.Spawn.Warhead = warhead; pchar.SeaPhonk.Spawn.Custom = 1; }
+		if (node == "ACTION3") { int warhead = sti(pchar.SeaPhonk.Spawn.Warhead); if (warhead == 5) warhead = 1; else if (warhead == 1) warhead = 2; else if (warhead == 2) warhead = 4; else if (warhead == 4) warhead = PHONK_WARHEAD_THERMOBARIC; else if (warhead == PHONK_WARHEAD_THERMOBARIC) warhead = PHONK_WARHEAD_TANDEM; else warhead = 5; pchar.SeaPhonk.Spawn.Warhead = warhead; pchar.SeaPhonk.Spawn.Custom = 1; }
 		if (node == "ACTION8") SeaPhonkTest_Start();
 		if (node == "ACTION9") SeaPhonkTest_StartAlly();
 	}

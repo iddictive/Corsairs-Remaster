@@ -3,6 +3,7 @@
 
 // Shared missile-warhead identifier; 5 remains the random selector.
 #define PHONK_WARHEAD_THERMOBARIC 6
+#define PHONK_WARHEAD_TANDEM 7
 
 //
 #define SEA_GET_LAYERS "SeaGetLayers"

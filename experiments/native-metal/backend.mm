@@ -919,7 +919,7 @@ finish();if(!prepareLocalWeather())return;if(!command)command=[queue commandBuff
   }
   clusterImpactDrawn=true;finish();if(!command)command=[queue commandBuffer];
   const auto v=missileVfxViewport;const simd_float4 viewport={float(v.originX),float(v.originY),float(v.width),float(v.height)};
-  const bool young=std::any_of(clusterImpacts.begin(),clusterImpacts.end(),[](const ClusterImpact &i){return i.age<.62f;});
+  const bool young=std::any_of(clusterImpacts.begin(),clusterImpacts.end(),[](const ClusterImpact &i){return storm::ship::phonk::impactNeedsPressureSnapshot(i.warhead,i.age);});
   if(!clusterImpactRenderer.captureBackground(metal,command,sceneColor(),young))
    fprintf(stderr,"[StormMetal] cluster pressure snapshot unavailable\n");
   auto impactEncoder=clusterImpactRenderer.beginBatch(metal,command,sceneColor());
@@ -2102,7 +2102,7 @@ extern "C" void StormMetalMissileVfxTick(void*pointer,uint64_t sea,float dt){
  }
 }
 extern "C" bool StormMetalClusterImpact(void*pointer,const float*position,const float*direction,unsigned surface,float radius,unsigned warhead){
- if(!pointer||!position||!direction||surface>3||warhead<1||(warhead>4&&warhead!=storm_metal::thermobaricWarhead)||!std::isfinite(radius)||radius<=0.f)return false;
+ if(!pointer||!position||!direction||surface>3||warhead<1||(warhead>4&&warhead!=storm_metal::thermobaricWarhead&&warhead!=storm_metal::tandemWarhead)||!std::isfinite(radius)||radius<=0.f)return false;
  for(unsigned i=0;i<3;i++)if(!std::isfinite(position[i])||!std::isfinite(direction[i]))return false;
  auto*d=static_cast<Device*>(static_cast<storm_render::Device*>(pointer));
  simd_float3 incoming={direction[0],direction[1],direction[2]};float length=simd_length(incoming);

@@ -22,6 +22,7 @@ namespace
 {
 using namespace storm::ship::phonk;
 static_assert(PHONK_WARHEAD_THERMOBARIC == thermobaricWarhead);
+static_assert(PHONK_WARHEAD_TANDEM == tandemWarhead);
 constexpr size_t maxMissiles = 64;
 
 CVECTOR fortAaShellPosition(const FortAaShell &shell, float age)
@@ -1202,7 +1203,7 @@ template<class Emit> void interceptionDebrisGeometry(unsigned variant, Emit emit
 float conventionalMissileRadius(missile::Type type, bool cluster, unsigned warhead)
 {
     const float base = cluster ? (type == missile::Type::Oreshnik ? 330.f : 8.f) : (type == missile::Type::Oreshnik ? 220.f : type == missile::Type::Shtorm ? 42.f : type == missile::Type::Kinzhal ?
-        ((warhead == 1 || warhead == 3) ? 42.f : 28.f) : 18.f);
+        ((warhead == 1 || warhead == 3 || warhead == PHONK_WARHEAD_TANDEM) ? 42.f : 28.f) : 18.f);
     return warhead == PHONK_WARHEAD_THERMOBARIC ? base * 1.5f : base;
 }
 float missileCoverageRadius(missile::Type type, unsigned warhead, float blastScale, float nuclearRadius)
@@ -2267,7 +2268,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     if (ship && ship->bMounted && !ship->isDead() && ATTRIBUTES::IsLive(target) &&
                         (sourceShip || Helper.isEnemy(sourceCharacter, target))) {
                         core.Event("SeaPhonk_ConventionalDamage", "alffll", target, missile.owner, .10f * damageFactor,
-                                   conventionalMissileMultiplier(missile), int32_t(missile.warhead), missile.surrenderEpoch);
+                                   conventionalMissileMultiplier(missile), int32_t(missile.warhead == PHONK_WARHEAD_TANDEM ? 1u : missile.warhead), missile.surrenderEpoch);
                         if (!sourceLive()) return;
                     }
                 }
@@ -2539,7 +2540,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     const float hp = hadHP ? before->GetAttributeAsFloat("HP") : 0.f;
                     // Handler ID 3 retains the stronger crew/rigging effect;
                     // IDs 1 and legacy 3 both use the full HE hull multiplier.
-                    const auto damageWarhead = missile.warhead == 1 ? 3u : missile.warhead;
+                    const auto damageWarhead = (missile.warhead == 1 || missile.warhead == PHONK_WARHEAD_TANDEM) ? 3u : missile.warhead;
                     core.Event(missile.intercepted ? "SeaPhonk_InterceptConventionalDamage" : "SeaPhonk_ConventionalDamage", "alffll", character, missile.owner, power, bombMultiplier, int32_t(damageWarhead), missile.surrenderEpoch);
                     if (!sourceLive()) return;
                     ship = static_cast<SHIP *>(core.GetEntityPointer(id));
@@ -3472,7 +3473,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 }
                 const auto randomWarhead = (random >> 17) % 4u;
                 const auto selectedWarhead = testLoadout ? testLoadout->GetAttributeAsDword("Warhead", 5) : 5u;
-                enemyState.testVolleyWarhead = (selectedWarhead >= 1 && selectedWarhead <= 4) || selectedWarhead == PHONK_WARHEAD_THERMOBARIC ? selectedWarhead :
+                enemyState.testVolleyWarhead = (selectedWarhead >= 1 && selectedWarhead <= 4) || (selectedWarhead == PHONK_WARHEAD_THERMOBARIC || selectedWarhead == PHONK_WARHEAD_TANDEM) ? selectedWarhead :
                     (randomWarhead == 0 ? 1u : randomWarhead == 1 ? 2u : randomWarhead == 2 ? 4u : PHONK_WARHEAD_THERMOBARIC);
                 if (enemyState.testVolleyWarhead == 3) enemyState.testVolleyWarhead = 1;
                 }
@@ -4151,7 +4152,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     const auto missileSelection = std::min(4u, attributes->GetAttributeAsDword("MissileType", 3));
     state.homing = attributes->GetAttributeAsDword("MissileHoming", 1) != 0;
     const auto requestedWarhead = attributes->GetAttributeAsDword("MissileWarhead", 5);
-    const auto warheadSelection = requestedWarhead <= PHONK_WARHEAD_THERMOBARIC ? requestedWarhead : 5u;
+    const auto warheadSelection = requestedWarhead <= PHONK_WARHEAD_TANDEM ? requestedWarhead : 5u;
     state.clusterCount = std::clamp(attributes->GetAttributeAsDword("ClusterCount", 24), 20u, 30u);
     attributes->SetAttributeUseDword("ClusterCount", state.clusterCount);
     state.warheadCount = std::clamp(attributes->GetAttributeAsDword("NuclearWarheads", state.warheadCount), 1u, 20u);

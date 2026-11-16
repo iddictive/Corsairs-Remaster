@@ -1144,7 +1144,8 @@ void ProcessControls()
 		else if (warhead == 1 || warhead == 3) warhead = 2;
 		else if (warhead == 2) warhead = 4;
 		else if (warhead == 4) warhead = PHONK_WARHEAD_THERMOBARIC;
-		else if (warhead == PHONK_WARHEAD_THERMOBARIC) warhead = 5;
+		else if (warhead == PHONK_WARHEAD_THERMOBARIC) warhead = PHONK_WARHEAD_TANDEM;
+		else if (warhead == PHONK_WARHEAD_TANDEM) warhead = 5;
 		else warhead = 0;
 		Sea.Phonk.MissileWarhead = warhead;
 		string warheadName = "ядерная";
@@ -1152,6 +1153,7 @@ void ProcessControls()
 		if (warhead == 2) warheadName = "кассетная";
 		if (warhead == 4) warheadName = "зажигательная";
 		if (warhead == PHONK_WARHEAD_THERMOBARIC) warheadName = "термобарическая";
+		if (warhead == PHONK_WARHEAD_TANDEM) warheadName = "тандемная";
 		if (warhead == 5) warheadName = "случайная";
 		Log_Info("Боеголовка: " + warheadName);
 		return;

@@ -11,6 +11,7 @@
 
 namespace storm_metal {
 inline constexpr unsigned thermobaricWarhead = storm::ship::phonk::thermobaricWarhead;
+inline constexpr unsigned tandemWarhead = storm::ship::phonk::tandemWarhead;
 static_assert(thermobaricWarhead == 6, "Update the Metal warhead wire value too");
 
 // A stateless, depth-occluded impact volume. The caller owns impact lifetimes,
@@ -18,7 +19,7 @@ static_assert(thermobaricWarhead == 6, "Update the Metal warhead wire value too"
 // nuclear renderer: center is game space, worldOrigin is the renderer's rebase.
 enum class ClusterImpactSurface : unsigned { Sea = 0, Land = 1, Air = 2 };
 inline constexpr float clusterImpactLifetime = 4.0f;
-inline constexpr float clusterImpactLife(unsigned warhead) { return warhead == 4 ? 6.5f : warhead == thermobaricWarhead ? 5.f : clusterImpactLifetime; }
+inline constexpr float clusterImpactLife(unsigned warhead) { return warhead == 4 ? 6.5f : warhead == thermobaricWarhead ? 5.f : warhead == tandemWarhead ? clusterImpactLifetime + storm::ship::phonk::tandemDelay : clusterImpactLifetime; }
 
 inline constexpr const char *clusterImpactMSL = R"MSL(
 #include <metal_stdlib>
@@ -402,12 +403,27 @@ public:
         if(!explosionAtlas||explosionAtlas.device!=device||!sprayAtlas||sprayAtlas.device!=device||target.sampleCount!=1||depth.sampleCount!=1||
            target.width!=depth.width||target.height!=depth.height||!std::isfinite(radius)||radius<=0||
            !std::isfinite(age)||age<0||!std::isfinite(seed)||
-           (surface!=ClusterImpactSurface::Sea&&surface!=ClusterImpactSurface::Land&&surface!=ClusterImpactSurface::Air)||warhead<1||(warhead>4&&warhead!=thermobaricWarhead)) return false;
+           (surface!=ClusterImpactSurface::Sea&&surface!=ClusterImpactSurface::Land&&surface!=ClusterImpactSurface::Air)||warhead<1||(warhead>4&&warhead!=thermobaricWarhead&&warhead!=tandemWarhead)) return false;
         for(int i=0;i<3;i++) if(!std::isfinite(center[i])||!std::isfinite(worldOrigin[i])||!std::isfinite(incoming[i])) return false;
         float directionLength=simd_length(incoming); if(!std::isfinite(directionLength)||directionLength<1e-5f) return false;
         for(int i=0;i<4;i++) if(!std::isfinite(viewport[i])) return false;
         if(viewport.z<=0||viewport.w<=0) return false;
         if(age>=clusterImpactLife(warhead)) return true;
+        if(warhead==tandemWarhead) {
+            // One bounded impact slot, at most two draws. Both phases use the
+            // same simulation age (including slow motion), depth and rebase.
+            const auto precursor=storm::ship::phonk::tandemPrecursor(age);
+            const auto main=storm::ship::phonk::tandemMain(age);
+            bool ok=true;
+            if(precursor.visible) ok=encode(device,command,target,depth,view,projection,worldOrigin,
+                viewport,center,radius*precursor.radiusScale,precursor.age,surface,seed,incoming,1,batch);
+            if(main.visible) {
+                const bool mainOk=encode(device,command,target,depth,view,projection,worldOrigin,
+                    viewport,center,radius*main.radiusScale,main.age,surface,seed+17.f,incoming,1,batch);
+                ok=ok&&mainOk;
+            }
+            return ok;
+        }
         auto vp=simd_mul(projection,view); float det=simd_determinant(vp), vdet=simd_determinant(view);
         if(!std::isfinite(det)||fabsf(det)<1e-12f||!std::isfinite(vdet)||fabsf(vdet)<1e-12f) return false;
         const float variation=std::fmod(std::fabs(seed)*.754877666f,1.f);
