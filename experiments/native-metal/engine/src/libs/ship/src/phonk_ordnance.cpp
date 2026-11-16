@@ -2055,7 +2055,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
             // position only when that position is inside its blast radius.
             // Manual flight, separated blocks and intercepted debris retain
             // their own collision/continuation semantics.
-            if (hit > 1.f && !missile.intercepted && !missile.manualFlight && !missile.continueVelocity &&
+            if (hit > 1.f && !missile.intercepted && !missile.manualFlight && (!missile.continueVelocity || missile.tandemChild) &&
                 !missile.cluster && missile.age >= missile.duration) {
                 const float radius = missile.conventional ?
                     conventionalMissileRadius(missile.type, false, missile.warhead) * missile.blastScale : missile.yield.radius;
@@ -2132,12 +2132,22 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     release = std::min(release, std::max(0.f, hit - .001f));
                 }
             }
+            // ID7 is a two-child game carrier. Resolve the release time within
+            // the substep, before surface-hit arbitration, including hitch frames.
+            if (missile.split && missile.warhead == PHONK_WARHEAD_TANDEM && !missile.intercepted) {
+                const float threshold = missile.duration * .7f;
+                if (missile.age >= threshold && missile.age > substepStartAge) {
+                    release = std::clamp((threshold - substepStartAge) / (missile.age - substepStartAge), 0.f, 1.f);
+                    const auto point = before + (after - before) * release;
+                    if (point.y <= pSea->WaveXZ(point.x, point.z)) release = 2.f;
+                }
+            }
             if (planning) {
                 const float start = seconds * float(n) / float(steps);
                 const float end = seconds * float(n + 1) / float(steps);
                 const float life = missile.age >= missile.duration ?
                     std::clamp((missile.duration - substepStartAge) / (end - start), 0.f, 1.f) : 2.f;
-                const bool nonClusterSplit = missile.split && !missile.cluster && hit > 1.f && missile.age >= missile.duration * .7f;
+                const bool nonClusterSplit = missile.split && !missile.cluster && missile.warhead != PHONK_WARHEAD_TANDEM && hit > 1.f && missile.age >= missile.duration * .7f;
                 const float expiryFraction = std::min(std::min(hit, release), std::min(life, nonClusterSplit ? 1.f : 2.f));
                 const float movingEnd = start + (end-start) * std::min(1.f, life);
                 if (movingEnd > start) framePlan->segments.push_back({start, movingEnd, before, after});
@@ -2274,7 +2284,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                 }
                 break;
             }
-            if (missile.split && (clusterRelease || (!missile.cluster && hit > 1.f && missile.age >= missile.duration * .7f)))
+            if (missile.split && (clusterRelease || (!missile.cluster && missile.warhead != PHONK_WARHEAD_TANDEM && hit > 1.f && missile.age >= missile.duration * .7f)))
             {
                 const auto burstPosition = clusterRelease ? before + (after-before)*release : after;
                 if (missile.cluster && (missile.manualFlight || missile.coasting || missile.intercepted)) {
@@ -2289,7 +2299,8 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                 auto heading = missile.target - missile.launch;
                 heading.y = 0.f;
                 if ((~heading) > .001f) heading = !heading;
-                const CVECTOR side = missile.cluster ? heading : CVECTOR(-heading.z, 0.f, heading.x);
+                CVECTOR side = missile.cluster ? heading : CVECTOR(-heading.z, 0.f, heading.x);
+                if (missile.warhead == PHONK_WARHEAD_TANDEM && (~side) <= .001f) side = CVECTOR(1.f, 0.f, 0.f);
                 CVECTOR releaseVelocity(0.f);
                 float scatterTravel = 1.f;
                 if (missile.cluster && !missile.intercepted) {
@@ -2302,14 +2313,16 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                 }
                 const auto clusterAim = missile.cluster && !missile.intercepted ?
                     clusterImpactAim(missile, burstPosition, releaseVelocity, pSea) : missile.target;
+                const bool tandemCarrier = missile.warhead == PHONK_WARHEAD_TANDEM;
                 const size_t separatedBefore = separated.size();
                 unsigned airburstCount = 0;
-                for (unsigned index = 0; index < missile.warheadCount; ++index)
+                for (unsigned index = 0; index < (tandemCarrier ? 2u : missile.warheadCount); ++index)
                 {
                     const bool oreshnik = missile.type == missile::Type::Oreshnik;
                     const float spreadAlong = oreshnik ? 700.f : 75.f, spreadSide = oreshnik ? 700.f : 55.f;
-                    const float offset = 2.f * float(index) / float(missile.warheadCount - 1) - 1.f;
-                    auto target = missile.cluster ? clusterAim : missile.target + side * (180.f * offset);
+                    const float offset = tandemCarrier ? (index == 0 ? -1.f : 1.f) : 2.f * float(index) / float(missile.warheadCount - 1) - 1.f;
+                    // Authored game spread: two distinct close aim points, not a broad MIRV pattern.
+                    auto target = missile.cluster ? clusterAim : missile.target + side * ((tandemCarrier ? 3.f : 180.f) * offset);
                     if (missile.cluster) {
                         // Scatter across an area, rather than making one
                         // evenly spaced row along the flight direction.
@@ -2329,14 +2342,14 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                             if (alongFlight < 0.f) target -= heading * (1.35f * alongFlight);
                         }
                     }
-                    if (offset != 0.f && !missile.cluster) target.y = pSea->WaveXZ(target.x, target.z);
+                    if (offset != 0.f && !missile.cluster && !tandemCarrier) target.y = pSea->WaveXZ(target.x, target.z);
                     auto child = missileTo(burstPosition, target, missile.owner, missile.type);
                     if (missile.cluster && missile.type == missile::Type::Oreshnik) {
                         child.suppressReentryHeat = missile.intercepted;
                         if (!missile.intercepted && std::isfinite(missile.visualHeat))
                             child.visualHeat = std::clamp(missile.visualHeat, 0.f, 1.f);
                     }
-                    child.initialVelocity = nuclearVelocity(missile, missile.age);
+                    child.initialVelocity = nuclearVelocity(missile, tandemCarrier ? substepStartAge + (missile.age - substepStartAge) * release : missile.age);
                     const float inheritedSpeed = std::sqrt(~child.initialVelocity);
                     const float carrierMeanSpeed = missile.nominalMeanSpeed;
                     if (std::isfinite(inheritedSpeed) && inheritedSpeed > 1.f)
@@ -2394,10 +2407,14 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     child.conventional = missile.conventional;
                     child.cluster = missile.cluster;
                     child.manualCluster = missile.manualCluster && !missile.intercepted;
-                    child.warhead = missile.warhead;
+                    // Both children are ordinary HE impacts; never recurse into ID7 or its old two-pulse renderer.
+                    child.warhead = tandemCarrier ? 1u : missile.warhead;
+                    child.tandemChild = tandemCarrier;
+                    child.split = false;
+                    child.warheadCount = 1;
                     child.submunitionVariant = uint8_t(index);
                     child.shotId = missile.shotId;
-                    child.damageScale = missile.damageScale;
+                    child.damageScale = missile.damageScale * (tandemCarrier ? .5f : 1.f);
                     child.blastScale = missile.blastScale;
                     child.surrenderEpoch = missile.surrenderEpoch;
                     // A hit can detonate some submunitions immediately. Keep
@@ -2416,7 +2433,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                 // One visual-only flash at carrier separation; impact sounds
                 // continue to use the existing shared cooldown.
-                if (missile.cluster && separated.size() > separatedBefore)
+                if ((missile.cluster || tandemCarrier) && separated.size() > separatedBefore)
                     StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &burstPosition.x, 2);
 #else
                 (void)separatedBefore;
@@ -2579,7 +2596,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                         }
                         rendered = StormMetalClusterImpact(pRS->GetNativeDevice(), &visualImpact.x, &direction.x,
                                                            unsigned(surface), visualRadius,
-                                                           (missile.intercepted && missile.warhead != PHONK_WARHEAD_THERMOBARIC) || missile.warhead == 3 ||
+                                                           (missile.intercepted && missile.warhead != PHONK_WARHEAD_THERMOBARIC) || missile.warhead == 3 || missile.warhead == PHONK_WARHEAD_TANDEM ||
                                                            (surface == ImpactSurface::Ship && missile.warhead == 4) ? 1u : missile.warhead);
                     }
 #endif
@@ -3008,8 +3025,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 const auto warhead = std::min(3u, unsigned(shotVariation(serial, owner, 0x3bd8e19fu) * 4.f));
                 shot.warhead = warhead == 0 ? 1u : warhead == 1 ? 2u : warhead == 2 ? 4u : PHONK_WARHEAD_THERMOBARIC;
                 shot.cluster = shot.warhead == 2;
-                shot.warheadCount = shot.cluster ? 24u : 1u;
-                shot.split = shot.cluster;
+                shot.warheadCount = shot.warhead == PHONK_WARHEAD_TANDEM ? 2u : (shot.cluster ? 24u : 1u);
+                shot.split = shot.warheadCount > 1;
                 shot.seeker = true;
                 shot.guidedShip = target->GetId();
                 shot.lastGuidedPosition = target->GetPos();
@@ -3543,8 +3560,8 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 incoming.conventional = true;
                 incoming.warhead = enemyState.testVolleyWarhead;
                 incoming.cluster = incoming.warhead == 2;
-                incoming.warheadCount = incoming.cluster ? 24u : 1u;
-                incoming.split = incoming.cluster;
+                incoming.warheadCount = incoming.warhead == PHONK_WARHEAD_TANDEM ? 2u : (incoming.cluster ? 24u : 1u);
+                incoming.split = incoming.warheadCount > 1;
                 const entid_t routeTarget = validShipTarget ? target->GetId() : 0;
                 if (pIsland && !planTerrainRoute(pSea, pIsland, receivers, *testShip, nullptr, incoming,
                         conventionalMissileRadius(kind, incoming.cluster, incoming.warhead) * incoming.blastScale,
@@ -4473,7 +4490,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
             }
             missile.guidedOffset = state.targetOffset + aimError;
             missile.aimError = aimError;
-            missile.warheadCount = missile.cluster ? state.clusterCount : (missile.conventional ? 1 : state.warheadCount);
+            missile.warheadCount = missile.warhead == PHONK_WARHEAD_TANDEM ? 2u : (missile.cluster ? state.clusterCount : (missile.conventional ? 1 : state.warheadCount));
             missile.split = missile.warheadCount > 1;
             if (missile.type == missile::Type::Kalibr &&
                 !planTerrainRoute(pSea, pIsland, receivers, *this, ai, missile,
@@ -4636,7 +4653,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
         if ((~trailSide) > .001f) trailSide = !trailSide;
         else trailSide = side;
         const float modelScale = missile.interceptionFragment ? std::clamp(missile::outerRadius(missile.type) * .75f, .5f, 1.7f) : missile.continueVelocity ? (missile.cluster ? (missile.type == missile::Type::Oreshnik ? 2.4f : .8f) : .6f) : 1.f;
-        const bool submunition = isClusterSubmunition(missile);
+        const bool submunition = isClusterSubmunition(missile) || missile.tandemChild;
         const float noseOffset = submunition ? clusterSubmunitionNose : missile::noseTip(missile.type);
         const float tailOffset = submunition ? clusterSubmunitionTail : missile::tailTip(missile.type);
         const float bodyLength = (noseOffset - tailOffset) * modelScale;
@@ -4676,7 +4693,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
             add(a); add(b); add(c);
         };
         if (missile.interceptionFragment) interceptionDebrisGeometry(missile.submunitionVariant,emit);
-        else if (isClusterSubmunition(missile)) clusterSubmunitionGeometry(missile.submunitionVariant,emit);
+        else if (isClusterSubmunition(missile) || missile.tandemChild) clusterSubmunitionGeometry(missile.submunitionVariant,emit);
         else storm::ship::phonk::missile::geometry(missile.type, emit);
         const bool cruise = missile.type == storm::ship::phonk::missile::Type::Kalibr;
         const float visualAge = cruise && missile.manualFlight && missile.kalibrManualAge >= 0.f ? missile.kalibrManualAge : missile.age;

@@ -132,6 +132,7 @@ struct NuclearMissile
     missile::Type type = missile::Type::Kinzhal;
     bool conventional = false;
     bool cluster = false;
+    bool tandemChild = false;
     uint32_t warhead = 0;
     bool flybyPlayed = false;
     bool sonicBoomPlayed = false;

@@ -14,32 +14,25 @@ int PhonkListSection = -1;
 
 int PhonkWarhead_Id(int row)
 {
-	switch (row)
-	{
-	case 0: return 0;
-	case 1: return 1;
-	case 2: return 2;
-	case 3: return 4;
-	case 4: return PHONK_WARHEAD_THERMOBARIC;
-	case 5: return PHONK_WARHEAD_TANDEM;
-	case 6: return 5;
-	}
+	if (row == 0) return 0;
+	if (row == 1) return 1;
+	if (row == 2) return 2;
+	if (row == 3) return 4;
+	if (row == 4) return PHONK_WARHEAD_THERMOBARIC;
+	if (row == 5) return PHONK_WARHEAD_TANDEM;
+	if (row == 6) return 5;
 	return -1;
 }
 
 string PhonkWarhead_Name(int id)
 {
-	switch (id)
-	{
-	case 0: return "Ядерная";
-	case 1: return "Фугасная";
-	case 2: return "Кассетная";
-	case 3: return "Фугасная";
-	case 4: return "Зажигательная";
-	case PHONK_WARHEAD_THERMOBARIC: return "Термобарическая";
-	case PHONK_WARHEAD_TANDEM: return "Тандемная";
-	case 5: return "Случайная";
-	}
+	if (id == 0) return "Ядерная";
+	if (id == 1 || id == 3) return "Фугасная";
+	if (id == 2) return "Кассетная";
+	if (id == 4) return "Зажигательная";
+	if (id == PHONK_WARHEAD_THERMOBARIC) return "Термобарическая";
+	if (id == PHONK_WARHEAD_TANDEM) return "Тандемная";
+	if (id == 5) return "Случайная";
 	return "";
 }
 
@@ -205,7 +198,7 @@ void PhonkMissile_Refresh()
 			case 3: label += "осколочно-фугасная" + NewStr() + "Взрыв и осколки поражают корпус, экипаж и паруса."; break;
 			case 4: label += "зажигательная" + NewStr() + "Взрыв может поджечь поражённые корабли."; break;
 			case 5: label += "случайная" + NewStr() + "Случайная неядерная боеголовка при каждом пуске."; break;
-			case PHONK_WARHEAD_TANDEM: label += "тандемная" + NewStr() + "Направленный предвзрыв и основной взрыв; единый фугасный урон."; break;
+			case PHONK_WARHEAD_TANDEM: label += "тандемная" + NewStr() + "Носитель разделяется в воздухе на два самостоятельных суббоеприпаса."; break;
 			case PHONK_WARHEAD_THERMOBARIC: label += "термобарическая" + NewStr() + "Объёмный взрыв поражает экипаж и может поджечь корабль."; break;
 		}
 		if (nuclear) label += NewStr() + "Боеголовки: " + sti(Sea.Phonk.NuclearWarheads) + "   Уровень мощности: " + sti(Sea.Phonk.NuclearPowerLimit);
