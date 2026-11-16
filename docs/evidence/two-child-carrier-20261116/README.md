@@ -1,21 +1,9 @@
-# Two-child carrier regression probes
+# Tandem cluster-parity regression probes
 
-From the repository root run:
+Run from repository root: `python3 docs/evidence/two-child-carrier-20261116/check.py`.
 
-```sh
-python3 docs/evidence/two-child-carrier-20261116/check.py
-```
+The two tandem children reuse the existing cluster drag/gravity evaluator. Manual RMB consumption and automatic release distance use the same payload-carrier policy. They have no powered endpoint continuation, seeker, motor jet or carrier trail. Auto release applies the same bounded initial correction as cluster, without lateral scatter; it never steers after release.
 
-Requires Python 3 and `c++` with C++17/UBSan. Writes only to a temporary directory.
-The script reads actual engine sources, compiles extracted release interpolation,
-continuation curve, vertical-side fallback and collision/release arbitration.
-It checks exact endpoint, timestep-independent release time, distinct vertical
-child targets, launcher wiring, nonrecursive HE children and same shot-group ID.
-An explicit event harness covers early collision, interception, repeated updates,
-and two terminal impacts; its simplified lifecycle is not the production scheduler.
+The second body's initial state is a bounded phase offset along that same ballistic curve (at most 0.18 simulation seconds and approximately 12 world units, reduced near launch/obstacles). Collision checking reduces the offset; fully blocked rear placement falls back to zero separation rather than spawning through geometry. Thus a visible interval is not guaranteed at that safety fallback or in one long frame.
 
-These are source/formula regressions, not full engine or gameplay acceptance.
-Native engine compilation, script VM/menu, installed artifact checks, visual/audio
-readability, moving targets, real damage/falloff and salvo/interception playtests
-remain separate checks. Half damageScale per child preserves only the nominal
-combined multiplier, not the realized total damage across two impact positions.
+The probe compiles the actual spawn helper with C++17/UBSan and checks phase parity, finite values and source guards. Its trajectory formula fixture is not the full production collision scheduler. Native arm64 engine build passed on the final source. Full in-game manual/automatic release, rendered impacts and audio acceptance remain separate checks. Existing AA targeting and damage multipliers are unchanged.

@@ -192,6 +192,22 @@ inline bool isClusterSubmunition(const NuclearMissile &missile)
 {
     return missile.cluster && missile.continueVelocity && !missile.coasting;
 }
+inline bool isBallisticSubmunition(const NuclearMissile &missile)
+{
+    return (missile.cluster || missile.tandemChild) && missile.continueVelocity && !missile.coasting;
+}
+// Spawn placement only: reuse the cluster drag/gravity trajectory with a
+// bounded time offset. Do not pass negative age to the clamped evaluator.
+inline void offsetTrailingTandemChild(NuclearMissile &child, float delay)
+{
+    delay = std::clamp(delay, 0.f, .18f);
+    const float growth = std::exp(clusterAirDrag * delay);
+    const float backwardTravel = (1.f - growth) / clusterAirDrag;
+    child.launch += child.initialVelocity * backwardTravel +
+        CVECTOR(0.f, -9.81f * (-delay - backwardTravel) / clusterAirDrag, 0.f);
+    child.initialVelocity = child.initialVelocity * growth +
+        CVECTOR(0.f, -9.81f * backwardTravel, 0.f);
+}
 struct NuclearBlast
 {
     CVECTOR center = CVECTOR(0.f);
@@ -455,9 +471,9 @@ inline CVECTOR nuclearPosition(const NuclearMissile &missile, float age)
     const float t = std::clamp(curveAge / curveDuration, 0.f, 1.f);
     const CVECTOR delta = missile.target - missile.launch;
     if (missile.manualFlight) return missile.launch + missile.manualVelocity * (t * missile.duration);
-    if (missile.coasting || isClusterSubmunition(missile)) {
+    if (missile.coasting || isBallisticSubmunition(missile)) {
         const float elapsed = t * missile.duration;
-        if (missile.interceptionFragment || isClusterSubmunition(missile)) {
+        if (missile.interceptionFragment || isBallisticSubmunition(missile)) {
             // Linear air resistance with gravity, evaluated from the initial
             // state so its result does not depend on frame rate.
             const float drag = missile.interceptionFragment ? interceptionFragmentAirDrag : clusterAirDrag;
@@ -591,7 +607,7 @@ inline CVECTOR nuclearVelocity(const NuclearMissile &missile, float age)
     if (missile.manualFlight) return missile.manualVelocity;
     if (missile.kinzhalReplanned && !missile.coasting && !missile.continueVelocity && age >= missile.evasionStateAge)
         return missile.evasionVelocity;
-    if (missile.interceptionFragment || isClusterSubmunition(missile)) {
+    if (missile.interceptionFragment || isBallisticSubmunition(missile)) {
         const float elapsed = t * missile.duration;
         const float drag = missile.interceptionFragment ? interceptionFragmentAirDrag : clusterAirDrag;
         const float decay = std::exp(-drag * elapsed);

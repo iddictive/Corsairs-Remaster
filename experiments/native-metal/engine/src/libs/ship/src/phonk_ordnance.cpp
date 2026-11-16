@@ -24,6 +24,9 @@ using namespace storm::ship::phonk;
 static_assert(PHONK_WARHEAD_THERMOBARIC == thermobaricWarhead);
 static_assert(PHONK_WARHEAD_TANDEM == tandemWarhead);
 constexpr size_t maxMissiles = 64;
+// Shared input/release policy, independent of payload scatter/impact behavior.
+bool isPayloadCarrier(const NuclearMissile &m)
+{ return m.split && (m.cluster || m.warhead == PHONK_WARHEAD_TANDEM); }
 
 CVECTOR fortAaShellPosition(const FortAaShell &shell, float age)
 {
@@ -1838,7 +1841,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                 ATTRIBUTES::IsLive(cameraControl) && cameraControl->GetAttributeAsDword("active", 0) && cameraControl->GetAttributeAsDword("manual", 0) &&
                 cameraControl->GetAttributeAsDword("sequence", 0) == missile.shotId;
             const bool aimHeld = steer && cameraControl->GetAttributeAsDword("aimHeld", 0) != 0;
-            if (steer && missile.cluster && missile.split) missile.manualCluster = true;
+            if (steer && isPayloadCarrier(missile)) missile.manualCluster = true;
             const CVECTOR aim = aimHeld ? CVECTOR(cameraControl->GetAttributeAsFloat("aimX", 0.f), cameraControl->GetAttributeAsFloat("aimY", 0.f),
                 cameraControl->GetAttributeAsFloat("aimZ", 0.f)) : CVECTOR(0.f);
             if (missile.coasting && steer) {
@@ -2055,7 +2058,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
             // position only when that position is inside its blast radius.
             // Manual flight, separated blocks and intercepted debris retain
             // their own collision/continuation semantics.
-            if (hit > 1.f && !missile.intercepted && !missile.manualFlight && (!missile.continueVelocity || missile.tandemChild) &&
+            if (hit > 1.f && !missile.intercepted && !missile.manualFlight && !missile.continueVelocity &&
                 !missile.cluster && missile.age >= missile.duration) {
                 const float radius = missile.conventional ?
                     conventionalMissileRadius(missile.type, false, missile.warhead) * missile.blastScale : missile.yield.radius;
@@ -2067,13 +2070,13 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
             // one tick and skip separation.
             float release = 2.f;
             if (missile.split && missile.cluster && missile.intercepted) release = 0.f;
-            else if (missile.split && missile.cluster && missile.manualCluster) {
+            else if (isPayloadCarrier(missile) && !missile.intercepted && missile.manualCluster) {
                 if (steer && cameraControl->GetAttributeAsDword("release", 0)) {
                     release = 0.f;
                     if (!planning) cameraControl->SetAttributeUseDword("release", 0);
                 }
             }
-            else if (missile.split && missile.cluster && (missile.manualFlight || missile.coasting || missile.age >= missile.duration * .55f) &&
+            else if (isPayloadCarrier(missile) && !missile.intercepted && (missile.manualFlight || missile.coasting || missile.age >= missile.duration * .55f) &&
                 (missile.manualFlight || missile.coasting || missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.ignitionPlayed)) {
                 const float flightX = missile.target.x - missile.launch.x;
                 const float flightZ = missile.target.z - missile.launch.z;
@@ -2132,16 +2135,6 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     release = std::min(release, std::max(0.f, hit - .001f));
                 }
             }
-            // ID7 is a two-child game carrier. Resolve the release time within
-            // the substep, before surface-hit arbitration, including hitch frames.
-            if (missile.split && missile.warhead == PHONK_WARHEAD_TANDEM && !missile.intercepted) {
-                const float threshold = missile.duration * .7f;
-                if (missile.age >= threshold && missile.age > substepStartAge) {
-                    release = std::clamp((threshold - substepStartAge) / (missile.age - substepStartAge), 0.f, 1.f);
-                    const auto point = before + (after - before) * release;
-                    if (point.y <= pSea->WaveXZ(point.x, point.z)) release = 2.f;
-                }
-            }
             if (planning) {
                 const float start = seconds * float(n) / float(steps);
                 const float end = seconds * float(n + 1) / float(steps);
@@ -2184,7 +2177,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
             const float visualFraction = std::clamp(std::min({1.f, hit, release, interceptAt}), 0.f, 1.f);
             const auto visualEnd = before + (after-before)*visualFraction;
             if (visualFraction > 0.f && !missile.intercepted && !missile.interceptionFragment &&
-                !isClusterSubmunition(missile) && sonicBoom(missile.sonicBoomPlayed, state.sonicSoundCooldown,
+                !isBallisticSubmunition(missile) && sonicBoom(missile.sonicBoomPlayed, state.sonicSoundCooldown,
                     before, visualEnd, (missile.age - substepStartAge) * visualFraction, listener)) {
                 if (!sourceLive()) return;
             }
@@ -2198,7 +2191,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                         missile.visualHeat = advanceReentryHeat(missile.visualHeat, velocity, altitude, visualDt, true);
                 }
             }
-            if (visualFraction > 0.f && !missile.interceptionFragment && !isClusterSubmunition(missile) &&
+            if (visualFraction > 0.f && !missile.interceptionFragment && !isBallisticSubmunition(missile) &&
                 substepStartAge + (missile.age-substepStartAge)*visualFraction > 1.f && !missile.flybyPlayed &&
                 state.flybySoundCooldown <= 0.f && (~(visualEnd-listener)) < 150.f*150.f) {
                 missile.flybyPlayed = true;
@@ -2212,7 +2205,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
             // Drop old substeps after a long stall; never replay a smoke backlog.
             const bool kalibrEject = missile.type == storm::ship::phonk::missile::Type::Kalibr &&
                 !missile.continueVelocity && missile.age <= missile::kalibrEjectionDuration(missile.flightVariation);
-            if (visualFraction > 0.f && !missile.intercepted && !missile.interceptionFragment && !isClusterSubmunition(missile) && (steps-n-1)*seconds/float(steps) <= .20f &&
+            if (visualFraction > 0.f && !missile.intercepted && !missile.interceptionFragment && !isBallisticSubmunition(missile) && (steps-n-1)*seconds/float(steps) <= .20f &&
                 (missile.type != storm::ship::phonk::missile::Type::Kalibr || missile.continueVelocity || missile.ignitionPlayed || kalibrEject)) {
                 const auto velocity = visualEnd-before;
                 const float visualAge = substepStartAge + (missile.age-substepStartAge)*visualFraction;
@@ -2287,7 +2280,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
             if (missile.split && (clusterRelease || (!missile.cluster && missile.warhead != PHONK_WARHEAD_TANDEM && hit > 1.f && missile.age >= missile.duration * .7f)))
             {
                 const auto burstPosition = clusterRelease ? before + (after-before)*release : after;
-                if (missile.cluster && (missile.manualFlight || missile.coasting || missile.intercepted)) {
+                if (isPayloadCarrier(missile) && (missile.manualFlight || missile.coasting || missile.intercepted)) {
                     const auto velocity = missile.intercepted ? missile.interceptedVelocity : nuclearVelocity(missile, missile.age);
                     const float height = std::max(0.f, burstPosition.y - pSea->WaveXZ(burstPosition.x, burstPosition.z));
                     const float time = std::clamp((velocity.y + std::sqrt(velocity.y*velocity.y + 19.62f*height)) / 9.81f, .05f, 3.f);
@@ -2299,11 +2292,10 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                 auto heading = missile.target - missile.launch;
                 heading.y = 0.f;
                 if ((~heading) > .001f) heading = !heading;
-                CVECTOR side = missile.cluster ? heading : CVECTOR(-heading.z, 0.f, heading.x);
-                if (missile.warhead == PHONK_WARHEAD_TANDEM && (~side) <= .001f) side = CVECTOR(1.f, 0.f, 0.f);
+                const CVECTOR side = missile.cluster ? heading : CVECTOR(-heading.z, 0.f, heading.x);
                 CVECTOR releaseVelocity(0.f);
                 float scatterTravel = 1.f;
-                if (missile.cluster && !missile.intercepted) {
+                if (isPayloadCarrier(missile) && !missile.intercepted) {
                     releaseVelocity = nuclearVelocity(missile, substepStartAge + (missile.age - substepStartAge) * release);
                     const CVECTOR flightHeading(releaseVelocity.x, 0.f, releaseVelocity.z);
                     if ((~flightHeading) > .001f) heading = !flightHeading;
@@ -2311,7 +2303,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     const float height = std::max(0.f, burstPosition.y - pSea->WaveXZ(burstPosition.x, burstPosition.z));
                     scatterTravel = std::max(.05f, clusterFallTravel(height, releaseVelocity.y));
                 }
-                const auto clusterAim = missile.cluster && !missile.intercepted ?
+                const auto clusterAim = isPayloadCarrier(missile) && !missile.intercepted ?
                     clusterImpactAim(missile, burstPosition, releaseVelocity, pSea) : missile.target;
                 const bool tandemCarrier = missile.warhead == PHONK_WARHEAD_TANDEM;
                 const size_t separatedBefore = separated.size();
@@ -2321,8 +2313,8 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                     const bool oreshnik = missile.type == missile::Type::Oreshnik;
                     const float spreadAlong = oreshnik ? 700.f : 75.f, spreadSide = oreshnik ? 700.f : 55.f;
                     const float offset = tandemCarrier ? (index == 0 ? -1.f : 1.f) : 2.f * float(index) / float(missile.warheadCount - 1) - 1.f;
-                    // Authored game spread: two distinct close aim points, not a broad MIRV pattern.
-                    auto target = missile.cluster ? clusterAim : missile.target + side * ((tandemCarrier ? 3.f : 180.f) * offset);
+                    // Tandem children share one endpoint and one longitudinal axis.
+                    auto target = tandemCarrier ? missile.target : (missile.cluster ? clusterAim : missile.target + side * (180.f * offset));
                     if (missile.cluster) {
                         // Scatter across an area, rather than making one
                         // evenly spaced row along the flight direction.
@@ -2403,6 +2395,37 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                         const float height = std::max(0.f, burstPosition.y - pSea->WaveXZ(burstPosition.x, burstPosition.z));
                         child.duration = std::max(30.f, clusterFallSeconds(height, child.initialVelocity.y) + 1.f);
                     }
+                    if (tandemCarrier) {
+                        // Two unpowered bodies on the same cluster ballistic path.
+                        // Same one-time bounded release correction as cluster, without scatter.
+                        // No seeker or post-release guidance/engine.
+                        child.initialVelocity = releaseVelocity;
+                        if (!missile.manualCluster && !missile.manualFlight && !missile.coasting) {
+                            CVECTOR correction((clusterAim.x-burstPosition.x)/scatterTravel-releaseVelocity.x, 0.f,
+                                               (clusterAim.z-burstPosition.z)/scatterTravel-releaseVelocity.z);
+                            const float limit = 30.f + .35f * std::sqrt(~releaseVelocity);
+                            const float correctionSpeed = std::sqrt(~correction);
+                            if (correctionSpeed > limit) correction *= limit / correctionSpeed;
+                            child.initialVelocity += correction;
+                        }
+                        if (index == 1) {
+                            const auto originalLaunch = child.launch;
+                            const auto originalVelocity = child.initialVelocity;
+                            const float speed = std::sqrt(~originalVelocity);
+                            const float travelled = std::sqrt(~(burstPosition - missile.launch));
+                            float lag = std::min(.18f, std::min(12.f, travelled * .5f) / std::max(1.f, speed));
+                            for (unsigned attempt = 0; attempt < 9; ++attempt) {
+                                child.launch = originalLaunch;
+                                child.initialVelocity = originalVelocity;
+                                offsetTrailingTandemChild(child, lag);
+                                if (manual_aim::finite(child.launch) && manual_aim::finite(child.initialVelocity) &&
+                                    firstSurface(pSea, pIsland, receivers, originalLaunch, child.launch, 0, nullptr, true) > 1.f) break;
+                                lag = attempt < 7 ? lag * .5f : 0.f;
+                            }
+                        }
+                        const float height = std::max(0.f, child.launch.y - pSea->WaveXZ(child.launch.x, child.launch.z));
+                        child.duration = std::max(30.f, clusterFallSeconds(height, child.initialVelocity.y) + 1.f);
+                    }
                     child.yield = missile.yield;
                     child.conventional = missile.conventional;
                     child.cluster = missile.cluster;
@@ -2447,7 +2470,7 @@ void SHIP::ExecutePhonkMissilesForOwner(SHIP *sourceShip, entid_t fortModel, uin
                 missile.split = false;
             }
             if (hit > 1.f && missile.age < missile.duration) continue;
-            if (hit > 1.f && isClusterSubmunition(missile) && !missile.intercepted) { missile.active = false; break; }
+            if (hit > 1.f && isBallisticSubmunition(missile) && !missile.intercepted) { missile.active = false; break; }
             if (hit > 1.f && !missile.intercepted && !missile.coasting) {
                 const auto velocity = missile.manualFlight ? missile.manualVelocity : nuclearVelocity(missile, missile.age);
                 missile.launch = after;
@@ -2667,14 +2690,14 @@ void SHIP::FinishPhonkMissilesLate()
             for (const auto &missile : state.missiles) {
                 if (!missile.active || missile.interceptionFragment || missile.shotId != state.cameraShot) continue;
                 flight = true;
-                cluster |= isClusterSubmunition(missile);
+                cluster |= isBallisticSubmunition(missile);
                 const float renderAge = missileRenderAge(missile, core.GetScaledDeltaRemainder());
                 state.cameraPosition = nuclearPosition(missile, renderAge);
-                if (isClusterSubmunition(missile) && missile.manualCluster) {
+                if (isBallisticSubmunition(missile) && missile.manualCluster) {
                     manualClusterCenter += state.cameraPosition;
                     ++manualClusterCount;
                 }
-                if (!isClusterSubmunition(missile)) {
+                if (!isBallisticSubmunition(missile)) {
                     flightAge = missile.age;
                     const auto direction = nuclearVelocity(missile, renderAge);
                     if ((~direction) > .001f) state.cameraTarget = state.cameraPosition + direction;
@@ -4111,15 +4134,15 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
     for (const auto &missile : state.missiles) {
         if (!missile.active || missile.interceptionFragment || missile.shotId != state.cameraShot) continue;
         cameraFlight = true;
-        cameraCluster |= isClusterSubmunition(missile);
-        if (!isClusterSubmunition(missile)) cameraFlightAge = missile.age;
+        cameraCluster |= isBallisticSubmunition(missile);
+        if (!isBallisticSubmunition(missile)) cameraFlightAge = missile.age;
         const float renderAge = missileRenderAge(missile, core.GetScaledDeltaRemainder());
         state.cameraPosition = nuclearPosition(missile, renderAge);
-        if (isClusterSubmunition(missile) && missile.manualCluster) {
+        if (isBallisticSubmunition(missile) && missile.manualCluster) {
             manualClusterCenter += state.cameraPosition;
             ++manualClusterCount;
         }
-        if (!isClusterSubmunition(missile)) {
+        if (!isBallisticSubmunition(missile)) {
             const auto direction = nuclearVelocity(missile, renderAge);
             if ((~direction) > .001f) state.cameraTarget = state.cameraPosition + direction;
         }
@@ -4697,7 +4720,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
         else storm::ship::phonk::missile::geometry(missile.type, emit);
         const bool cruise = missile.type == storm::ship::phonk::missile::Type::Kalibr;
         const float visualAge = cruise && missile.manualFlight && missile.kalibrManualAge >= 0.f ? missile.kalibrManualAge : missile.age;
-        const bool burning = !missile.interceptionFragment && !isClusterSubmunition(missile) && (!cruise || missile.continueVelocity || missile.ignitionPlayed);
+        const bool burning = !missile.interceptionFragment && !isBallisticSubmunition(missile) && (!cruise || missile.continueVelocity || missile.ignitionPlayed);
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
         const float speedSquared = ~actualVelocity;
         const bool supersonic = std::isfinite(speedSquared) && speedSquared > 343.f * 343.f;
@@ -4735,7 +4758,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
             StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &head.x, &axis.x, 4, missile.age);
             if (!missileVfx) missileVfx = StormMetalMissileVfxCapture(pRS->GetNativeDevice());
         }
-        if (missileVfx && cruise && !burning && visualAge < missile::kalibrEjectionDuration(missile.flightVariation) && !missile.interceptionFragment && !isClusterSubmunition(missile)) {
+        if (missileVfx && cruise && !burning && visualAge < missile::kalibrEjectionDuration(missile.flightVariation) && !missile.interceptionFragment && !isBallisticSubmunition(missile)) {
             const auto tail = head - axis * (4.f * modelScale);
             StormMetalMissileVfxMotor(pRS->GetNativeDevice(), &tail.x, &axis.x, 8, visualAge);
         }
@@ -4773,7 +4796,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
         if (missileVfx && burning) { const auto tail=head-axis*((missile.continueVelocity&&missile.cluster?2.f:(cruise?4.f:missile.type==missile::Type::Shtorm?6.f:5.f))*modelScale); const auto bend=exhaustBend(axis,visualAge,missile.visualExhaustAxis,missile.visualExhaustAge); StormMetalMissileVfxMotorBend(pRS->GetNativeDevice(), &tail.x, &axis.x, &bend.x, missileVfxType(missile.type), visualAge); }
 #endif
         if (!missileVfx && burning) strip(head - axis * 10.f, head - axis * 4.f, trailSide * (cruise ? .8f : 1.4f), cruise ? 0xffa6d8ffu : 0xffffad37u);
-        for (unsigned n = 0; !missileVfx && !missile.interceptionFragment && !isClusterSubmunition(missile) && n < 12; ++n)
+        for (unsigned n = 0; !missileVfx && !missile.interceptionFragment && !isBallisticSubmunition(missile) && n < 12; ++n)
         {
             const float a = missile.age - float(n) * .025f;
             if (a <= 0.f) break;
