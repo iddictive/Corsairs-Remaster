@@ -904,6 +904,13 @@ void varyMissile(NuclearMissile &shot, uint32_t owner, float configuredSpeed = 1
 void initializeKinzhalTiming(NuclearMissile &shot)
 {
     if (shot.type != missile::Type::Kinzhal || shot.kinzhalTiming) return;
+    // Curvature uses second differences. Sample in launch-local horizontal
+    // coordinates so world-space float cancellation cannot invent tight turns.
+    // Keep height absolute and do not change the live missile or its aim point.
+    auto sample = shot;
+    sample.target.x -= sample.launch.x;
+    sample.target.z -= sample.launch.z;
+    sample.launch.x = sample.launch.z = 0.f;
     constexpr int count = KinzhalTiming::samples;
     auto timing = std::make_shared<KinzhalTiming>();
     timing->referenceDuration = shot.duration;
@@ -912,13 +919,16 @@ void initializeKinzhalTiming(NuclearMissile &shot)
     const float dt = shot.duration / float(count);
     for (int i = 0; i <= count; ++i) {
         const float time = dt * i;
-        position[i] = nuclearPosition(shot, time);
-        const auto velocity = nuclearVelocity(shot, time);
+        position[i] = nuclearPosition(sample, time);
+        const auto velocity = nuclearVelocity(sample, time);
         const float speed2 = ~velocity;
         speed[i] = std::sqrt(speed2);
         cap[i] = speed[i];
-        if (i > 0 && i < count && speed2 > 1.f) {
-            auto acceleration = (nuclearPosition(shot, time + dt) + nuclearPosition(shot, time - dt) -
+        const bool terminal = missile::trajectoryProgress(shot.type, float(i) / count,
+            shot.duration, shot.flightVariation) >= .5f;
+        if (terminal && i > 0) cap[i] = std::max(cap[i], cap[i - 1]);
+        if (!terminal && i > 0 && i < count && speed2 > 1.f) {
+            auto acceleration = (nuclearPosition(sample, time + dt) + nuclearPosition(sample, time - dt) -
                                  position[i] * 2.f) * (1.f / (dt * dt));
             acceleration -= velocity * ((acceleration | velocity) / speed2);
             const float curvature = std::sqrt(~acceleration) / speed2;
@@ -947,11 +957,15 @@ void advanceEvasion(NuclearMissile &shot, float dt)
     const float originalAge = shot.age;
     float left = std::min(dt, std::max(0.f, shot.duration - shot.age));
     if (shot.kinzhalReplanned) {
+        if (missileFlightProgress(shot, shot.age) >= .5f) left = dt;
         while (left > .000001f) {
             const float step = std::min(.010f, left);
-            const float remaining = std::max(.05f, shot.duration - shot.age);
             const auto position = shot.evasionPosition;
             const auto velocity = shot.evasionVelocity;
+            if (missileFlightProgress(shot, shot.age) >= .5f)
+                shot.duration = std::max(shot.duration, shot.age + step +
+                    std::sqrt(~(shot.target - position)) / std::max(1.f, std::sqrt(~velocity)));
+            const float remaining = std::max(.05f, shot.duration - shot.age);
             // Replan from the current state towards the actual aim point.
             // The terminal velocity is captured from the original approach;
             // neither position nor velocity is snapped back to its curve.
@@ -964,22 +978,47 @@ void advanceEvasion(NuclearMissile &shot, float dt)
                 auto evade = shot.evasionOffset - axis * (shot.evasionOffset | axis);
                 if ((~evade) > .0001f) acceleration += !evade * (65.f * 9.81f);
             }
-            const float parallel = std::clamp(acceleration | axis, -1000.f, 1000.f);
+            const bool terminal = missileFlightProgress(shot, shot.age) >= .5f;
+            const float parallel = std::clamp(acceleration | axis, terminal ? 0.f : -1000.f, 1000.f);
             auto lateral = acceleration - axis * (acceleration | axis);
             const float magnitude2 = ~lateral, limit = 85.f * 9.81f;
-            if (magnitude2 > limit * limit) lateral *= limit / std::sqrt(magnitude2);
+            if (!terminal && magnitude2 > limit * limit) lateral *= limit / std::sqrt(magnitude2);
             acceleration = lateral + axis * parallel;
-            shot.evasionPosition += velocity * step + acceleration * (.5f * step * step);
-            shot.evasionVelocity += acceleration * step;
-            shot.evasionStateAge = shot.age + step;
+            if (terminal && speed2 > 1.f) {
+                // Direction may turn freely on final approach, but changing it
+                // must not consume speed. Tangential acceleration remains bounded.
+                const float speed = std::sqrt(speed2);
+                const float nextSpeed = speed + parallel * step;
+                auto nextVelocity = velocity + acceleration * step;
+                const float nextMagnitude = std::sqrt(~nextVelocity);
+                nextVelocity = nextMagnitude > .001f ? nextVelocity * (nextSpeed / nextMagnitude) : axis * nextSpeed;
+                const auto toTarget = shot.target - position;
+                const float distance = std::sqrt(~toTarget);
+                if (distance <= speed * step) {
+                    // Finish at the actual aim point within this substep. Keep a
+                    // nonzero arrival velocity for collision/continuation logic.
+                    const float arrival = distance / speed;
+                    shot.evasionPosition = shot.target;
+                    shot.evasionVelocity = distance > .001f ? toTarget * (speed / distance) : velocity;
+                    shot.duration = shot.age + arrival;
+                } else {
+                    shot.evasionPosition += (velocity + nextVelocity) * (.5f * step);
+                    shot.evasionVelocity = nextVelocity;
+                }
+            } else {
+                shot.evasionPosition += velocity * step + acceleration * (.5f * step * step);
+                shot.evasionVelocity += acceleration * step;
+            }
+            shot.evasionStateAge = std::min(shot.duration, shot.age + step);
             const auto &last = shot.evasionHistory[(shot.evasionHistoryNext + shot.evasionHistory.size() - 1u) % shot.evasionHistory.size()];
             if (shot.evasionStateAge - last.age >= .010f) {
                 shot.evasionHistory[shot.evasionHistoryNext] = {shot.evasionStateAge, shot.evasionPosition, shot.evasionVelocity};
                 shot.evasionHistoryNext = (shot.evasionHistoryNext + 1u) % shot.evasionHistory.size();
                 shot.evasionHistoryCount = std::min(unsigned(shot.evasionHistory.size()), shot.evasionHistoryCount + 1u);
             }
-            shot.age += step;
+            shot.age = std::min(shot.duration, shot.age + step);
             left -= step;
+            if (shot.age >= shot.duration) left = 0.f;
         }
         shot.age = originalAge;
         return;
