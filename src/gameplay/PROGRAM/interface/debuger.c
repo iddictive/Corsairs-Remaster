@@ -10,6 +10,38 @@ int DebugMenuCount = 0;
 int DebugMenuGroup = 0;
 bool PhonkMissileSettings = false;
 int PhonkMissileSection = 0;
+int PhonkListSection = -1;
+
+int PhonkWarhead_Id(int row)
+{
+	switch (row)
+	{
+	case 0: return 0;
+	case 1: return 1;
+	case 2: return 2;
+	case 3: return 4;
+	case 4: return PHONK_WARHEAD_THERMOBARIC;
+	case 5: return PHONK_WARHEAD_TANDEM;
+	case 6: return 5;
+	}
+	return -1;
+}
+
+string PhonkWarhead_Name(int id)
+{
+	switch (id)
+	{
+	case 0: return "Ядерная";
+	case 1: return "Фугасная";
+	case 2: return "Кассетная";
+	case 3: return "Фугасная";
+	case 4: return "Зажигательная";
+	case PHONK_WARHEAD_THERMOBARIC: return "Термобарическая";
+	case PHONK_WARHEAD_TANDEM: return "Тандемная";
+	case 5: return "Случайная";
+	}
+	return "";
+}
 
 float PhonkMissile_Multiplier(string path)
 {
@@ -23,19 +55,27 @@ float PhonkMissile_Multiplier(string path)
 void PhonkMissile_ListRefresh()
 {
 	int selected = sti(Sea.Phonk.MissileType) + 1;
+	bool warheads = PhonkMissileSection == 1;
+	int current = sti(Sea.Phonk.MissileWarhead);
+	if (current == 3) current = 1;
+	if (warheads) { selected = 1; for (int headRow = 0; headRow < 7; headRow++) { if (PhonkWarhead_Id(headRow) == current) selected = headRow + 1; } }
+	if (PhonkListSection != PhonkMissileSection) DeleteAttribute(&GameInterface,"PHONK_MISSILES");
+	PhonkListSection = PhonkMissileSection;
 	if (CheckAttribute(&GameInterface,"PHONK_MISSILES.select")) selected = sti(GameInterface.PHONK_MISSILES.select);
 	int top = 0;
 	if (CheckAttribute(&GameInterface,"PHONK_MISSILES.top")) top = sti(GameInterface.PHONK_MISSILES.top);
 	DeleteAttribute(&GameInterface,"PHONK_MISSILES");
 	int type = 0;
 	string name = SeaPhonk_MissileName(type);
+	if (warheads) name = PhonkWarhead_Name(PhonkWarhead_Id(type));
 	while (name != "")
 	{
 		string row = "tr" + (type + 1);
-		if (type == sti(Sea.Phonk.MissileType)) name += " [выбрана]";
+		if ((warheads && PhonkWarhead_Id(type) == current) || (!warheads && type == sti(Sea.Phonk.MissileType))) name += " [выбрана]";
 		GameInterface.PHONK_MISSILES.(row).td1.str = name;
 		type = type + 1;
 		name = SeaPhonk_MissileName(type);
+		if (warheads) name = PhonkWarhead_Name(PhonkWarhead_Id(type));
 	}
 	if (selected < 1 || selected > type) selected = 1;
 	if (top < 0) top = 0;
@@ -48,7 +88,15 @@ void PhonkMissile_ListRefresh()
 
 void PhonkMissile_ListSelect(int type)
 {
-	if (!PhonkMissileSettings || PhonkMissileSection != 0 || type < 0 || SeaPhonk_MissileName(type) == "") return;
+	if (!PhonkMissileSettings || type < 0) return;
+	if (PhonkMissileSection == 1) {
+		int head = PhonkWarhead_Id(type);
+		if (head < 0) return;
+		Sea.Phonk.MissileWarhead = head;
+		PhonkMissile_Refresh();
+		return;
+	}
+	if (PhonkMissileSection != 0 || SeaPhonk_MissileName(type) == "") return;
 	Sea.Phonk.MissileType = type;
 	Sea.Phonk.Weapon = 7;
 	PhonkMissile_Refresh();
@@ -81,8 +129,7 @@ void PhonkMissile_Refresh()
 	bool cluster = sti(Sea.Phonk.MissileWarhead) == 2;
 	for (i = 0; i < 13; i++)
 	{
-		bool visible = (PhonkMissileSection == 1 && (i < 5 || ((nuclear || cluster) && i < 7) || (nuclear && i < 9) || i == 11 || i == 12)) || (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
-		if (PhonkMissileSection == 1 && !nuclear && sti(Sea.Phonk.MissileWarhead) != 5 && i >= 7 && i <= 10) visible = true;
+		bool visible = (PhonkMissileSection == 2 && (i < 7 || i == 8 || i == 9 || i == 10 || i == 11)) || (PhonkMissileSection == 3 && (i < 5 || i == 6 || i == 8 || i == 9 || i == 10)) || (PhonkMissileSection == 4 && (i == 0 || i == 1 || i == 2 || i == 4 || i == 6 || i == 8 || i == 9 || i == 10));
 		if (PhonkMissileSection == 2 && (i == 3 || i == 5)) visible = false;
 		SetNodeUsing("ACTION" + i, visible);
 		SetSelectable("ACTION" + i, visible);
@@ -91,9 +138,10 @@ void PhonkMissile_Refresh()
 		if (PhonkMissileSection == 4 && (i == 2 || i == 4 || i == 6)) SetSelectable("ACTION" + i, false);
 	}
 	bool missileList = PhonkMissileSection == 0;
-	SetNodeUsing("PHONK_MISSILES",missileList); SetSelectable("PHONK_MISSILES",missileList);
-	SetNodeUsing("PHONK_MISSILES_SCROLL",missileList); SetSelectable("PHONK_MISSILES_SCROLL",missileList);
-	for (i = 0; i < 8; i++) { bool shown = missileList && (sti(Sea.Phonk.MissileType) != 3 || i < 3 || i == 7); SetNodeUsing("PHONK_CONTROL" + i,shown); SetSelectable("PHONK_CONTROL" + i,shown); }
+	bool warheadList = PhonkMissileSection == 1;
+	SetNodeUsing("PHONK_MISSILES",missileList || warheadList); SetSelectable("PHONK_MISSILES",missileList || warheadList);
+	SetNodeUsing("PHONK_MISSILES_SCROLL",missileList || warheadList); SetSelectable("PHONK_MISSILES_SCROLL",missileList || warheadList);
+	for (i = 0; i < 8; i++) { bool shown = missileList && (sti(Sea.Phonk.MissileType) != 3 || i < 3 || i == 7); if (warheadList) shown = ((i == 1 || i == 2) && (nuclear || cluster)) || ((i == 3 || i == 4) && sti(Sea.Phonk.MissileWarhead) != 5) || ((i == 5 || i == 6) && !nuclear && sti(Sea.Phonk.MissileWarhead) != 5); SetNodeUsing("PHONK_CONTROL" + i,shown); SetSelectable("PHONK_CONTROL" + i,shown); }
 	SetSelectable("PHONK_CONTROL7", false);
 	bool rangeSlide = missileList || PhonkMissileSection == 3;
 	SetNodeUsing("PHONK_RANGE_SLIDE", rangeSlide); SetSelectable("PHONK_RANGE_SLIDE", rangeSlide);
@@ -139,24 +187,15 @@ void PhonkMissile_Refresh()
 	else if (PhonkMissileSection == 1)
 	{
 		SetFormatedText("SECTION_TITLE","Боеголовка");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION0",0,"#Ядерная");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION1",0,"#Осколочно-фугасная");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION2",0,"#Кассетная");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION3",0,"#Зажигательная");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION4",0,"#Термобарическая");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION12",0,"#Тандемная");
-		if (sti(Sea.Phonk.MissileWarhead) == 5) label = "Случайная [выбрана]"; else label = "Случайная";
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION11",0,"#" + label);
-		if (cluster) label = "Суббоеприпасы"; else label = "Боеголовки";
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION5",0,"#" + label + " -");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION6",0,"#" + label + " +");
+		PhonkMissile_ListRefresh();
+		if (cluster) label = "Суббоепр."; else label = "Боеголовки";
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL1",0,"#" + label + " -");
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL2",0,"#" + label + " +");
 		if (nuclear) label = "Мощность"; else label = "Урон x";
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION7",0,"#" + label + " -");
-		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION8",0,"#" + label + " +");
-		if (!nuclear) {
-			SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION9",0,"#Радиус x -");
-			SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"ACTION10",0,"#Радиус x +");
-		}
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL3",0,"#" + label + " -");
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL4",0,"#" + label + " +");
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL5",0,"#Радиус x -");
+		SendMessage(&GameInterface,"lsls",MSG_INTERFACE_MSG_TO_NODE,"PHONK_CONTROL6",0,"#Радиус x +");
 		label = "Выбрана: ";
 		switch (sti(Sea.Phonk.MissileWarhead))
 		{
@@ -166,7 +205,7 @@ void PhonkMissile_Refresh()
 			case 3: label += "осколочно-фугасная" + NewStr() + "Взрыв и осколки поражают корпус, экипаж и паруса."; break;
 			case 4: label += "зажигательная" + NewStr() + "Взрыв может поджечь поражённые корабли."; break;
 			case 5: label += "случайная" + NewStr() + "Случайная неядерная боеголовка при каждом пуске."; break;
-			case PHONK_WARHEAD_TANDEM: label += "тандемная" + NewStr() + "Две фазы взрыва; единый фугасный урон."; break;
+			case PHONK_WARHEAD_TANDEM: label += "тандемная" + NewStr() + "Направленный предвзрыв и основной взрыв; единый фугасный урон."; break;
 			case PHONK_WARHEAD_THERMOBARIC: label += "термобарическая" + NewStr() + "Объёмный взрыв поражает экипаж и может поджечь корабль."; break;
 		}
 		if (nuclear) label += NewStr() + "Боеголовки: " + sti(Sea.Phonk.NuclearWarheads) + "   Уровень мощности: " + sti(Sea.Phonk.NuclearPowerLimit);
@@ -885,15 +924,35 @@ void ProcCommand()
 			if (comName == "activate" || comName == "click" || comName == "rightstep")
 			{
 				PhonkMissile_Command(nodName);
-				if (comName == "rightstep") { if (PhonkMissileSection == 0) SetCurrentNode("PHONK_MISSILES"); else SetCurrentNode("ACTION0"); }
+				if (comName == "rightstep") { if (PhonkMissileSection == 0 || PhonkMissileSection == 1) SetCurrentNode("PHONK_MISSILES"); else SetCurrentNode("ACTION0"); }
 			}
 			return;
 		}
-		if (PhonkMissileSection == 0 && nodName == "PHONK_MISSILES")
+		if ((PhonkMissileSection == 0 || PhonkMissileSection == 1) && nodName == "PHONK_MISSILES")
 		{
-			if (comName == "leftstep") SetCurrentNode("CATEGORY0");
-			if (comName == "rightstep") SetCurrentNode("PHONK_CONTROL0");
+			if (comName == "leftstep") SetCurrentNode("CATEGORY" + PhonkMissileSection);
+			if (comName == "rightstep") {
+				if (PhonkMissileSection == 0) SetCurrentNode("PHONK_CONTROL0");
+				else if (GetSelectable("PHONK_CONTROL1")) SetCurrentNode("PHONK_CONTROL1");
+				else if (GetSelectable("PHONK_CONTROL3")) SetCurrentNode("PHONK_CONTROL3");
+			}
+
 			return;
+		}
+		if (PhonkMissileSection == 1)
+		{
+			for (int headControl = 1; headControl <= 6; headControl++) {
+				if (nodName != "PHONK_CONTROL" + headControl || !GetSelectable(nodName)) continue;
+				if (comName == "activate" || comName == "click") { PhonkMissile_Command("ACTION" + (headControl + 4)); return; }
+				if (comName == "leftstep") { if (headControl % 2 == 0) SetCurrentNode("PHONK_CONTROL" + (headControl - 1)); else SetCurrentNode("PHONK_MISSILES"); return; }
+				if (comName == "rightstep" && headControl % 2 == 1) { SetCurrentNode("PHONK_CONTROL" + (headControl + 1)); return; }
+				int headNext = headControl;
+				if (comName == "upstep") headNext = headControl - 2;
+				if (comName == "downstep") headNext = headControl + 2;
+				if (headNext >= 1 && headNext <= 6 && GetSelectable("PHONK_CONTROL" + headNext)) SetCurrentNode("PHONK_CONTROL" + headNext);
+				else if (comName == "upstep") SetCurrentNode("PHONK_MISSILES");
+				return;
+			}
 		}
 		if (PhonkMissileSection == 0)
 		{

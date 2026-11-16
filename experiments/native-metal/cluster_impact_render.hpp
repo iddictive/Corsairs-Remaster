@@ -162,6 +162,28 @@ float4 ciWarheadSparks(float3 origin,float3 ray,float stop,float age,float kind,
     }
     float alpha=1-exp(-light*.8); return float4(float3(3.5,1.25,.16)*alpha,alpha);
 }
+// Stylized directional impact flash, not a second explosion or penetration model.
+// One bounded analytic ellipsoid follows the incoming visual axis; no VDB,
+// smoke, pressure refraction or additional gameplay event is evaluated here.
+float4 ciTandemPrecursor(float3 origin,float3 ray,float stop,float age,float3 incoming,float lifetime) {
+    float pulse=smoothstep(0.,lifetime*.075,age)*(1.-smoothstep(lifetime*.28,lifetime,age));
+    if(pulse<=0.)return 0;
+    float3 axis=normalize(incoming);
+    float3 q=origin+axis*.18;
+    float along=dot(q,axis),direction=dot(ray,axis);
+    float width=.10+.30*age;
+    float3 o=(q-axis*along)/width+axis*(along/.65);
+    float3 r=(ray-axis*direction)/width+axis*(direction/.65);
+    float a=dot(r,r),b=dot(o,r),c=dot(o,o)-1.;
+    float discriminant=b*b-a*c;
+    if(discriminant<=0.||a<=1e-8)return 0;
+    float root=sqrt(discriminant);
+    float near=max(0.,(-b-root)/a),far=min(stop,(-b+root)/a);
+    if(far<=near)return 0;
+    float alpha=(1.-exp(-(far-near)*8.))*pulse;
+    float3 color=mix(float3(3.8,.65,.08),float3(5.0,3.3,1.5),pulse*.65);
+    return float4(color*alpha,alpha);
+}
 fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpactUniforms &u [[buffer(0)]],
                                   depth2d<float,access::read> depth [[texture(0)]],texture3d<float> noise [[texture(1)]],texture2d<float> atlas [[texture(2)]],texture3d<float> volumeA [[texture(4)]],texture3d<float> volumeB [[texture(5)]],texture2d<float> background [[texture(6)]]) {
     uint2 ij=min(uint2(pixel.xy),uint2(depth.get_width()-1,depth.get_height()-1));
@@ -171,6 +193,7 @@ fragment float4 cluster_impact_fs(float4 pixel [[position]],constant ClusterImpa
     bool hasScene=reverseZ ? d>0. : d<1.;
     float stop=hasScene ? max(0.,dot(ciUnproject(pixel.xy,d,u)-u.eye.xyz,ray))/radius : 1e7;
     float3 origin=(u.eye.xyz-u.centerRadius.xyz)/radius;
+    if(u.incoming.w>0.)return ciTandemPrecursor(origin,ray,stop,u.params.x,u.incoming.xyz,u.incoming.w);
     float3 safe=select(ray,select(float3(-1e-6),float3(1e-6),ray>=0),abs(ray)<1e-6);
     bool air=u.params.y>1.5;
     bool thermo=u.params.w>5.5;
@@ -396,7 +419,7 @@ public:
     // Returns false on invalid input or GPU setup failure, true for a culled draw.
     bool encode(id<MTLDevice> device,id<MTLCommandBuffer> command,id<MTLTexture> target,id<MTLTexture> depth,
                 const simd_float4x4 &view,const simd_float4x4 &projection,simd_float3 worldOrigin,
-                simd_float4 viewport,simd_float3 center,float radius,float age,ClusterImpactSurface surface,float seed,simd_float3 incoming,unsigned warhead=1,id<MTLRenderCommandEncoder> batch=nil) {
+                simd_float4 viewport,simd_float3 center,float radius,float age,ClusterImpactSurface surface,float seed,simd_float3 incoming,unsigned warhead=1,id<MTLRenderCommandEncoder> batch=nil,bool precursorFlash=false) {
         if(!device||!command||!target||!depth||!std::isfinite(seed)) return false;
         const unsigned atlasIndex=unsigned(std::fmod(std::floor(std::fabs(double(seed))*19.),3.));
         id<MTLTexture> explosionAtlas=explosionAtlases[atlasIndex];
@@ -410,16 +433,16 @@ public:
         if(viewport.z<=0||viewport.w<=0) return false;
         if(age>=clusterImpactLife(warhead)) return true;
         if(warhead==tandemWarhead) {
-            // One bounded impact slot, at most two draws. Both phases use the
+            // One bounded impact slot, non-overlapping flash/main draws. Both use the
             // same simulation age (including slow motion), depth and rebase.
             const auto precursor=storm::ship::phonk::tandemPrecursor(age);
             const auto main=storm::ship::phonk::tandemMain(age);
             bool ok=true;
             if(precursor.visible) ok=encode(device,command,target,depth,view,projection,worldOrigin,
-                viewport,center,radius*precursor.radiusScale,precursor.age,surface,seed,incoming,1,batch);
+                viewport,center,radius*precursor.radiusScale,precursor.age,surface,seed,incoming,1,batch,true);
             if(main.visible) {
                 const bool mainOk=encode(device,command,target,depth,view,projection,worldOrigin,
-                    viewport,center,radius*main.radiusScale,main.age,surface,seed+17.f,incoming,1,batch);
+                    viewport,center,radius*main.radiusScale,main.age,surface,seed,incoming,1,batch);
                 ok=ok&&mainOk;
             }
             return ok;
@@ -433,7 +456,7 @@ public:
         ClusterImpactUniforms u{}; u.inverseVP=simd_inverse(vp);u.viewProjection=vp;u.eye=simd_inverse(view).columns[3];
         const simd_float3 visualCenter = center + worldOrigin;
         u.centerRadius=simd_make_float4(visualCenter,radius);
-        u.params={age,surface==ClusterImpactSurface::Air?2.f:surface==ClusterImpactSurface::Land?1.f:0.f,seed,float(warhead)}; u.viewport=viewport;u.incoming=simd_make_float4(incoming/directionLength,0);
+        u.params={age,surface==ClusterImpactSurface::Air?2.f:surface==ClusterImpactSurface::Land?1.f:0.f,seed,float(warhead)}; u.viewport=viewport;u.incoming=simd_make_float4(incoming/directionLength,precursorFlash?storm::ship::phonk::tandemPrecursorLife:0.f);
         const bool thermo=warhead==thermobaricWarhead;
         const bool midair=surface==ClusterImpactSurface::Air;
         const auto &frames=midair?midairFrames:volumeFrames;
@@ -453,11 +476,11 @@ public:
         bool nearPlane=false;
         const float volumeBound=std::min(1.2f,.18f+volumeAge*2.2f)*1.28f;
         const float shockBound=volumeAge<.48f?.12f+volumeAge*3.45f:0.f;
-        const float bound=midair?std::max(1.3f,thermo?0.f:shockBound):warhead==3 && age<1.4f?std::clamp(.4f+4.2f*age,2.f,4.f):2.f;
+        const float bound=precursorFlash?1.f:midair?std::max(1.3f,thermo?0.f:shockBound):warhead==3 && age<1.4f?std::clamp(.4f+4.2f*age,2.f,4.f):2.f;
         const float rise=warhead==thermobaricWarhead?std::max(0.f,volumeAge-.55f)*.09f:0.f;
         const float airExtent=1.4f*u.volumeParams.w;
-        const float lowY=midair?(surface==ClusterImpactSurface::Air?-1.3f:-.2f):-.2f;
-        const float highY=midair?1.3f:2.8f;
+        const float lowY=precursorFlash?-1.f:midair?(surface==ClusterImpactSurface::Air?-1.3f:-.2f):-.2f;
+        const float highY=precursorFlash?1.f:midair?1.3f:2.8f;
         for(float x:{-bound,bound}) for(float y:{lowY,highY}) for(float z:{-bound,bound}) {
             auto clip=simd_mul(vp,simd_make_float4(u.centerRadius.xyz+simd_make_float3(x,y,z)*radius,1));
             if(clip.w<=1e-5f||(reverseZ?clip.z>=clip.w:clip.z<=0)) { nearPlane=true; continue; }

@@ -1494,6 +1494,8 @@ ref GetCurrentCharge()
 				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (зажигательная)";
 			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == PHONK_WARHEAD_THERMOBARIC)
 				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (термобарическая)";
+			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == PHONK_WARHEAD_TANDEM)
+				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (тандемная)";
 			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == 2)
 				BattleInterface.textinfo.Ammo.text = "8: " + missileName + " (кассетная)";
 			else if (CheckAttribute(&Sea,"Phonk.MissileWarhead") && sti(Sea.Phonk.MissileWarhead) == 5)
