@@ -383,13 +383,32 @@ inline float pantsirFlightTime(float distance, uint32_t serial)
     if (d <= 1962.5f) return .5f + 2.f*(d-150.f)/(600.f + std::sqrt(360000.f + 200.f*(d-150.f)));
     return 3.f + (d-1962.5f)/850.f;
 }
+inline constexpr float interceptorMissCoastSeconds = 3.f;
+inline float arcInterceptorArrivalAge(const OrdnanceState::Interceptor &interceptor)
+{
+    return pantsirFlightTime(std::sqrt(~(interceptor.target - interceptor.launch)), interceptor.serial);
+}
+inline void initializeArcInterceptor(OrdnanceState::Interceptor &interceptor)
+{
+    interceptor.duration = arcInterceptorArrivalAge(interceptor) + interceptorMissCoastSeconds;
+}
+inline float interceptorFinishAge(const OrdnanceState::Interceptor &interceptor, float seconds)
+{
+    return std::min(interceptor.duration, interceptor.age + seconds);
+}
+inline bool interceptorVisualTimeout(const OrdnanceState::Interceptor &interceptor, bool contact, bool water)
+{
+    return !interceptor.patriot && !contact && !water;
+}
 inline CVECTOR interceptorPosition(const OrdnanceState::Interceptor &interceptor, float t)
 {
     if (interceptor.patriot)
         return t + .000001f < interceptor.age / interceptor.duration ? interceptor.previousPosition : interceptor.position;
     const CVECTOR delta = interceptor.target - interceptor.launch;
     const float distance = std::sqrt(~delta);
-    t = distance > .001f ? std::clamp(pantsirDistance(std::max(0.f, t) * interceptor.duration, interceptor.serial) / distance, 0.f, 1.f) : 1.f;
+    if (distance <= .001f) return interceptor.target;
+    const float age = std::max(0.f, t) * interceptor.duration;
+    t = pantsirDistance(age, interceptor.serial) / distance;
     CVECTOR lateral(-delta.z, 0.f, delta.x);
     if ((~lateral) > .001f) lateral = !lateral;
     else lateral = CVECTOR(0.f);
@@ -397,9 +416,20 @@ inline CVECTOR interceptorPosition(const OrdnanceState::Interceptor &interceptor
     seed ^= seed >> 16; seed *= 0x7feb352du; seed ^= seed >> 15;
     const float early = float(seed & 65535u) / 32767.5f - 1.f;
     const float late = float(seed >> 16) / 32767.5f - 1.f;
-    const float correction = std::min(3.f, std::sqrt(~delta) * .004f) * t * (1.f-t) *
+    const auto bend = CVECTOR(0.f, interceptor.arc, 0.f) + lateral*interceptor.lateral;
+    const float amplitude = std::min(3.f, distance * .004f);
+    if (t >= 1.f) {
+        // The authored curve ends before this object's lifetime. Carry its last
+        // motion through the remaining frames, instead of parking at the last key.
+        const float arrival = pantsirFlightTime(distance, interceptor.serial);
+        const float sample = std::min(.001f, arrival * .5f);
+        const float rate = (distance - pantsirDistance(arrival - sample, interceptor.serial)) / (distance * sample);
+        const auto endTangent = delta - bend - lateral*(amplitude * late);
+        return interceptor.target + endTangent * (rate * std::max(0.f, age - arrival));
+    }
+    const float correction = amplitude * t * (1.f-t) *
                              (early * (1.f-t) + late * t);
-    return interceptor.launch + delta*t + (CVECTOR(0.f, interceptor.arc, 0.f) + lateral*interceptor.lateral)*(t*(1.f-t)) + lateral*correction;
+    return interceptor.launch + delta*t + bend*(t*(1.f-t)) + lateral*correction;
 }
 inline float kinzhalReferenceAge(const KinzhalTiming &timing, float age)
 {

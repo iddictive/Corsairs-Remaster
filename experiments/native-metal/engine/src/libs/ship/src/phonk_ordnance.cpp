@@ -2813,22 +2813,41 @@ bool SHIP::FinishPhonkInterceptorForOwner(SHIP *sourceShip, entid_t fortModel, u
                 }
             }
             const bool water = !i.frameContact && i.frameWaterTime >= 0.f;
-            if (i.frameSeconds <= 0.f || (!i.frameContact && !water && (i.finished || i.age < i.duration))) return true;
-            const bool contact = i.frameContact;
+            if (i.frameSeconds <= 0.f) return true;
+            bool bridgedContact = false;
+            if (!i.finished && !i.frameContact && !water && !i.patriot && !test && !i.missileShip && airdefense::available()) {
+                const float arrival = arcInterceptorArrivalAge(i);
+                // Legacy shells have no trajectory in the ordinary contact resolver.
+                // Run their existing local check as the model passes that point,
+                // not at the distant end of a missed shot's visual tail.
+                if (i.frameStartAge < arrival && arrival <= i.age) {
+                    const int32_t defender = int32_t(sourceCharacter->GetAttributeAsDword("index", uint32_t(-1)));
+                    if (defender >= 0)
+                        bridgedContact = airdefense::bridge.intercept(airdefense::bridge.context, defender, i.target,
+                            i.blastRadius, 128, &state.airDefenseHitCursor, 4u) != 0;
+                    if (!live() || index >= interceptors.size() || interceptors[index].serial != i.serial) return false;
+                }
+            }
+            const bool contact = i.frameContact || bridgedContact;
+            if (!contact && !water && (i.finished || i.age < i.duration)) return true;
+            // A natural arc timeout is a self-destruct effect, not an area hit
+            // at the new position. Contact and water impacts keep their behavior.
+            const bool visualTimeout = interceptorVisualTimeout(i, contact, water);
             interceptors[index].frameContact = false;
             interceptors[index].frameSeconds = 0.f;
             interceptors[index].finished = true;
-            const auto position = contact ? i.frameContactPosition : water ? i.frameWaterPosition : i.target;
+            const auto position = bridgedContact ? i.target : contact ? i.frameContactPosition :
+                water ? i.frameWaterPosition : interceptorPosition(i, 1.f);
             if (water) pSea->StartImpactWave(position.x, position.z, 5.f);
-            bool hit = i.frameConfirmedHits != 0;
-            if (!test && airdefense::available()) {
+            bool hit = bridgedContact || i.frameConfirmedHits != 0;
+            if (!visualTimeout && !bridgedContact && !test && airdefense::available()) {
                 const int32_t defender = int32_t(sourceCharacter->GetAttributeAsDword("index", uint32_t(-1)));
                 if (defender >= 0)
                     hit |= airdefense::bridge.intercept(airdefense::bridge.context, defender, position,
                         i.blastRadius, 128, &state.airDefenseHitCursor, i.patriot ? 1u : 4u) != 0;
                 if (!live()) return false;
             }
-            if (!contact) {
+            if (!visualTimeout && !contact) {
                 unsigned count = 0;
                 for (const auto id : core.GetEntityIds("ship")) {
                     auto *owner = static_cast<SHIP *>(core.GetEntityPointer(id));
@@ -3131,7 +3150,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                         }
                     }
                     if (i.patriot && i.age < i.duration) advancePatriot(i, tracked, seconds);
-                    else i.age = std::min(i.duration, i.age + seconds);
+                    else i.age = interceptorFinishAge(i, seconds);
                     if (tracked) considerInterceptorEvasion(*tracked, i, before, fort->GetPos(), pSea);
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                     if (i.patriot && patriotMotor(i.age)) {
@@ -3208,11 +3227,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     i.blastRadius = interceptorBlastRadius(patriot, i.serial, ownerIndex);
                     i.fuseDelay = interceptorFuseDelay(i.serial, ownerIndex);
                     if (patriot) initializePatriot(i, position);
-                    else {
-                        const float flightT = pantsirFlightTime(std::sqrt(~(aim-launch)), i.serial);
-                        const float extra = 1.f + 4.f * shotVariation(i.serial, ownerIndex, 0x5a18c943u);
-                        i.duration = std::max(.05f, flightT + extra);
-                    }
+                    else initializeArcInterceptor(i);
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                     StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &launch.x, patriot ? 7 : 2);
 #endif
@@ -3451,7 +3466,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     }
                 }
                 if (interceptor.patriot && interceptor.age < interceptor.duration) advancePatriot(interceptor, tracked, seconds);
-                else interceptor.age = std::min(interceptor.duration, interceptor.age + seconds);
+                else interceptor.age = interceptorFinishAge(interceptor, seconds);
                 if (active && sonicBoom(interceptor.sonicBoomPlayed, state.sonicSoundCooldown,
                         interceptorPosition(interceptor, previousAge / interceptor.duration),
                         interceptorPosition(interceptor, interceptor.age / interceptor.duration),
@@ -3743,11 +3758,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 enemyDefense.back().missileFort = sourceFort;
                 enemyDefense.back().missileGeneration = sourceFort ? fort->GetPhonkOrdnanceGeneration() : 0;
                 if (testPatriot) initializePatriot(enemyDefense.back(), position);
-                else {
-                    const float flightT = pantsirFlightTime(std::sqrt(~(target-launch)), enemyDefense.back().serial);
-                    const float extra = 1.f + 4.f * shotVariation(enemyDefense.back().serial, uint32_t(enemyIndex), 0x5a18c943u);
-                    enemyDefense.back().duration = std::max(.05f, flightT + extra);
-                }
+                else initializeArcInterceptor(enemyDefense.back());
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                 if (testPatriot) StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &launch.x, 7);
 #endif
@@ -3948,11 +3959,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                     state.interceptors.back().missileFort = missileFort;
                     state.interceptors.back().missileGeneration = missileGeneration;
                     if (playerPatriot) initializePatriot(state.interceptors.back(), contact.position);
-                    else {
-                        const float flightT = pantsirFlightTime(distance, state.interceptors.back().serial);
-                        const float extra = 1.f + 4.f * shotVariation(state.interceptors.back().serial, uint32_t(defender), 0x5a18c943u);
-                        state.interceptors.back().duration = std::max(.05f, flightT + extra);
-                    }
+                    else initializeArcInterceptor(state.interceptors.back());
 #ifdef STORM_METAL_SCENE_HUD_BOUNDARY
                     StormMetalMissileVfxBurst(pRS->GetNativeDevice(), &start.x, playerPatriot ? 7 : 2);
 #endif
@@ -4003,7 +4010,7 @@ void SHIP::ExecutePhonkOrdnance(uint32_t deltaTime)
                 }
             }
             if (interceptor.patriot && interceptor.age < interceptor.duration) advancePatriot(interceptor, tracked, seconds);
-            else interceptor.age = std::min(interceptor.duration, interceptor.age + seconds);
+            else interceptor.age = interceptorFinishAge(interceptor, seconds);
             if (sonicBoom(interceptor.sonicBoomPlayed, state.sonicSoundCooldown,
                     interceptorPosition(interceptor, previousAge / interceptor.duration),
                     interceptorPosition(interceptor, interceptor.age / interceptor.duration),
@@ -4851,7 +4858,7 @@ void SHIP::DrawPhonkOrdnanceForOwner(SHIP *sourceShip, entid_t fortModel, uint64
     const auto drawInterceptors = [&](auto &interceptors) {
     for (auto &interceptor : interceptors)
     {
-        if (!std::isfinite(interceptor.duration) || interceptor.duration <= 0.f) continue;
+        if (interceptor.finished || !std::isfinite(interceptor.duration) || interceptor.duration <= 0.f) continue;
         const float fractionalTime = core.GetScaledDeltaRemainder() * .001f;
         const float t = std::clamp((interceptor.age + fractionalTime) / interceptor.duration, 0.f, 1.f);
         const float previousT = std::max(0.f, t - .12f);
